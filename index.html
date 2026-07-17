@@ -43,7 +43,10 @@
    · 다크 :root 는 v0.21.3 픽셀 동일 (건드리지 않음) */
 html[data-theme="light"]{
   --bg:#f4f6fa;--bg2:#ffffff;--panel:#ffffff;--panel2:#f7f9fc;
-  --line:#e2e6ec;--line2:#cfd4dd;--ink:#14181f;--sub:#4a5262;--dim:#8a91a0;
+  --line:#e2e6ec;--line2:#cfd4dd;--ink:#14181f;
+  /* ★ v0.22.2 — --sub / --dim 어둡게 (라이트 메뉴·힌트 대비 확보 · 4.5:1+ 목표)
+     이전: --sub #4a5262(7.75:1), --dim #8a91a0(3.4:1 · WCAG 미달) → 현재: sub 8.5:1+, dim 4.8:1+ */
+  --sub:#3d4451; --dim:#6b7280;
   --cyan:#0d9488;
 }
 /* ★ v0.21.5 — 라이트 국소 보정 (다크 하드코딩 색이 밝은 배경에서 깨지는 최소 지점만)
@@ -213,6 +216,20 @@ label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spaci
 /* ★ v0.22.0 — 게이트 [데모 체험] 버튼 (보조 스타일) */
 .gate-demo-btn{display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:transparent;border:1px dashed var(--line2);color:var(--sub);border-radius:99px;padding:8px 16px;font-size:11.5px;font-weight:600;cursor:pointer;transition:.15s;font-family:inherit;align-self:center;letter-spacing:.3px}
 .gate-demo-btn:hover{border-color:var(--amber);color:var(--amber);background:rgba(251,191,36,.06)}
+/* ★ v0.22.1 — 로그인 표준 폼 (아이디 + 비밀번호 · 눈 아이콘 · 정책 위반 사유) */
+.gp-login-form{display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px}
+.gp-fld{position:relative}
+.gp-fld label{display:block;font-size:10.5px;font-weight:700;color:var(--sub);margin-bottom:5px;letter-spacing:.6px}
+.gp-fld input{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:10px;padding:11px 14px;color:var(--ink);font-size:14px;font-family:inherit;outline:none;transition:.15s}
+.gp-fld input:focus{border-color:var(--cyan-dim);background:var(--bg2)}
+.gp-fld.has-toggle input{padding-right:44px}
+.gp-fld .pw-toggle{position:absolute;right:6px;bottom:6px;background:none;border:none;color:var(--sub);cursor:pointer;font-size:16px;padding:6px 8px;line-height:1;border-radius:6px;transition:.15s}
+.gp-fld .pw-toggle:hover{color:var(--ink);background:var(--panel2)}
+.gp-login-btn{width:100%;border:none;border-radius:11px;padding:12px 0;font-size:13px;font-weight:800;background:var(--cyan);color:#06201c;cursor:pointer;transition:.15s;font-family:inherit;margin-top:4px;letter-spacing:.5px}
+.gp-login-btn:hover{background:var(--cyan-dim)}
+.gp-login-btn:disabled{opacity:.5;cursor:not-allowed}
+.pw-err{font-size:10.5px;color:var(--red);margin-top:5px;line-height:1.4;min-height:14px}
+.pw-hint{font-size:10.5px;color:var(--dim);margin-top:4px;line-height:1.5}
 /* ★ v0.21.4 — 테마 토글 버튼 (헤더 pill 옆) */
 .theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;color:var(--ink);font-size:15px;cursor:pointer;transition:.15s;padding:0;line-height:1}
 .theme-toggle:hover{background:var(--panel);border-color:var(--line2)}
@@ -443,7 +460,7 @@ tr.mst-off td{opacity:.45}
 .dkpi .lab{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--sub);font-weight:600;margin-bottom:12px}
 .dkpi .lab svg{width:15px;height:15px;stroke-width:2;fill:none}
 .dkpi .val{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:30px;line-height:1;letter-spacing:-1px}
-.dkpi .val.c{color:var(--cyan)} .dkpi .val.h{color:var(--heat2)} .dkpi .val.w{color:#fff} .dkpi .val.g{color:var(--green)}
+.dkpi .val.c{color:var(--cyan)} .dkpi .val.h{color:var(--heat2)} .dkpi .val.w{color:var(--ink)} .dkpi .val.g{color:var(--green)}
 .dkpi .unit{font-size:13px;color:var(--sub);font-weight:600;margin-left:3px}
 .dkpi .sub{display:flex;align-items:center;gap:6px;margin-top:11px;font-size:12px;color:var(--sub)}
 .chg{font-weight:700;font-family:'JetBrains Mono',monospace}
@@ -564,7 +581,7 @@ tr.mst-off td{opacity:.45}
 .core-card{margin-bottom:14px}
 .order-total{display:flex;align-items:baseline;justify-content:space-between;margin:16px 0 14px}
 .order-total .lab{font-size:12px;color:var(--sub)}
-.order-total .amt{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:28px;color:#fff}
+.order-total .amt{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:28px;color:var(--ink)}
 .order-total .amt small{font-size:13px;color:var(--sub);font-weight:600;margin-left:6px}
 .stage3{height:28px;border-radius:9px;overflow:hidden;display:flex;border:1px solid var(--line);background:var(--bg)}
 .stage3 .s{height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace;color:#06201c;overflow:hidden;white-space:nowrap;padding:0 4px}
@@ -923,7 +940,7 @@ tr.mst-off td{opacity:.45}
 
   <div class="foot">
     <span class="made">MADE BY JUNS</span>
-    <span class="ver" id="ver-foot">VELA SYSTEM · v0.22.0 · 2026-07-17</span>
+    <span class="ver" id="ver-foot">VELA SYSTEM · v0.22.2 · 2026-07-17</span>
   </div>
 </div>
 
@@ -939,7 +956,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.22.0';
+const APP_VERSION = 'v0.22.2';
 const APP_DATE    = '2026-07-17';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -1497,10 +1514,114 @@ function nameDupExists(name, excludeId){
 
 /* ★ v0.15.4 — 개발자(벤더) 전용 접속 PIN — 최초 납품용 폴백. 업체 데이터 아님(제품 벤더 키).
    ★ v0.15.5 — 저장값 우선 + 코드 기본값 폴백 (getFlags/getCompany 와 동일 패턴).
-   평문 저장 한계는 코드 상수와 동급 — 백엔드 도입 시 해시+원격 검증으로 승격 예정. */
+   ★ v0.22.1 — 저장은 SHA-256+salt('VENDOR') 해시. 신규 값은 sha256:hex, 구값(6자리 숫자)은 legacy 로 통과·즉시 해시 승격. */
 const VENDOR_PIN = '000000';
 function getVendorPin(){
   return DB.get('settings','vendor')?.pin || VENDOR_PIN;
+}
+
+/* ★ v0.22.1 — 비밀번호 정책 · 해시 · 검증 (설정·게이트·강제변경 공용 1벌)
+   정책 (checkPwPolicy): 8자 이상, 영문 1자 이상, 숫자 1자 이상, 이름 포함 금지,
+        단일 문자 반복(000000/aaaa…) 금지, 순차(123456/abcdef 등 A→B 5+연속) 금지.
+   해시 (hashPassword): 저장 형식 'sha256:<64hex>' — salt = 사용자 id (벤더는 'VENDOR').
+        crypto.subtle 우선, 미지원 환경은 내장 sha256 폴백(1벌).
+   검증 (verifyPassword): 저장이 'sha256:' 프리픽스면 해시 비교, 아니면 평문 비교(legacy 마킹).
+        legacy=true 반환 시 호출자가 강제 변경 흐름으로 승격. */
+function checkPwPolicy(pw, name){
+  const s = String(pw==null?'':pw);
+  if(s.length < 8) return { ok:false, reason:'8자 이상 필요' };
+  if(!/[A-Za-z]/.test(s)) return { ok:false, reason:'영문 1자 이상 필요' };
+  if(!/\d/.test(s))       return { ok:false, reason:'숫자 1자 이상 필요' };
+  if(name){
+    const n = String(name).trim();
+    if(n && n.length >= 2 && s.toLowerCase().includes(n.toLowerCase())){
+      return { ok:false, reason:'이름을 비밀번호에 포함할 수 없음' };
+    }
+  }
+  // 동일 문자 반복 — 전체 반복(000000) 또는 4자 이상 연속 동일(aaaa1111 의 'aaaa' 검출)
+  if(/^(.)\1+$/.test(s))  return { ok:false, reason:'동일 문자 반복 사용 불가 (000000/aaaaaaaa 등)' };
+  if(/(.)\1{3,}/.test(s)) return { ok:false, reason:'동일 문자 4회 이상 연속 사용 불가 (aaaa 등)' };
+  // 순차 (6자 이상 연속 증가/감소) — 123456/abcdef/98765 4 는 통과, 'abc12345' 는 통과 (5자 순차)
+  const seqRun = 6;
+  let runInc = 1, runDec = 1;
+  for(let i=1;i<s.length;i++){
+    const d = s.charCodeAt(i) - s.charCodeAt(i-1);
+    runInc = (d === 1) ? runInc + 1 : 1;
+    runDec = (d === -1) ? runDec + 1 : 1;
+    if(runInc >= seqRun || runDec >= seqRun) return { ok:false, reason:'순차 문자열 6자 이상(123456/abcdef 등) 사용 불가' };
+  }
+  return { ok:true };
+}
+// 내장 SHA-256 (crypto.subtle 미지원 폴백 · 1벌 · UTF-8 입력 대응)
+function _sha256HexFallback(str){
+  const utf8 = unescape(encodeURIComponent(String(str==null?'':str)));
+  const bytes = new Array(utf8.length);
+  for(let i=0;i<utf8.length;i++) bytes[i] = utf8.charCodeAt(i) & 0xff;
+  const bitLen = bytes.length * 8;
+  bytes.push(0x80);
+  while((bytes.length % 64) !== 56) bytes.push(0);
+  // append 64-bit big-endian length (high 32 bits = 0 for < 2^32 bits)
+  for(let i=0;i<4;i++) bytes.push(0);
+  bytes.push((bitLen >>> 24) & 0xff);
+  bytes.push((bitLen >>> 16) & 0xff);
+  bytes.push((bitLen >>>  8) & 0xff);
+  bytes.push((bitLen >>>  0) & 0xff);
+  const K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const rr = (n,x) => ((x >>> n) | (x << (32-n))) >>> 0;
+  for(let chunk=0; chunk<bytes.length; chunk+=64){
+    const W = new Array(64);
+    for(let t=0;t<16;t++){
+      W[t] = ((bytes[chunk+t*4]<<24) | (bytes[chunk+t*4+1]<<16) | (bytes[chunk+t*4+2]<<8) | (bytes[chunk+t*4+3])) >>> 0;
+    }
+    for(let t=16;t<64;t++){
+      const s0 = rr(7,W[t-15]) ^ rr(18,W[t-15]) ^ (W[t-15] >>> 3);
+      const s1 = rr(17,W[t-2]) ^ rr(19,W[t-2]) ^ (W[t-2] >>> 10);
+      W[t] = (W[t-16] + s0 + W[t-7] + s1) >>> 0;
+    }
+    let [a,b,c,d,e,f,g,h] = H;
+    for(let t=0;t<64;t++){
+      const S1 = rr(6,e) ^ rr(11,e) ^ rr(25,e);
+      const ch = (e & f) ^ (~e & g);
+      const T1 = (h + S1 + ch + K[t] + W[t]) >>> 0;
+      const S0 = rr(2,a) ^ rr(13,a) ^ rr(22,a);
+      const mj = (a & b) ^ (a & c) ^ (b & c);
+      const T2 = (S0 + mj) >>> 0;
+      h = g; g = f; f = e; e = (d + T1) >>> 0; d = c; c = b; b = a; a = (T1 + T2) >>> 0;
+    }
+    H[0]=(H[0]+a)>>>0; H[1]=(H[1]+b)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0;
+    H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0;
+  }
+  return H.map(x => x.toString(16).padStart(8,'0')).join('');
+}
+async function hashPassword(pw, salt){
+  const input = `${salt||''}::${pw||''}`;
+  try {
+    if(typeof crypto !== 'undefined' && crypto.subtle && typeof crypto.subtle.digest === 'function' && typeof TextEncoder !== 'undefined'){
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+      const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+      return 'sha256:' + hex;
+    }
+  } catch(e){ /* fallback below */ }
+  return 'sha256:' + _sha256HexFallback(input);
+}
+async function verifyPassword(input, opts){
+  // opts: { stored, salt } — 사용자·벤더 공용. legacy 마킹 시 호출자가 강제 변경 흐름으로 이행.
+  if(!opts || opts.stored == null || input == null) return { match:false, legacy:false };
+  const stored = String(opts.stored);
+  if(stored.startsWith('sha256:')){
+    const h = await hashPassword(input, opts.salt || '');
+    return { match: h === stored, legacy: false };
+  }
+  // legacy 평문 (구 숫자 6자리 · 초기 000000 · 벤더 000000 등)
+  return { match: input === stored, legacy: input === stored };
 }
 
 /* ★ v0.11.0 — 교대 세션 (작업자+교대+설비) — 실적 등록시 자동 태깅 */
@@ -2890,119 +3011,151 @@ function renderGate(){
   }
 }
 function renderRegisterForm(){
+  // ★ v0.22.1 — 신 정책 적용 · 저장은 SHA-256+salt(사용자 id) 해시
   document.getElementById('gate-reg').innerHTML = `
     <span class="fr-badge">최초 실행</span>
     <div class="fr-title">관리책임자 등록</div>
     <div class="fr-sub">첫 관리자를 등록하세요 · 등록 즉시 입장</div>
-    <div class="fld"><label>이름</label><input id="rf-name" autocomplete="off" placeholder="예: 홍길동"></div>
-    <div class="fld"><label>PIN 6자리</label><input class="mono" id="rf-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="······"></div>
-    <div class="fld"><label>PIN 확인</label><input class="mono" id="rf-pin2" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="······"></div>
+    <div class="fld"><label>이름</label><input id="rf-name" autocomplete="username" placeholder="예: 홍길동"></div>
+    <div class="fld" style="position:relative"><label>비밀번호</label>
+      <input id="rf-pw" type="password" autocomplete="new-password" spellcheck="false" placeholder="8자 이상 · 영문+숫자">
+      <button type="button" class="pw-toggle" id="rf-pw-tog" style="position:absolute;right:4px;bottom:4px;background:none;border:none;color:var(--sub);cursor:pointer;font-size:15px;padding:5px 8px" title="표시/숨김">👁</button>
+    </div>
+    <div class="fld" style="position:relative"><label>비밀번호 확인</label>
+      <input id="rf-pw2" type="password" autocomplete="new-password" spellcheck="false" placeholder="비밀번호 확인">
+      <button type="button" class="pw-toggle" id="rf-pw2-tog" style="position:absolute;right:4px;bottom:4px;background:none;border:none;color:var(--sub);cursor:pointer;font-size:15px;padding:5px 8px" title="표시/숨김">👁</button>
+    </div>
+    <div class="pw-err" id="rf-err"></div>
     <button class="reg-btn" id="rf-save">등록하고 입장</button>
-    <div class="fr-note"><b>이 카드는 최초 1회만 표시</b> — 첫 관리자 등록 후 영구 소멸<br>이후 직원 PIN 발급·관리는 설정 › 사용자 관리에서</div>
+    <div class="fr-note"><b>이 카드는 최초 1회만 표시</b> — 첫 관리자 등록 후 영구 소멸<br>이후 직원 비밀번호 발급·관리는 설정 › 사용자 관리에서</div>
   `;
-  const doSave = ()=>{
-    const name = document.getElementById('rf-name').value.trim();
-    const pin  = document.getElementById('rf-pin').value.trim();
-    const pin2 = document.getElementById('rf-pin2').value.trim();
-    if(!name){ toast('이름을 입력하세요','warn'); return; }
-    // ★ v0.16.22 — 예약어(juns/개발자) 이름 등록 차단
-    if(isReservedName(name)){ toast('예약된 이름은 사용할 수 없습니다','err'); return; }
-    if(!/^\d{6}$/.test(pin)){ toast('PIN은 숫자 6자리','warn'); return; }
-    if(pin !== pin2){ toast('PIN 확인이 일치하지 않습니다','err'); return; }
-    // U-001 채번 (최초 등록은 users.length===0 이므로 U-001)
+  const pwEl = document.getElementById('rf-pw');
+  const pw2El = document.getElementById('rf-pw2');
+  const errEl = document.getElementById('rf-err');
+  const nameEl = document.getElementById('rf-name');
+  const showErr = (m) => { errEl.textContent = m || ''; };
+  const wireToggle = (inputId, btnId) => {
+    const inp = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    btn.onclick = () => { const wasPw = inp.type === 'password'; inp.type = wasPw?'text':'password'; btn.textContent = wasPw?'🙈':'👁'; inp.focus(); };
+  };
+  wireToggle('rf-pw', 'rf-pw-tog');
+  wireToggle('rf-pw2', 'rf-pw2-tog');
+  pwEl.addEventListener('input', () => { const r = checkPwPolicy(pwEl.value, nameEl.value.trim()); showErr(r.ok ? '' : r.reason); });
+  const doSave = async () => {
+    const name = nameEl.value.trim();
+    const pw   = pwEl.value || '';
+    const pw2  = pw2El.value || '';
+    if(!name){ showErr('이름을 입력하세요'); return; }
+    if(isReservedName(name)){ showErr('예약된 이름은 사용할 수 없습니다'); return; }
+    const chk = checkPwPolicy(pw, name);
+    if(!chk.ok){ showErr(chk.reason); pwEl.focus(); return; }
+    if(pw !== pw2){ showErr('비밀번호 확인이 일치하지 않습니다'); pw2El.focus(); return; }
     const id = `U-${String(DB.all('users').length + 1).padStart(3,'0')}`;
-    const u = { id, name, pin, role:'manager', active:true, created_at:Date.now(), last_login:null };
-    DB.set('users', id, u);
-    toast(`관리책임자 등록 완료 — ${name}`,'ok');
-    // users.length===0 조건이 이미 깨졌으므로 등록 카드 즉시 소멸(단방향 가드 반영)
-    document.getElementById('gate-reg')?.remove();
-    showRecognition(u);   // v0.14.0 인증 흐름 그대로 재사용
+    try {
+      const hash = await hashPassword(pw, id);
+      const u = { id, name, pin: hash, role:'manager', active:true, created_at:Date.now(), last_login:null };
+      DB.set('users', id, u);
+      toast(`관리책임자 등록 완료 — ${name}`,'ok');
+      document.getElementById('gate-reg')?.remove();
+      showRecognition(u);
+    } catch(e){
+      console.error('[VELA] register admin failed', e);
+      showErr('저장 실패 — 콘솔 확인');
+    }
   };
   document.getElementById('rf-save').onclick = doSave;
-  document.getElementById('rf-pin2').addEventListener('keydown', e=>{ if(e.key==='Enter') doSave(); });
+  pw2El.addEventListener('keydown', e => { if(e.key==='Enter') doSave(); });
+  pwEl.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); pw2El.focus(); }});
 }
+/* ★ v0.22.1 — 로그인 표준 폼 (아이디 + 비밀번호) · 폰 OS 키보드 · 눈 아이콘 · Enter 로그인.
+   기존 renderPinPad 함수명 유지(호출부 무수정). 숫자 키패드 제거. 배경·좌 패널 톤 불변.
+   [데모 체험] 버튼 위치 보존. */
 function renderPinPad(){
-  // ★ v0.16.22 — 이름 datalist (active 사용자만 · 개발자 예약어는 등록 차단으로 자연 비노출)
   const activeNames = DB.all('users').filter(u => u.active === true).map(u => u.name).filter(Boolean);
   const dlist = activeNames.map(n => `<option value="${_esc(n)}">`).join('');
   document.getElementById('pin-box').innerHTML = `
-    <div class="gp-title">이름 · 비밀번호</div>
-    <div class="gp-sub">이름과 6자리 비밀번호로 접속</div>
-    <div class="gp-name-fld">
-      <label for="gt-name">이름</label>
-      <input id="gt-name" list="gt-names" autocomplete="off" spellcheck="false"
-             autocapitalize="off" enterkeyhint="next" placeholder="예: 홍길동">
-      <datalist id="gt-names">${dlist}</datalist>
-    </div>
-    <div class="pin-display" id="pin-display">······</div>
-    <div class="pin-pad" id="pin-pad"></div>
-    <div class="gp-hint">이름 + 비밀번호로 접속 · 초기 비밀번호는 <b style="color:var(--cyan)">000000</b></div>
+    <div class="gp-title">아이디 · 비밀번호</div>
+    <div class="gp-sub">이름과 비밀번호로 접속 · 8자 이상 (영문+숫자)</div>
+    <form class="gp-login-form" id="gt-form" autocomplete="on" onsubmit="return false">
+      <div class="gp-fld">
+        <label for="gt-name">이름</label>
+        <input id="gt-name" name="username" list="gt-names" autocomplete="username" spellcheck="false"
+               autocapitalize="off" enterkeyhint="next" placeholder="예: 홍길동">
+        <datalist id="gt-names">${dlist}</datalist>
+      </div>
+      <div class="gp-fld has-toggle">
+        <label for="gt-pw">비밀번호</label>
+        <input id="gt-pw" name="password" type="password" autocomplete="current-password" spellcheck="false"
+               autocapitalize="off" enterkeyhint="go" placeholder="비밀번호">
+        <button type="button" class="pw-toggle" id="gt-pw-toggle" aria-label="비밀번호 표시/숨김" title="비밀번호 표시/숨김">👁</button>
+      </div>
+      <div class="pw-err" id="gt-err"></div>
+      <button type="submit" class="gp-login-btn" id="gt-login">로그인</button>
+      <div class="pw-hint">초기 비밀번호 <b style="color:var(--cyan)">000000</b> · 첫 로그인 시 새 정책으로 변경</div>
+    </form>
     <!-- ★ v0.22.0 — 데모 체험 진입 (보조 스타일 · 주 동선 방해 금지) -->
     <button class="gate-demo-btn" type="button" onclick="onDemoClick()" title="샘플 데이터로 전 기능 체험 (실데이터·서버와 완전 분리)">▶ 데모 체험</button>
   `;
-  const pad = document.getElementById('pin-pad');
-  const disp = document.getElementById('pin-display');
   const nameEl = document.getElementById('gt-name');
-  let buf='';
-  const draw = ()=> { disp.textContent = '●'.repeat(buf.length).padEnd(6,'·'); }; // v0.16.0 — 입력 숫자 마스킹
-  const keys = ['1','2','3','4','5','6','7','8','9','C','0','✓'];
-  pad.innerHTML = keys.map(k=>`<button data-k="${k}"${k==='✓'?' class="act"':''}>${k}</button>`).join('');
-  function failFlash(){
-    disp.classList.add('err');
-    toast('이름 또는 비밀번호가 올바르지 않습니다','err');
-    setTimeout(()=>{ buf=''; disp.classList.remove('err'); draw(); }, 400);
-  }
-  function submit(){
-    // ★ v0.16.22 — 이름+비밀번호 2요소. 이름 미입력 시 이름 칸 포커스+안내.
-    const nameRaw = (nameEl?.value || '').trim();
-    if(!nameRaw){
-      nameEl?.focus();
-      toast('이름을 입력하세요','warn');
-      return;
-    }
-    const norm = _normName(nameRaw);
-    // 개발자(벤더) 분기: 예약어 'juns'/'개발자' + vendorPin. VENDOR 가상 세션(비노출·last_login 스킵) 그대로.
-    if((norm === 'juns' || norm === '개발자') && buf === getVendorPin()){
-      showRecognition({ id:'VENDOR', name:'개발자(JUNS)', role:'vendor' });
-      return;
-    }
-    // 사용자: name===입력(trim) && pin===buf && active
-    const u = DB.all('users').find(x => x.active === true && String(x.name||'').trim() === nameRaw && x.pin === buf);
-    if(!u){ failFlash(); return; }
-    // 최초 로그인 강제 변경 가드 — pin==='000000'
-    if(u.pin === '000000'){ openForcePinChange(u); return; }
-    showRecognition(u);
-  }
-  pad.addEventListener('click', e=>{
-    const k = e.target.closest('button')?.dataset.k;
-    if(!k) return;
-    if(k==='C'){ buf=''; disp.classList.remove('err'); draw(); return; }
-    if(k==='✓'){
-      if(buf.length<6){ toast('PIN 6자리','warn'); return; }
-      submit(); return;
-    }
-    if(buf.length<6){
-      buf += k; draw();
-      if(buf.length===6) setTimeout(submit, 150);   // 6자리 자동 제출
-    }
-  });
-  // 키보드 입력 — 게이트 활성 시에만. 등록 카드 input 포커스 중엔 간섭 X.
-  detachGateKey();
-  _gateKeyHandler = (e) => {
-    if(SESSION.loggedIn) return;
-    if(document.getElementById('pin-gate').classList.contains('hide')) return;
-    // v0.14.1 — 등록 카드 input(이름/PIN)에 포커스 있으면 PIN 패드 키 처리 스킵
-    const t = e.target;
-    if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    if(/^[0-9]$/.test(e.key) && buf.length<6){
-      buf+=e.key; draw();
-      if(buf.length===6) setTimeout(submit,150);
-      return;
-    }
-    if(e.key==='Backspace'){ buf=buf.slice(0,-1); disp.classList.remove('err'); draw(); return; }
-    if(e.key==='Enter' && buf.length===6) submit();
+  const pwEl   = document.getElementById('gt-pw');
+  const errEl  = document.getElementById('gt-err');
+  const btnEl  = document.getElementById('gt-login');
+  const toggleEl = document.getElementById('gt-pw-toggle');
+  const showErr = (msg) => { errEl.textContent = msg || ''; };
+  // 눈 아이콘 토글
+  toggleEl.onclick = () => {
+    const isPw = pwEl.type === 'password';
+    pwEl.type = isPw ? 'text' : 'password';
+    toggleEl.textContent = isPw ? '🙈' : '👁';
+    pwEl.focus();
   };
-  window.addEventListener('keydown', _gateKeyHandler);
+  async function submit(){
+    showErr('');
+    const nameRaw = (nameEl.value || '').trim();
+    const pw      = pwEl.value || '';
+    if(!nameRaw){ showErr('이름을 입력하세요'); nameEl.focus(); return; }
+    if(!pw){     showErr('비밀번호를 입력하세요'); pwEl.focus(); return; }
+    btnEl.disabled = true;
+    try {
+      const norm = _normName(nameRaw);
+      // 개발자(벤더) 분기 — 저장 pin 이 sha256 이면 해시 비교, 아니면 legacy 평문 비교
+      if(norm === 'juns' || norm === '개발자'){
+        const v = await verifyPassword(pw, { stored: getVendorPin(), salt: 'VENDOR' });
+        if(!v.match){ showErr('이름 또는 비밀번호가 올바르지 않습니다'); btnEl.disabled = false; return; }
+        // legacy(구 6자리 평문) → 강제 변경 (해시 승격 + 새 정책 적용)
+        if(v.legacy){
+          openForcePwChange({ id:'VENDOR', name:'개발자(JUNS)', role:'vendor' }, { reason: getVendorPin() === '000000' ? '초기 비밀번호 변경' : '보안 정책 강화 — 새 비밀번호 설정' });
+          return;
+        }
+        showRecognition({ id:'VENDOR', name:'개발자(JUNS)', role:'vendor' });
+        return;
+      }
+      // 사용자 — 이름 일치 필터 후 비밀번호 검증
+      const cand = DB.all('users').find(x => x.active === true && String(x.name||'').trim() === nameRaw);
+      if(!cand){ showErr('이름 또는 비밀번호가 올바르지 않습니다'); btnEl.disabled = false; return; }
+      const v = await verifyPassword(pw, { stored: cand.pin, salt: cand.id });
+      if(!v.match){ showErr('이름 또는 비밀번호가 올바르지 않습니다'); btnEl.disabled = false; return; }
+      if(v.legacy){
+        // 초기 000000 이거나 구 평문 → 강제 변경
+        const reason = (cand.pin === '000000') ? '초기 비밀번호 변경' : '보안 정책 강화 — 새 비밀번호 설정';
+        openForcePwChange(cand, { reason });
+        return;
+      }
+      showRecognition(cand);
+    } catch(e){
+      console.error('[VELA] login error', e);
+      showErr('로그인 처리 오류 — 콘솔 확인');
+      btnEl.disabled = false;
+    }
+  }
+  btnEl.onclick = submit;
+  document.getElementById('gt-form').addEventListener('submit', submit);
+  pwEl.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); submit(); }});
+  nameEl.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); pwEl.focus(); }});
+  // 게이트 window keydown handler 는 표준 폼에선 불필요 (input 이 자체 처리)
+  detachGateKey();
+  setTimeout(() => nameEl?.focus(), 60);
 }
 function detachGateKey(){
   if(_gateKeyHandler){ window.removeEventListener('keydown', _gateKeyHandler); _gateKeyHandler = null; }
@@ -3024,43 +3177,87 @@ function showRecognition(u){
   `;
   setTimeout(()=>enterAsUser(u), 800);
 }
-/* ★ v0.16.22 — 최초 로그인 강제 변경 모달 · 인증 성공 && pin==='000000' 일 때만 진입.
-   취소·건너뛰기 불가(닫기 X 없음). 000000 재설정 차단. 변경 완료 후 인식 카드→입장. */
-function openForcePinChange(u){
+/* ★ v0.22.1 — 강제 비밀번호 변경 모달 (신 정책 · 해시 저장 · 벤더 겸용)
+   진입 계기: (a) 초기 000000 첫 로그인 (b) legacy 평문 로그인 성공 후 해시 승격.
+   저장: 사용자 → DB.set('users', id, { pin: 'sha256:hex' }) · 벤더 → DB.set('settings','vendor', { pin }).
+   구 함수명(openForcePinChange) 을 별칭으로 유지해 외부 호출 무영향. */
+function openForcePwChange(u, opts){
+  const reason = (opts && opts.reason) || '초기 비밀번호 변경';
+  const isVendor = (u && u.id === 'VENDOR');
   detachGateKey();
   openModal(`
-    <h2>초기 비밀번호 변경 — ${_esc(u.name)}</h2>
+    <h2>${_esc(reason)} — ${_esc(u.name)}</h2>
     <div class="body">
       <div style="color:var(--sub);font-size:11.5px;line-height:1.7">
-        최초 접속입니다 — 새 비밀번호를 설정해야 입장할 수 있습니다.<br>
-        <span style="color:var(--dim)">초기 비밀번호(<b style="color:var(--amber)">000000</b>) 재설정 불가.</span>
+        ${reason === '초기 비밀번호 변경'
+          ? '최초 접속입니다 — 새 비밀번호를 설정해야 입장할 수 있습니다.'
+          : '보안 정책이 강화되었습니다 — 새 정책에 맞춘 비밀번호로 변경 후 입장하세요.'}<br>
+        <span style="color:var(--dim)">정책: 8자 이상 · 영문 1자 이상 · 숫자 1자 이상 · 이름 포함/반복(000000)/순차(123456) 금지</span>
       </div>
-      <div><label>새 PIN 6자리</label>
-        <input id="fp-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"
-               style="font-family:'JetBrains Mono',monospace;letter-spacing:6px" placeholder="······"></div>
-      <div><label>PIN 확인</label>
-        <input id="fp-pin2" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"
-               style="font-family:'JetBrains Mono',monospace;letter-spacing:6px" placeholder="······"></div>
+      <div class="gp-fld has-toggle" style="margin-top:10px">
+        <label>새 비밀번호</label>
+        <input id="fp-pw" type="password" autocomplete="new-password" spellcheck="false" placeholder="새 비밀번호">
+        <button type="button" class="pw-toggle" id="fp-pw-tog" title="표시/숨김">👁</button>
+      </div>
+      <div class="gp-fld has-toggle" style="margin-top:8px">
+        <label>비밀번호 확인</label>
+        <input id="fp-pw2" type="password" autocomplete="new-password" spellcheck="false" placeholder="새 비밀번호 확인">
+        <button type="button" class="pw-toggle" id="fp-pw2-tog" title="표시/숨김">👁</button>
+      </div>
+      <div class="pw-err" id="fp-err"></div>
       <div class="actions">
-        <button class="btn primary" id="fp-ok">${ico('save')}변경하고 입장</button>
+        <button class="btn primary" id="fp-ok">${ico('save')}변경하고 ${isVendor?'접속':'입장'}</button>
       </div>
     </div>
   `);
-  const doSave = ()=>{
-    const p  = document.getElementById('fp-pin').value.trim();
-    const p2 = document.getElementById('fp-pin2').value.trim();
-    if(!/^\d{6}$/.test(p)){ toast('PIN은 숫자 6자리','warn'); return; }
-    if(p === '000000'){ toast('초기 비밀번호(000000)로 재설정할 수 없습니다','err'); return; }
-    if(p !== p2){ toast('PIN 확인이 일치하지 않습니다','err'); return; }
-    DB.set('users', u.id, { pin: p });
-    closeModal();
-    toast('비밀번호 변경 완료 — 입장합니다','ok');
-    showRecognition({ ...u, pin: p });
+  const pwEl  = document.getElementById('fp-pw');
+  const pw2El = document.getElementById('fp-pw2');
+  const errEl = document.getElementById('fp-err');
+  const okEl  = document.getElementById('fp-ok');
+  const showErr = (m) => { errEl.textContent = m || ''; };
+  const wireToggle = (inputId, btnId) => {
+    const inp = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    btn.onclick = () => { const wasPw = inp.type === 'password'; inp.type = wasPw?'text':'password'; btn.textContent = wasPw?'🙈':'👁'; inp.focus(); };
   };
-  document.getElementById('fp-ok').onclick = doSave;
-  document.getElementById('fp-pin2').addEventListener('keydown', e=>{ if(e.key==='Enter') doSave(); });
-  setTimeout(()=>document.getElementById('fp-pin')?.focus(), 60);
+  wireToggle('fp-pw', 'fp-pw-tog');
+  wireToggle('fp-pw2', 'fp-pw2-tog');
+  // 실시간 정책 힌트
+  pwEl.addEventListener('input', () => {
+    const r = checkPwPolicy(pwEl.value, u.name);
+    showErr(r.ok ? '' : r.reason);
+  });
+  const doSave = async () => {
+    const p  = pwEl.value || '';
+    const p2 = pw2El.value || '';
+    const chk = checkPwPolicy(p, u.name);
+    if(!chk.ok){ showErr(chk.reason); pwEl.focus(); return; }
+    if(p !== p2){ showErr('비밀번호 확인이 일치하지 않습니다'); pw2El.focus(); return; }
+    okEl.disabled = true;
+    try {
+      const salt = isVendor ? 'VENDOR' : u.id;
+      const hash = await hashPassword(p, salt);
+      if(isVendor){
+        DB.set('settings', 'vendor', { pin: hash });
+      } else {
+        DB.set('users', u.id, { pin: hash });
+      }
+      closeModal();
+      toast('비밀번호 변경 완료 — 입장합니다', 'ok');
+      showRecognition({ ...u, pin: hash });
+    } catch(e){
+      console.error('[VELA] force pw change failed', e);
+      showErr('저장 실패 — 콘솔 확인');
+      okEl.disabled = false;
+    }
+  };
+  okEl.onclick = doSave;
+  pw2El.addEventListener('keydown', e => { if(e.key === 'Enter') doSave(); });
+  pwEl.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); pw2El.focus(); }});
+  setTimeout(() => pwEl.focus(), 60);
 }
+// 구 함수명 별칭 (외부 호출부 무수정 유지)
+const openForcePinChange = openForcePwChange;
 function enterAsUser(u){
   SESSION.userId  = u.id;
   SESSION.user    = u.name;      // ← _logs.by(746·756줄)에 실명 자동 기록
@@ -3313,7 +3510,7 @@ function renderTrendSVG(pts){
   return `<svg class="linechart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <defs><linearGradient id="trendG" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#5eead4" stop-opacity=".25"/><stop offset="100%" stop-color="#5eead4" stop-opacity="0"/></linearGradient></defs>
     <path d="${fill}" fill="url(#trendG)"/>
-    <path d="${pathD}" stroke="#5eead4" stroke-width="2" fill="none"/>
+    <path d="${pathD}" stroke="var(--cyan)" stroke-width="2" fill="none"/>
     ${dots}${vals}${labels}
   </svg>`;
 }
@@ -4003,12 +4200,12 @@ VIEWS.dash = () => {
     <div class="secttl">매출 현황 · SALES</div>
     <div class="sales-hero">
       <div class="dkpi clk" onclick="location.hash='#ship'"><span class="goarrow">출하·매출 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="#5eead4"><path d="M5 4l3.5 8M19 4l-3.5 8M8.5 12h7M5 16h14M12 12v8"/></svg>당월 매출</div>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M5 4l3.5 8M19 4l-3.5 8M8.5 12h7M5 16h14M12 12v8"/></svg>당월 매출</div>
         <div class="val c">${monthSales>0? '₩'+Math.round(monthSales).toLocaleString() : '<span style="color:var(--dim);font-size:18px">수집중</span>'}</div>
         <div class="sub">${monthSalesChg===null? '<span class="nodata">전월 데이터 없음</span>' : `전월 대비 <span class="chg ${monthSalesChg>=0?'up':'down'}">${monthSalesChg>=0?'▲':'▼'} ${Math.abs(monthSalesChg).toFixed(1)}%</span>`}</div>
       </div>
       <div class="dkpi clk" onclick="location.hash='#ship'"><span class="goarrow">출하·매출 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="#5eead4"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>연 누적 매출</div>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>연 누적 매출</div>
         <div class="val w">${yearSales>0? '₩'+Math.round(yearSales).toLocaleString() : '<span style="color:var(--dim);font-size:18px">수집중</span>'}</div>
         <div class="sub">${yearSalesChg===null? '<span class="nodata">전년 데이터 없음 · 다음 해부터 비교</span>' : `전년 대비 <span class="chg ${yearSalesChg>=0?'up':'down'}">${yearSalesChg>=0?'▲':'▼'} ${Math.abs(yearSalesChg).toFixed(1)}%</span>`}</div>
       </div>
@@ -4109,12 +4306,12 @@ VIEWS.dash = () => {
     <!-- 1. 생산 KPI -->
     <div class="hero">
       <div class="dkpi clk" onclick="location.hash='#perf'"><span class="goarrow">실적 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="#5eead4"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>일 생산량</div>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>일 생산량</div>
         <div class="val c">${dayGood.toLocaleString()}<span class="unit">ea</span></div>
         <div class="sub">${dayChg===null? '<span class="nodata">어제 데이터 없음</span>' : `<span class="chg ${dayChg>=0?'up':'down'}">${dayChg>=0?'▲':'▼'} ${Math.abs(dayChg).toFixed(1)}%</span> 어제 대비`}</div>
       </div>
       <div class="dkpi clk" onclick="location.hash='#perf'"><span class="goarrow">실적 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="#5eead4"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>월 생산량</div>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>월 생산량</div>
         <div class="val w">${monthGood.toLocaleString()}<span class="unit">ea</span></div>
         <div class="sub">${now.getMonth()+1}월 ${monthPct===null? '<span class="nodata">· 목표 미설정</span>' : `· 목표 <b style="color:var(--ink);font-family:'JetBrains Mono'">${monthTarget.toLocaleString()}</b> 대비 <span class="up" style="font-weight:700">${monthPct.toFixed(0)}%</span>`}</div>
       </div>
@@ -4125,13 +4322,13 @@ VIEWS.dash = () => {
       </div>
       ${capaOn? `
         <div class="dkpi clk" onclick="navEqStatus('day')"><span class="goarrow">설비부하 ↗</span>
-          <div class="lab"><svg viewBox="0 0 24 24" stroke="#5eead4"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>설비 평균 가동률</div>
+          <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>설비 평균 가동률</div>
           <div class="val">${capaAvg===null? '—' : capaAvg.toFixed(0)+'<span class="unit">%</span>'}</div>
           <div class="sub">${capaAvg===null? '<span class="nodata">설비 마스터 없음</span>' : `<span style="color:var(--red);font-weight:700">${capaOver}대</span> 초과 · <span style="color:var(--green);font-weight:700">${capaEasy}대</span> 여유`}</div>
         </div>
       ` : `
         <div class="dkpi clk" onclick="location.hash='#lot'"><span class="goarrow">LOT ↗</span>
-          <div class="lab"><svg viewBox="0 0 24 24" stroke="#5eead4"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="M7 10v4M17 14v-4"/></svg>진행 LOT</div>
+          <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="M7 10v4M17 14v-4"/></svg>진행 LOT</div>
           <div class="val">${DB.all('production_lots').filter(l=>LOT.nextProcess(l.plot_no)).length}<span class="unit">건</span></div>
           <div class="sub">미완 공정 보유</div>
         </div>
@@ -4217,7 +4414,7 @@ VIEWS.dash = () => {
         <div class="ks">${osShare===null? '<span class="nodata">실적 없음</span>' : '외주 실적 / 전체 실적'}</div>
       </div>
       <div class="kc clk" onclick="location.hash='#so'"><span class="goarrow">수주 ↗</span>
-        <div class="kl"><svg width="13" height="13" viewBox="0 0 24 24" stroke="#5eead4"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>납기 준수율</div>
+        <div class="kl"><svg width="13" height="13" viewBox="0 0 24 24" stroke="var(--cyan)"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>납기 준수율</div>
         <div class="kv" style="color:var(--cyan)">${onTimePct===null? '—' : onTimePct.toFixed(1)+'<span style="font-size:13px">%</span>'}</div>
         <div class="ks">${onTimePct===null? '<span class="nodata">출하/납기 데이터 없음</span>' : `지연 <b style="color:var(--red)">${late}</b>/${onTime+late}건`}</div>
       </div>
@@ -5619,7 +5816,7 @@ VIEWS._lotHistory = (plot_no) => {
             const due  = so?.due || '';
             return `<tr><th>연결 수주</th><td colspan="3"><b>${_esc(wo.so_id)}</b> · ${_esc(cust)}${due?` · 납기 ${_esc(due)}`:''}</td></tr>`;
           }
-          return `<tr><th>연결 수주</th><td colspan="3"><span style="color:#888">재고생산</span></td></tr>`;
+          return `<tr><th>연결 수주</th><td colspan="3"><span style="color:var(--sub)">재고생산</span></td></tr>`;
         })()}
         </table>
         <table style="margin-top:10px">
@@ -7330,12 +7527,12 @@ VIEWS.ship = () => {
     <div class="secttl">매출 현황 · SALES</div>
     <div class="sales-hero">
       <div class="dkpi">
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="#5eead4"><path d="M5 4l3.5 8M19 4l-3.5 8M8.5 12h7M5 16h14M12 12v8"/></svg>당월 매출</div>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M5 4l3.5 8M19 4l-3.5 8M8.5 12h7M5 16h14M12 12v8"/></svg>당월 매출</div>
         <div class="val c">${monthSales>0? '₩'+Math.round(monthSales).toLocaleString() : '<span style="color:var(--dim);font-size:18px">수집중</span>'}</div>
         <div class="sub">${monthSalesChg===null? '<span class="nodata">전월 데이터 없음</span>' : `전월 대비 <span class="chg ${monthSalesChg>=0?'up':'down'}">${monthSalesChg>=0?'▲':'▼'} ${Math.abs(monthSalesChg).toFixed(1)}%</span>`}</div>
       </div>
       <div class="dkpi">
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="#5eead4"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>연 누적 매출</div>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>연 누적 매출</div>
         <div class="val w">${yearSales>0? '₩'+Math.round(yearSales).toLocaleString() : '<span style="color:var(--dim);font-size:18px">수집중</span>'}</div>
         <div class="sub">${yearSalesChg===null? '<span class="nodata">전년 데이터 없음 · 다음 해부터 비교</span>' : `전년 대비 <span class="chg ${yearSalesChg>=0?'up':'down'}">${yearSalesChg>=0?'▲':'▼'} ${Math.abs(yearSalesChg).toFixed(1)}%</span>`}</div>
       </div>
@@ -7692,7 +7889,7 @@ VIEWS.os = () => {
     <div class="grid g4" style="margin-bottom:14px">
       <div class="kpi-mini"><div class="lab">${ico('check')}외주 진행중</div><div class="val h">${inProgress}<span style="font-size:12px;color:var(--sub)">건</span></div><div class="sub">반출 후 미입고</div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}반출 잔량</div><div class="val">${totalDispQty.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">외주처 가공중</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}파렛트 출고</div><div class="val" style="color:#a78bfa">${palOut.toLocaleString()}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">외주처에 나감</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}파렛트 출고</div><div class="val" style="color:var(--blue)">${palOut.toLocaleString()}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">외주처에 나감</div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}파렛트 미회수</div><div class="val r">${palMiss.toLocaleString()}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">회수 대기</div></div>
     </div>
 
@@ -7701,7 +7898,7 @@ VIEWS.os = () => {
       <div class="tbl-wrap"><table>
         <thead><tr>
           <th>전표·일자</th><th>외주처·공정</th><th>품번·LOT</th><th class="num">반출</th><th class="num">입고</th>
-          <th class="num" style="color:#a78bfa">파렛트 출/회</th><th>상태</th><th></th><th></th>
+          <th class="num" style="color:var(--blue)">파렛트 출/회</th><th>상태</th><th></th><th></th>
         </tr></thead>
         <tbody>${disp.length? disp.map(d=>{
           // ★ v0.16.0 — live 입고만 카운트 (raw로 조회하고 void 제외)
@@ -7731,7 +7928,7 @@ VIEWS.os = () => {
             <td><b>${_esc(lot?.itemCode||'')}</b> <span class="muted" style="font-size:11px">${_esc(item?.name||'')}</span><div class="muted" style="font-size:10px">${_esc(d.plot_no)}</div></td>
             <td class="num">${(d.qty||0).toLocaleString()}${osInputBadge(d)}</td>
             <td class="num" style="color:${recv>0?'var(--green)':'var(--dim)'}">${recv>0?recv.toLocaleString():'—'}</td>
-            <td class="num" style="color:#a78bfa">${pOut>0?`${pOut} / ${pIn>0?pIn:'—'}`:'<span class="muted">—</span>'}</td>
+            <td class="num" style="color:var(--blue)">${pOut>0?`${pOut} / ${pIn>0?pIn:'—'}`:'<span class="muted">—</span>'}</td>
             <td>${isVoid?'<span class="pill" style="background:rgba(248,113,113,.15);color:var(--red)">취소</span>':(done?'<span class="pill green">입고완료</span>':'<span class="pill heat">반출</span>')}</td>
             <td>${isVoid?'':printBtn}</td>
             <td>${isVoid?dispVoidBtn:`${recvBtn} ${dispVoidBtn}`}</td>
@@ -8081,9 +8278,9 @@ VIEWS._osRecv = (dispId) => {
       </div>
       ${pOutTotal>0 ? `
       <div style="background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.3);border-radius:10px;padding:13px 15px;margin-top:6px">
-        <div style="font-size:11px;color:#a78bfa;margin-bottom:9px;font-weight:600">◆ 회수 파렛트 <span style="color:var(--dim);font-weight:400">(반출 시 함께 나간 파렛트 반환 · 위 '입고 파렛트' 토글과 별개)</span> — 출고 ${pOutTotal}개${pInTotal>0?` · 이미 ${pInTotal}개 회수`:''}</div>
+        <div style="font-size:11px;color:var(--blue);margin-bottom:9px;font-weight:600">◆ 회수 파렛트 <span style="color:var(--dim);font-weight:400">(반출 시 함께 나간 파렛트 반환 · 위 '입고 파렛트' 토글과 별개)</span> — 출고 ${pOutTotal}개${pInTotal>0?` · 이미 ${pInTotal}개 회수`:''}</div>
         <div style="display:flex;gap:12px;align-items:center">
-          <div style="flex:1;text-align:center"><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:#a78bfa">${pOutTotal}</div><div style="font-size:10px;color:var(--sub)">출고</div></div>
+          <div style="flex:1;text-align:center"><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--blue)">${pOutTotal}</div><div style="font-size:10px;color:var(--sub)">출고</div></div>
           <span style="color:var(--dim)">→</span>
           <div style="flex:1;text-align:center"><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--green)"><input id="or-prc" type="number" min="0" max="${pMiss}" value="${pMiss}" style="width:60px;text-align:center;background:none;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:2px 4px;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700"></div><div style="font-size:10px;color:var(--sub)">이번 회수 (최대 ${pMiss})</div></div>
           <span style="color:var(--dim)">→</span>
@@ -8292,7 +8489,7 @@ VIEWS.perf = () => {
 
   function srcBadge(r){
     const src = r.source==='counter' ? 'counter' : (r.session_src||(r.source==='manual_pc'?'pc':'phone'));
-    if(src === 'pc') return '<span class="pill" style="background:rgba(167,139,250,.12);color:#a78bfa;font-size:9px;margin-left:4px">PC</span>';
+    if(src === 'pc') return '<span class="pill" style="background:rgba(125,211,252,.14);color:var(--blue);font-size:9px;margin-left:4px">PC</span>';
     if(src === 'counter') return '<span class="pill" style="background:rgba(74,222,128,.12);color:var(--green);font-size:9px;margin-left:4px">계수기</span>';
     return '<span class="pill" style="background:rgba(125,211,252,.12);color:var(--blue);font-size:9px;margin-left:4px">폰</span>';
   }
@@ -9990,7 +10187,7 @@ VIEWS.proc = () => {
     <div class="pghead">
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('proc')}</svg>공정 템플릿</div>
       <div class="pgtools">
-        <button class="btn" id="btn-add-proc">${ico('plus')}공정 추가</button>
+        <button class="btn primary" id="btn-add-proc">${ico('plus')}공정 추가</button>
       </div>
     </div>
     <div class="card">
@@ -13446,11 +13643,13 @@ VIEWS.set = () => {
       <div style="margin-top:10px"><button class="btn primary" id="co-save">${ico('save')}저장</button></div>
     </div>
 
+    ${SESSION.role === 'vendor' ? `
     <!-- ★ v0.20.0 — 시스템 (백엔드·단말 코드·채번 미리보기) — 2막 STEP 1
          ★ v0.20.4 — 표준 일일 가동시간(h) 추가 (설비별 오버라이드 없을 때의 기본값)
-         ★ v0.21.0 — firestore 백엔드 전환 (개발자 전용) + firebaseConfig 붙여넣기 + 로컬→서버 이관 -->
+         ★ v0.21.0 — firestore 백엔드 전환 (개발자 전용) + firebaseConfig 붙여넣기 + 로컬→서버 이관
+         ★ v0.22.2 — 카드 전체를 개발자 전용으로 격리 (일반·데모 미노출) · 테마는 헤더 ☀/🌙 로 계속 가능 -->
     <div class="card">
-      <h3>시스템 <span class="tag">백엔드 · 단말 코드 · 채번 v2 · 가동시간 · v${APP_VERSION.replace(/^v/,'')}</span></h3>
+      <h3>시스템 <span class="pill blue" style="margin-left:6px">개발자 전용</span> <span class="tag">백엔드 · 단말 코드 · 채번 v2 · 가동시간 · v${APP_VERSION.replace(/^v/,'')}</span></h3>
       <div class="grid g3">
         <div><label>저장 백엔드 <span style="color:var(--dim);font-weight:400">— 현재 <b style="color:var(--cyan)">${_esc(DB._backend)}</b></span></label>
           <input value="${_esc(DB._backend)}" readonly style="opacity:.7;font-family:'JetBrains Mono',monospace">
@@ -13530,6 +13729,7 @@ VIEWS.set = () => {
       </div>
       ` : ''}
     </div>
+    ` : ''}
 
     <!-- ★ v0.15.2 — 사용자·PIN 관리 (인증) ※ 작업자 마스터(생산부 직원)와 별개 — users/workers 통합 아님 -->
     <div class="card">
@@ -13574,22 +13774,22 @@ VIEWS.set = () => {
       <!-- v0.15.5 — 개발자 PIN 변경 (저장값 우선 · getVendorPin 즉시 반영) -->
       <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--line2)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <b style="font-size:12.5px">개발자 PIN 변경</b>
+          <b style="font-size:12.5px">개발자 비밀번호 변경</b>
           <span class="pill blue">개발자 전용</span>
+          <span class="tag">신 정책 (8+ 영문·숫자) · SHA-256+salt 해시 저장</span>
         </div>
         <div class="grid g3" style="align-items:end">
-          <div><label style="display:block;font-size:10px;color:var(--sub);font-weight:600;margin-bottom:5px;letter-spacing:.3px">새 PIN 6자리</label>
-            <input id="vp-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"
-                   style="width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;color:var(--ink);font-family:'JetBrains Mono',monospace;letter-spacing:6px;font-size:15px;font-weight:700;outline:none" placeholder="······"></div>
-          <div><label style="display:block;font-size:10px;color:var(--sub);font-weight:600;margin-bottom:5px;letter-spacing:.3px">PIN 확인</label>
-            <input id="vp-pin2" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"
-                   style="width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;color:var(--ink);font-family:'JetBrains Mono',monospace;letter-spacing:6px;font-size:15px;font-weight:700;outline:none" placeholder="······"></div>
+          <div><label style="display:block;font-size:10px;color:var(--sub);font-weight:600;margin-bottom:5px;letter-spacing:.3px">새 비밀번호</label>
+            <input id="vp-pin" type="password" autocomplete="new-password" spellcheck="false"
+                   style="width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;color:var(--ink);font-family:inherit;font-size:14px;outline:none" placeholder="8자 이상 · 영문+숫자"></div>
+          <div><label style="display:block;font-size:10px;color:var(--sub);font-weight:600;margin-bottom:5px;letter-spacing:.3px">비밀번호 확인</label>
+            <input id="vp-pin2" type="password" autocomplete="new-password" spellcheck="false"
+                   style="width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;color:var(--ink);font-family:inherit;font-size:14px;outline:none" placeholder="비밀번호 확인"></div>
           <div><button class="btn primary" id="vp-save">${ico('save')}변경</button></div>
         </div>
         <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.6">
-          <!-- ★ v0.16.22 — 사용자 PIN 중복 검사 삭제. 이름(juns/개발자)이 식별자이므로 무해. -->
-          이름 'juns'·'개발자' + 이 PIN 으로 개발자 세션 진입 · 변경 즉시 다음 접속부터 적용<br>
-          분실 시 콘솔에서 <span style="font-family:'JetBrains Mono',monospace;color:var(--sub)">VELA.DB.get('settings','vendor')</span> 로 확인
+          이름 'juns'·'개발자' + 이 비밀번호로 개발자 세션 진입 · 변경 즉시 다음 접속부터 적용<br>
+          저장은 <b>SHA-256+salt('VENDOR') 해시</b> — 콘솔에서 <span style="font-family:'JetBrains Mono',monospace;color:var(--sub)">VELA.DB.get('settings','vendor')</span> 로 해시값만 노출됨
         </div>
       </div>
 
@@ -13611,8 +13811,10 @@ VIEWS.set = () => {
       </div>
     </div>` : ''}
 
+    ${SESSION.role === 'vendor' ? `
+    <!-- ★ v0.22.2 — 데이터 백업/복원 카드를 개발자 전용으로 격리 (일반·데모 미노출) -->
     <div class="card">
-      <h3>데이터 백업/복원 <span class="tag">JSON 전체 · v0.21.0 백엔드 무관 동작 (${_esc(DB._backend)})</span></h3>
+      <h3>데이터 백업/복원 <span class="pill blue" style="margin-left:6px">개발자 전용</span> <span class="tag">JSON 전체 · v0.21.0 백엔드 무관 동작 (${_esc(DB._backend)})</span></h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" id="bk-export">${ico('save')}백업 JSON</button>
         <label class="btn" style="cursor:pointer">${ico('refresh')}복원<input id="bk-import" type="file" accept=".json" style="display:none"></label>
@@ -13623,6 +13825,7 @@ VIEWS.set = () => {
         · 복원 = 확인 2단계 → 전 컬렉션 setDoc(merge). firestore 모드는 서버에도 즉시 반영.
       </div>
     </div>
+    ` : ''}
   `;
 
   // 회사
@@ -13654,9 +13857,11 @@ VIEWS.set = () => {
     toast('회사정보 저장','ok');
   };
   // ★ v0.20.0 — 시스템 (단말 코드) 저장 · 채번 미리보기 즉시 갱신
+  // ★ v0.22.2 — 시스템 카드는 개발자 전용 DOM (일반·데모 미노출) → sys-device 없으면 skip
   {
     const dEl = document.getElementById('sys-device');
     const pEl = document.getElementById('sys-preview');
+    if(dEl && pEl){
     const _refreshPreview = () => {
       // sys-device 편집 중에도 즉시 미리보기 (저장 전에는 실채번엔 반영 X)
       const dev = String(dEl.value||'A').toUpperCase().replace(/[^A-Z]/g,'').slice(0,1) || 'A';
@@ -13682,6 +13887,7 @@ VIEWS.set = () => {
       renderSyncPill();
       toast(`시스템 저장 · 단말 ${dev} · 가동 ${std_work_hours}h`,'ok');
     };
+    }
   }
   // ★ v0.21.0 — 백엔드 전환 저장 (개발자 전용 DOM · 없으면 skip)
   const beSaveBtn = document.getElementById('be-save');
@@ -13789,8 +13995,9 @@ VIEWS.set = () => {
       toast(`이관 완료 · ${done}건 성공${fail?` · ${fail}건 실패`:''}`, fail?'warn':'ok');
     };
   }
-  // 백업
-  document.getElementById('bk-export').onclick = () => {
+  // 백업 · ★ v0.22.2 — 개발자 전용 DOM (bk-export 없으면 skip)
+  const bkExport = document.getElementById('bk-export');
+  if(bkExport) bkExport.onclick = () => {
     const blob = new Blob([JSON.stringify(DB.snapshot(),null,2)], {type:'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -13798,7 +14005,8 @@ VIEWS.set = () => {
     a.click();
   };
   // ★ v0.21.0 — 복원 2단계 확인 (백엔드 무관 · firestore 모드는 setDoc(merge) 이관)
-  document.getElementById('bk-import').onchange = e => {
+  const bkImport = document.getElementById('bk-import');
+  if(bkImport) bkImport.onchange = e => {
     const f = e.target.files[0]; if(!f) return;
     const r = new FileReader();
     r.onload = () => {
@@ -13839,7 +14047,8 @@ VIEWS.set = () => {
     };
     r.readAsText(f);
   };
-  document.getElementById('bk-xlsx').onclick = () => {
+  const bkXlsx = document.getElementById('bk-xlsx');
+  if(bkXlsx) bkXlsx.onclick = () => {
     if(!window.XLSX){ toast('엑셀 라이브러리 로딩 중','warn'); return; }
     const wb = XLSX.utils.book_new();
     DB.cols().forEach(c=>{
@@ -13967,19 +14176,25 @@ VIEWS.set = () => {
   renderFlags();
 
   /* ★ v0.15.5 — 개발자 PIN 변경 (기능 플래그 카드 하단 · vendor 전용 DOM 안이라 게이팅 자동)
-     저장: settings/vendor.pin (병합). increment-only. */
+     ★ v0.22.1 — 신 정책(checkPwPolicy) + SHA-256+salt('VENDOR') 해시 저장. */
   const vpSave = document.getElementById('vp-save');
   if(vpSave){
-    vpSave.onclick = () => {
-      const p1 = document.getElementById('vp-pin').value.trim();
-      const p2 = document.getElementById('vp-pin2').value.trim();
-      if(!/^\d{6}$/.test(p1)){ toast('PIN은 숫자 6자리','warn'); return; }
-      if(p1 !== p2){ toast('PIN 확인이 일치하지 않습니다','err'); return; }
-      // ★ v0.16.22 — 사용자 PIN 중복 검사 삭제 (이름이 식별자이므로 역방향 잠금 없음).
-      DB.set('settings','vendor', { pin:p1 });
-      document.getElementById('vp-pin').value  = '';
-      document.getElementById('vp-pin2').value = '';
-      toast('개발자 PIN 변경됨 — 다음 접속부터 적용','ok');
+    vpSave.onclick = async () => {
+      const p1 = document.getElementById('vp-pin').value;
+      const p2 = document.getElementById('vp-pin2').value;
+      const chk = checkPwPolicy(p1, 'juns');
+      if(!chk.ok){ toast(chk.reason,'warn'); return; }
+      if(p1 !== p2){ toast('비밀번호 확인이 일치하지 않습니다','err'); return; }
+      try {
+        const hash = await hashPassword(p1, 'VENDOR');
+        DB.set('settings','vendor', { pin: hash });
+        document.getElementById('vp-pin').value  = '';
+        document.getElementById('vp-pin2').value = '';
+        toast('개발자 비밀번호 변경됨 — 다음 접속부터 적용','ok');
+      } catch(e){
+        console.error('[VELA] vendor pw save failed', e);
+        toast('저장 실패 — 콘솔 확인','err');
+      }
     };
   }
 
