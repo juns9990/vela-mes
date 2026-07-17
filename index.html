@@ -3,7 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<meta name="theme-color" content="#08090b">
+<!-- ★ v0.21.4 — 테마 (다크/라이트) · 기기별 취향(로컬 전용 키 vela_theme) · 폰 상태바 theme-color 동기.
+     head 초기 스크립트로 CSS 적용 전 data-theme 세팅 → FOUC 방지. -->
+<meta name="theme-color" id="meta-theme-color" content="#08090b">
+<script>
+(function(){
+  try {
+    var t = localStorage.getItem('vela_theme');
+    if(t !== 'light' && t !== 'dark') t = 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    var m = document.getElementById('meta-theme-color');
+    if(m) m.setAttribute('content', t === 'light' ? '#f5f7fa' : '#08090b');
+  } catch(e){ document.documentElement.setAttribute('data-theme','dark'); }
+})();
+</script>
 <title>VELA SYSTEM</title>
 <!-- ★ v0.21.2 — 인라인 manifest (data URI · 하위 경로 배포 안전) · 이름 VELA MES · standalone · 다크 · 인라인 SVG 아이콘 (192/512) -->
 <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiVkVMQSBNRVMiLCJzaG9ydF9uYW1lIjoiVkVMQSIsInN0YXJ0X3VybCI6Ii4vIiwic2NvcGUiOiIuLyIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwODA5MGIiLCJ0aGVtZV9jb2xvciI6IiMwODA5MGIiLCJpY29ucyI6W3sic3JjIjoiZGF0YTppbWFnZS9zdmcreG1sO3V0ZjgsJTNDc3ZnJTIweG1sbnMlM0QlMjJodHRwJTNBJTJGJTJGd3d3LnczLm9yZyUyRjIwMDAlMkZzdmclMjIlMjB2aWV3Qm94JTNEJTIyMCUyMDAlMjA1MTIlMjA1MTIlMjIlM0UlM0NyZWN0JTIwd2lkdGglM0QlMjI1MTIlMjIlMjBoZWlnaHQlM0QlMjI1MTIlMjIlMjByeCUzRCUyMjk2JTIyJTIwZmlsbCUzRCUyMiUyMzA4MDkwYiUyMiUyRiUzRSUzQ3RleHQlMjB4JTNEJTIyMjU2JTIyJTIweSUzRCUyMjMzMCUyMiUyMHRleHQtYW5jaG9yJTNEJTIybWlkZGxlJTIyJTIwZm9udC1mYW1pbHklM0QlMjJHZW9yZ2lhJTJDJTIwc2VyaWYlMjIlMjBmb250LXN0eWxlJTNEJTIyaXRhbGljJTIyJTIwZm9udC13ZWlnaHQlM0QlMjI5MDAlMjIlMjBmb250LXNpemUlM0QlMjIyODAlMjIlMjBsZXR0ZXItc3BhY2luZyUzRCUyMi0xNiUyMiUyMGZpbGwlM0QlMjIlMjNlZWYwZjQlMjIlM0VWZSUzQ3RzcGFuJTIwZmlsbCUzRCUyMiUyMzVlZWFkNCUyMiUzRWwlM0MlMkZ0c3BhbiUzRWElM0MlMkZ0ZXh0JTNFJTNDJTJGc3ZnJTNFIiwic2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3N2Zyt4bWwiLCJwdXJwb3NlIjoiYW55In0seyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWw7dXRmOCwlM0NzdmclMjB4bWxucyUzRCUyMmh0dHAlM0ElMkYlMkZ3d3cudzMub3JnJTJGMjAwMCUyRnN2ZyUyMiUyMHZpZXdCb3glM0QlMjIwJTIwMCUyMDUxMiUyMDUxMiUyMiUzRSUzQ3JlY3QlMjB3aWR0aCUzRCUyMjUxMiUyMiUyMGhlaWdodCUzRCUyMjUxMiUyMiUyMHJ4JTNEJTIyOTYlMjIlMjBmaWxsJTNEJTIyJTIzMDgwOTBiJTIyJTJGJTNFJTNDdGV4dCUyMHglM0QlMjIyNTYlMjIlMjB5JTNEJTIyMzMwJTIyJTIwdGV4dC1hbmNob3IlM0QlMjJtaWRkbGUlMjIlMjBmb250LWZhbWlseSUzRCUyMkdlb3JnaWElMkMlMjBzZXJpZiUyMiUyMGZvbnQtc3R5bGUlM0QlMjJpdGFsaWMlMjIlMjBmb250LXdlaWdodCUzRCUyMjkwMCUyMiUyMGZvbnQtc2l6ZSUzRCUyMjI4MCUyMiUyMGxldHRlci1zcGFjaW5nJTNEJTIyLTE2JTIyJTIwZmlsbCUzRCUyMiUyM2VlZjBmNCUyMiUzRVZlJTNDdHNwYW4lMjBmaWxsJTNEJTIyJTIzNWVlYWQ0JTIyJTNFbCUzQyUyRnRzcGFuJTNFYSUzQyUyRnRleHQlM0UlM0MlMkZzdmclM0UiLCJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCIsInB1cnBvc2UiOiJhbnkgbWFza2FibGUifV19">
@@ -23,20 +36,47 @@
   --line:#23262f;--line2:#2c3038;--ink:#eef0f4;--sub:#8b909c;--dim:#5a5f6b;
   --cyan:#5eead4;--cyan-dim:#2dd4bf;--heat:#ff7a45;--heat2:#ffab40;
   --green:#4ade80;--red:#f87171;--amber:#fbbf24;--blue:#7dd3fc;
+  /* ★ v0.21.4 — cyan 배경 위 텍스트 색 (버튼·pill·tab.on 등 15+곳 공용) — 라이트에서 흰색으로 뒤집힘 */
+  --on-cyan:var(--on-cyan);
+  /* ★ v0.21.4 — 다크 전용 하드코딩 색 (input focus/readonly 배경 · toast 경계) 변수화 → 라이트 오버라이드 대상 */
+  --input-focus-bg:#0a0c10; --input-ro-bg:#0a0b0e;
+  --toast-err-border:#5a3a3a; --toast-warn-border:#5a4a2a;
+  --pill-gray-bg:#1a1d24;
+  /* ★ v0.21.4 — vela-mark 그림자·스트로크 색 (라이트에서 밝은 색으로) */
+  --vela-shadow:#0a0a0a; --vela-fill:#ffffff;
 }
+/* ★ v0.21.4 — 라이트 팔레트 (WCAG 4.5:1 목표 · 포인트색은 어두운 톤으로) */
+html[data-theme="light"]{
+  --bg:#f5f7fa;--bg2:#ffffff;--panel:#ffffff;--panel2:#f4f6fa;
+  --line:#dfe3ea;--line2:#c9cfda;--ink:#14181f;--sub:#4a5262;--dim:#7a8290;
+  --cyan:#0d9488;--cyan-dim:#0f766e;--heat:#ea580c;--heat2:#c2410c;
+  --green:#059669;--red:#dc2626;--amber:#b45309;--blue:#0369a1;
+  --on-cyan:#ffffff;
+  --input-focus-bg:#ffffff; --input-ro-bg:#f4f6fa;
+  --toast-err-border:#fca5a5; --toast-warn-border:#fcd34d;
+  --pill-gray-bg:#eef1f6;
+  --vela-shadow:#cbd0da; --vela-fill:#14181f;
+}
+/* ★ v0.21.4 — 라이트 전용 하드코딩 보정 (변수 우회 rgba·색만 대체 · 로직 무변화)
+   · body::before 격자 (다크: 흰색 픽셀 → 라이트에서 안 보임 → 검정 라인으로)
+   · body 배경 라디얼(cyan/blue 오버레이)은 그대로 유지(라이트에서 아주 옅은 틴트로 보임) */
+html[data-theme="light"] body::before{
+  background-image:linear-gradient(rgba(0,0,0,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.03) 1px,transparent 1px);
+}
+/* input 계열은 :root 변수(--input-focus-bg / --input-ro-bg)로 이미 해결 */
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{background:var(--bg);color:var(--ink);font-family:'Inter','Apple SD Gothic Neo','Malgun Gothic',sans-serif;-webkit-font-smoothing:antialiased;height:100%;}
 body{background:radial-gradient(1200px 600px at 80% -10%, rgba(94,234,212,.06), transparent 60%),radial-gradient(1000px 500px at 0% 110%, rgba(125,211,252,.045), transparent 55%),var(--bg);min-height:100vh;padding-bottom:90px;overflow-x:hidden}
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);background-size:44px 44px;}
 button,input,select,textarea{font-family:inherit;color:inherit}
 input,select,textarea{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--ink);font-size:14px;width:100%;outline:none;transition:.18s}
-input:focus,select:focus,textarea:focus{border-color:var(--cyan-dim);background:#0a0c10}
-input[readonly]{color:var(--sub);background:#0a0b0e}
+input:focus,select:focus,textarea:focus{border-color:var(--cyan-dim);background:var(--input-focus-bg)}
+input[readonly]{color:var(--sub);background:var(--input-ro-bg)}
 label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.4px;margin-bottom:6px}
 
 /* === Vela 마크 (매거진 v0.18.2 규격 그대로) === */
 .vela-mark{font-family:'Fraunces','Pretendard',Georgia,serif;font-style:italic;font-weight:900;letter-spacing:-0.03em;line-height:0.9;display:inline-block;font-size:30px}
-.vela-mark.primary{color:#fff;text-shadow:1px 1px 0 #0a0a0a,2px 2px 0 #0a0a0a,3px 3px 0 #0a0a0a,4px 4px 0 #0a0a0a;-webkit-text-stroke:1.2px #0a0a0a}
+.vela-mark.primary{color:var(--vela-fill);text-shadow:1px 1px 0 var(--vela-shadow),2px 2px 0 var(--vela-shadow),3px 3px 0 var(--vela-shadow),4px 4px 0 var(--vela-shadow);-webkit-text-stroke:1.2px var(--vela-shadow)}
 .vela-mark .accent{color:#5eead4}
 .sys{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;letter-spacing:4px;color:var(--cyan-dim);padding:4px 9px;border:1px solid var(--line2);border-radius:6px;background:rgba(94,234,212,.05)}
 
@@ -89,12 +129,12 @@ label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spaci
 .gp-name-fld{width:220px;margin-bottom:14px}
 .gp-name-fld label{display:block;font-size:10px;color:var(--sub);font-weight:600;margin-bottom:5px;letter-spacing:.3px;text-align:left}
 .gp-name-fld input{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;color:var(--ink);font-size:14px;font-family:inherit;outline:none;transition:.15s;box-sizing:border-box}
-.gp-name-fld input:focus{border-color:var(--cyan-dim);background:#0a0c10}
+.gp-name-fld input:focus{border-color:var(--cyan-dim);background:var(--input-focus-bg)}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:220px}
 .pin-pad button{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 0;font-size:18px;font-weight:700;color:var(--ink);cursor:pointer;font-family:'JetBrains Mono',monospace;transition:.15s}
 .pin-pad button:hover{background:var(--panel);border-color:var(--cyan-dim);color:var(--cyan)}
-.pin-pad button.act{background:var(--cyan);color:#06201c;border-color:var(--cyan)}
+.pin-pad button.act{background:var(--cyan);color:var(--on-cyan);border-color:var(--cyan)}
 .gp-hint{font-size:10px;color:var(--dim);margin-top:14px;text-align:center;line-height:1.6;letter-spacing:.3px}
 
 /* 우 — 관리책임자 등록 (최초 1회, users.length===0) */
@@ -105,9 +145,9 @@ label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spaci
 .fld{margin-bottom:10px}
 .fld label{display:block;font-size:10px;color:var(--sub);font-weight:600;margin-bottom:5px;letter-spacing:.3px}
 .fld input{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;color:var(--ink);font-size:13px;font-family:inherit;outline:none;transition:.15s}
-.fld input:focus{border-color:var(--cyan-dim);background:#0a0c10}
+.fld input:focus{border-color:var(--cyan-dim);background:var(--input-focus-bg)}
 .fld input.mono{font-family:'JetBrains Mono',monospace;letter-spacing:6px;font-size:15px;font-weight:700}
-.reg-btn{width:100%;border:none;border-radius:11px;padding:12px 0;font-size:13px;font-weight:700;background:var(--cyan);color:#06201c;cursor:pointer;margin-top:6px;transition:.15s;font-family:inherit}
+.reg-btn{width:100%;border:none;border-radius:11px;padding:12px 0;font-size:13px;font-weight:700;background:var(--cyan);color:var(--on-cyan);cursor:pointer;margin-top:6px;transition:.15s;font-family:inherit}
 .reg-btn:hover{background:var(--cyan-dim)}
 .fr-note{font-size:9.8px;color:var(--dim);text-align:center;margin-top:10px;line-height:1.6}
 .fr-note b{color:var(--amber);font-weight:600}
@@ -159,6 +199,9 @@ label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spaci
 .up-badge.mgr{color:var(--amber)} .up-badge.op{color:var(--sub)} .up-badge.vd{color:var(--blue)}
 /* ★ v0.20.0 — 동기화 상태 pill (2막 STEP 1 · 슬롯) */
 .sync-pill{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:11px;color:var(--sub);letter-spacing:.3px}
+/* ★ v0.21.4 — 테마 토글 버튼 (헤더 pill 옆) */
+.theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;color:var(--ink);font-size:15px;cursor:pointer;transition:.15s;padding:0;line-height:1}
+.theme-toggle:hover{background:var(--panel);border-color:var(--line2)}
 .sync-pill .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(74,222,128,.55);flex-shrink:0}
 .sync-pill.warn{color:var(--amber)} .sync-pill.warn .sync-dot{background:var(--amber);box-shadow:0 0 6px rgba(251,191,36,.55)}
 .sync-pill.err{color:var(--red)}   .sync-pill.err  .sync-dot{background:var(--red);  box-shadow:0 0 6px rgba(248,113,113,.55)}
@@ -169,7 +212,7 @@ label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spaci
 .usr-sw span{position:absolute;inset:0;background:var(--line2);border-radius:99px;transition:.2s;cursor:pointer}
 .usr-sw span::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--sub);transition:.2s}
 .usr-sw input:checked + span{background:var(--cyan)}
-.usr-sw input:checked + span::after{left:20px;background:#06201c}
+.usr-sw input:checked + span::after{left:20px;background:var(--on-cyan)}
 .usr-quit{color:var(--red)!important;border-color:rgba(248,113,113,.32)!important}
 tr.usr-off td{opacity:.5}
 .pill.amber{background:rgba(251,191,36,.14);color:var(--amber)}
@@ -178,8 +221,8 @@ tr.usr-off td{opacity:.5}
 .tabnav{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:18px;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
 .tabnav button{background:none;border:none;color:var(--sub);padding:9px 14px;font-size:12.5px;font-weight:600;border-radius:9px;cursor:pointer;transition:.15s;white-space:nowrap;display:flex;align-items:center;gap:6px}
 .tabnav button:hover{color:var(--ink);background:var(--bg2)}
-.tabnav button.on{background:var(--cyan);color:#06201c}
-.tabnav button.on svg{stroke:#06201c}
+.tabnav button.on{background:var(--cyan);color:var(--on-cyan)}
+.tabnav button.on svg{stroke:var(--on-cyan)}
 .tabnav svg{width:14px;height:14px;stroke-width:2;stroke:currentColor;fill:none}
 
 /* Page header */
@@ -191,9 +234,9 @@ tr.usr-off td{opacity:.5}
 /* Buttons */
 .btn{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px}
 .btn:hover{border-color:var(--cyan-dim);color:var(--cyan)}
-.btn.primary{background:var(--cyan);color:#06201c;border-color:var(--cyan);font-weight:700}
-.btn.primary:hover{background:var(--cyan-dim);color:#06201c}
-.btn.warn{border-color:#5a3a3a;color:var(--red)}
+.btn.primary{background:var(--cyan);color:var(--on-cyan);border-color:var(--cyan);font-weight:700}
+.btn.primary:hover{background:var(--cyan-dim);color:var(--on-cyan)}
+.btn.warn{border-color:var(--toast-err-border);color:var(--red)}
 .btn.ghost{background:transparent}
 .btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
@@ -222,8 +265,8 @@ td.muted{color:var(--sub)}
 #toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:14px 22px;z-index:2000;transition:.3s;font-size:13px;font-weight:600;box-shadow:0 10px 40px rgba(0,0,0,.6);max-width:90vw}
 #toast.show{transform:translateX(-50%) translateY(0)}
 #toast.ok{border-color:var(--cyan-dim);color:var(--cyan)}
-#toast.err{border-color:#5a3a3a;color:var(--red)}
-#toast.warn{border-color:#5a4a2a;color:var(--amber)}
+#toast.err{border-color:var(--toast-err-border);color:var(--red)}
+#toast.warn{border-color:var(--toast-warn-border);color:var(--amber)}
 
 /* Modal */
 .modal-bg{position:fixed;inset:0;background:rgba(8,9,11,.86);z-index:1500;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
@@ -274,7 +317,7 @@ tr.mst-off td{opacity:.45}
 .pill.green{background:rgba(74,222,128,.12);color:var(--green)}
 .pill.heat{background:rgba(255,171,64,.12);color:var(--heat2)}
 .pill.red{background:rgba(248,113,113,.13);color:var(--red)}
-.pill.gray{background:#1a1d24;color:var(--sub)}
+.pill.gray{background:var(--pill-gray-bg);color:var(--sub)}
 .pill.blue{background:rgba(125,211,252,.12);color:var(--blue)}
 
 /* Footer */
@@ -359,7 +402,7 @@ tr.mst-off td{opacity:.45}
 .chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
 .chip{font-size:11px;padding:5px 10px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);color:var(--sub);cursor:pointer;transition:.15s}
 .chip:hover{border-color:var(--cyan-dim);color:var(--cyan)}
-.chip.on{background:var(--cyan);color:#06201c;border-color:var(--cyan);font-weight:700}
+.chip.on{background:var(--cyan);color:var(--on-cyan);border-color:var(--cyan);font-weight:700}
 
 /* Small responsive tweaks */
 @media(max-width:560px){
@@ -411,7 +454,7 @@ tr.mst-off td{opacity:.45}
 
 .seg{display:inline-flex;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px}
 .seg button{font-family:inherit;font-size:11px;font-weight:700;color:var(--sub);background:none;border:none;padding:5px 12px;border-radius:7px;cursor:pointer}
-.seg button.on{background:var(--cyan);color:#06201c}
+.seg button.on{background:var(--cyan);color:var(--on-cyan)}
 .chartbox{position:relative;height:200px;margin-top:14px;display:flex;align-items:center;justify-content:center}
 .chart-empty{text-align:center;color:var(--dim)}
 .chart-empty .big{font-size:13px;color:var(--sub);margin-bottom:4px}
@@ -510,7 +553,7 @@ tr.mst-off td{opacity:.45}
 .order-total .amt{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:28px;color:#fff}
 .order-total .amt small{font-size:13px;color:var(--sub);font-weight:600;margin-left:6px}
 .stage3{height:28px;border-radius:9px;overflow:hidden;display:flex;border:1px solid var(--line);background:var(--bg)}
-.stage3 .s{height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace;color:#06201c;overflow:hidden;white-space:nowrap;padding:0 4px}
+.stage3 .s{height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--on-cyan);overflow:hidden;white-space:nowrap;padding:0 4px}
 .stage3 .s.done{background:linear-gradient(90deg,var(--cyan-dim),var(--cyan))}
 .stage3 .s.prog{background:linear-gradient(90deg,#d97706,var(--amber));color:#3a2800}
 .stage3 .s.wait{background:var(--line2);color:var(--sub)}
@@ -615,7 +658,7 @@ tr.mst-off td{opacity:.45}
 .key:active{transform:scale(.95);background:var(--bg2)}
 .key.act{color:var(--red)}
 
-.submit-big{padding:17px;border-radius:14px;background:var(--cyan);color:#06201c;border:none;font-weight:800;font-size:15px;text-align:center;cursor:pointer;width:100%;font-family:inherit}
+.submit-big{padding:17px;border-radius:14px;background:var(--cyan);color:var(--on-cyan);border:none;font-weight:800;font-size:15px;text-align:center;cursor:pointer;width:100%;font-family:inherit}
 .submit-big:disabled{background:var(--line2);color:var(--dim);cursor:not-allowed}
 .submit-big.next{background:linear-gradient(90deg,var(--cyan),var(--cyan-dim))}
 
@@ -663,7 +706,7 @@ tr.mst-off td{opacity:.45}
 .pc-none{font-size:14px;color:var(--dim);font-weight:600}
 .pick-actions{display:flex;gap:8px}
 .pa-btn{flex:1;padding:11px;border-radius:10px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;border:none;font-family:inherit}
-.pa-btn.qr{background:var(--cyan);color:#06201c}
+.pa-btn.qr{background:var(--cyan);color:var(--on-cyan)}
 .pa-btn.list{background:var(--bg);border:1px solid var(--line2);color:var(--ink)}
 .pa-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2}
 
@@ -737,7 +780,7 @@ tr.mst-off td{opacity:.45}
 .es-filt{display:flex;gap:6px;flex-wrap:wrap}
 .fchip{font-size:11px;font-weight:600;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;transition:.15s}
 .fchip:hover{border-color:var(--cyan-dim)}
-.fchip.on{color:#06201c;background:var(--cyan);border-color:var(--cyan)}
+.fchip.on{color:var(--on-cyan);background:var(--cyan);border-color:var(--cyan)}
 .fchip.hot.on{background:var(--red);border-color:var(--red);color:#fff}
 .es-sortby{font-size:11px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;width:auto}
 
@@ -843,6 +886,10 @@ tr.mst-off td{opacity:.45}
       <span class="factory" id="brand-co" hidden></span>
     </div>
     <div class="topbar-right">
+      <!-- ★ v0.21.4 — 테마 토글 (☀/🌙) · 즉시 전환 · 로컬 저장 vela_theme -->
+      <button class="theme-toggle" id="theme-toggle" title="테마 전환 (다크/라이트)" onclick="toggleTheme()" aria-label="테마 전환">
+        <span id="theme-icon">🌙</span>
+      </button>
       <!-- ★ v0.20.0 — 동기화 상태 pill (2막 슬롯) — STEP 2 에서 온라인/오프라인·대기 N건 표기. -->
       <span class="sync-pill" id="sync-pill" title="저장 상태"><span class="sync-dot"></span><span id="sync-txt">로컬 저장</span></span>
       <!-- v0.15.2 — 로그인 사용자 pill (클릭 → 로그아웃) -->
@@ -860,7 +907,7 @@ tr.mst-off td{opacity:.45}
 
   <div class="foot">
     <span class="made">MADE BY JUNS</span>
-    <span class="ver" id="ver-foot">VELA SYSTEM · v0.21.3 · 2026-07-17</span>
+    <span class="ver" id="ver-foot">VELA SYSTEM · v0.21.4 · 2026-07-17</span>
   </div>
 </div>
 
@@ -876,8 +923,33 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.21.3';
+const APP_VERSION = 'v0.21.4';
 const APP_DATE    = '2026-07-17';
+
+/* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
+   head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
+   applyTheme(theme) 1벌 — 속성·로컬 키·meta theme-color·헤더 아이콘 갱신. */
+const _THEME_KEY = 'vela_theme';
+function getTheme(){
+  const t = document.documentElement.getAttribute('data-theme');
+  return (t === 'light') ? 'light' : 'dark';
+}
+function applyTheme(theme){
+  const t = (theme === 'light') ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem(_THEME_KEY, t); } catch {}
+  const m = document.getElementById('meta-theme-color');
+  if(m) m.setAttribute('content', t === 'light' ? '#f5f7fa' : '#08090b');
+  const ic = document.getElementById('theme-icon');
+  if(ic) ic.textContent = (t === 'light') ? '☀' : '🌙';
+  // 설정 화면 라디오가 열려 있으면 반영
+  document.querySelectorAll('input[name="theme-radio"]').forEach(r => { r.checked = (r.value === t); });
+}
+function toggleTheme(){
+  applyTheme(getTheme() === 'light' ? 'dark' : 'light');
+}
+// 부팅 시 아이콘 초기 표시 (head 스크립트가 data-theme 은 이미 설정)
+document.addEventListener('DOMContentLoaded', () => { applyTheme(getTheme()); });
 
 /* =================================================================================================
    ★ v0.12.2 — QR 생성 라이브러리 (vela-lib-qrcode-gen.js 로 교체)
@@ -12996,6 +13068,16 @@ VIEWS.set = () => {
       <div class="grid g3" style="margin-top:10px">
         <div><label>표준 일일 가동시간(h) <span style="color:var(--dim);font-weight:400">— 기본 8 · 설비별 오버라이드 없을 때 적용</span></label>
           <input id="sys-workh" type="number" min="0.5" step="0.5" value="${getStdWorkHours()}" style="font-family:'JetBrains Mono',monospace;text-align:right">
+        </div>
+        <div><label>테마 <span style="color:var(--dim);font-weight:400">— 기기별 취향 · 즉시 전환 · 인쇄물은 백지 고정</span></label>
+          <div style="display:flex;gap:14px;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:8px">
+            <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--ink);cursor:pointer">
+              <input type="radio" name="theme-radio" value="dark"  ${getTheme()==='dark'?'checked':''} onchange="applyTheme('dark')" style="width:auto;margin:0"> 🌙 다크
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--ink);cursor:pointer">
+              <input type="radio" name="theme-radio" value="light" ${getTheme()==='light'?'checked':''} onchange="applyTheme('light')" style="width:auto;margin:0"> ☀ 라이트
+            </label>
+          </div>
         </div>
       </div>
       <div style="margin-top:10px"><button class="btn primary" id="sys-save">${ico('save')}시스템 저장</button></div>
