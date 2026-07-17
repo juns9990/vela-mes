@@ -860,7 +860,7 @@ tr.mst-off td{opacity:.45}
 
   <div class="foot">
     <span class="made">MADE BY JUNS</span>
-    <span class="ver" id="ver-foot">VELA SYSTEM · v0.21.2 · 2026-07-17</span>
+    <span class="ver" id="ver-foot">VELA SYSTEM · v0.21.3 · 2026-07-17</span>
   </div>
 </div>
 
@@ -876,7 +876,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.21.2';
+const APP_VERSION = 'v0.21.3';
 const APP_DATE    = '2026-07-17';
 
 /* =================================================================================================
@@ -1292,35 +1292,56 @@ const _PREFIX_TO_COL = {
   PP: 'production_plans',
   PL: 'production_lots',
 };
-/* ★ v0.21.1 — 단말 코드는 로컬 전용 키 (firestore 동기 대상 아님)
-   설계 결함 수정: settings/system.device 는 서버 동기 대상이라 단말 간 덮어씀(크롬 A ↔ 엣지 B 충돌).
-   우선순위: localStorage vela_device_code → 없으면 기존 settings/system.device 1회 이관 → 'A'. */
+/* ★ v0.21.1 — 단말 코드는 로컬 전용 키 (firestore 동기 대상 아님 · 단말 간 덮어씀 방지)
+   ★ v0.21.3 — zero-touch 자동 발급: 로컬 키 없고 구버전 폴백도 없으면 2자 랜덤 코드 생성·저장.
+      혼동 문자 제외 알파벳 (O/0/I/1) · 코드 1~3자 허용 (기존 A/B/C 단말 완전 불변).
+   우선순위: localStorage vela_device_code → 구버전 settings/system.device 1회 이관 → 자동 생성. */
 const _DEVICE_CODE_KEY = 'vela_device_code';
+const _DEV_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // A-Z0-9 minus O/0/I/1 (32자)
 function _normalizeDev(raw){
-  const s = String(raw||'').toUpperCase().replace(/[^A-Z]/g,'').slice(0,1);
-  return /^[A-Z]$/.test(s) ? s : 'A';
+  // 대문자 · 영숫자만 · 1~3자. 유효 값이 아니면 빈 문자열 반환(호출자가 대체값 결정).
+  const s = String(raw||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);
+  return /^[A-Z0-9]{1,3}$/.test(s) ? s : '';
+}
+function _genDeviceCode(){
+  let out = '';
+  for(let i=0;i<2;i++){
+    out += _DEV_ALPHABET.charAt(Math.floor(Math.random() * _DEV_ALPHABET.length));
+  }
+  return out;
 }
 function getDeviceCode(){
   try {
     const local = localStorage.getItem(_DEVICE_CODE_KEY);
     if(local){
       const norm = _normalizeDev(local);
-      if(/^[A-Z]$/.test(norm)) return norm;
+      if(norm) return norm;
     }
-    // 구버전 폴백 — settings/system.device 있으면 로컬 키로 1회 이관 후 그 값 사용
-    const sys = DB.get('settings','system');
+    // 구버전 폴백 — settings/system.device 있으면 로컬 키로 1회 이관 후 그 값 사용 (기존 A/B/C 단말 불변)
+    const sys = (typeof DB !== 'undefined') ? DB.get('settings','system') : null;
     if(sys && sys.device){
       const norm = _normalizeDev(sys.device);
-      if(/^[A-Z]$/.test(norm)){
+      if(norm){
         try { localStorage.setItem(_DEVICE_CODE_KEY, norm); } catch {}
         return norm;
       }
     }
+    // 자동 발급 — 첫 접속 (로컬 키·구 폴백 모두 없음). 저장 후 1회 toast 예약.
+    const gen = _genDeviceCode();
+    try { localStorage.setItem(_DEVICE_CODE_KEY, gen); } catch(e){ console.warn('[VELA] 단말 코드 자동 발급 저장 실패', e); }
+    setTimeout(() => {
+      try {
+        if(typeof toast === 'function' && document.getElementById('toast')){
+          toast(`이 기기 단말 코드: ${gen} (설정에서 변경 가능)`, 'ok', 4200);
+        }
+      } catch {}
+    }, 1500);
+    return gen;
   } catch {}
   return 'A';
 }
 function setDeviceCode(dev){
-  const norm = _normalizeDev(dev);
+  const norm = _normalizeDev(dev) || 'A';
   try { localStorage.setItem(_DEVICE_CODE_KEY, norm); } catch(e){ console.warn('[VELA] 단말 코드 저장 실패', e); }
   return norm;
 }
@@ -12963,9 +12984,9 @@ VIEWS.set = () => {
           <input value="${_esc(DB._backend)}" readonly style="opacity:.7;font-family:'JetBrains Mono',monospace">
           <div style="font-size:10.5px;color:var(--dim);margin-top:4px;line-height:1.5">${DB._backend==='firestore' ? `프로젝트: ${_esc((_ACTIVE_ADAPTER._cfg||{}).projectId||'-')} · ${_FS_STATE.ready?'연결됨':'연결 중'}` : 'localStorage(vela_mes_db_v1)'}</div>
         </div>
-        <div><label>단말 코드 <span style="color:var(--amber);font-weight:400">— A~Z 1자, 자동 채번 접미 (예: PL-2026-<b>A</b>012)</span></label>
-          <input id="sys-device" value="${_esc(getDeviceCode())}" maxlength="1" style="font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:4px;text-align:center">
-          <div style="font-size:10.5px;color:var(--dim);margin-top:4px;line-height:1.5">단말 코드는 이 브라우저에만 저장 — 단말(브라우저)마다 따로 지정 (서버 동기 제외)</div>
+        <div><label>단말 코드 <span style="color:var(--amber);font-weight:400">— 영숫자 1~3자, 자동 채번 접미 (예: PL-2026-<b>${_esc(getDeviceCode())}</b>012)</span></label>
+          <input id="sys-device" value="${_esc(getDeviceCode())}" maxlength="3" pattern="[A-Za-z0-9]{1,3}" style="font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:4px;text-align:center">
+          <div style="font-size:10.5px;color:var(--dim);margin-top:4px;line-height:1.5">첫 접속 시 자동 발급 — 필요하면 변경(기기당 고유) · 이 브라우저에만 저장 (서버 동기 제외)</div>
         </div>
         <div><label>채번 미리보기</label>
           <input id="sys-preview" value="${_esc(nextDocNo('PL'))} · ${_esc(nextDocNo('WO'))}" readonly style="opacity:.7;font-family:'JetBrains Mono',monospace;font-size:11.5px">
