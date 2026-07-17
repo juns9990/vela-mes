@@ -207,6 +207,12 @@ label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spaci
 .up-badge.mgr{color:var(--amber)} .up-badge.op{color:var(--sub)} .up-badge.vd{color:var(--blue)}
 /* ★ v0.20.0 — 동기화 상태 pill (2막 STEP 1 · 슬롯) */
 .sync-pill{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:11px;color:var(--sub);letter-spacing:.3px}
+/* ★ v0.22.0 — DEMO 배지 (헤더 · amber) · 데모 체험 모드에서만 노출 */
+.demo-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(251,191,36,.14);color:var(--amber);border:1px solid rgba(251,191,36,.4);border-radius:99px;padding:5px 12px;font-size:11px;font-weight:800;letter-spacing:1.3px}
+.demo-badge::before{content:"●";font-size:8px;line-height:1}
+/* ★ v0.22.0 — 게이트 [데모 체험] 버튼 (보조 스타일) */
+.gate-demo-btn{display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:transparent;border:1px dashed var(--line2);color:var(--sub);border-radius:99px;padding:8px 16px;font-size:11.5px;font-weight:600;cursor:pointer;transition:.15s;font-family:inherit;align-self:center;letter-spacing:.3px}
+.gate-demo-btn:hover{border-color:var(--amber);color:var(--amber);background:rgba(251,191,36,.06)}
 /* ★ v0.21.4 — 테마 토글 버튼 (헤더 pill 옆) */
 .theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;color:var(--ink);font-size:15px;cursor:pointer;transition:.15s;padding:0;line-height:1}
 .theme-toggle:hover{background:var(--panel);border-color:var(--line2)}
@@ -894,6 +900,8 @@ tr.mst-off td{opacity:.45}
       <span class="factory" id="brand-co" hidden></span>
     </div>
     <div class="topbar-right">
+      <!-- ★ v0.22.0 — DEMO 배지 (데모 체험 모드에서만 노출 · JS 가 hidden 토글) -->
+      <span class="demo-badge" id="demo-badge" hidden title="데모 체험 모드 — 실데이터·서버와 완전 분리">DEMO</span>
       <!-- ★ v0.21.4 — 테마 토글 (☀/🌙) · 즉시 전환 · 로컬 저장 vela_theme -->
       <button class="theme-toggle" id="theme-toggle" title="테마 전환 (다크/라이트)" onclick="toggleTheme()" aria-label="테마 전환">
         <span id="theme-icon">🌙</span>
@@ -915,7 +923,7 @@ tr.mst-off td{opacity:.45}
 
   <div class="foot">
     <span class="made">MADE BY JUNS</span>
-    <span class="ver" id="ver-foot">VELA SYSTEM · v0.21.6 · 2026-07-17</span>
+    <span class="ver" id="ver-foot">VELA SYSTEM · v0.22.0 · 2026-07-17</span>
   </div>
 </div>
 
@@ -931,7 +939,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.21.6';
+const APP_VERSION = 'v0.22.0';
 const APP_DATE    = '2026-07-17';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -997,6 +1005,19 @@ function qrImg(payload, size){
 const _LS_KEY = 'vela_mes_db_v1';
 const _BACKEND_CONFIG_KEY = 'vela_backend_config';   // ★ v0.21.0 — firebaseConfig 저장 (DB 밖 · 부팅 전 필요)
 
+/* ★ v0.22.0 — 데모 체험 모드 (영업용 · 실데이터·서버와 완전 격리)
+   플래그: localStorage 'vela_demo'='1' → 데모 부팅. 종료 시 플래그 제거하면 원래 모드 그대로 복귀.
+   DB 키: 'vela_mes_demo_v1' (실 vela_mes_db_v1 과 완전 분리 · 읽기/쓰기 절대 교차 없음).
+   백엔드: 강제 local (firestore SDK 로드 자체 안 함 — 서버 접속·비용 0).
+   단말: 런타임 'D' 고정 (로컬 device 코드 키 미변경 — 데모 종료 후 원래 코드 복원). */
+const _DEMO_FLAG_KEY = 'vela_demo';
+const _DEMO_LS_KEY   = 'vela_mes_demo_v1';
+function isDemoMode(){
+  try { return localStorage.getItem(_DEMO_FLAG_KEY) === '1'; }
+  catch { return false; }
+}
+function _activeLSKey(){ return isDemoMode() ? _DEMO_LS_KEY : _LS_KEY; }
+
 /* ★ v0.21.2 — 내장 기본 firebaseConfig (배포용 · 납품 시 업체별 config 로 이 상수만 교체)
    공개 안전: Firebase 웹 config 는 프로젝트 식별자에 가까움. 실제 접근 통제는
    firestore.rules(인증 필수 · delete 금지) 가 담당한다 — 이 값 노출로 데이터 유출되지 않음.
@@ -1051,12 +1072,13 @@ const _LOCAL_ADAPTER = {
   _state: null,
   init(state){ this._state = state; },
   loadAll(){
-    try { return JSON.parse(localStorage.getItem(_LS_KEY)) || {}; }
+    // ★ v0.22.0 — 데모 모드 시 별도 키 (실데이터와 완전 격리)
+    try { return JSON.parse(localStorage.getItem(_activeLSKey())) || {}; }
     catch { return {}; }
   },
   write(col, id, doc){
     if(!this._state) return;
-    try { localStorage.setItem(_LS_KEY, JSON.stringify(this._state)); }
+    try { localStorage.setItem(_activeLSKey(), JSON.stringify(this._state)); }
     catch(e){ console.warn('[VELA] local adapter write failed', e); }
   },
 };
@@ -1137,6 +1159,8 @@ const _FIRESTORE_ADAPTER = {
 };
 
 function _pickBackendName(){
+  // ★ v0.22.0 — 데모 모드는 무조건 local (firestore SDK 로드 자체 안 함 · 서버 접속·비용 0)
+  if(isDemoMode()) return 'local';
   // 우선순위: settings/system.backend (localStorage 직접 조회) > window.VELA_BACKEND > 기본값
   // ★ v0.21.2 — 신규 접속(로컬 키 없음) 기본값 = 'firestore' (내장 config 있는 경우).
   //   기존 단말은 저장값 그대로 유지(불변). firestore 초기화 실패 시 pill 안내(_bootFirestore).
@@ -1391,6 +1415,8 @@ function _genDeviceCode(){
   return out;
 }
 function getDeviceCode(){
+  // ★ v0.22.0 — 데모 모드는 단말 'D' 고정 (로컬 device 키 미변경 — 종료 후 원래 코드 복원)
+  if(isDemoMode()) return 'D';
   try {
     const local = localStorage.getItem(_DEVICE_CODE_KEY);
     if(local){
@@ -1957,6 +1983,311 @@ function seedIfEmpty(){
   }
 }
 seedIfEmpty();
+
+/* ★ v0.22.0 — 데모 체험 시드 (전 모듈 풀옵션 · 등록 API 경유 · 날짜 분산 backdating)
+   호출 조건: 데모 모드 부팅 시 사용자 '데모' 미존재 → autoLoginDemo 가 1회 실행.
+   원칙: LOT.create / LOT.registerRecord / DB.set(orders/shipments/plans/pos/quotes/closings) 만 사용.
+   날짜 분산: 등록 후 DB.set 로 ts/필드 병합 (기존 시뮬 기법과 동일) — 가짜 집계 없이 시각화만 채움. */
+function seedDemoData(){
+  const now = Date.now();
+  const DAY = 86400000;
+  const daysBack = (n) => now - n*DAY;
+  const fmt = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()+0).padStart(2,'0')}`; };
+  const _rand = (a,b) => Math.floor(a + Math.random()*(b-a+1));
+
+  // ─────────────── 0. 회사·플래그 ───────────────
+  DB.set('settings','company', { name:'데모정밀', site:'시화공장', preset:'forging', biz_no:'000-00-00000', ceo:'데모대표', addr:'경기 시흥시 데모대로 100', biz_type:'제조업', biz_item:'단조·정밀부품', tel:'031-000-0000' });
+  // 전 모듈 ON — 풀옵션 시연
+  const allFlags = {};
+  MODULE_DEFS.forEach(m => m.items.forEach(([k]) => { allFlags[k] = true; }));
+  DB.set('settings','features', { flags: allFlags });
+  DB.set('settings','targets', { monthly_qty: 5000 });
+
+  // ─────────────── 1. 사용자 (자동 로그인 대상) ───────────────
+  DB.set('users','U-DEMO', { id:'U-DEMO', name:'데모', pin:'000000', role:'manager', active:true, created_at:now, last_login:null });
+
+  // ─────────────── 2. 거래처 (고객 3 · 소재사 2 · 외주 2) ───────────────
+  const vendorsSeed = [
+    // 고객사
+    ['C001','현대위아','cust','A'],
+    ['C002','경창산업','cust','A'],
+    ['C003','동양피스톤','cust','B'],
+    // 소재사(sup)
+    ['S001','대성특수강','sup','A'],
+    ['S002','동국제강','sup','A'],
+    // 외주처(out)
+    ['V001','한국열처리','out','A'],
+    ['V002','명진표면처리','out','B'],
+  ];
+  vendorsSeed.forEach(([code,name,type,grade]) => {
+    DB.set('vendors', code, { code, name, type, grade, active:true, processes: type==='out'?['HEAT']:[] });
+  });
+
+  // ─────────────── 3. 공정 · 설비 (기본 시드가 이미 있음 · 없다면 보강) ───────────────
+  // seedIfEmpty 가 processes/equipment/molds 를 이미 채워뒀지만, 데모 DB 는 별도라 여기서 다시 시드
+  if(DB.all('processes').length === 0){
+    [
+      {code:'CUT',  name:'절단',   seq:10, unit:'ea', type:'in',   equipment:['절단기 1호'],                inspect:['길이']},
+      {code:'FORGE',name:'단조',   seq:20, unit:'ea', type:'both', equipment:['프레스 1호','프레스 2호'],   inspect:['외관','치수']},
+      {code:'HEAT', name:'열처리', seq:30, unit:'ea', type:'out',  equipment:[],                              inspect:['경도']},
+      {code:'SHOT', name:'쇼트',   seq:40, unit:'ea', type:'in',   equipment:['쇼트기'],                     inspect:['표면']},
+      {code:'COIN', name:'코이닝', seq:50, unit:'ea', type:'in',   equipment:['코이닝프레스'],               inspect:['치수']},
+      {code:'SHIP', name:'출하',   seq:99, unit:'ea', type:'in',   equipment:[],                              inspect:[]},
+    ].forEach(p => DB.set('processes', p.code, p));
+  }
+  if(DB.all('equipment').length === 0){
+    [
+      {id:'EQ-CUT-1',   name:'절단기 1호',   proc:'CUT',   hourly_capa: 80, working_hours: 8, qr:'EQ-CUT-1'},
+      {id:'EQ-FORGE-1', name:'프레스 1호',   proc:'FORGE', hourly_capa: 60, working_hours: 8, qr:'EQ-FORGE-1'},
+      {id:'EQ-FORGE-2', name:'프레스 2호',   proc:'FORGE', hourly_capa: 60, working_hours: 8, qr:'EQ-FORGE-2'},
+      {id:'EQ-SHOT-1',  name:'쇼트기',       proc:'SHOT',  hourly_capa:120, working_hours: 8, qr:'EQ-SHOT-1'},
+      {id:'EQ-COIN-1',  name:'코이닝프레스', proc:'COIN',  hourly_capa: 90, working_hours: 8, qr:'EQ-COIN-1'},
+    ].forEach(e => DB.set('equipment', e.id, { status:'idle', ...e }));
+  }
+  // 신 equipments 컬렉션 (procCode/work_hours 스키마) — 별도 게이팅 (레거시 equipment 존재해도 신 컬렉션 시드)
+  if(DB.all('equipments').length === 0){
+    [
+      {id:'EQ-CUT-1',   name:'절단기 1호',   procCode:'CUT',   work_hours:8, active:true},
+      {id:'EQ-FORGE-1', name:'프레스 1호',   procCode:'FORGE', work_hours:8, active:true},
+      {id:'EQ-FORGE-2', name:'프레스 2호',   procCode:'FORGE', work_hours:8, active:true},
+      {id:'EQ-SHOT-1',  name:'쇼트기',       procCode:'SHOT',  work_hours:8, active:true},
+      {id:'EQ-COIN-1',  name:'코이닝프레스', procCode:'COIN',  work_hours:8, active:true},
+    ].forEach(e => DB.set('equipments', e.id, e));
+  }
+
+  // ─────────────── 4. 품번 5종 (CT · 단중 · proc_times) ───────────────
+  const itemsSeed = [
+    // code, name, mat, dia, weight(kg), price, cust, hasCoin(라우트에 COIN)
+    ['HF-3301','플랜지',  'SCM440', 55, 0.42, 3200, 'C001', false],
+    ['HF-3302','샤프트',  'SCM435', 38, 0.35, 2800, 'C001', false],
+    ['HF-3305','요크',    'S45C',   48, 0.62, 4100, 'C002', true],    // 라우트 풀 (COIN 포함)
+    ['HF-3309','링기어',  'SCM420', 65, 0.88, 5300, 'C003', false],
+    ['HF-3312','피스톤핀','SCM435', 32, 0.24, 1900, 'C003', false],   // 신규 5번째 품번
+  ];
+  itemsSeed.forEach(([code,name,mat,dia,weight,price,cust,hasCoin]) => {
+    // CT(초/개) · 공정별 시간 등록 — 계획 부하 판정 활성화
+    const proc_times = {
+      CUT:   { ct: 8 },
+      FORGE: { ct: (weight>0.6? 18 : 12) },     // 무거운 품번은 CT 길게
+      SHOT:  { ct: 6 },
+      COIN:  { ct: 10 },
+    };
+    DB.set('items', code, { code, name, mat, dia, weight, price, cust, box:50, safety:100, pack_qty:200, active:true, proc_times });
+  });
+  // BOM 라우트 (품번 5종)
+  const SEQ = {CUT:10, FORGE:20, HEAT:30, SHOT:40, COIN:50, SHIP:99};
+  const bomSeed = {
+    'HF-3301': [['CUT','in'],['FORGE','in'],['HEAT','out'],['SHOT','in'],['SHIP','in']],
+    'HF-3302': [['CUT','in'],['FORGE','in'],['HEAT','out'],['SHIP','in']],                       // 외주 포함 · 쇼트/코이닝 X
+    'HF-3305': [['CUT','in'],['FORGE','in'],['HEAT','out'],['SHOT','in'],['COIN','in'],['SHIP','in']],   // 풀 라우트
+    'HF-3309': [['CUT','in'],['FORGE','in'],['HEAT','out'],['SHOT','in'],['SHIP','in']],
+    'HF-3312': [['CUT','in'],['FORGE','in'],['SHIP','in']],                                       // 외주 미포함 (사내만)
+  };
+  Object.entries(bomSeed).forEach(([code,list]) => {
+    const it = DB.get('items', code);
+    DB.set('bom', code, {
+      code, name: it.name, rev:'A',
+      material: { type: it.mat, dia: it.dia, weight: it.weight },
+      route: list.map(([proc,mode]) => ({ seq: SEQ[proc], proc, mode })),
+    });
+  });
+
+  // ─────────────── 5. 소재 입고 (5개 heat · 3개월 분산 · 잔량 다양) ───────────────
+  const heatsSeed = [
+    // heat, mat, dia, kg,   vendor, daysAgo
+    ['H2604-101','SCM440', 55, 850, 'S001', 78],
+    ['H2604-115','SCM435', 38, 620, 'S001', 55],
+    ['H2605-207','S45C',   48, 1100, 'S002', 32],
+    ['H2605-220','SCM420', 65, 480, 'S002', 18],
+    ['H2606-050','SCM435', 32, 320, 'S001', 5],
+  ];
+  heatsSeed.forEach(([heat,mat,dia,kg,vendor,dAgo]) => {
+    const ts = daysBack(dAgo);
+    DB.set('material_receipts', `MR-DEMO-${heat}`, { id:`MR-DEMO-${heat}`, heat, mat, dia, kg, vendor, date: fmt(ts), ts, by:'데모' });
+    DB.set('material_lots', heat, { heat, mat, dia, qty_in_kg:kg, remain_kg:kg, ts });
+  });
+
+  // ─────────────── 6. LOT 6~8 상태 다양 ───────────────
+  // 편의 함수: 지정 공정까지 진행 (registerRecord 로 순차 등록 · 잔량 검증 통과)
+  const advanceLot = (plot_no, throughProc, goodPerStep, daysAgoStart) => {
+    const lot = DB.get('production_lots', plot_no);
+    if(!lot) return;
+    const route = getRoute(lot.itemCode);
+    for(let i=0;i<route.length;i++){
+      const r = route[i];
+      if(r.proc === throughProc) return;  // 이 공정 직전에서 멈춤 (throughProc 는 미진행 상태)
+      if(r.proc === 'SHIP') return;
+      try {
+        const eqName = (r.proc==='FORGE') ? '프레스 1호' : (r.proc==='CUT' ? '절단기 1호' : (r.proc==='SHOT' ? '쇼트기' : (r.proc==='COIN' ? '코이닝프레스' : null)));
+        const bal = LOT.balance(plot_no, r.proc);
+        const good = Math.min(goodPerStep, bal);
+        if(good <= 0) return;
+        const rec = LOT.registerRecord({ plot_no, proc:r.proc, equipment: eqName, good, type: r.mode==='out'?'out':'in', shift:'day', worker:{emp_no:'OP-014', name:'홍길동'} });
+        // ts 백데이팅 (병합)
+        const backTs = daysBack(daysAgoStart - i);
+        DB.set('records', rec.id, { ts: backTs });
+      } catch(e){ console.warn('[demo] advanceLot step failed', plot_no, r.proc, e.message); return; }
+    }
+  };
+
+  const lotsSeed = [
+    // plot_no, itemCode, matHeat, qty, advanceUpTo(다음 공정 대기), daysAgoStart
+    // 1) 완료 상태 (출하 직전까지)
+    ['PL-2026-D001','HF-3301','H2604-101', 300, 'SHIP',  70],
+    // 2) 단조 진행 중 (CUT 완료·FORGE 잔량 있음)
+    ['PL-2026-D002','HF-3302','H2604-115', 200, 'FORGE', 40],
+    // 3) 절단만 완료
+    ['PL-2026-D003','HF-3305','H2605-207', 150, 'FORGE', 20],
+    // 4) 외주 반출 중 (HEAT 대기 상태로 남김 — 반출 os_dispatch 로 표현)
+    ['PL-2026-D004','HF-3309','H2605-220', 250, 'HEAT',  25],
+    // 5) 외주 반출 중 (다른 외주처)
+    ['PL-2026-D005','HF-3301','H2604-101', 180, 'HEAT',  15],
+    // 6) 부분 진행 (CUT 완료 · FORGE 일부)
+    ['PL-2026-D006','HF-3312','H2606-050', 220, null,    8],
+  ];
+  lotsSeed.forEach(([plot_no, itemCode, mat, qty, upTo, dAgo]) => {
+    try {
+      LOT.create({ plot_no, itemCode, materialLots:[mat], qty_initial: qty });
+      // 소재 소진 차감 (표시용)
+      const ml = DB.get('material_lots', mat);
+      if(ml){ DB.set('material_lots', mat, { remain_kg: Math.max(0, (ml.remain_kg||0) - qty * (DB.get('items',itemCode)?.weight||0.3)) }); }
+      if(upTo){
+        advanceLot(plot_no, upTo, qty, dAgo);
+      } else {
+        // 부분 진행 — CUT 완료 + FORGE 일부(60%)
+        advanceLot(plot_no, 'FORGE', qty, dAgo);
+        try {
+          const good = Math.floor(qty * 0.6);
+          const rec = LOT.registerRecord({ plot_no, proc:'FORGE', equipment:'프레스 2호', good, type:'in', shift:'day', worker:{emp_no:'OP-014', name:'홍길동'} });
+          DB.set('records', rec.id, { ts: daysBack(dAgo-2) });
+        } catch(e){}
+      }
+    } catch(e){ console.warn('[demo] LOT seed failed', plot_no, e.message); }
+  });
+  // 외주 반출 os_dispatches (D004·D005 → HEAT 반출 진행 중)
+  ['V001','V002'].forEach((vendor, idx) => {
+    const plot = idx===0 ? 'PL-2026-D004' : 'PL-2026-D005';
+    const q = idx===0 ? 200 : 150;
+    const id = `OD-DEMO-${idx+1}`;
+    DB.set('os_dispatches', id, { id, plot_no:plot, proc:'HEAT', vendor, qty:q, ts: daysBack(idx===0?4:2), by:'데모' });
+  });
+
+  // ─────────────── 7. 수주 6건 (상태 스펙트럼) ───────────────
+  const soSeed = [
+    // id, cust, itemCode, qty, price, due(daysAhead), state hint
+    ['SO-2026-D001','C001','HF-3301', 800, 3200,  -30, 'shipped'],   // 출하완료 (과거)
+    ['SO-2026-D002','C001','HF-3302', 600, 2800,  -10, 'shipped'],   // 출하완료
+    ['SO-2026-D003','C002','HF-3305', 500, 4100,   10, 'progress'],  // 생산 중
+    ['SO-2026-D004','C003','HF-3309', 400, 5300,   15, 'progress'],  // 생산 중
+    ['SO-2026-D005','C003','HF-3312', 900, 1900,   30, 'pending'],   // 미착수
+    ['SO-2026-D006','C001','HF-3301', 350, 3200,    3, 'urgent'],    // 납기 임박
+  ];
+  soSeed.forEach(([id,cust,itemCode,qty,price,dueAhead]) => {
+    const due = fmt(now + dueAhead*DAY);
+    DB.set('orders', id, { id, cust, itemCode, qty, price, due, created: daysBack(-dueAhead + 30) });
+  });
+
+  // ─────────────── 8. 출하 이력 3개월 분산 (매출 차트 채움) ───────────────
+  //  - SO-D001 완납: 총 800ea 을 3~4회 출하 (2~3개월 전 분산)
+  //  - SO-D002 완납: 총 600ea 을 2회 출하 (1~2개월 전)
+  //  - SO-D003 부분 출하: 150ea (당월 초)
+  //  - 추가 익명 판매(품번별 흩뿌리기) — 대시보드 차트 채움용 · so_id 는 D001/D002 재사용
+  const shipsSeed = [
+    // id, so_id, itemCode, plot_no, qty, daysAgo
+    ['SH-DEMO-01','SO-2026-D001','HF-3301','PL-2026-D001', 300, 65],
+    ['SH-DEMO-02','SO-2026-D001','HF-3301','PL-2026-D001', 300, 45],
+    ['SH-DEMO-03','SO-2026-D001','HF-3301','PL-2026-D001', 200, 32],
+    ['SH-DEMO-04','SO-2026-D002','HF-3302','PL-2026-D002', 320, 50],
+    ['SH-DEMO-05','SO-2026-D002','HF-3302','PL-2026-D002', 280, 22],
+    ['SH-DEMO-06','SO-2026-D003','HF-3305','PL-2026-D003', 150, 4],
+    // 추가 매출 채움 — 3개 고객사에 골고루 분산 (대시보드 고객사별 매출 · 마감 이월 흐름 채움용)
+    ['SH-DEMO-07','SO-2026-D003','HF-3305','PL-2026-D003', 120, 75],   // C002
+    ['SH-DEMO-08','SO-2026-D004','HF-3309','PL-2026-D004', 200, 58],   // C003
+    ['SH-DEMO-09','SO-2026-D003','HF-3305','PL-2026-D003',  80, 12],   // C002
+    ['SH-DEMO-10','SO-2026-D004','HF-3309','PL-2026-D004', 150,  3],   // C003
+  ];
+  shipsSeed.forEach(([id,so_id,itemCode,plot_no,qty,dAgo]) => {
+    const so = DB.get('orders', so_id) || {};
+    const pack_qty_actual = DB.get('items', itemCode)?.pack_qty || 200;
+    const pallets = Math.ceil(qty / pack_qty_actual);
+    const ts = daysBack(dAgo);
+    DB.set('shipments', id, { id, so_id, itemCode, plot_no, qty, pallets, pack_qty_actual, ts, by:'데모' });
+  });
+
+  // ─────────────── 9. 생산계획 8~10건 (이번 주 보드 · 부하 초과·소재 부족 red 포함) ───────────────
+  // 이번 주 월요일 기준
+  const _mon = (() => { const d = new Date(); const dow = d.getDay(); const off = dow===0 ? -6 : (1-dow); const m = new Date(d); m.setDate(d.getDate()+off); m.setHours(0,0,0,0); return m; })();
+  const wkDate = (offset) => { const d = new Date(_mon); d.setDate(_mon.getDate() + offset); return fmt(d.getTime()); };
+  const plansSeed = [
+    // id, itemCode, qty, dayOffset(0=월), equipment, note
+    ['PP-2026-D001','HF-3305', 400, 0, '프레스 1호', ''],
+    ['PP-2026-D002','HF-3302', 300, 1, '프레스 1호', ''],
+    ['PP-2026-D003','HF-3301', 250, 2, '프레스 2호', ''],
+    ['PP-2026-D004','HF-3309', 180, 2, '프레스 2호', ''],
+    ['PP-2026-D005','HF-3312', 500, 3, null,          '설비 미배정'],
+    // 부하 초과 red — 프레스 2호 · 하루에 대량 (CT 18s × 2000ea = 10h ≈ 125% capa)
+    ['PP-2026-D006','HF-3309',2000, 3, '프레스 2호', '⚠ 부하 초과 시연'],
+    ['PP-2026-D007','HF-3301', 220, 4, '프레스 1호', ''],
+    // 소재 부족 red — 상당 대량으로 재고 초과
+    ['PP-2026-D008','HF-3309',3000, 5, '프레스 1호', '⚠ 소재 부족 시연'],
+    ['PP-2026-D009','HF-3305', 300, 5, '코이닝프레스', ''],
+    ['PP-2026-D010','HF-3312', 150, 6, '절단기 1호', ''],
+  ];
+  plansSeed.forEach(([id,itemCode,qty,off,eq,note]) => {
+    DB.set('production_plans', id, { id, plan_type:'board', so_id:null, itemCode, qty, date: wkDate(off), equipment: eq, note, wo_id:null, ts:now, by:'데모' });
+  });
+
+  // ─────────────── 10. 구매 발주 2건 (완료 1 · 대기 1) ───────────────
+  const po1 = {
+    id:'PO-2026-D001', vendor:'S001', due: fmt(daysBack(20)),
+    items:[{ name:'환봉 SCM440', spec:'Ø55×3000', unit:'kg', qty:800, price:3600 }],
+    ts: daysBack(35), by:'데모'
+  };
+  DB.set('purchase_orders', po1.id, po1);
+  // 완료 → 입고 등록
+  DB.set('material_receipts', 'MR-DEMO-PO1', { id:'MR-DEMO-PO1', heat:'H2606-160', mat:'SCM440', dia:55, kg:800, vendor:'S001', po_id:po1.id, po_item_key:_poItemKey('환봉 SCM440','Ø55×3000'), date: fmt(daysBack(15)), ts: daysBack(15), by:'데모' });
+  DB.set('material_lots','H2606-160', { heat:'H2606-160', mat:'SCM440', dia:55, qty_in_kg:800, remain_kg:800, ts: daysBack(15) });
+  DB.set('purchase_orders', 'PO-2026-D002', {
+    id:'PO-2026-D002', vendor:'S002', due: fmt(now + 10*DAY),
+    items:[{ name:'환봉 S45C', spec:'Ø48×3000', unit:'kg', qty:600, price:3100 }],
+    ts: daysBack(5), by:'데모'
+  });
+
+  // ─────────────── 11. 견적 1건 ───────────────
+  DB.set('quotes','Q-2026-D001', {
+    id:'Q-2026-D001', cust:'C002', itemCode:'HF-3305', qty:1200, price:4200, due: fmt(now + 60*DAY),
+    material_cost: 1500, process_cost: 900, outsource_cost: 800, overhead: 300, margin_pct: 15,
+    unit_price: 4200, total: 1200*4200,
+    status:'active', ts: daysBack(3), by:'데모'
+  });
+
+  // ─────────────── 12. 마감 3개월 이월 (매출 유형만 · 미수 잔액 흐름) ───────────────
+  const _monthStr = (dAgo) => { const d = new Date(now - dAgo*DAY); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+  const closingMonths = [_monthStr(90), _monthStr(60), _monthStr(30)];
+  let prevCarryByParty = { C001:0, C002:0, C003:0 };
+  closingMonths.forEach((m, idx) => {
+    // 이 달 매출 계산 (calcClosing 재사용)
+    const { byParty } = calcClosing('sales', m);
+    // 일부는 결제 완료, 일부는 미수로 이월
+    const rows = [];
+    ['C001','C002','C003'].forEach(party => {
+      const amount = Math.round((byParty[party]?.amount) || 0);
+      const prev = prevCarryByParty[party] || 0;
+      // 미수율 idx 에 따라 감소 (첫 달 40% 이월 → 셋째 달 20%)
+      const carryPct = [0.4, 0.3, 0.2][idx] || 0.2;
+      const paid = Math.round((prev + amount) * (1 - carryPct));
+      const carry = Math.round(prev + amount - paid);
+      rows.push({ party, prev, amount, paid, carry });
+      prevCarryByParty[party] = carry;
+    });
+    const totals = rows.reduce((t,r) => ({ prev:t.prev+r.prev, amount:t.amount+r.amount, paid:t.paid+r.paid, carry:t.carry+r.carry }), {prev:0,amount:0,paid:0,carry:0});
+    const id = _closingId('sales', m);
+    DB.set('closings', id, { id, type:'sales', month:m, rows, totals, missingCount:0, closed_at: now - (90-idx*30)*DAY, by:'데모', void:null });
+  });
+
+  console.log('[VELA] seedDemoData complete');
+}
+
 function defaultCostRates(){
   return DB.get('settings','cost_rates') || {
     material_rates:{}, process_rates:{}, outsource_rates:{}, overhead_pct:0.10
@@ -2606,6 +2937,8 @@ function renderPinPad(){
     <div class="pin-display" id="pin-display">······</div>
     <div class="pin-pad" id="pin-pad"></div>
     <div class="gp-hint">이름 + 비밀번호로 접속 · 초기 비밀번호는 <b style="color:var(--cyan)">000000</b></div>
+    <!-- ★ v0.22.0 — 데모 체험 진입 (보조 스타일 · 주 동선 방해 금지) -->
+    <button class="gate-demo-btn" type="button" onclick="onDemoClick()" title="샘플 데이터로 전 기능 체험 (실데이터·서버와 완전 분리)">▶ 데모 체험</button>
   `;
   const pad = document.getElementById('pin-pad');
   const disp = document.getElementById('pin-display');
@@ -2740,8 +3073,47 @@ function enterAsUser(u){
   }
   document.getElementById('pin-gate').classList.add('hide');
   document.getElementById('app').style.display='';
+  // ★ v0.22.0 — DEMO 배지 노출 (데모 모드에서만)
+  const db = document.getElementById('demo-badge');
+  if(db) db.hidden = !isDemoMode();
   renderNav(); router();
   renderSyncPill();   // ★ v0.20.0 — 로그인 진입 시 동기화 pill 갱신
+}
+
+/* ★ v0.22.0 — 게이트 [데모 체험] 클릭 → 확인 1회 → 데모 모드 재부팅 */
+function onDemoClick(){
+  if(!confirm('데모 모드 — 샘플 데이터로 전 기능을 체험합니다.\n\n실제 데이터와 완전 분리됩니다.\n(별도 로컬 키 · 서버 접속 없음 · 언제든 [데모 종료] 로 원상 복귀)')) return;
+  enterDemoMode();
+}
+/* ★ v0.22.0 — 데모 체험 진입/자동 시드/자동 로그인/종료 (분기는 부팅·게이트만) */
+function enterDemoMode(){
+  try { localStorage.setItem(_DEMO_FLAG_KEY, '1'); } catch {}
+  // 재부팅 (부팅 시 isDemoMode 체크 → 별도 키·local 어댑터·단말 D 로 시작)
+  location.reload();
+}
+function exitDemoMode(){
+  try { localStorage.removeItem(_DEMO_FLAG_KEY); } catch {}
+  location.reload();
+}
+function resetDemoData(){
+  // 데모 DB 완전 초기화 + 재시드 (실 DB 는 무손상)
+  try { localStorage.removeItem(_DEMO_LS_KEY); } catch {}
+  location.reload();
+}
+// 데모 자동 로그인 — 데모 사용자('데모' manager) 진입. 없으면 seedDemoData() 가 만든다.
+function autoLoginDemo(){
+  let u = DB.query('users', x => x.name === '데모')[0];
+  if(!u){
+    // 첫 진입: 시드 실행 후 사용자 확보
+    try { seedDemoData(); } catch(e){ console.error('[VELA] seedDemoData failed', e); }
+    u = DB.query('users', x => x.name === '데모')[0];
+  }
+  if(!u){
+    // 시드 실패 폴백 — 최소 사용자 하나 만들어서 진입
+    u = { id:'U-DEMO', name:'데모', pin:'000000', role:'manager', active:true, created_at:Date.now(), last_login:null };
+    DB.set('users', u.id, u);
+  }
+  enterAsUser(u);
 }
 
 /* -------------------------------------------------------------------------------------------------
@@ -2796,8 +3168,14 @@ function renderSyncPill(){
   const dev = getDeviceCode();
   if(backend === 'local'){
     el.className = 'sync-pill';
-    if(txt) txt.textContent = `로컬 저장 · 단말 ${dev}`;
-    el.title = `백엔드: local · 단말 코드: ${dev} · localStorage(vela_mes_db_v1)에 즉시 저장`;
+    // ★ v0.22.0 — 데모 모드 표기 (별도 로컬 키)
+    if(isDemoMode()){
+      if(txt) txt.textContent = `데모 저장 · 단말 D`;
+      el.title = `데모 체험 모드 · localStorage(${_DEMO_LS_KEY})에 즉시 저장 · 서버 접속 없음`;
+    } else {
+      if(txt) txt.textContent = `로컬 저장 · 단말 ${dev}`;
+      el.title = `백엔드: local · 단말 코드: ${dev} · localStorage(${_LS_KEY})에 즉시 저장`;
+    }
     return;
   }
   // firestore 모드
@@ -13028,6 +13406,20 @@ VIEWS.set = () => {
       </div>
     </div>
 
+    ${isDemoMode() ? `
+    <!-- ★ v0.22.0 — 데모 체험 컨트롤 (상단 강조) -->
+    <div class="card" style="border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.06)">
+      <h3><span class="demo-badge" style="margin-right:6px">DEMO</span>데모 체험 모드 <span class="tag">별도 로컬 키(<code>${_esc(_DEMO_LS_KEY)}</code>) · 서버 접속 없음 · 단말 D 고정</span></h3>
+      <div style="font-size:11.5px;color:var(--sub);line-height:1.6;margin-bottom:10px">
+        전 모듈이 켜진 상태로 샘플 데이터를 체험 중입니다. 이 화면에서 등록·취소·수정은 <b>데모 저장소에만</b> 기록되며 실데이터·서버에 영향 없습니다. 종료 시 원래 모드(백엔드·데이터·로그인)로 그대로 복귀합니다.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="btn-demo-reset">${ico('refresh')}데모 초기화 <span style="color:var(--dim);font-size:10.5px;margin-left:4px">— 샘플 재생성</span></button>
+        <button class="btn primary" id="btn-demo-exit">${ico('x')}데모 종료 <span style="opacity:.7;font-size:10.5px;margin-left:4px">— 원래 모드 복귀</span></button>
+      </div>
+    </div>
+    ` : ''}
+
     <div class="card">
       <h3>회사 정보 <span class="tag">화면·인쇄에 반영 · v0.12 거래명세서 필드 추가</span></h3>
       <div class="grid g3">
@@ -13090,8 +13482,9 @@ VIEWS.set = () => {
       </div>
       <div style="margin-top:10px"><button class="btn primary" id="sys-save">${ico('save')}시스템 저장</button></div>
 
-      ${SESSION.role === 'vendor' ? `
-      <!-- ★ v0.21.0 — 백엔드 전환 (개발자 전용) · firebaseConfig 붙여넣기 · 로컬→서버 이관 -->
+      ${SESSION.role === 'vendor' && !isDemoMode() ? `
+      <!-- ★ v0.21.0 — 백엔드 전환 (개발자 전용) · firebaseConfig 붙여넣기 · 로컬→서버 이관
+           ★ v0.22.0 — 데모 중 숨김 (오조작 방지 · 서버 접속 없음이 격리 원칙) -->
       <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--line2)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <b style="font-size:12.5px">저장 백엔드 전환</b>
@@ -13455,6 +13848,17 @@ VIEWS.set = () => {
     });
     XLSX.writeFile(wb, `vela-mes-all-${fmtDate(Date.now())}.xlsx`);
   };
+  // ★ v0.22.0 — 데모 컨트롤 (데모 모드 카드 표시 시에만 존재)
+  const dReset = document.getElementById('btn-demo-reset');
+  if(dReset) dReset.onclick = () => {
+    if(!confirm('데모 저장소를 초기화하고 샘플 데이터를 재생성합니다. (실 데이터 영향 없음)')) return;
+    resetDemoData();
+  };
+  const dExit = document.getElementById('btn-demo-exit');
+  if(dExit) dExit.onclick = () => {
+    if(!confirm('데모를 종료하고 원래 모드(실 데이터·백엔드·로그인)로 복귀합니다.\n데모 저장소는 유지되어 다음 데모 진입 시 그대로 이어집니다.')) return;
+    exitDemoMode();
+  };
   // ★ v0.15.3 — 데이터 초기화 2단 가드 (백업 다운로드 + "초기화" 타이핑)
   document.getElementById('btn-wipe').onclick = () => {
     openModal(`
@@ -13481,14 +13885,14 @@ VIEWS.set = () => {
         </div>
       </div>
     `);
-    // 백업 다운로드 — localStorage vela_mes_db_v1 원본 그대로
+    // 백업 다운로드 — 현재 활성 저장소 원본 그대로 (★ v0.22.0 — 데모 모드는 데모 키에서 백업)
     document.getElementById('wp-backup').onclick = () => {
-      const raw = localStorage.getItem('vela_mes_db_v1') || '{}';
+      const raw = localStorage.getItem(_activeLSKey()) || '{}';
       let pretty; try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch { pretty = raw; }
       const blob = new Blob([pretty], {type:'application/json'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `vela-mes-backup_${fmtDate(Date.now())}.json`;
+      a.download = `vela-mes-backup_${isDemoMode()?'demo_':''}${fmtDate(Date.now())}.json`;
       a.click();
       toast('백업 다운로드','ok');
     };
@@ -13498,7 +13902,8 @@ VIEWS.set = () => {
     inp.oninput = () => { ok.disabled = (inp.value !== '초기화'); };
     ok.onclick = () => {
       if(inp.value !== '초기화'){ toast('확인 문구 불일치','err'); return; }
-      localStorage.removeItem('vela_mes_db_v1');
+      // ★ v0.22.0 — 데모 모드는 데모 키만 초기화 (실 vela_mes_db_v1 무손상)
+      localStorage.removeItem(_activeLSKey());
       location.reload();
     };
   };
@@ -13896,6 +14301,11 @@ document.getElementById('ver-foot').textContent = `VELA SYSTEM · ${APP_VERSION}
     if(ss && co?.site && co.site.trim()){ ss.textContent = co.site; ss.hidden = false; }
   } catch(_){}
 
+  // ★ v0.22.0 — 데모 모드 자동 로그인 (게이트 생략 · 스플래시는 위 타이머로 걷힘)
+  if(isDemoMode()){
+    try { autoLoginDemo(); return; }
+    catch(e){ console.error('[VELA] demo auto-login failed', e); /* 폴백: 아래 게이트 진행 */ }
+  }
   // ② 게이트 렌더 — 실패 시 배너로 대체(스플래시는 위 타이머로 이미 걷힘 예약됨)
   try {
     renderGate();
