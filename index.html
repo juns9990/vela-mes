@@ -37,12 +37,14 @@
   --cyan:#5eead4;--cyan-dim:#2dd4bf;--heat:#ff7a45;--heat2:#ffab40;
   --green:#4ade80;--red:#f87171;--amber:#fbbf24;--blue:#7dd3fc;
 }
-/* ★ v0.21.5 — 라이트 테마 (단순 · 표면/텍스트 계열만 재정의)
-   · 포인트 색(--cyan/--amber/--red/--green/--blue/--heat)은 두 테마 공통 = 정체성 유지
+/* ★ v0.21.5 — 라이트 테마 (표면/텍스트 계열만 재정의)
+   ★ v0.21.6 — --cyan 만 짙은 틸(#0d9488, 흰 배경 대비 4.52:1) 로 재정의 (라이트 전용 · 다크 불변)
+   · 나머지 포인트 색(--amber/--red/--green/--blue/--heat/--cyan-dim)은 두 테마 공통 = 정체성 유지
    · 다크 :root 는 v0.21.3 픽셀 동일 (건드리지 않음) */
 html[data-theme="light"]{
   --bg:#f4f6fa;--bg2:#ffffff;--panel:#ffffff;--panel2:#f7f9fc;
   --line:#e2e6ec;--line2:#cfd4dd;--ink:#14181f;--sub:#4a5262;--dim:#8a91a0;
+  --cyan:#0d9488;
 }
 /* ★ v0.21.5 — 라이트 국소 보정 (다크 하드코딩 색이 밝은 배경에서 깨지는 최소 지점만)
    원칙: 로직 무변화 · 배경/텍스트 반전 필요한 스팟만 · 변수 안 쓰는 인라인은 그대로 둠(불가피). */
@@ -63,8 +65,8 @@ html[data-theme="light"] .pill.gray{background:#eef1f6}
 html[data-theme="light"] #toast.err{border-color:#fecaca}
 html[data-theme="light"] #toast.warn{border-color:#fde68a}
 html[data-theme="light"] .btn.warn{border-color:#fecaca}
-/* 포인트색 "텍스트 용도" 국소 보정 — 판독 불가한 곳만 (면·배지 배경 원색 유지 · 변수는 불변) */
-html[data-theme="light"] .pill.cyan{color:#0f766e}
+/* 포인트색 "텍스트 용도" 국소 보정 — 판독 불가한 곳만 (면·배지 배경 원색 유지 · 변수는 불변)
+   ★ v0.21.6 — .pill.cyan 은 --cyan 재정의로 자동 처리(중복 제거). 나머지 포인트색은 그대로. */
 html[data-theme="light"] .pill.green{color:#047857}
 html[data-theme="light"] .pill.blue{color:#0369a1}
 html[data-theme="light"] .pill.red{color:#b91c1c}
@@ -913,7 +915,7 @@ tr.mst-off td{opacity:.45}
 
   <div class="foot">
     <span class="made">MADE BY JUNS</span>
-    <span class="ver" id="ver-foot">VELA SYSTEM · v0.21.5 · 2026-07-17</span>
+    <span class="ver" id="ver-foot">VELA SYSTEM · v0.21.6 · 2026-07-17</span>
   </div>
 </div>
 
@@ -929,7 +931,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.21.5';
+const APP_VERSION = 'v0.21.6';
 const APP_DATE    = '2026-07-17';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
