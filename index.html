@@ -941,7 +941,7 @@ tr.mst-off td{opacity:.45}
 
   <div class="foot">
     <span class="made">MADE BY JUNS</span>
-    <span class="ver" id="ver-foot">VELA SYSTEM · v0.23.4 · 2026-07-18</span>
+    <span class="ver" id="ver-foot">VELA SYSTEM · v0.23.5 · 2026-07-18</span>
   </div>
 </div>
 
@@ -957,7 +957,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.23.4';
+const APP_VERSION = 'v0.23.5';
 const APP_DATE    = '2026-07-18';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -9386,8 +9386,10 @@ const PRINT_BASE_CSS = `
   .mono{font-family:'JetBrains Mono','Consolas',monospace;font-weight:600}
   @media print {
     body{background:#fff;padding:0;gap:0}
-    /* ★ v0.23.4 — A4 전폭 · 여백 13mm · 양식 컨테이너 max-width 제거 · 페이지 흐름 정리 */
-    @page{size:A4;margin:13mm}
+    /* ★ v0.23.4 — 여백 13mm · 양식 컨테이너 max-width 제거 · 페이지 흐름 정리
+       ★ v0.23.5 — size 고정 제거 → 브라우저 인쇄 대화상자 방향 선택 복원.
+                   양식별 방향(가로/세로)은 인쇄 직전 토글에서 A4 <orient> 동적 주입. */
+    @page{margin:13mm}
     html,body{width:auto}
     .page{
       box-shadow:none !important;
@@ -9456,14 +9458,69 @@ function bizSummary(party, label){
   return `<span style="font-size:10.5px;color:#444"><b style="color:#16181d">${_esc(label||'')}</b> ${name} · ☎ ${telV}</span>`;
 }
 
-function _openPrint(title, bodyHTML, extraCSS){
+/* ★ v0.23.5 — 인쇄 방향(세로/가로) 저장·토글
+   settings/documents.orientation[formKey] = 'portrait' | 'landscape'
+   기본값: 작업지시서(wo) = 가로 · 나머지 미지정 = 세로. 사용자가 토글에서 바꾸면 그 양식 기본값으로 병합 저장.
+   저장 스키마 확장만 · @media print 밖 화면 무영향. */
+const _ORIENT_DEFAULTS = { wo: 'landscape' };
+function getFormOrient(formKey){
+  const s = DB.get('settings','documents') || {};
+  const o = s.orientation || {};
+  const v = o[formKey];
+  if(v === 'portrait' || v === 'landscape') return v;
+  return _ORIENT_DEFAULTS[formKey] || 'portrait';
+}
+function setFormOrient(formKey, orient){
+  if(orient !== 'portrait' && orient !== 'landscape') return;
+  const prev = DB.get('settings','documents') || {};
+  const cur = prev.orientation || {};
+  DB.set('settings','documents', { ...prev, orientation: { ...cur, [formKey]: orient } });
+}
+
+// 실제 인쇄창 오픈 — orient 있을 때만 @page size 를 A4 <orient> 로 주입 (브라우저 대화상자에서 재조정 가능)
+function _openPrintWindow(title, bodyHTML, extraCSS, orient){
+  const orientCSS = orient ? `@media print{@page{size:A4 ${orient}}}` : '';
   const win = window.open('','_blank');
   if(!win){ toast('팝업 차단 — 인쇄창 열 수 없음','err'); return; }
   win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${_esc(title)}</title>
-    <style>${PRINT_BASE_CSS}${extraCSS||''}</style></head><body>${bodyHTML}
+    <style>${PRINT_BASE_CSS}${orientCSS}${extraCSS||''}</style></head><body>${bodyHTML}
     <scr`+`ipt>window.addEventListener('load',()=>setTimeout(()=>window.print(), 300));</scr`+`ipt>
     </body></html>`);
   win.document.close();
+}
+
+// opts.formKey 있으면 방향 선택 모달 표시 → 저장 → 주입 후 인쇄. 없으면 이전 동작(브라우저 방향).
+function _openPrint(title, bodyHTML, extraCSS, opts){
+  const formKey = opts && opts.formKey;
+  if(!formKey){ _openPrintWindow(title, bodyHTML, extraCSS, null); return; }
+  const cur = getFormOrient(formKey);
+  openModal(`
+    <h2>인쇄 방향 선택 <span style="color:var(--dim);font-size:12px;font-weight:400;margin-left:8px">${_esc(title)}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;flex-wrap:wrap">
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;margin:0">
+          <input type="radio" name="prt-orient" value="portrait"  ${cur==='portrait'?'checked':''} style="width:auto;margin:0"> 세로 (Portrait)
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;margin:0">
+          <input type="radio" name="prt-orient" value="landscape" ${cur==='landscape'?'checked':''} style="width:auto;margin:0"> 가로 (Landscape)
+        </label>
+        <span style="margin-left:auto;font-size:11px;color:var(--dim)">기본값 <b style="color:var(--cyan)">${cur==='landscape'?'가로':'세로'}</b> · 바꾸면 이 양식 기본값으로 저장</span>
+      </div>
+      <div style="font-size:10.5px;color:var(--dim);margin-top:6px;line-height:1.55">
+        · 브라우저 인쇄 대화상자에서도 방향을 다시 조정할 수 있습니다.
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="prt-ok">${ico('print')}인쇄</button>
+      </div>
+    </div>
+  `);
+  document.getElementById('prt-ok').onclick = () => {
+    const orient = document.querySelector('input[name="prt-orient"]:checked')?.value || 'portrait';
+    if(orient !== cur) setFormOrient(formKey, orient);
+    closeModal();
+    _openPrintWindow(title, bodyHTML, extraCSS, orient);
+  };
 }
 
 const printForm = {
@@ -9545,7 +9602,7 @@ const printForm = {
       </table>
       <div class="foot"><span>현장 작업자는 QR을 스캔하여 실적을 등록합니다</span><span>VELA SYSTEM</span></div>
     </div>`;
-    _openPrint(`작업지시서 ${wos.length}건`, body, css);
+    _openPrint(`작업지시서 ${wos.length}건`, body, css, { formKey:'wo' });
   },
 
   /* ===== ② 부품 식별표 (form-label.html) — A4 6격자 (2×3), 같은 LOT N장 반복
@@ -9625,7 +9682,7 @@ const printForm = {
       .kv .v{font-weight:700}
       .cell-qr{width:86px;height:86px;position:absolute;right:16px;bottom:14px}
     `;
-    _openPrint(`부품 식별표 ${expand.length}매`, pages.join(''), css);
+    _openPrint(`부품 식별표 ${expand.length}매`, pages.join(''), css, { formKey:'label' });
   },
 
   /* ===== ③ 공정 이동표 (form-move.html) — A5, LOT별 1장 ===== */
@@ -9715,7 +9772,7 @@ const printForm = {
       .pdate{font-size:10px;color:#888;text-align:right}
       .foot{margin-top:18px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:9px;display:flex;justify-content:space-between}
     `;
-    _openPrint(`공정 이동표 ${lots.length}장`, lots.map(page).join(''), css);
+    _openPrint(`공정 이동표 ${lots.length}장`, lots.map(page).join(''), css, { formKey:'move' });
   },
 
   /* ===== ④ 외주 반출증 (form-os.html) — A4 = 위 A5(공급자) + 아래 A5(외주처) ===== */
@@ -9832,7 +9889,7 @@ const printForm = {
         .slip th:nth-child(6){width:12% !important}   /* 파렛트 */
       }
     `;
-    _openPrint(`외주 반출증 ${dispatches.length}건`, dispatches.map(page).join(''), css);
+    _openPrint(`외주 반출증 ${dispatches.length}건`, dispatches.map(page).join(''), css, { formKey:'os' });
   },
 
   /* ===== ⑤ 거래명세서 (form-tx.html) — A4, 공급자/공급받는자 보관용 2장 ===== */
@@ -9978,7 +10035,7 @@ const printForm = {
       pages.push(page(g, '공급자 보관용', txNo));
       pages.push(page(g, '공급받는자용', txNo));
     });
-    _openPrint(`거래명세서 ${ships.length}건`, pages.join(''), css);
+    _openPrint(`거래명세서 ${ships.length}건`, pages.join(''), css, { formKey:'tx' });
   },
 
   /* ===== ⑥ 발주서 (form-po.html) — A4, 발신(자사) · 수신(거래처) · 품목표 · 합계 · 납기 · 발주번호 — v0.16.6 ===== */
@@ -10093,7 +10150,7 @@ const printForm = {
         th:nth-child(7){width:16% !important}    /* 금액 (nowrap) */
       }
     `;
-    _openPrint(`발주서 ${pos.length}건`, pos.map(page).join(''), css);
+    _openPrint(`발주서 ${pos.length}건`, pos.map(page).join(''), css, { formKey:'po' });
   },
 };
 
