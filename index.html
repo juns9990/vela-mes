@@ -23,10 +23,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
-<!-- Vendor libs : SheetJS(엑셀) + html5-qrcode(스캔) + qrcode-generator(QR 생성). ★ v0.12.2 — 자체 인코더 폐기 → 검증된 라이브러리 -->
-<script src="./vela-lib-xlsx.min.js" defer></script>
-<script src="./vela-lib-html5-qrcode.min.js" defer></script>
-<script src="./vela-lib-qrcode-gen.js"></script>
+<!-- Vendor libs : SheetJS(엑셀) + html5-qrcode(스캔) + qrcode-generator(QR 생성). ★ v0.12.2 — 자체 인코더 폐기 → 검증된 라이브러리
+     ★ v0.23.2 — 단일 HTML 배포 원칙 · 로컬 파일 의존 제거 → cdnjs 로 복원 (v0.23.1 로컬 참조에서 회귀 수정) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
 /* ============================================================
    디자인 토큰 — vela-mes-dashboard.html v0.1.6 그대로 승계
@@ -940,7 +941,7 @@ tr.mst-off td{opacity:.45}
 
   <div class="foot">
     <span class="made">MADE BY JUNS</span>
-    <span class="ver" id="ver-foot">VELA SYSTEM · v0.23.1 · 2026-07-18</span>
+    <span class="ver" id="ver-foot">VELA SYSTEM · v0.23.2 · 2026-07-18</span>
   </div>
 </div>
 
@@ -956,7 +957,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.23.1';
+const APP_VERSION = 'v0.23.2';
 const APP_DATE    = '2026-07-18';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -985,7 +986,7 @@ function toggleTheme(){
 document.addEventListener('DOMContentLoaded', () => { applyTheme(getTheme()); });
 
 /* =================================================================================================
-   ★ v0.12.2 — QR 생성 라이브러리 (vela-lib-qrcode-gen.js 로 교체)
+   ★ v0.12.2 — QR 생성 라이브러리 (qrcode-generator · v0.23.2 부터 cdnjs)
    자체 인코더는 표준과 셀 불일치(123/441) 발견되어 폐기. 검증된 qrcode-generator 사용.
    window.qrcode(typeNumber, errorCorrectionLevel) 전역 함수 제공.
    ================================================================================================= */
@@ -995,7 +996,7 @@ function qrDataURL(text, opts){
   var cell = opts.cell || opts.scale || 4;                      // 셀 픽셀
   var margin = (opts.margin!=null) ? opts.margin : 4;           // ★ quiet zone 4 필수
   if(typeof window.qrcode !== 'function'){
-    throw new Error('QR 라이브러리(vela-lib-qrcode-gen.js) 로드 실패');
+    throw new Error('QR 라이브러리(qrcode-generator) 로드 실패 — 인터넷 연결 확인');
   }
   var qr = window.qrcode(0, ecl);                               // type 0 = 자동 버전
   qr.addData(String(text==null?'':text));                       // UTF-8 자동
@@ -3040,7 +3041,12 @@ function xlsxBuildSheet(rows){
   return ws;
 }
 function exportXlsx(rows, sheetName, fileName){
-  if(!window.XLSX){ toast('엑셀 라이브러리 로딩 중', 'warn'); return; }
+  // ★ v0.23.2 — 로드 상태 구분 안내: DOMContentLoaded 이전이면 '로딩 중', 이후에도 없으면 CDN 로드 실패로 판정.
+  if(!window.XLSX){
+    const loading = document.readyState !== 'complete';
+    toast(loading ? '엑셀 라이브러리 로딩 중 — 잠시 후 다시 시도' : '엑셀 라이브러리 로드 실패 — 인터넷 연결 확인', 'warn', 3200);
+    return;
+  }
   if(!rows?.length){ toast('내보낼 데이터 없음', 'warn'); return; }
   const ws = xlsxBuildSheet(rows);
   const wb = XLSX.utils.book_new();
@@ -12067,15 +12073,19 @@ VIEWS.plan = () => {
     document.getElementById('view').innerHTML = `<div class="card">생산계획 모듈 OFF — 설정에서 켜세요.</div>`;
     return;
   }
+  // ★ v0.23.2 — 구 자동계획 헤더가 있으면 board 행으로 이관 (guard 로 1회만)
+  migrateAutoPlanToBoard();
   const state = (window._planFilter = window._planFilter || {
     tab:'week', axis:'item', anchor: fmtDate(Date.now()),
-    q:'', eq:'', status:''
+    q:'', eq:'', status:'', origin:''
   });
+  // 이전 세션(v0.23.1)에서 origin 필드가 없던 경우 방어
+  if(state.origin === undefined) state.origin = '';
   const today = fmtDate(Date.now());
   // 활성 설비 (사내 공정만)
   const equipmentList = buildEquipmentList();
   const eqNames = equipmentList.map(e=>e.name);
-  // 계획 목록 (board 만)
+  // 계획 목록 (board 만 — 자동/수동 통합 · v0.23.2)
   const allPlans = DB.all('production_plans').filter(p => p.plan_type==='board');
 
   // 필터 함수
@@ -12087,6 +12097,12 @@ VIEWS.plan = () => {
     if(state.status){
       const pr = calcPlanProgress(p);
       if(pr.state !== state.status) return false;
+    }
+    // ★ v0.23.2 — 출처 필터 (전체 / 자동 / 수동). 수동 = origin 미지정 또는 'manual'.
+    if(state.origin){
+      const isAuto = p.origin === 'auto';
+      if(state.origin === 'auto' && !isAuto) return false;
+      if(state.origin === 'manual' &&  isAuto) return false;
     }
     if(state.q){
       const q = state.q.toLowerCase();
@@ -12364,6 +12380,12 @@ VIEWS.plan = () => {
           <option value="지시발행" ${state.status==='지시발행'?'selected':''}>지시발행</option>
           <option value="완료" ${state.status==='완료'?'selected':''}>완료</option>
         </select>
+        <!-- ★ v0.23.2 — 출처 필터 (전체/자동/수동) -->
+        <select id="plan-origin" style="width:110px" title="출처 (자동계획 · 수동 등록)">
+          <option value="">전체 출처</option>
+          <option value="auto"   ${state.origin==='auto'?'selected':''}>자동만</option>
+          <option value="manual" ${state.origin==='manual'?'selected':''}>수동만</option>
+        </select>
       </div>
     </div>
 
@@ -12405,9 +12427,13 @@ VIEWS.plan = () => {
           const cancelBtn = p.wo_id
             ? `<button class="btn ghost" title="지시 발행된 계획 — 지시 먼저 취소" disabled style="opacity:.4">${ico('x')}</button>`
             : `<button class="btn ghost" data-plan-cancel="${_esc(p.id)}" style="color:var(--red)">${ico('x')}</button>`;
+          // ★ v0.23.2 — 출처 배지 ([자동] amber · [수동] dim) — 저장소 통합 후 시각 구분
+          const originBadge = p.origin === 'auto'
+            ? `<span class="pill" style="background:rgba(251,191,36,.15);color:var(--amber);font-size:9px;margin-left:4px" title="자동계획 생성">자동</span>`
+            : `<span class="pill" style="background:var(--bg2);color:var(--dim);font-size:9px;margin-left:4px;border:1px solid var(--line)" title="수동 등록">수동</span>`;
           return `<tr style="${rowStyle}">
             <td>${chkCell}</td>
-            <td class="muted">${_esc(p.date)}</td>
+            <td class="muted">${_esc(p.date)}${originBadge}</td>
             <td><b>${_esc(p.itemCode)}</b> <span class="muted" style="font-size:11px">${_esc(it?.name||'')}</span></td>
             <td>${so ? `<div style="font-size:11px"><b>${_esc(so.id)}</b>${cust?`<div style="color:var(--sub);font-size:10px">${_esc(cust)}</div>`:''}${so.due?`<div style="color:var(--dim);font-size:10px">납기 ${_esc(so.due)}</div>`:''}</div>` : '<span class="muted" style="font-size:10.5px">재고생산</span>'}</td>
             <td style="font-size:11px">${p.equipment ? _esc(p.equipment) : '<span style="color:var(--amber)">미배정</span>'}</td>
@@ -12434,6 +12460,7 @@ VIEWS.plan = () => {
   document.getElementById('plan-q').oninput = (e)=>{ clearTimeout(qT); qT=setTimeout(()=>{ state.q=e.target.value; router(); }, 250); };
   document.getElementById('plan-eq').onchange = (e)=>{ state.eq=e.target.value; router(); };
   document.getElementById('plan-status').onchange = (e)=>{ state.status=e.target.value; router(); };
+  document.getElementById('plan-origin').onchange = (e)=>{ state.origin=e.target.value; router(); };
   document.getElementById('btn-plan-new').onclick = ()=>VIEWS._planNew();
   document.querySelectorAll('[data-issue]').forEach(b => b.onclick = ()=>VIEWS._planIssueWO(b.dataset.issue));
   document.querySelectorAll('[data-plan-cancel]').forEach(b => b.onclick = ()=>VIEWS._planCancel(b.dataset.planCancel));
@@ -12817,38 +12844,87 @@ VIEWS._planCancel = (planId) => {
 };
 
 /* -------------------- 자동 생산계획 (v0.8.0) — ★ v0.20.1 id 'autoplan' 로 이관 (신규 'plan' = 생산계획 보드) --------------------
-   ★ v0.23.1 — 항목 [취소] (void 패턴 재사용 · deleteDoc 금지 · 서버 규칙과 일치) + 취소 포함 보기 토글.
-   생산계획 화면(VIEWS.plan) 은 무변경 — 이 뷰만 raw 조회 스위치. */
-// 자동계획 → 연결 문서(라이브 WO) 존재 여부. 있으면 취소 차단(가드).
-function _autoPlanLinkedLiveWO(p){
-  const items = (p && p.items) || [];
-  for(const it of items){
-    if(it && it.wo_id){
-      const wo = DB.get('work_orders', it.wo_id);
-      if(wo && !wo.void) return wo.id;
-    }
+   ★ v0.23.2 — 계획 저장 통합 (production_plans 단일 컬렉션) — 자동/수동 모두 board 로 저장
+      · 자동계획 = 생성 경로일 뿐 · 저장 스키마 동일 + origin: 'auto'
+      · 구 헤더(items[])는 부팅 시 1회 이관 (개별 board 로 분해 · 원본 스탬프만 남기고 삭제 금지)
+      · 소재/부하/일괄 발행/계획대비는 같은 컬렉션 · 추가 코드 없이 자동 포함 */
+
+// 부팅 1회 이관 — 구 헤더 문서(plan_type 미지정 · items[] 있음) → 개별 board 행 분해
+let _v232MigrationRan = false;
+function migrateAutoPlanToBoard(){
+  if(_v232MigrationRan) return 0;
+  // Firestore 모드: 첫 스냅샷 도착 전이면 대기 (헤더 유실 방지). local 모드는 즉시.
+  if(DB._backend === 'firestore' && (typeof _FS_STATE === 'undefined' || _FS_STATE.snapshotRoundsDone === 0)) return 0;
+  _v232MigrationRan = true;
+  const headers = DB.allRaw('production_plans').filter(p =>
+    p && !p.void && p.plan_type !== 'board' && !p._migrated_v232 &&
+    Array.isArray(p.items) && p.items.length
+  );
+  if(!headers.length) return 0;
+  const today = fmtDate(Date.now());
+  let migrated = 0;
+  headers.forEach(h => {
+    (h.items||[]).forEach(it => {
+      if(!it || !it.code) return;
+      // 채번 v2 규칙 유지 (PP-YYYY-{device}NNN). 동시 여러 건이라 loop 안에서 매번 nextDocNo 호출.
+      const id = nextDocNo('PP');
+      if(DB.get('production_plans', id)){
+        console.warn('[VELA v0.23.2] 이관 채번 중복 — 스킵', id);
+        return;
+      }
+      DB.set('production_plans', id, {
+        id,
+        plan_type: 'board',
+        origin:    'auto',
+        so_id:     null,
+        itemCode:  it.code,
+        qty:       +it.netDemand || 0,
+        date:      it.due || today,
+        equipment: null,
+        note:      it.name || '',
+        auto_mold_warn: it.moldWarn || null,
+        auto_capa_warn: it.capaWarn || null,
+        wo_id:     it.wo_id || null,
+        migrated_from: h.id,
+        created:   h.created || Date.now(),
+        ts:        h.created || Date.now(),
+        by:        h.by || SESSION.user || 'system',
+      });
+      migrated++;
+    });
+    // 원본 헤더는 삭제 금지 · 이관 스탬프만 (다음 부팅부터 스킵)
+    DB.set('production_plans', h.id, { _migrated_v232: Date.now() });
+  });
+  if(migrated){
+    console.log(`[VELA v0.23.2] 자동계획 이관 완료 · ${migrated}건 (${headers.length}헤더)`);
+    toast(`자동계획 ${migrated}건 이관 (생산계획 통합)`,'ok',3200);
   }
-  return null;
+  return migrated;
 }
+
 VIEWS.autoplan = () => {
   if(!getFlags().pl_auto){
     document.getElementById('view').innerHTML = `<div class="card">자동 생산계획 모듈 OFF — 설정에서 켜세요.</div>`;
     return;
   }
-  // ★ v0.23.1 — voidView 토글 (기존 WO/LOT 카드 패턴 재사용)
+  // 이관 재확인 (지연 로드 대비 · 내부 플래그로 중복 실행 방지)
+  migrateAutoPlanToBoard();
   const apVoid = (window._autoPlanVoid = window._autoPlanVoid || { voidView:false });
   const source = apVoid.voidView ? DB.allRaw('production_plans') : DB.all('production_plans');
-  const plans = source.filter(p=>p.plan_type!=='board').sort((a,b)=>(b.created||0)-(a.created||0));
+  const autoRows = source
+    .filter(p => p.plan_type === 'board' && p.origin === 'auto')
+    .sort((a,b) => (b.ts||b.created||0) - (a.ts||a.created||0));
   const opts = DB.get('settings','auto_plan') || {};
 
   document.getElementById('view').innerHTML = `
     <div class="pghead">
-      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('autoplan')}</svg>자동 생산계획 <span class="pill cyan">${APP_VERSION} · 수동버튼</span></div>
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('autoplan')}</svg>자동 생산계획 <span class="pill cyan">${APP_VERSION} · 통합저장</span></div>
       <div class="pgtools">
         <button class="btn" id="btn-plan-opts">${ico('save')}옵션</button>
         <button class="btn primary" id="btn-plan-gen">${ico('plus')}자동계획 생성</button>
       </div>
     </div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">자동계획은 생성 경로일 뿐 — 저장은 <b>생산계획(production_plans)</b> 과 동일 · <span style="color:var(--amber)">[자동]</span> 배지로 구분 · 소재/부하/일괄 발행/계획대비 자동 포함.</div>
 
     <div class="card">
       <h3>현재 옵션 <span class="tag">보수적 기본값</span></h3>
@@ -12864,47 +12940,60 @@ VIEWS.autoplan = () => {
 
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-        <h3 style="margin:0">생성된 계획 <span class="tag">전체 ${plans.length}건</span></h3>
-        <!-- ★ v0.23.1 — 취소 포함 보기 (WO/LOT 화면과 동일 UX) -->
+        <h3 style="margin:0">생성된 계획 <span class="tag">자동 ${autoRows.filter(x=>!x.void).length}건${apVoid.voidView?` · 취소 ${autoRows.filter(x=>x.void).length}건 포함`:''}</span></h3>
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${apVoid.voidView?'rgba(248,113,113,.08)':'var(--bg2)'};margin-left:auto"><input type="checkbox" id="ap-void-view" ${apVoid.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>계획ID</th><th>생성일시</th><th class="num">품번수</th><th class="num">총 순소요</th><th>상태</th><th></th></tr></thead>
-        <tbody>${plans.length? plans.map(p=>{
+        <thead><tr><th>계획ID</th><th>계획일</th><th>품번·품명</th><th class="num">순소요(ea)</th><th>경고</th><th>WO</th><th></th></tr></thead>
+        <tbody>${autoRows.length? autoRows.map(p=>{
+          const it = DB.get('items', p.itemCode);
           const isVoid = !!p.void;
           const rowStyle = isVoid ? 'opacity:.5;background:rgba(248,113,113,.04)' : '';
           const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(p.void.reason||'')} · ${fmtDate(p.void.ts)}">「취소」</span>` : '';
-          const statusLbl = p.status==='confirmed' ? '확정' : (p.status==='rejected' ? '폐기' : '초안');
-          const statusCls = p.status==='confirmed' ? 'green' : (p.status==='rejected' ? 'gray' : 'heat');
+          const originBadge = `<span class="pill" style="background:rgba(251,191,36,.15);color:var(--amber);font-size:9px;margin-left:4px">자동</span>`;
+          const warns = [];
+          if(p.auto_mold_warn) warns.push(`<span class="pill heat" style="font-size:10px" title="${_esc(p.auto_mold_warn)}">⚠ 금형</span>`);
+          if(p.auto_capa_warn) warns.push(`<span class="pill red"  style="font-size:10px" title="${_esc(p.auto_capa_warn)}">▲ CAPA</span>`);
+          const woCell = p.wo_id
+            ? `<button class="btn ghost" onclick="location.hash='#wo'" title="${_esc(p.wo_id)}"><span class="pill cyan" style="font-size:10px">${_esc(p.wo_id)}</span></button>`
+            : `<span style="color:var(--dim);font-size:11px">미발행</span>`;
+          // 인쇄 버튼 — v0.23.2 수리: WO 연결 시 _printWO 재사용 (기존 [작업지시] 화면과 동일 경로). 미연결 시 안내 toast.
+          const printBtn = p.wo_id
+            ? `<button class="btn ghost" title="작업지시서 인쇄" onclick="VIEWS._printWO('${_esc(p.wo_id)}')">${ico('print')}</button>`
+            : `<button class="btn ghost" title="지시 발행 후 인쇄 가능" onclick="toast('지시 발행 후 인쇄 가능 — 하단 [지시 발행]','warn',2600)" style="opacity:.55">${ico('print')}</button>`;
           const actBtns = isVoid
             ? `<button class="btn ghost" data-ap-unvoid="${_esc(p.id)}">${ico('refresh')}복원</button>`
-            : `<button class="btn ghost" onclick="VIEWS._planDetail('${_esc(p.id)}')">${ico('eye')}보기</button>
-               <button class="btn ghost" data-ap-void="${_esc(p.id)}" style="color:var(--red)" title="자동계획 취소 (원본 보존)">${ico('x')}</button>`;
+            : (p.wo_id
+                ? `${printBtn} <button class="btn ghost" title="지시 발행된 계획 — 지시 먼저 취소" disabled style="opacity:.4">${ico('x')}</button>`
+                : `<button class="btn ghost" data-ap-issue="${_esc(p.id)}" style="color:var(--cyan)" title="개별 지시 발행">${ico('plus')}지시 발행</button>
+                   ${printBtn}
+                   <button class="btn ghost" data-ap-void="${_esc(p.id)}" style="color:var(--red)" title="자동계획 취소 (원본 보존)">${ico('x')}</button>`);
           return `<tr style="${rowStyle}">
-            <td><b>${_esc(p.id)}</b>${voidBadge}</td>
-            <td class="muted">${fmtDate(p.created)} ${fmtTime(p.created)}</td>
-            <td class="num">${(p.items||[]).length}</td>
-            <td class="num">${(p.items||[]).reduce((s,i)=>s+(i.netDemand||0),0).toLocaleString()}</td>
-            <td><span class="pill ${statusCls}">${statusLbl}</span></td>
+            <td><b>${_esc(p.id)}</b>${originBadge}${voidBadge}</td>
+            <td class="muted">${_esc(p.date||'—')}</td>
+            <td><b>${_esc(p.itemCode)}</b> <span class="muted" style="font-size:11px">${_esc(it?.name||p.note||'')}</span></td>
+            <td class="num" style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">${(+p.qty||0).toLocaleString()}</td>
+            <td>${warns.join(' ') || '<span class="pill green" style="font-size:10px">OK</span>'}</td>
+            <td>${woCell}</td>
             <td>${actBtns}</td>
           </tr>`;
-        }).join('') : '<tr><td colspan="6" class="empty">계획 없음 — [자동계획 생성] 으로 시작</td></tr>'}</tbody>
+        }).join('') : '<tr><td colspan="7" class="empty">자동 계획 없음 — [자동계획 생성] 으로 시작</td></tr>'}</tbody>
       </table></div>
       <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.6">
-        · [취소]는 원본 보존 · 지시(WO)로 확정된 건은 <b>연결 문서 먼저 취소</b> — 생산계획 화면 취소 규칙과 동일.
+        · [자동] 배지 = <code>origin:'auto'</code> · <a href="#plan" style="color:var(--cyan)">생산계획</a> 화면에도 모두 노출 · 일괄 지시 발행/체크박스는 생산계획 목록 상단 [작업지시 생성] 사용.<br>
+        · [취소]는 원본 보존 · 지시(WO)로 발행된 건은 WO 먼저 취소.
       </div>
     </div>
   `;
 
-  // ★ v0.23.1 — 취소·복원·voidView 토글 이벤트 (생산계획 보드 view 는 무변경)
+  // 이벤트 바인딩 — 취소·복원·voidView·개별 지시 발행 (지시 발행은 기존 _woNew 프리필 경로 재사용)
   document.getElementById('ap-void-view').onchange = (e)=>{ apVoid.voidView = e.target.checked; router(); };
   document.querySelectorAll('[data-ap-void]').forEach(b => b.onclick = () => {
     const id = b.dataset.apVoid;
     const p = DB.get('production_plans', id);
     if(!p){ toast('계획 없음','err'); return; }
     if(p.void){ toast('이미 취소됨','warn'); return; }
-    const linked = _autoPlanLinkedLiveWO(p);
-    if(linked){ toast(`연결 문서 먼저 취소 — WO ${linked}`,'err',3200); return; }
+    if(p.wo_id){ toast(`연결 문서 먼저 취소 — WO ${p.wo_id}`,'err',3200); return; }
     voidDoc('production_plans', id, '자동계획 취소');
     toast('자동계획 취소 (원본 보존)','ok'); router();
   });
@@ -12912,6 +13001,7 @@ VIEWS.autoplan = () => {
     unvoidDoc('production_plans', b.dataset.apUnvoid);
     toast('자동계획 복원','ok'); router();
   });
+  document.querySelectorAll('[data-ap-issue]').forEach(b => b.onclick = () => VIEWS._planIssueWO(b.dataset.apIssue));
 
   // 옵션 모달
   document.getElementById('btn-plan-opts').onclick = ()=>{
@@ -12945,21 +13035,37 @@ VIEWS.autoplan = () => {
     };
   };
 
-  // 자동계획 생성
+  // 자동계획 생성 — v0.23.2: 헤더 doc 폐지 · 각 품번을 개별 board 행(origin:'auto')으로 저장
   document.getElementById('btn-plan-gen').onclick = ()=>{
     const plan = generateAutoPlan();
     if(!plan.items.length){ toast('순소요 > 0 인 품번이 없습니다','warn'); return; }
-    // ★ v0.20.0 — 자동 계획 채번 (UI 번호 칸 없음)
-    const id = nextDocNo('PP');
-    if(DB.get('production_plans', id)){ toast(`계획번호 중복 — ${id}`,'err'); return; }
-    DB.set('production_plans', id, {
-      id, created:Date.now(), by:SESSION.user,
-      status:'draft',
-      items: plan.items,
-      groups: plan.groups,
+    const today = fmtDate(Date.now());
+    let created = 0, dup = 0;
+    plan.items.forEach(it => {
+      const id = nextDocNo('PP');
+      if(DB.get('production_plans', id)){ dup++; return; }
+      DB.set('production_plans', id, {
+        id,
+        plan_type: 'board',
+        origin:    'auto',
+        so_id:     null,
+        itemCode:  it.code,
+        qty:       +it.netDemand || 0,
+        date:      it.due || today,
+        equipment: null,
+        note:      it.name || '',
+        auto_mold_warn: it.moldWarn || null,
+        auto_capa_warn: it.capaWarn || null,
+        wo_id:     null,
+        ts:        Date.now(),
+        by:        SESSION.user || 'system',
+        created:   Date.now(),
+      });
+      created++;
     });
-    toast(`자동계획 초안 생성 — ${id} (${plan.items.length}품번)`,'ok');
-    setTimeout(()=>VIEWS._planDetail(id), 100);
+    if(dup) console.warn('[VELA v0.23.2] 자동계획 생성 중 채번 중복 스킵', dup);
+    toast(`자동계획 ${created}건 생성 (생산계획 통합)`,'ok');
+    router();
   };
 };
 
