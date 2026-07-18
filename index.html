@@ -941,7 +941,7 @@ tr.mst-off td{opacity:.45}
 
   <div class="foot">
     <span class="made">MADE BY JUNS</span>
-    <span class="ver" id="ver-foot">VELA SYSTEM · v0.23.2 · 2026-07-18</span>
+    <span class="ver" id="ver-foot">VELA SYSTEM · v0.23.4 · 2026-07-18</span>
   </div>
 </div>
 
@@ -957,7 +957,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.23.2';
+const APP_VERSION = 'v0.23.4';
 const APP_DATE    = '2026-07-18';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -4018,6 +4018,15 @@ function calcPlanMaterial(plan){
   return { mat, weight:w, need, stock, ok: stock >= need, shortage: Math.max(0, need - stock) };
 }
 
+/* ★ v0.23.3 — 계획 목록 기준 단일화 (읽기만 · 저장 스키마 무변경)
+   production_plans 중 실제 "계획 행" 만 반환 — 헤더(items[]) 문서는 제외.
+   plan_type 무관: 신형 'board' · 구형 미지정 모두 포함. origin(자동/수동)은 배지·필터로만 구분.
+   includeVoid=true 면 DB.allRaw 사용 (취소 포함 보기 전용). 필터 함수 1벌로 통일. */
+function getLivePlans(includeVoid){
+  const src = includeVoid ? DB.allRaw('production_plans') : DB.all('production_plans');
+  return src.filter(p => p && p.itemCode);
+}
+
 /* ★ v0.20.4 — 일일 부하 계산 (모달·보드 공용 · 계산 1벌 · 상태 저장 금지)
    그날 live plans 중 그 설비 지정 건들의 소요 합 (h) = qty × ct(품번×설비procCode 공정) ÷ 3600.
    반환 { usedH, capH, pct, uncounted } — uncounted = CT 미등록/설비 매칭 불가 건수(추정 금지).
@@ -4039,8 +4048,9 @@ function calcDayLoad(date, equipmentName, extras, excludeId){
     }
     usedH += (q * ct) / 3600;
   };
-  DB.query('production_plans', p =>
-    p.plan_type === 'board' && p.date === date && p.equipment === equipmentName && p.id !== excludeId
+  // ★ v0.23.3 — plan_type 하드 조건 제거 · getLivePlans 기준으로 통일 (구형 미지정 · 자동 · 수동 모두 포함)
+  getLivePlans().filter(p =>
+    p.date === date && p.equipment === equipmentName && p.id !== excludeId
   ).forEach(p => acc(p.itemCode, p.qty));
   (extras || []).forEach(e => acc(e.itemCode, e.qty));
   const pct = capH > 0 ? (usedH / capH) * 100 : 0;
@@ -8840,9 +8850,9 @@ VIEWS._perfPlanCompare = () => {
     }
     return true;
   };
-  // board 계획 (기간 내 · 필터 반영) — VIEWS.plan 과 동일 규칙(생산계획 화면 값 일치)
-  const plans = DB.all('production_plans')
-    .filter(p => p.plan_type==='board' && p.date >= periodStart && p.date <= periodEnd)
+  // ★ v0.23.3 — 목록 기준 단일화(getLivePlans) · plan_type 하드 조건 제거 (구형 미지정·자동·수동 모두 포함)
+  const plans = getLivePlans()
+    .filter(p => p.date >= periodStart && p.date <= periodEnd)
     .filter(matchesPlan);
   // 계획 품번별 집계 (calcPlanProgress 재사용)
   const byItem = {};
@@ -9376,8 +9386,36 @@ const PRINT_BASE_CSS = `
   .mono{font-family:'JetBrains Mono','Consolas',monospace;font-weight:600}
   @media print {
     body{background:#fff;padding:0;gap:0}
-    .page{box-shadow:none !important;page-break-after:always;margin:0 !important}
+    /* ★ v0.23.4 — A4 전폭 · 여백 13mm · 양식 컨테이너 max-width 제거 · 페이지 흐름 정리 */
+    @page{size:A4;margin:13mm}
+    html,body{width:auto}
+    .page{
+      box-shadow:none !important;
+      margin:0 !important;
+      padding:0 !important;
+      width:auto !important;
+      min-width:0 !important;
+      max-width:none !important;
+      page-break-after:always;
+    }
     .page:last-child{page-break-after:auto}
+    /* 표 전폭 · 행 잘림 방지 */
+    table{width:100% !important}
+    tr, thead, tfoot{page-break-inside:avoid}
+    /* 본문 12pt 상향 · 행 여유 · 헤더 11pt (제목·헤더는 개별 양식에서 유지) */
+    th, td{font-size:12pt !important;padding:9pt 8pt !important;line-height:1.4}
+    th{font-size:11pt !important;padding-top:7pt !important;padding-bottom:7pt !important}
+    /* 코드류(WO·SO·LOT·PO 번호·날짜) 절대 줄바꿈 금지 — .mono 를 코드 규약으로 취급 */
+    .mono{white-space:nowrap;word-break:keep-all}
+    td.mono, th.mono, td.c.mono, td.r.mono, .r.mono, .c.mono{white-space:nowrap;word-break:keep-all}
+    /* 숫자류(우측·중앙 정렬) nowrap */
+    td.c, td.r, th.c, th.r{white-space:nowrap}
+    /* 내용류(품명·라우트·비고) 정상 줄바꿈 · 한글 잘림 최소화 */
+    td.route, td.b, td.item-strong, td.pname, td.note{white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
+    /* 라우트 컬럼 최소 40% 폭 확보 (thead 인라인 폭보다 우선) */
+    td.route{min-width:40% !important}
+    /* QR 크기 유지 (축소 금지) */
+    .qr-cell img, .top-qr, .slip-qr, .cell-qr, .meta-qr img{image-rendering:pixelated}
   }
 `;
 
@@ -9481,6 +9519,15 @@ const printForm = {
       .qr-cell img{width:62px;height:62px;display:block;margin:0 auto}
       .route{font-size:10.5px;color:#555;line-height:1.4}
       .foot{margin-top:20px;display:flex;justify-content:space-between;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:10px}
+      /* ★ v0.23.4 — 인쇄 시 컬럼 폭 재배분 · 라우트 최소 40% 확보 · 코드 nowrap 은 base 규칙 · 화면 미영향 */
+      @media print{
+        .doc-title{font-size:22pt !important;letter-spacing:14px}
+        /* thead 인라인 폭보다 우선 · 라우트를 40% 로 확장, 품번·명 을 축소 (auto layout 힌트) */
+        th:nth-child(3){width:13% !important}    /* 품번·품명 */
+        th:nth-child(6){width:40% !important;min-width:40% !important}    /* 공정 라우트 */
+        td.route{min-width:40% !important;font-size:11.5pt !important;line-height:1.5;color:#222}
+        .item-strong .iname{font-size:10.5pt}
+      }
     `;
     const body = `<div class="page">
       <div class="doc-title">작 업 지 시 서</div>
@@ -9767,6 +9814,23 @@ const printForm = {
       .slip-foot{display:flex;gap:30px;margin-top:8px}
       .sign{flex:1;display:flex;align-items:flex-end;gap:8px;font-size:11px;color:#666}
       .sign .line{flex:1;border-bottom:1px solid #999;height:18px}
+      /* ★ v0.23.4 — A4 = 2×A5 슬립 구조 유지 · 폭 재배분 · 슬립 내부 폰트 base 규칙보다 완화 (공간 제약) */
+      @media print{
+        .slip-title{font-size:16pt !important;letter-spacing:6px}
+        .slip{height:50% !important;padding:22px 30px !important}
+        /* base 의 12pt 는 슬립 내부에서 과도 → 슬립 표만 10.5pt 로 완화 (2×A5 공간 제약) */
+        .slip th, .slip td{font-size:10.5pt !important;padding:7pt 6pt !important}
+        .slip th{font-size:9.5pt !important}
+        .slip .totals{font-size:11pt !important;padding:8pt 6pt}
+        .slip .totals b{font-size:11.5pt}
+        /* 6컬럼 폭 재배분 — 품번·품명 확장, 파렛트/단중 압축 */
+        .slip th:nth-child(1){width:30% !important}   /* 품번·품명 */
+        .slip th:nth-child(2){width:14% !important}   /* 생산LOT (nowrap) */
+        .slip th:nth-child(3){width:13% !important}   /* 반출수량 (nowrap) */
+        .slip th:nth-child(4){width:10% !important}   /* 단중 */
+        .slip th:nth-child(5){width:15% !important}   /* 반출중량 */
+        .slip th:nth-child(6){width:12% !important}   /* 파렛트 */
+      }
     `;
     _openPrint(`외주 반출증 ${dispatches.length}건`, dispatches.map(page).join(''), css);
   },
@@ -9891,6 +9955,21 @@ const printForm = {
       .total-row .tt{color:#555;font-size:11.5px;align-self:center}
       .total-row .tv{font-family:'JetBrains Mono','Consolas',monospace;font-size:17px}
       .foot{margin-top:14px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between}
+      /* ★ v0.23.4 — 인쇄 폭 재배분 (7컬럼 구조·합계 불변 · 폭·글자만) */
+      @media print{
+        .doc-title{font-size:22pt !important;letter-spacing:8px}
+        .total-row{font-size:14pt !important;padding:12pt 10pt}
+        .total-row .tt{font-size:11.5pt !important}
+        .total-row .tv{font-size:16pt !important}
+        /* 품명 넓게, 코드류 nowrap 은 base 규칙 활용 */
+        th:nth-child(1){width:28% !important}    /* 품명 (가변) */
+        th:nth-child(2){width:12% !important}    /* LOT (nowrap) */
+        th:nth-child(3){width:9%  !important}    /* 수량 (nowrap) */
+        th:nth-child(4){width:14% !important}    /* 포장내역 */
+        th:nth-child(5){width:10% !important}    /* 단가 (nowrap) */
+        th:nth-child(6){width:15% !important}    /* 공급가액 (nowrap) */
+        th:nth-child(7){width:12% !important}    /* 파렛트 (nowrap) */
+      }
     `;
     // 거래처별로 1세트(2장: 공급자 보관용 + 공급받는자용)
     const pages = [];
@@ -9998,6 +10077,21 @@ const printForm = {
       .notice{margin-top:14px;padding:11px 14px;font-size:11.5px;color:#333;background:#f4f5f7;border-left:3px solid #16181d;line-height:1.6}
       .notice b{color:#16181d;margin-right:4px}
       .foot{margin-top:20px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:10px;display:flex;justify-content:space-between}
+      /* ★ v0.23.4 — 인쇄 폭 재배분 · 품명·규격 확대 · 코드/숫자 nowrap 은 base 규칙 활용 */
+      @media print{
+        .doc-title{font-size:22pt !important;letter-spacing:8px}
+        .notice{font-size:11pt !important;padding:10pt 12pt;line-height:1.55}
+        .total-row{font-size:14pt !important;padding:12pt 10pt}
+        .total-row .tt{font-size:11.5pt !important}
+        .total-row .tv{font-size:16pt !important}
+        th:nth-child(1){width:5%  !important}    /* No */
+        th:nth-child(2){width:28% !important}    /* 품명 (가변) */
+        th:nth-child(3){width:20% !important}    /* 규격 (가변) */
+        th:nth-child(4){width:7%  !important}    /* 단위 */
+        th:nth-child(5){width:11% !important}    /* 수량 (nowrap) */
+        th:nth-child(6){width:13% !important}    /* 단가 (nowrap) */
+        th:nth-child(7){width:16% !important}    /* 금액 (nowrap) */
+      }
     `;
     _openPrint(`발주서 ${pos.length}건`, pos.map(page).join(''), css);
   },
@@ -12085,8 +12179,8 @@ VIEWS.plan = () => {
   // 활성 설비 (사내 공정만)
   const equipmentList = buildEquipmentList();
   const eqNames = equipmentList.map(e=>e.name);
-  // 계획 목록 (board 만 — 자동/수동 통합 · v0.23.2)
-  const allPlans = DB.all('production_plans').filter(p => p.plan_type==='board');
+  // ★ v0.23.3 — 목록 기준 1벌 (getLivePlans) · plan_type 무관 · 자동/수동/구형 미지정 모두 포함
+  const allPlans = getLivePlans();
 
   // 필터 함수
   const matchesFilter = (p) => {
@@ -12909,11 +13003,21 @@ VIEWS.autoplan = () => {
   }
   // 이관 재확인 (지연 로드 대비 · 내부 플래그로 중복 실행 방지)
   migrateAutoPlanToBoard();
-  const apVoid = (window._autoPlanVoid = window._autoPlanVoid || { voidView:false });
-  const source = apVoid.voidView ? DB.allRaw('production_plans') : DB.all('production_plans');
-  const autoRows = source
-    .filter(p => p.plan_type === 'board' && p.origin === 'auto')
+  // ★ v0.23.3 — 목록 기준 단일화(getLivePlans) · plan_type 하드 필터 제거 · origin 은 UI 필터(기본 '자동', 사용자 전환 가능)
+  const apState = (window._autoPlanState = window._autoPlanState || { voidView:false, origin:'auto' });
+  const originAll = getLivePlans(apState.voidView)
     .sort((a,b) => (b.ts||b.created||0) - (a.ts||a.created||0));
+  const originMatch = (p) => {
+    if(apState.origin === 'auto')   return p.origin === 'auto';
+    if(apState.origin === 'manual') return p.origin !== 'auto';
+    return true; // '전체'
+  };
+  const rows = originAll.filter(originMatch);
+  const cnt = {
+    auto:   originAll.filter(p => !p.void && p.origin === 'auto').length,
+    manual: originAll.filter(p => !p.void && p.origin !== 'auto').length,
+    voidN:  originAll.filter(p => p.void).length,
+  };
   const opts = DB.get('settings','auto_plan') || {};
 
   document.getElementById('view').innerHTML = `
@@ -12940,24 +13044,33 @@ VIEWS.autoplan = () => {
 
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-        <h3 style="margin:0">생성된 계획 <span class="tag">자동 ${autoRows.filter(x=>!x.void).length}건${apVoid.voidView?` · 취소 ${autoRows.filter(x=>x.void).length}건 포함`:''}</span></h3>
-        <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${apVoid.voidView?'rgba(248,113,113,.08)':'var(--bg2)'};margin-left:auto"><input type="checkbox" id="ap-void-view" ${apVoid.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
+        <h3 style="margin:0">계획 목록 <span class="tag">자동 ${cnt.auto}건 · 수동 ${cnt.manual}건${apState.voidView?` · 취소 ${cnt.voidN}건 포함`:''}</span></h3>
+        <!-- ★ v0.23.3 — 출처 필터 (기본 '자동' · '전체'/'수동' 전환 가능 · 생산계획 화면과 동일 옵션) -->
+        <select id="ap-origin" style="width:110px;margin-left:auto" title="출처 필터">
+          <option value=""       ${apState.origin===''?'selected':''}>전체 출처</option>
+          <option value="auto"   ${apState.origin==='auto'?'selected':''}>자동만</option>
+          <option value="manual" ${apState.origin==='manual'?'selected':''}>수동만</option>
+        </select>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${apState.voidView?'rgba(248,113,113,.08)':'var(--bg2)'}"><input type="checkbox" id="ap-void-view" ${apState.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
       </div>
       <div class="tbl-wrap"><table>
         <thead><tr><th>계획ID</th><th>계획일</th><th>품번·품명</th><th class="num">순소요(ea)</th><th>경고</th><th>WO</th><th></th></tr></thead>
-        <tbody>${autoRows.length? autoRows.map(p=>{
+        <tbody>${rows.length? rows.map(p=>{
           const it = DB.get('items', p.itemCode);
           const isVoid = !!p.void;
+          const isAuto = p.origin === 'auto';
           const rowStyle = isVoid ? 'opacity:.5;background:rgba(248,113,113,.04)' : '';
           const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(p.void.reason||'')} · ${fmtDate(p.void.ts)}">「취소」</span>` : '';
-          const originBadge = `<span class="pill" style="background:rgba(251,191,36,.15);color:var(--amber);font-size:9px;margin-left:4px">자동</span>`;
+          const originBadge = isAuto
+            ? `<span class="pill" style="background:rgba(251,191,36,.15);color:var(--amber);font-size:9px;margin-left:4px" title="자동계획 생성">자동</span>`
+            : `<span class="pill" style="background:var(--bg2);color:var(--dim);font-size:9px;margin-left:4px;border:1px solid var(--line)" title="수동 등록">수동</span>`;
           const warns = [];
           if(p.auto_mold_warn) warns.push(`<span class="pill heat" style="font-size:10px" title="${_esc(p.auto_mold_warn)}">⚠ 금형</span>`);
           if(p.auto_capa_warn) warns.push(`<span class="pill red"  style="font-size:10px" title="${_esc(p.auto_capa_warn)}">▲ CAPA</span>`);
           const woCell = p.wo_id
             ? `<button class="btn ghost" onclick="location.hash='#wo'" title="${_esc(p.wo_id)}"><span class="pill cyan" style="font-size:10px">${_esc(p.wo_id)}</span></button>`
             : `<span style="color:var(--dim);font-size:11px">미발행</span>`;
-          // 인쇄 버튼 — v0.23.2 수리: WO 연결 시 _printWO 재사용 (기존 [작업지시] 화면과 동일 경로). 미연결 시 안내 toast.
+          // 인쇄 버튼 — v0.23.2 수리 이어감: WO 연결 시 _printWO 재사용. 미연결 시 안내 toast.
           const printBtn = p.wo_id
             ? `<button class="btn ghost" title="작업지시서 인쇄" onclick="VIEWS._printWO('${_esc(p.wo_id)}')">${ico('print')}</button>`
             : `<button class="btn ghost" title="지시 발행 후 인쇄 가능" onclick="toast('지시 발행 후 인쇄 가능 — 하단 [지시 발행]','warn',2600)" style="opacity:.55">${ico('print')}</button>`;
@@ -12967,7 +13080,7 @@ VIEWS.autoplan = () => {
                 ? `${printBtn} <button class="btn ghost" title="지시 발행된 계획 — 지시 먼저 취소" disabled style="opacity:.4">${ico('x')}</button>`
                 : `<button class="btn ghost" data-ap-issue="${_esc(p.id)}" style="color:var(--cyan)" title="개별 지시 발행">${ico('plus')}지시 발행</button>
                    ${printBtn}
-                   <button class="btn ghost" data-ap-void="${_esc(p.id)}" style="color:var(--red)" title="자동계획 취소 (원본 보존)">${ico('x')}</button>`);
+                   <button class="btn ghost" data-ap-void="${_esc(p.id)}" style="color:var(--red)" title="계획 취소 (원본 보존)">${ico('x')}</button>`);
           return `<tr style="${rowStyle}">
             <td><b>${_esc(p.id)}</b>${originBadge}${voidBadge}</td>
             <td class="muted">${_esc(p.date||'—')}</td>
@@ -12977,29 +13090,33 @@ VIEWS.autoplan = () => {
             <td>${woCell}</td>
             <td>${actBtns}</td>
           </tr>`;
-        }).join('') : '<tr><td colspan="7" class="empty">자동 계획 없음 — [자동계획 생성] 으로 시작</td></tr>'}</tbody>
+        }).join('') : `<tr><td colspan="7" class="empty">${apState.origin==='auto'?'자동 계획 없음 — [자동계획 생성] 으로 시작':(apState.origin==='manual'?'수동 계획 없음 — 생산계획 화면 [+ 계획 수립]':'계획 없음')}</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.6">
-        · [자동] 배지 = <code>origin:'auto'</code> · <a href="#plan" style="color:var(--cyan)">생산계획</a> 화면에도 모두 노출 · 일괄 지시 발행/체크박스는 생산계획 목록 상단 [작업지시 생성] 사용.<br>
+        · 목록 기준 <b>단일화</b> — <code>getLivePlans()</code> (자동/수동/구형 미지정 모두). [자동]/[수동] 배지 · 출처 필터로 구분.<br>
+        · 일괄 지시 발행/체크박스는 <a href="#plan" style="color:var(--cyan)">생산계획</a> 목록 상단 [작업지시 생성] 사용 · 소재/부하/계획대비 자동 포함.<br>
         · [취소]는 원본 보존 · 지시(WO)로 발행된 건은 WO 먼저 취소.
       </div>
     </div>
   `;
 
-  // 이벤트 바인딩 — 취소·복원·voidView·개별 지시 발행 (지시 발행은 기존 _woNew 프리필 경로 재사용)
-  document.getElementById('ap-void-view').onchange = (e)=>{ apVoid.voidView = e.target.checked; router(); };
+  // 이벤트 바인딩 — 취소·복원·voidView·출처·개별 지시 발행 (지시 발행은 기존 _woNew 프리필 경로 재사용)
+  document.getElementById('ap-void-view').onchange = (e)=>{ apState.voidView = e.target.checked; router(); };
+  document.getElementById('ap-origin').onchange    = (e)=>{ apState.origin   = e.target.value;   router(); };
   document.querySelectorAll('[data-ap-void]').forEach(b => b.onclick = () => {
     const id = b.dataset.apVoid;
     const p = DB.get('production_plans', id);
     if(!p){ toast('계획 없음','err'); return; }
     if(p.void){ toast('이미 취소됨','warn'); return; }
     if(p.wo_id){ toast(`연결 문서 먼저 취소 — WO ${p.wo_id}`,'err',3200); return; }
-    voidDoc('production_plans', id, '자동계획 취소');
-    toast('자동계획 취소 (원본 보존)','ok'); router();
+    // ★ v0.23.3 — 통합 목록에서 수동 행도 취소 가능 → 사유·toast 를 origin 기반으로 표기
+    const lbl = p.origin === 'auto' ? '자동계획 취소' : '계획 취소';
+    voidDoc('production_plans', id, lbl);
+    toast(`${lbl} (원본 보존)`,'ok'); router();
   });
   document.querySelectorAll('[data-ap-unvoid]').forEach(b => b.onclick = () => {
     unvoidDoc('production_plans', b.dataset.apUnvoid);
-    toast('자동계획 복원','ok'); router();
+    toast('계획 복원','ok'); router();
   });
   document.querySelectorAll('[data-ap-issue]').forEach(b => b.onclick = () => VIEWS._planIssueWO(b.dataset.apIssue));
 
