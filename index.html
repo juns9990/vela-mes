@@ -940,7 +940,7 @@ tr.mst-off td{opacity:.45}
 
   <div class="foot">
     <span class="made">MADE BY JUNS</span>
-    <span class="ver" id="ver-foot">VELA SYSTEM · v0.22.2 · 2026-07-17</span>
+    <span class="ver" id="ver-foot">VELA SYSTEM · v0.23.1 · 2026-07-18</span>
   </div>
 </div>
 
@@ -956,8 +956,8 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.22.2';
-const APP_DATE    = '2026-07-17';
+const APP_VERSION = 'v0.23.1';
+const APP_DATE    = '2026-07-18';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1265,6 +1265,25 @@ const DB = (() => {
     // ★ v0.21.0 — 어댑터 접근 (파이어스토어 부팅·이관 도구 전용, 화면 헬퍼 사용 금지)
     _adapterObj(){ return _ACTIVE_ADAPTER; },
   };
+})();
+
+/* ★ v0.22.3 — 데모 상태 자가 점검 (부팅 직후 1회 · 플래그와 상태 불일치 시 정리·경고)
+   목적: 플래그(vela_demo) 하나만 진실. 어댑터 키·백엔드·단말 D 판정이 플래그와 어긋나면 감지·복원.
+   실행 시점: DB 초기화 직후. 이 시점에서 어긋난 게 있으면 콘솔 경고만 남기고 실키/데모키 자체는 건드리지 않음. */
+(function _selfCheckDemoState(){
+  const demo = isDemoMode();
+  const adapterName = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name;
+  const usingDemoKey = (adapterName === 'local' && _activeLSKey() === _DEMO_LS_KEY);
+  const usingRealKey = (adapterName === 'local' && _activeLSKey() === _LS_KEY);
+  // 어긋남 판정
+  if(demo && !usingDemoKey){
+    console.warn('[VELA] 데모 상태 불일치: 플래그 set 이나 어댑터가 데모 키 미사용 (adapter=%s, activeKey=%s) — 자가복원 위해 새로고침 예약', adapterName, _activeLSKey());
+    // reload 를 즉시 걸면 무한 루프 위험 → 세션에 마킹만 남기고 진행 (다음 사용자 액션에서 정리)
+  } else if(!demo && usingDemoKey){
+    console.warn('[VELA] 데모 상태 불일치: 플래그 없음 이나 어댑터가 데모 키 참조 — 데모 데이터 오염 방지 위해 정리 필요');
+  } else if(demo){
+    console.info('[VELA] 데모 모드 활성 — 별도 키(%s) · 단말 D · 서버 접속 없음', _DEMO_LS_KEY);
+  }
 })();
 
 /* ★ v0.21.0 — 파이어스토어 SDK compat 동적 로드 · 오프라인 퍼시스턴스 · 익명 인증 · onSnapshot 구독
@@ -2965,11 +2984,65 @@ function ico(name){
   return `<svg viewBox="0 0 24 24">${map[name]||''}</svg>`;
 }
 
-/* SheetJS Export — 모든 목록 화면에 공통 (CLAUDE.md §0-6) */
+/* SheetJS Export — 모든 목록 화면에 공통 (CLAUDE.md §0-6)
+   ★ v0.23.1 — 엑셀 결재란(승인 도장 칸) 전수 삽입
+   settings/documents.approval = { on: bool, slots: ['담당','검토','승인'] } · 회사 공유값
+   상단 우측 = 헤더 1행(칸명) + 서명 3행(빈칸·병합) · 좌측 세로 '결재' 라벨
+   전 엑셀 내보내기(개별 export + 전체 엑셀)가 xlsxBuildSheet 를 경유(중복 삽입 금지)
+   OFF 시 기존 json_to_sheet 결과와 완전 동일 (컬럼·값 불변) */
+const _APPROVAL_DEFAULT_SLOTS = ['담당','검토','승인'];
+function getApprovalSetting(){
+  const s = DB.get('settings','documents') || {};
+  const ap = s.approval || {};
+  const raw = Array.isArray(ap.slots) ? ap.slots : _APPROVAL_DEFAULT_SLOTS;
+  const slots = raw.map(x => String(x==null?'':x).trim()).filter(Boolean).slice(0,5);
+  return { on: !!ap.on, slots: slots.length ? slots : _APPROVAL_DEFAULT_SLOTS.slice() };
+}
+function setApprovalSetting(patch){
+  const prev = DB.get('settings','documents') || {};
+  DB.set('settings','documents', { ...prev, approval: { ...(prev.approval||{}), ...patch } });
+}
+// 결재란 스펙 반환 — OFF 또는 칸 없음이면 null (호출측 분기 최소화)
+function buildApprovalRows(){
+  const st = getApprovalSetting();
+  if(!st.on || !st.slots.length) return null;
+  return { slots: st.slots.slice(), rows: 4, cols: 1 + st.slots.length };
+}
+// SheetJS 시트 1벌 — rows(json 배열) → 결재란 얹은 워크시트. OFF·rows 없음이면 json_to_sheet 그대로.
+function xlsxBuildSheet(rows){
+  if(!rows || !rows.length) return null;
+  const ap = buildApprovalRows();
+  if(!ap) return XLSX.utils.json_to_sheet(rows);
+  const keys = Object.keys(rows[0] || {});
+  const dataCols = Math.max(1, keys.length);
+  const totalCols = Math.max(dataCols, ap.cols);
+  const apStartCol = totalCols - ap.cols;
+  // 4행 결재란 (0행=헤더, 1~3행=서명 병합)
+  const aoa = [];
+  for(let r=0; r<ap.rows; r++) aoa.push(new Array(totalCols).fill(null));
+  aoa[0][apStartCol] = '결재';
+  ap.slots.forEach((n,i) => { aoa[0][apStartCol+1+i] = n; });
+  // 스페이서 1행 → 데이터 헤더 → 데이터
+  aoa.push(new Array(totalCols).fill(null));
+  aoa.push(keys.slice());
+  rows.forEach(r => aoa.push(keys.map(k => r[k])));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const merges = [];
+  merges.push({ s:{r:0,c:apStartCol}, e:{r:ap.rows-1,c:apStartCol} });         // '결재' 세로 병합 (4행)
+  ap.slots.forEach((_,i) => {
+    merges.push({ s:{r:1,c:apStartCol+1+i}, e:{r:ap.rows-1,c:apStartCol+1+i} }); // 서명칸 3행 병합
+  });
+  ws['!merges'] = (ws['!merges']||[]).concat(merges);
+  const wcols = ws['!cols'] || [];
+  wcols[apStartCol] = { wch: 6 };
+  ap.slots.forEach((_,i) => { wcols[apStartCol+1+i] = wcols[apStartCol+1+i] || { wch: 12 }; });
+  ws['!cols'] = wcols;
+  return ws;
+}
 function exportXlsx(rows, sheetName, fileName){
   if(!window.XLSX){ toast('엑셀 라이브러리 로딩 중', 'warn'); return; }
   if(!rows?.length){ toast('내보낼 데이터 없음', 'warn'); return; }
-  const ws = XLSX.utils.json_to_sheet(rows);
+  const ws = xlsxBuildSheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheetName||'Sheet1');
   XLSX.writeFile(wb, fileName||`vela-mes-${Date.now()}.xlsx`);
@@ -3282,19 +3355,26 @@ function onDemoClick(){
   if(!confirm('데모 모드 — 샘플 데이터로 전 기능을 체험합니다.\n\n실제 데이터와 완전 분리됩니다.\n(별도 로컬 키 · 서버 접속 없음 · 언제든 [데모 종료] 로 원상 복귀)')) return;
   enterDemoMode();
 }
-/* ★ v0.22.0 — 데모 체험 진입/자동 시드/자동 로그인/종료 (분기는 부팅·게이트만) */
+/* ★ v0.22.0 — 데모 체험 진입/자동 시드/자동 로그인/종료 (분기는 부팅·게이트만)
+   ★ v0.22.3 — 원자화: 플래그 set/remove 후 즉시 reload · 실모드 로컬 키(vela_device_code / vela_theme /
+      vela_mes_db_v1 / vela_backend_config) 는 절대 건드리지 않음 · 재부팅 후 부팅 자가 점검이 잔재 검증. */
 function enterDemoMode(){
-  try { localStorage.setItem(_DEMO_FLAG_KEY, '1'); } catch {}
-  // 재부팅 (부팅 시 isDemoMode 체크 → 별도 키·local 어댑터·단말 D 로 시작)
+  try { localStorage.setItem(_DEMO_FLAG_KEY, '1'); } catch(e){ console.warn('[VELA] enterDemoMode 플래그 저장 실패', e); }
+  // 배지 즉시 노출(재부팅 전 시각 잔재 방지 · 실키에는 아무 것도 쓰지 않음)
+  const b = document.getElementById('demo-badge'); if(b) b.hidden = false;
   location.reload();
 }
 function exitDemoMode(){
-  try { localStorage.removeItem(_DEMO_FLAG_KEY); } catch {}
+  try { localStorage.removeItem(_DEMO_FLAG_KEY); } catch(e){ console.warn('[VELA] exitDemoMode 플래그 제거 실패', e); }
+  // 배지 즉시 소등(재부팅 전 시각 잔재 방지) · 세션 리셋(데모 사용자 잔재 클리어)
+  const b = document.getElementById('demo-badge'); if(b) b.hidden = true;
+  SESSION.userId = null; SESSION.user = 'OP-001'; SESSION.role = null; SESSION.loggedIn = false;
+  // 실모드 로컬 키(vela_device_code · vela_theme · vela_mes_db_v1 · vela_backend_config) 는 건드리지 않음 — reload 후 그대로 복원
   location.reload();
 }
 function resetDemoData(){
-  // 데모 DB 완전 초기화 + 재시드 (실 DB 는 무손상)
-  try { localStorage.removeItem(_DEMO_LS_KEY); } catch {}
+  // 데모 DB 완전 초기화 + 재시드 (실 DB 는 무손상) · 데모 플래그는 유지 (여전히 데모 모드)
+  try { localStorage.removeItem(_DEMO_LS_KEY); } catch(e){ console.warn('[VELA] resetDemoData 실패', e); }
   location.reload();
 }
 // 데모 자동 로그인 — 데모 사용자('데모' manager) 진입. 없으면 seedDemoData() 가 만든다.
@@ -11900,6 +11980,84 @@ function esOpenEdit(id){
 }
 
 /* ================================================================================================
+   ★ v0.23.0 — 일괄 발행 헬퍼 (계획 → 지시 · 모달 없이 프리필 값 그대로 · WO 3 STEP 무수정)
+   splitPlansForWo(planIds) : 선택 건을 ready / hold(사유)로 분리 — 소재 부족·부하 초과·품번 미등록·이미 발행 검사
+   issueWoFromPlan(plan)    : WO 3 STEP 저장 스키마(line 5462~ 참조)와 동일 필드로 1건 발행 + plan.wo_id 병합
+   · 두 함수 모두 wo_id 재발행 차단(이중 검사)
+   · SESSION.user 를 by 로 그대로 기록
+   · 자동 발행·설정·배너는 도입하지 않음 (범위 밖) — 후속 확장 여지만 남김
+   ================================================================================================ */
+function splitPlansForWo(planIds){
+  const ready = [];
+  const hold  = [];
+  (planIds || []).forEach(id => {
+    const p = DB.get('production_plans', id);
+    if(!p){          hold.push({ planId:id, plan:null, reason:'계획 없음' }); return; }
+    if(p.void){      hold.push({ planId:id, plan:p,   reason:'취소된 계획' }); return; }
+    if(p.wo_id){     hold.push({ planId:id, plan:p,   reason:`이미 발행 (${p.wo_id})` }); return; }
+    const it = DB.get('items', p.itemCode);
+    if(!it){         hold.push({ planId:id, plan:p,   reason:`품번 미등록 (${p.itemCode||'—'})` }); return; }
+    const qty = +p.qty || 0;
+    if(qty <= 0){    hold.push({ planId:id, plan:p,   reason:'수량 0 이하' }); return; }
+    // 소재 부족 (calcPlanMaterial red 만 hold · 미등록(null)은 통과 — 대시보드 표시 규칙과 동일)
+    const mat = calcPlanMaterial(p);
+    if(mat && !mat.ok){
+      hold.push({ planId:id, plan:p, reason:`소재 부족 ${Math.round(mat.shortage).toLocaleString()}kg (필요 ${Math.round(mat.need).toLocaleString()}kg / 재고 ${Math.round(mat.stock).toLocaleString()}kg)` });
+      return;
+    }
+    // 부하 초과 (설비·CT 있는 건만 · calcDayLoad 재사용 · p 는 이미 저장돼 있어 그대로 합산)
+    if(p.equipment){
+      const procCode = getEqProcCode(p.equipment);
+      const ct = procCode ? +(it?.proc_times?.[procCode]?.ct) : 0;
+      if(procCode && ct > 0){
+        const load = calcDayLoad(p.date, p.equipment);
+        if(load.pct > 100){
+          hold.push({ planId:id, plan:p, reason:`부하 초과 ${load.pct.toFixed(0)}% (${load.usedH.toFixed(1)}h / ${load.capH}h)` });
+          return;
+        }
+      }
+    }
+    ready.push({ planId:id, plan:p });
+  });
+  return { ready, hold };
+}
+
+// WO 3 STEP 모달 저장부(line 5462~5472)와 동일 스키마로 1건 발행 · 사용자 확인 없이 즉시 저장.
+// 필드가 어긋나면 수동 경로와 결과가 달라지므로, _woNew 수정 시 여기도 동기해야 함.
+function issueWoFromPlan(plan){
+  if(!plan)         return { ok:false, reason:'계획 없음' };
+  if(plan.void)     return { ok:false, reason:'취소된 계획' };
+  if(plan.wo_id)    return { ok:false, reason:`이미 발행 (${plan.wo_id})` };
+  const qty = +plan.qty || 0;
+  if(qty <= 0)      return { ok:false, reason:'수량 0 이하' };
+  const it = DB.get('items', plan.itemCode);
+  if(!it)           return { ok:false, reason:`품번 미등록 (${plan.itemCode||'—'})` };
+  try {
+    const woId   = nextDocNo('WO');
+    if(DB.get('work_orders', woId))    return { ok:false, reason:`지시번호 중복 — ${woId}` };
+    const plotNo = nextDocNo('PL');
+    if(DB.get('production_lots', plotNo)) return { ok:false, reason:`LOT 번호 중복 — ${plotNo}` };
+    // 프리필 기본값: 소재 heat 미선택 · 공정별 계획 설비 미지정 (수동 경로에서도 그대로 저장 가능한 조합)
+    LOT.create({ plot_no: plotNo, itemCode: plan.itemCode, materialLots: [], qty_initial: qty });
+    const wo = {
+      id: woId,
+      itemCode: plan.itemCode,
+      plot_no:  plotNo,
+      qty,
+      so_id:    plan.so_id || null,
+      plan_eq:  {},
+      created:  Date.now(),
+      by:       SESSION.user,
+    };
+    DB.set('work_orders', woId, wo);
+    DB.correct('production_plans', plan.id, { wo_id: woId }, `WO ${woId} 발행 (일괄)`);
+    return { ok:true, wo_id:woId, plot_no:plotNo };
+  } catch(e){
+    return { ok:false, reason: e.message || '발행 실패' };
+  }
+}
+
+/* ================================================================================================
    ★ v0.20.1 — 생산계획 (board) · 수주 → 계획 → 지시 발행 → 실적
    plans 컬렉션 = production_plans (기존 auto plan 문서는 plan_type 미지정, 신규 board 는 plan_type='board').
    상태 저장 금지 → calcPlanProgress 로 파생만. 지시 로직 신규 작성 금지 — VIEWS._woNew(pre) 프리필 호출.
@@ -12221,9 +12379,13 @@ VIEWS.plan = () => {
 
     <!-- 계획 목록 (하단) -->
     <div class="card">
-      <h3>계획 목록 <span class="tag">${listRows.length}건 · 기간·필터 반영</span></h3>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <h3 style="margin:0">계획 목록 <span class="tag">${listRows.length}건 · 기간·필터 반영</span></h3>
+        <!-- ★ v0.23.0 — 체크 1건 이상일 때 활성 · WO 3 STEP 무수정 · 확인 모달에서 hold 사유 확인 후 발행 -->
+        <button class="btn primary" id="btn-plan-batch-issue" style="margin-left:auto" disabled>${ico('plus')}작업지시 생성 <span id="btn-plan-batch-cnt" style="opacity:.75;margin-left:4px"></span></button>
+      </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>계획일</th><th>품번·품명</th><th>수주·납기</th><th>설비</th><th class="num">계획</th><th class="num">실적</th><th style="width:100px">달성</th><th>상태</th><th>소재</th><th></th></tr></thead>
+        <thead><tr><th style="width:32px"><input type="checkbox" id="plan-chk-all" style="width:auto;margin:0" title="전체 선택 (미발행 · 미취소만)"></th><th>계획일</th><th>품번·품명</th><th>수주·납기</th><th>설비</th><th class="num">계획</th><th class="num">실적</th><th style="width:100px">달성</th><th>상태</th><th>소재</th><th></th></tr></thead>
         <tbody>${listRows.length? listRows.map(p => {
           const it = DB.get('items', p.itemCode);
           const pr = calcPlanProgress(p);
@@ -12231,13 +12393,20 @@ VIEWS.plan = () => {
           const so = p.so_id ? DB.get('orders', p.so_id) : null;
           const cust = so?.cust ? (DB.get('vendors', so.cust)?.name || so.cust) : '';
           const cls = stateColor(pr.state);
+          // ★ v0.23.0 — 발행됨(wo_id)·취소(void) 행은 체크 불가(dim). listRows 는 DB.all 이라 실전엔 void 없음이지만 방어적으로 검사.
+          const canPick = !p.wo_id && !p.void;
+          const rowStyle = canPick ? '' : 'opacity:.55';
+          const chkCell  = canPick
+            ? `<input type="checkbox" class="plan-chk" data-plan-id="${_esc(p.id)}" style="width:auto;margin:0" title="발행 대상 선택">`
+            : `<input type="checkbox" disabled style="width:auto;margin:0" title="${p.wo_id?'이미 발행됨':'취소된 계획'}">`;
           const woBtn = p.wo_id
             ? `<button class="btn ghost" onclick="location.hash='#wo'" title="${_esc(p.wo_id)}"><span class="pill cyan" style="font-size:10px">${_esc(p.wo_id)}</span></button>`
             : `<button class="btn ghost" data-issue="${_esc(p.id)}" style="color:var(--cyan)">${ico('plus')}지시 발행</button>`;
           const cancelBtn = p.wo_id
             ? `<button class="btn ghost" title="지시 발행된 계획 — 지시 먼저 취소" disabled style="opacity:.4">${ico('x')}</button>`
             : `<button class="btn ghost" data-plan-cancel="${_esc(p.id)}" style="color:var(--red)">${ico('x')}</button>`;
-          return `<tr>
+          return `<tr style="${rowStyle}">
+            <td>${chkCell}</td>
             <td class="muted">${_esc(p.date)}</td>
             <td><b>${_esc(p.itemCode)}</b> <span class="muted" style="font-size:11px">${_esc(it?.name||'')}</span></td>
             <td>${so ? `<div style="font-size:11px"><b>${_esc(so.id)}</b>${cust?`<div style="color:var(--sub);font-size:10px">${_esc(cust)}</div>`:''}${so.due?`<div style="color:var(--dim);font-size:10px">납기 ${_esc(so.due)}</div>`:''}</div>` : '<span class="muted" style="font-size:10.5px">재고생산</span>'}</td>
@@ -12249,7 +12418,7 @@ VIEWS.plan = () => {
             <td>${mat===null? '<span style="color:var(--dim);font-size:11px" title="품번 재질·단중 미등록">—</span>' : (mat.ok? `<span style="color:var(--green);font-size:11px" title="필요 ${Math.round(mat.need)}kg / 재고 ${Math.round(mat.stock)}kg">● 충분</span>` : `<span style="color:var(--red);font-size:11px" title="부족 ${Math.round(mat.shortage)}kg">● 부족</span>`)}</td>
             <td>${woBtn} ${cancelBtn}</td>
           </tr>`;
-        }).join('') : '<tr><td colspan="10" class="empty">이 기간에 계획 없음 — [+ 계획 수립]으로 추가</td></tr>'}</tbody>
+        }).join('') : '<tr><td colspan="11" class="empty">이 기간에 계획 없음 — [+ 계획 수립]으로 추가</td></tr>'}</tbody>
       </table></div>
       <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.6">
         · 소재 표시 = <b>건별 기준</b> (같은 소재 다계획 합산 소요 대비는 범위 밖 · 부족해도 등록 허용).
@@ -12268,6 +12437,30 @@ VIEWS.plan = () => {
   document.getElementById('btn-plan-new').onclick = ()=>VIEWS._planNew();
   document.querySelectorAll('[data-issue]').forEach(b => b.onclick = ()=>VIEWS._planIssueWO(b.dataset.issue));
   document.querySelectorAll('[data-plan-cancel]').forEach(b => b.onclick = ()=>VIEWS._planCancel(b.dataset.planCancel));
+
+  // ★ v0.23.0 — 체크박스 + 일괄 발행 버튼
+  const chkAll = document.getElementById('plan-chk-all');
+  const chks   = [...document.querySelectorAll('.plan-chk')];
+  const batchBtn = document.getElementById('btn-plan-batch-issue');
+  const batchCnt = document.getElementById('btn-plan-batch-cnt');
+  const syncBatchBtn = () => {
+    const picked = chks.filter(c => c.checked).length;
+    batchBtn.disabled = picked === 0;
+    batchCnt.textContent = picked > 0 ? `· ${picked}건 선택` : '';
+    // 전체선택 체크박스 상태 동기 (일부만 체크 → indeterminate)
+    if(chks.length === 0){ chkAll.checked = false; chkAll.indeterminate = false; }
+    else if(picked === 0){ chkAll.checked = false; chkAll.indeterminate = false; }
+    else if(picked === chks.length){ chkAll.checked = true; chkAll.indeterminate = false; }
+    else { chkAll.checked = false; chkAll.indeterminate = true; }
+  };
+  chkAll.onchange = () => { chks.forEach(c => c.checked = chkAll.checked); syncBatchBtn(); };
+  chks.forEach(c => c.onchange = syncBatchBtn);
+  batchBtn.onclick = () => {
+    const ids = chks.filter(c => c.checked).map(c => c.dataset.planId);
+    if(!ids.length) return;
+    VIEWS._planBatchIssue(ids);
+  };
+  syncBatchBtn();
   document.getElementById('btn-plan-xlsx').onclick = ()=>{
     const xrows = listRows.map(p => {
       const it = DB.get('items', p.itemCode);
@@ -12547,6 +12740,73 @@ VIEWS._planIssueWO = (planId) => {
   VIEWS._woNew({ so_id: p.so_id || null, itemCode: p.itemCode, qty: p.qty, from_plan: planId });
 };
 
+// ★ v0.23.0 — 작업지시 일괄 생성 — 확인 모달 · ready/hold 분리 표시 · 일괄 발행 · toast 결과
+//   · WO 3 STEP 모달과 동일 스키마(issueWoFromPlan) · hold 는 강행 발행 금지 (사유만 표시)
+//   · 재발행 차단: splitPlansForWo + issueWoFromPlan 양쪽에서 wo_id 검사
+VIEWS._planBatchIssue = (planIds) => {
+  const { ready, hold } = splitPlansForWo(planIds || []);
+  const readyRows = ready.length
+    ? `<div class="tbl-wrap" style="max-height:220px;overflow:auto"><table style="font-size:12px">
+        <thead><tr><th>계획일</th><th>품번·품명</th><th class="num">수량</th><th>설비</th></tr></thead>
+        <tbody>${ready.map(({plan:p}) => {
+          const it = DB.get('items', p.itemCode);
+          return `<tr>
+            <td class="muted">${_esc(p.date)}</td>
+            <td><b>${_esc(p.itemCode)}</b> <span class="muted" style="font-size:11px">${_esc(it?.name||'')}</span></td>
+            <td class="num" style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">${(+p.qty||0).toLocaleString()}</td>
+            <td style="font-size:11px">${p.equipment ? _esc(p.equipment) : '<span style="color:var(--amber)">미배정</span>'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`
+    : `<div style="padding:12px;color:var(--dim);font-size:12px;background:var(--bg2);border:1px solid var(--line);border-radius:8px">발행 가능 건 없음 — 아래 보류 사유 확인 후 계획을 보정하세요.</div>`;
+  const holdRows = hold.length
+    ? `<div style="margin-top:12px">
+        <div style="font-size:11.5px;color:var(--red);font-weight:600;margin-bottom:6px">보류 ${hold.length}건 (발행 제외)</div>
+        <div class="tbl-wrap" style="max-height:180px;overflow:auto"><table style="font-size:12px">
+          <thead><tr><th>계획일</th><th>품번</th><th style="color:var(--red)">사유</th></tr></thead>
+          <tbody>${hold.map(({plan:p, planId, reason}) => `<tr>
+            <td class="muted">${_esc(p?.date||'—')}</td>
+            <td><b>${_esc(p?.itemCode||planId||'—')}</b></td>
+            <td style="color:var(--red);font-size:11px">${_esc(reason)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>`
+    : '';
+  const okDisabled = ready.length === 0 ? 'disabled' : '';
+  openModal(`
+    <h2>작업지시 일괄 생성 확인 <span style="color:var(--dim);font-size:12px;font-weight:400;margin-left:8px">발행 대상 ${ready.length}건 · 보류 ${hold.length}건</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="font-size:11.5px;color:var(--sub);margin-bottom:6px">발행 대상 — 계획 프리필 값 그대로 (수동 [▶ 지시 발행]과 동일 결과)</div>
+      ${readyRows}
+      ${holdRows}
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="btn-batch-ok" ${okDisabled}>${ico('save')}${ready.length}건 생성</button>
+      </div>
+    </div>
+  `);
+  const okBtn = document.getElementById('btn-batch-ok');
+  if(okBtn && !okDisabled){
+    okBtn.onclick = () => {
+      let done = 0, late = 0;
+      const lateReasons = [];
+      ready.forEach(({plan}) => {
+        // 재발행 차단 (2·3 양쪽 검사) — 확인 모달 열려 있는 사이 상태 변동 방어
+        const cur = DB.get('production_plans', plan.id);
+        const res = issueWoFromPlan(cur || plan);
+        if(res.ok) done++;
+        else { late++; lateReasons.push(`${plan.id}: ${res.reason}`); }
+      });
+      closeModal();
+      const holdN = hold.length + late;
+      const msg = `${done}건 생성${holdN > 0 ? ` · ${holdN}건 보류` : ''}`;
+      toast(msg, done > 0 ? 'ok' : (holdN > 0 ? 'warn' : 'err'));
+      if(late > 0) console.warn('[VELA] 일괄 발행 지연 보류', lateReasons);
+      router();
+    };
+  }
+};
+
 // 취소 (void) — 지시 발행된 계획은 차단
 VIEWS._planCancel = (planId) => {
   const p = DB.get('production_plans', planId);
@@ -12556,13 +12816,29 @@ VIEWS._planCancel = (planId) => {
   toast('계획 취소 (원본 보존)','ok'); router();
 };
 
-/* -------------------- 자동 생산계획 (v0.8.0) — ★ v0.20.1 id 'autoplan' 로 이관 (신규 'plan' = 생산계획 보드) -------------------- */
+/* -------------------- 자동 생산계획 (v0.8.0) — ★ v0.20.1 id 'autoplan' 로 이관 (신규 'plan' = 생산계획 보드) --------------------
+   ★ v0.23.1 — 항목 [취소] (void 패턴 재사용 · deleteDoc 금지 · 서버 규칙과 일치) + 취소 포함 보기 토글.
+   생산계획 화면(VIEWS.plan) 은 무변경 — 이 뷰만 raw 조회 스위치. */
+// 자동계획 → 연결 문서(라이브 WO) 존재 여부. 있으면 취소 차단(가드).
+function _autoPlanLinkedLiveWO(p){
+  const items = (p && p.items) || [];
+  for(const it of items){
+    if(it && it.wo_id){
+      const wo = DB.get('work_orders', it.wo_id);
+      if(wo && !wo.void) return wo.id;
+    }
+  }
+  return null;
+}
 VIEWS.autoplan = () => {
   if(!getFlags().pl_auto){
     document.getElementById('view').innerHTML = `<div class="card">자동 생산계획 모듈 OFF — 설정에서 켜세요.</div>`;
     return;
   }
-  const plans = DB.all('production_plans').filter(p=>p.plan_type!=='board').sort((a,b)=>(b.created||0)-(a.created||0));
+  // ★ v0.23.1 — voidView 토글 (기존 WO/LOT 카드 패턴 재사용)
+  const apVoid = (window._autoPlanVoid = window._autoPlanVoid || { voidView:false });
+  const source = apVoid.voidView ? DB.allRaw('production_plans') : DB.all('production_plans');
+  const plans = source.filter(p=>p.plan_type!=='board').sort((a,b)=>(b.created||0)-(a.created||0));
   const opts = DB.get('settings','auto_plan') || {};
 
   document.getElementById('view').innerHTML = `
@@ -12587,20 +12863,55 @@ VIEWS.autoplan = () => {
     </div>
 
     <div class="card">
-      <h3>생성된 계획 <span class="tag">전체 ${plans.length}건</span></h3>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <h3 style="margin:0">생성된 계획 <span class="tag">전체 ${plans.length}건</span></h3>
+        <!-- ★ v0.23.1 — 취소 포함 보기 (WO/LOT 화면과 동일 UX) -->
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${apVoid.voidView?'rgba(248,113,113,.08)':'var(--bg2)'};margin-left:auto"><input type="checkbox" id="ap-void-view" ${apVoid.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
+      </div>
       <div class="tbl-wrap"><table>
         <thead><tr><th>계획ID</th><th>생성일시</th><th class="num">품번수</th><th class="num">총 순소요</th><th>상태</th><th></th></tr></thead>
-        <tbody>${plans.length? plans.map(p=>`<tr>
-          <td><b>${p.id}</b></td>
-          <td class="muted">${fmtDate(p.created)} ${fmtTime(p.created)}</td>
-          <td class="num">${(p.items||[]).length}</td>
-          <td class="num">${(p.items||[]).reduce((s,i)=>s+(i.netDemand||0),0).toLocaleString()}</td>
-          <td><span class="pill ${p.status==='confirmed'?'green':'heat'}">${p.status==='confirmed'?'확정':'초안'}</span></td>
-          <td><button class="btn ghost" onclick="VIEWS._planDetail('${p.id}')">${ico('eye')}보기</button></td>
-        </tr>`).join('') : '<tr><td colspan="6" class="empty">계획 없음 — [자동계획 생성] 으로 시작</td></tr>'}</tbody>
+        <tbody>${plans.length? plans.map(p=>{
+          const isVoid = !!p.void;
+          const rowStyle = isVoid ? 'opacity:.5;background:rgba(248,113,113,.04)' : '';
+          const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(p.void.reason||'')} · ${fmtDate(p.void.ts)}">「취소」</span>` : '';
+          const statusLbl = p.status==='confirmed' ? '확정' : (p.status==='rejected' ? '폐기' : '초안');
+          const statusCls = p.status==='confirmed' ? 'green' : (p.status==='rejected' ? 'gray' : 'heat');
+          const actBtns = isVoid
+            ? `<button class="btn ghost" data-ap-unvoid="${_esc(p.id)}">${ico('refresh')}복원</button>`
+            : `<button class="btn ghost" onclick="VIEWS._planDetail('${_esc(p.id)}')">${ico('eye')}보기</button>
+               <button class="btn ghost" data-ap-void="${_esc(p.id)}" style="color:var(--red)" title="자동계획 취소 (원본 보존)">${ico('x')}</button>`;
+          return `<tr style="${rowStyle}">
+            <td><b>${_esc(p.id)}</b>${voidBadge}</td>
+            <td class="muted">${fmtDate(p.created)} ${fmtTime(p.created)}</td>
+            <td class="num">${(p.items||[]).length}</td>
+            <td class="num">${(p.items||[]).reduce((s,i)=>s+(i.netDemand||0),0).toLocaleString()}</td>
+            <td><span class="pill ${statusCls}">${statusLbl}</span></td>
+            <td>${actBtns}</td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="6" class="empty">계획 없음 — [자동계획 생성] 으로 시작</td></tr>'}</tbody>
       </table></div>
+      <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.6">
+        · [취소]는 원본 보존 · 지시(WO)로 확정된 건은 <b>연결 문서 먼저 취소</b> — 생산계획 화면 취소 규칙과 동일.
+      </div>
     </div>
   `;
+
+  // ★ v0.23.1 — 취소·복원·voidView 토글 이벤트 (생산계획 보드 view 는 무변경)
+  document.getElementById('ap-void-view').onchange = (e)=>{ apVoid.voidView = e.target.checked; router(); };
+  document.querySelectorAll('[data-ap-void]').forEach(b => b.onclick = () => {
+    const id = b.dataset.apVoid;
+    const p = DB.get('production_plans', id);
+    if(!p){ toast('계획 없음','err'); return; }
+    if(p.void){ toast('이미 취소됨','warn'); return; }
+    const linked = _autoPlanLinkedLiveWO(p);
+    if(linked){ toast(`연결 문서 먼저 취소 — WO ${linked}`,'err',3200); return; }
+    voidDoc('production_plans', id, '자동계획 취소');
+    toast('자동계획 취소 (원본 보존)','ok'); router();
+  });
+  document.querySelectorAll('[data-ap-unvoid]').forEach(b => b.onclick = () => {
+    unvoidDoc('production_plans', b.dataset.apUnvoid);
+    toast('자동계획 복원','ok'); router();
+  });
 
   // 옵션 모달
   document.getElementById('btn-plan-opts').onclick = ()=>{
@@ -13643,6 +13954,30 @@ VIEWS.set = () => {
       <div style="margin-top:10px"><button class="btn primary" id="co-save">${ico('save')}저장</button></div>
     </div>
 
+    <!-- ★ v0.23.1 — 문서 · 출력 (엑셀 결재란) · 회사 공유값(settings/documents) · 일반 노출 -->
+    ${(() => {
+      const ap = getApprovalSetting();
+      return `
+    <div class="card">
+      <h3>문서 · 출력 <span class="tag">엑셀 결재란 · 회사 공유값 · 인쇄물은 별개</span></h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:12px 14px;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:13px;font-weight:700">엑셀 결재란 사용</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px">전 엑셀 내보내기(개별 · 전체)의 상단 우측에 결재란 표를 삽입 — OFF 시 기존 출력과 동일</div>
+        </div>
+        <label class="usr-sw"><input type="checkbox" id="ap-on" ${ap.on?'checked':''}><span></span></label>
+      </div>
+      <label>결재 칸 구성 <span style="color:var(--dim);font-weight:400">— 1~5칸 · 명칭 자유 · 기본 담당/검토/승인</span></label>
+      <div id="ap-slots" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn" id="ap-add">${ico('plus')}칸 추가</button>
+        <button class="btn" id="ap-reset">${ico('refresh')}기본값 복원</button>
+        <span style="font-size:10.5px;color:var(--dim);margin-left:6px">칸 1~5개 · 상단 우측 배치 · '결재' 좌측 세로 라벨 · 서명칸 3행 병합</span>
+        <button class="btn primary" id="ap-save" style="margin-left:auto">${ico('save')}저장</button>
+      </div>
+    </div>`;
+    })()}
+
     ${SESSION.role === 'vendor' ? `
     <!-- ★ v0.20.0 — 시스템 (백엔드·단말 코드·채번 미리보기) — 2막 STEP 1
          ★ v0.20.4 — 표준 일일 가동시간(h) 추가 (설비별 오버라이드 없을 때의 기본값)
@@ -13856,6 +14191,61 @@ VIEWS.set = () => {
     }
     toast('회사정보 저장','ok');
   };
+  // ★ v0.23.1 — 문서 · 출력 · 엑셀 결재란 편집 (settings/documents.approval)
+  {
+    const apOn      = document.getElementById('ap-on');
+    const apSlots   = document.getElementById('ap-slots');
+    const apAddBtn  = document.getElementById('ap-add');
+    const apResetBtn= document.getElementById('ap-reset');
+    const apSaveBtn = document.getElementById('ap-save');
+    if(apSlots){
+      // 편집 상태(드래프트) — 저장 전에는 settings 에 반영 안 함 (재렌더 방지)
+      let draft = getApprovalSetting().slots.slice();
+      const renderSlots = () => {
+        apSlots.innerHTML = draft.map((name, i) => `
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--sub);width:22px;text-align:right">${i+1}</span>
+            <input class="ap-slot" data-idx="${i}" value="${_esc(name)}" placeholder="예: 담당" maxlength="10" style="flex:1">
+            <button class="btn ghost" data-slot-up="${i}" ${i===0?'disabled':''} title="위로" style="padding:4px 9px">↑</button>
+            <button class="btn ghost" data-slot-dn="${i}" ${i===draft.length-1?'disabled':''} title="아래로" style="padding:4px 9px">↓</button>
+            <button class="btn ghost" data-slot-del="${i}" ${draft.length<=1?'disabled':''} title="칸 삭제" style="color:var(--red);padding:4px 9px">${ico('x')}</button>
+          </div>`).join('');
+        // 입력 캡처
+        apSlots.querySelectorAll('.ap-slot').forEach(inp => {
+          inp.oninput = () => { draft[+inp.dataset.idx] = inp.value; };
+        });
+        apSlots.querySelectorAll('[data-slot-up]').forEach(b => b.onclick = () => {
+          const i = +b.dataset.slotUp; if(i<=0) return;
+          [draft[i-1], draft[i]] = [draft[i], draft[i-1]]; renderSlots();
+        });
+        apSlots.querySelectorAll('[data-slot-dn]').forEach(b => b.onclick = () => {
+          const i = +b.dataset.slotDn; if(i>=draft.length-1) return;
+          [draft[i+1], draft[i]] = [draft[i], draft[i+1]]; renderSlots();
+        });
+        apSlots.querySelectorAll('[data-slot-del]').forEach(b => b.onclick = () => {
+          if(draft.length <= 1){ toast('최소 1칸 필요','warn'); return; }
+          draft.splice(+b.dataset.slotDel, 1); renderSlots();
+        });
+      };
+      apAddBtn.onclick = () => {
+        if(draft.length >= 5){ toast('최대 5칸','warn'); return; }
+        draft.push(''); renderSlots();
+      };
+      apResetBtn.onclick = () => {
+        draft = _APPROVAL_DEFAULT_SLOTS.slice(); renderSlots();
+        toast('기본값 복원 (저장 필요)','ok');
+      };
+      apSaveBtn.onclick = () => {
+        const slots = draft.map(x => String(x||'').trim()).filter(Boolean);
+        if(!slots.length){ toast('칸 명칭 최소 1개 입력','warn'); return; }
+        if(slots.length > 5){ toast('칸은 최대 5개','warn'); return; }
+        setApprovalSetting({ on: apOn.checked, slots });
+        toast(apOn.checked ? `엑셀 결재란 ON · ${slots.length}칸 저장` : '엑셀 결재란 OFF · 구성 저장','ok');
+      };
+      renderSlots();
+    }
+  }
+
   // ★ v0.20.0 — 시스템 (단말 코드) 저장 · 채번 미리보기 즉시 갱신
   // ★ v0.22.2 — 시스템 카드는 개발자 전용 DOM (일반·데모 미노출) → sys-device 없으면 skip
   {
@@ -14051,9 +14441,12 @@ VIEWS.set = () => {
   if(bkXlsx) bkXlsx.onclick = () => {
     if(!window.XLSX){ toast('엑셀 라이브러리 로딩 중','warn'); return; }
     const wb = XLSX.utils.book_new();
+    // ★ v0.23.1 — 결재란 공용 경로(xlsxBuildSheet) 경유 (개별 삽입 금지 · 1벌 원칙)
     DB.cols().forEach(c=>{
       const rows = DB.all(c);
-      if(rows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), c.slice(0,31));
+      if(!rows.length) return;
+      const ws = xlsxBuildSheet(rows);
+      if(ws) XLSX.utils.book_append_sheet(wb, ws, c.slice(0,31));
     });
     XLSX.writeFile(wb, `vela-mes-all-${fmtDate(Date.now())}.xlsx`);
   };
@@ -14496,6 +14889,11 @@ document.getElementById('ver-foot').textContent = `VELA SYSTEM · ${APP_VERSION}
   // v0.15.1 — fail-safe 순서 재배치:
   //   ① 스플래시 제거 타이머는 renderGate() 실행 전에 등록 → renderGate가 던져도 스플래시는 반드시 걷힘.
   //   ② renderGate() 는 try/catch 로 감싸 게이트 영역에 에러 배너 표시.
+  // ★ v0.22.3 — DOM 자가 점검: 배지 표시 상태를 플래그와 일치시킨다 (실모드 잔재 방지)
+  {
+    const b = document.getElementById('demo-badge');
+    if(b) b.hidden = !isDemoMode();
+  }
   const bar = document.getElementById('sp-load');
   const sp  = document.getElementById('splash');
   // ① 스플래시 애니메이션·제거 타이머 먼저 등록
