@@ -957,8 +957,8 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.24.0';
-const APP_DATE    = '2026-07-18';
+const APP_VERSION = 'v0.25.0';
+const APP_DATE    = '2026-07-20';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1434,6 +1434,7 @@ const _PREFIX_TO_COL = {
   PP: 'production_plans',
   PL: 'production_lots',
   RP: 'reports',   // ★ v0.24.0 — AI 보고서 스냅샷
+  NC: 'nc_records',// ★ v0.25.0 — 부적합 (Nonconformance)
 };
 /* ★ v0.21.1 — 단말 코드는 로컬 전용 키 (firestore 동기 대상 아님 · 단말 간 덮어씀 방지)
    ★ v0.21.3 — zero-touch 자동 발급: 로컬 키 없고 구버전 폴백도 없으면 2자 랜덤 코드 생성·저장.
@@ -1758,6 +1759,12 @@ const MODULE_DEFS = [
     items:[
       ['report',   'AI 보고서',      true, false],
     ]},
+  // ★ v0.25.0 — 품질 관리 (판매 옵션) — 부적합 등록·처리(재작업/폐기/특채/반품) · 파레토 · LOT/보고서 연동
+  //   대원칙(G1): 재고·실적·마감 원장을 직접 수정하지 않는다 — 기록·추적·통계·안내만.
+  { mod:'qc',      title:'품질 관리', desc:'부적합(NC) 등록·처리 4갈래·파레토·LOT 이력 연동 · ISO 8.7 최소형',
+    items:[
+      ['qc',       '품질 관리',      false, false],
+    ]},
 ];
 // 의존성 맵 (켤 때 필요 / 끌 때 경고) — CLAUDE.md §2
 const FEATURE_DEPS = {
@@ -1945,6 +1952,8 @@ const PAGES = [
   { id:'wo',    flag:'scan',  title:'작업지시',   icon:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/>' },
   { id:'perf',  flag:'perf',  title:'실적현황',   icon:'<path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
   { id:'lot',   flag:'lot',   title:'LOT 추적',   icon:'<circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="M7 10v4M17 14v-4"/>' },
+  // ★ v0.25.0 — 품질 관리 (LOT 추적 뒤)
+  { id:'qc',    flag:'qc',    title:'품질 관리',  icon:'<path d="M20 6L9 17l-5-5"/><circle cx="12" cy="12" r="10"/>' },
   { id:'quote', flag:'quote', title:'견적',       icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/>' },
   { id:'po',    flag:'purchase', title:'구매',    icon:'<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/>' },
   { id:'matin', flag:'matin', title:'입고',       icon:'<path d="M12 3v14M5 10l7 7 7-7"/><rect x="3" y="19" width="18" height="2" rx="1"/>' },
@@ -2433,6 +2442,77 @@ function seedDemoData(){
     const totals = rows.reduce((t,r) => ({ prev:t.prev+r.prev, amount:t.amount+r.amount, paid:t.paid+r.paid, carry:t.carry+r.carry }), {prev:0,amount:0,paid:0,carry:0});
     const id = _closingId('sales', m);
     DB.set('closings', id, { id, type:'sales', month:m, rows, totals, missingCount:0, closed_at: now - (90-idx*30)*DAY, by:'데모', void:null });
+  });
+
+  // ─────────────── 13. 품질 (v0.25.0) — 불량 유형 4종 + NC 6건 (상태 골고루) ───────────────
+  //   원칙(G1): 기존 원장(records/lots/orders/shipments)에는 손대지 않음 — nc_records/defect_types 만 증분.
+  //             → 시뮬 회귀 수치(매출·수율·재고·마감 등) 완전 불변.
+  //             → 대신 NC.record_id 는 null (실적 무관 등록) 또는 (읽기 전용) 실제 record.id 참조.
+  //   기존 실적에 defect 필드가 없어도 참조는 가능 (초과 등록 차단 검증은 신규 등록 경로에서만 동작).
+  [
+    ['DT-001','치수 불량'],
+    ['DT-002','외관 흠'],
+    ['DT-003','경도 미달'],
+    ['DT-004','크랙'],
+  ].forEach(([code, name]) => DB.set('defect_types', code, { code, name, active:true }));
+
+  // NC 6건 시드 — 시안 예시(A001~A006) 미러 · 고정 ID (데모 안정성)
+  //   record_id 는 전부 null (수입 소재 불량 · 자체 QC 등록 style) → 원장 무영향 (G1 절대 준수).
+  //   rework_record_id 도 null — 재작업 실적 연결은 사용자가 화면에서 시연 (프리필 진입).
+  const _demoUser = '데모';
+  const _fmtD = (dAgo) => fmt(daysBack(dAgo));
+  const ncSeed = [
+    {
+      id:'NC-2026-DA006', dAgo:2, item:'HF-3301', lot:'PL-2026-D001', proc:'FORGE', eq:'프레스 1호',
+      type:'DT-004', qty:8, memo:'우측 상단 3mm 크랙 · 열간 균열 의심',
+      status:'접수', handle:null,
+    },
+    {
+      id:'NC-2026-DA005', dAgo:3, item:'HF-3302', lot:'PL-2026-D002', proc:'CUT', eq:'절단기 1호',
+      type:'DT-001', qty:12, memo:'길이 +0.4mm 초과',
+      status:'재작업', handle:{ kind:'rework', date:_fmtD(3), by_name:_demoUser, memo:'재연마 후 재검' },
+    },
+    {
+      id:'NC-2026-DA004', dAgo:5, item:'HF-3305', lot:'PL-2026-D003', proc:'FORGE', eq:'프레스 2호',
+      type:'DT-002', qty:24, memo:'외관 흠 · 고객 승인 하 특채',
+      status:'특채',
+      handle:{ kind:'deviation', date:_fmtD(5), by_name:_demoUser, approver:'품질팀장 홍길동', cust_ref:'현대위아 이메일 2026-07-15', memo:'다음 로트부터 표면 압력 조정' },
+    },
+    {
+      id:'NC-2026-DA003', dAgo:8, item:'HF-3309', lot:'PL-2026-D004', proc:'HEAT', eq:'한국열처리(외주)',
+      type:'DT-003', qty:15, memo:'경도 HRC 45 → 목표 55 미달 · 재처리 불가',
+      status:'폐기',
+      handle:{ kind:'scrap', date:_fmtD(8), by_name:_demoUser, reason:'경도 미달 · 재처리 불가', memo:'외주처 원인 분석 요청 발송' },
+    },
+    {
+      id:'NC-2026-DA002', dAgo:11, item:'HF-3302', lot:'PL-2026-D002', proc:'CUT', eq:'절단기 1호',
+      type:'DT-001', qty:20, memo:'치수 불량 · 재작업 완료',
+      status:'완료',
+      handle:{ kind:'rework', date:_fmtD(11), by_name:_demoUser, memo:'절단기 게이지 재세팅' },
+    },
+    {
+      id:'NC-2026-DA001', dAgo:15, item:'HF-3312', lot:'PL-2026-D006', proc:'FORGE', eq:'프레스 2호',
+      type:'DT-002', qty:6, memo:'외관 흠 · 반품 접수',
+      status:'반품',
+      handle:{ kind:'return', date:_fmtD(15), by_name:_demoUser, memo:'C003 반품 · 후속 처리 대기' },
+    },
+  ];
+  ncSeed.forEach(n => {
+    const ts = daysBack(n.dAgo);
+    DB.set('nc_records', n.id, {
+      id: n.id,
+      date: _fmtD(n.dAgo),
+      item_code: n.item,
+      lot_id: n.lot,
+      record_id: null,
+      process: n.proc, equipment: n.eq,
+      worker: { name:'홍길동' },
+      defect_type: n.type, qty: n.qty, memo: n.memo,
+      status: n.status,
+      handle: n.handle ? { ...n.handle, ts: ts + 3600000, by: _demoUser } : null,
+      rework_record_id: null,
+      ts, by: _demoUser, void: null,
+    });
   });
 
   console.log('[VELA] seedDemoData complete');
@@ -4528,6 +4608,25 @@ VIEWS.dash = () => {
         <div class="kv">${stockSum.toLocaleString()}<span style="font-size:13px">ea</span></div>
         <div class="ks">재고금액 <b style="color:var(--ink)">${stockValue>0? '₩'+fmtKRWShort(stockValue) : '—'}</b></div>
       </div>
+      ${flags.qc ? (() => {
+        // ★ v0.25.0 — 부적합 KPI (당월 · qc ON 시만 · OFF 시 카드 자체 미노출)
+        const _now = new Date();
+        const _ms  = new Date(_now.getFullYear(), _now.getMonth(), 1).getTime();
+        const _me  = new Date(_now.getFullYear(), _now.getMonth()+1, 1).getTime();
+        const _ncM = DB.query('nc_records', n => n.ts >= _ms && n.ts < _me);
+        const _wait= _ncM.filter(n => n.status === '접수').length;
+        const _cnt = _ncM.length;
+        // 당월 불량률 (records 기간 합 재사용 로직 · 소수 1자리)
+        const _recsM = DB.query('records', r => r.ts >= _ms && r.ts < _me);
+        const _tin = _recsM.reduce((s,r)=>s+(+r.good||0)+(+r.defect||0)+(+r.scrap||0)+(+r.rework||0), 0);
+        const _dq  = _recsM.reduce((s,r)=>s+(+r.defect||0)+(+r.scrap||0), 0);
+        const _rate= _tin > 0 ? (_dq/_tin*100) : 0;
+        return `<div class="kc clk" onclick="location.hash='#qc'"><span class="goarrow">품질 ↗</span>
+          <div class="kl"><svg width="13" height="13" viewBox="0 0 24 24" stroke="#5eead4"><path d="M20 6L9 17l-5-5"/></svg>부적합</div>
+          <div class="kv" style="color:${_wait>0?'var(--amber)':'var(--sub)'}">${_cnt}<span style="font-size:13px">건</span></div>
+          <div class="ks">${_wait>0?`<b class="down" style="color:var(--amber)">대기 ${_wait}</b>`:'<span class="nodata">대기 없음</span>'} · 당월 불량률 <b style="color:var(--ink)">${_rate.toFixed(1)}%</b></div>
+        </div>`;
+      })() : ''}
     </div>
 
   `;
@@ -5931,6 +6030,31 @@ VIEWS._lotHistory = (plot_no) => {
         <div style="margin-top:10px;font-size:11px"><b>실적 이력</b> ${recs.length}건</div>
         <table style="margin-top:6px"><thead><tr><th>일시</th><th>공정</th><th class="num">양품</th><th class="num">불량</th><th>사유</th></tr></thead>
           <tbody>${recs.map(r=>`<tr><td>${fmtDate(r.ts)} ${fmtTime(r.ts)}</td><td>${DB.get('processes',r.proc)?.name||r.proc}</td><td class="num">${r.good||0}</td><td class="num">${r.defect||0}</td><td>${r.defect_reason||''}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">―</td></tr>'}</tbody></table>
+
+        ${(() => {
+          // ★ v0.25.0 — 품질 이력 (qc ON · 이 LOT 의 NC 목록) — 이력 보존용 · 원장 무변
+          if(!getFlags().qc) return '';
+          const ncs = DB.query('nc_records', n => n.lot_id === plot_no).slice().sort((a,b) => b.ts - a.ts);
+          if(!ncs.length) return '';
+          return `
+            <div style="margin-top:12px;font-size:11px"><b>품질 이력</b> ${ncs.length}건 <span style="color:var(--sub);font-weight:400">— NC(부적합)</span></div>
+            <table style="margin-top:6px">
+              <thead><tr><th>NC 번호</th><th>일자</th><th>공정</th><th>유형</th><th class="num">수량</th><th>상태</th></tr></thead>
+              <tbody>${ncs.map(n => {
+                const dt = DB.get('defect_types', n.defect_type);
+                const p  = n.process ? DB.get('processes', n.process) : null;
+                return `<tr>
+                  <td><b style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">${_esc(n.id)}</b></td>
+                  <td>${_esc(n.date||fmtDate(n.ts))}</td>
+                  <td>${_esc(p?.name||n.process||'—')}</td>
+                  <td>${_esc(dt?.name||n.defect_type||'—')}</td>
+                  <td class="num">${(+n.qty||0).toLocaleString()}</td>
+                  <td>${_esc(n.status||'—')}${n.void?' · 취소':''}</td>
+                </tr>`;
+              }).join('')}</tbody>
+            </table>
+          `;
+        })()}
 
         ${(() => {
           // ★ v0.16.5 — 실제원가 블록 (calcLotCost 단일 소스)
@@ -8688,9 +8812,23 @@ VIEWS.perf = () => {
                 : '';
               const voidReasonTip = isVoid ? `${r.void.reason||'오입력'} · ${fmtDate(r.void.ts)}${r.void.by?` · ${r.void.by}`:''}` : '';
               const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px;text-decoration:none" title="${_esc(voidReasonTip)}">「취소」</span>${r.void.reason?`<span style="color:var(--red);font-size:10px;margin-left:6px;text-decoration:none">· ${_esc(r.void.reason)}</span>`:''}` : '';
+              // ★ v0.25.0 — 부적합 등록 진입 (qc ON · 불량>0 · 미취소) · 이미 등록된 NC 있으면 배지 표시 · 남은 수량 있으면 추가 등록 허용
+              let ncCell = '';
+              if(getFlags().qc && !isVoid && (+r.defect||0) > 0){
+                const ncsHere = DB.query('nc_records', n => n.record_id === r.id);
+                const sumHere = ncsHere.reduce((s,n)=>s+(+n.qty||0), 0);
+                const capNc   = +r.defect||0;
+                if(ncsHere.length > 0){
+                  const first = ncsHere[0];
+                  ncCell = `<span class="pill" style="background:rgba(94,234,212,.14);color:var(--cyan);font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;margin-right:4px;cursor:pointer;font-family:'JetBrains Mono',monospace" data-nc-detail="${_esc(first.id)}" title="부적합 상세">${_esc(first.id)}${ncsHere.length>1?` +${ncsHere.length-1}`:''}</span>`;
+                }
+                if(sumHere < capNc){
+                  ncCell += `<button class="btn ghost" data-nc-new="${_esc(r.id)}" style="color:var(--amber)" title="부적합 등록 (남은 ${capNc-sumHere}ea)">${ico('plus')}부적합</button> `;
+                }
+              }
               const actionBtn = isVoid
                 ? `<button class="btn ghost" data-unvoid="${_esc(r.id)}" style="color:var(--cyan);text-decoration:none">${ico('save')}복원</button>`
-                : `<button class="btn ghost" data-edit="${_esc(r.id)}">${ico('save')}수정</button> <button class="btn ghost" data-void="${_esc(r.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
+                : `${ncCell}<button class="btn ghost" data-edit="${_esc(r.id)}">${ico('save')}수정</button> <button class="btn ghost" data-void="${_esc(r.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
               const chkCell = isVoid
                 ? `<td></td>`
                 : `<td><input type="checkbox" class="perf-chk" data-rid="${_esc(r.id)}" style="width:auto;margin:0"></td>`;
@@ -8778,6 +8916,26 @@ VIEWS.perf = () => {
     const id = b.dataset.unvoid;
     toast('복원 시 수량이 이중 계상될 수 있습니다 — 확인 후 진행','warn');
     setTimeout(()=>{ unvoidDoc('records', id); toast('실적 복원','ok'); router(); }, 400);
+  });
+
+  // ★ v0.25.0 — 실적행 부적합 등록 / NC 배지 → 상세 (qc ON 시만 DOM 존재)
+  document.querySelectorAll('[data-nc-new]').forEach(b => b.onclick = () => {
+    const r = DB.get('records', b.dataset.ncNew); if(!r) return;
+    const lot = DB.get('production_lots', r.plot_no);
+    VIEWS._qcRegister({
+      record_id: r.id,
+      lot_id: r.plot_no,
+      item_code: lot?.itemCode || null,
+      process: r.proc || null,
+      equipment: r.equipment || null,
+      worker: r.worker || (r.by ? { name: r.by } : null),
+      defect_qty_source: +r.defect || 0,
+      already_qty: ncSumByRecord(r.id),
+    });
+  });
+  document.querySelectorAll('[data-nc-detail]').forEach(el => el.onclick = (e) => {
+    e.stopPropagation();
+    VIEWS._qcDetail(el.dataset.ncDetail);
   });
 
   document.getElementById('perf-xlsx').onclick = ()=>{
@@ -9016,16 +9174,22 @@ VIEWS._perfPlanCompare = () => {
   if(btnToday) btnToday.onclick = ()=>{ state.date = today; router(); };
 };
 
-VIEWS._perfAddPC = ()=>{
+VIEWS._perfAddPC = (prefill)=>{
+  // ★ v0.25.0 — prefill {plot_no, proc, equipment, _from_nc} 지원 (품질 재작업 진입).
+  // 없으면 기존 동작 완전 동일 (기본 첫 LOT · 등록 가능 공정).
+  prefill = prefill || {};
   const lots = DB.all('production_lots');
   if(!lots.length){ toast('생산 LOT 없음 — 먼저 작업지시 생성','warn'); return; }
   const workers = DB.all('workers').filter(w=>w.active!==false);
   openModal(`
-    <h2>PC 실적 등록 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <h2>PC 실적 등록${prefill._from_nc?` <span class="pill" style="background:rgba(125,211,252,.14);color:var(--blue);font-size:10.5px;margin-left:6px">재작업 · ${_esc(prefill._from_nc)}</span>`:''} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
+      ${prefill._from_nc ? `<div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:10px;line-height:1.55">
+        <b style="color:var(--amber)">안내</b> 재작업 실적으로 등록 (기존 실적 경로) · 등록 후 품질 › ${_esc(prefill._from_nc)} 상세에서 <b>[재작업 실적 연결]</b> 로 완료 처리.
+      </div>` : ''}
       <div class="grid g2">
         <div><label>생산LOT</label>
-          <select id="pa-lot">${lots.map(l=>`<option value="${l.plot_no}">${_esc(l.plot_no)} (${_esc(l.itemCode)})</option>`).join('')}</select></div>
+          <select id="pa-lot">${lots.map(l=>`<option value="${l.plot_no}" ${prefill.plot_no===l.plot_no?'selected':''}>${_esc(l.plot_no)} (${_esc(l.itemCode)})</option>`).join('')}</select></div>
         <div><label>공정 <span style="color:var(--dim);font-weight:400">— 등록 가능 공정만</span></label>
           <select id="pa-proc"></select></div>
       </div>
@@ -9054,6 +9218,8 @@ VIEWS._perfAddPC = ()=>{
     </div>
   `);
   // ★ v0.16.13 — LOT 변경 시 공정 select 재구성 (availableProcesses 1벌 공용)
+  // ★ v0.25.0 — prefill.proc 있으면 첫 렌더 시 그 공정 선택 (있을 때만 · 이후 사용자 변경 자유)
+  let preferProcOnce = prefill.proc || null;
   const refreshProcSelect = ()=>{
     const plot = document.getElementById('pa-lot').value;
     const sel = document.getElementById('pa-proc');
@@ -9063,9 +9229,16 @@ VIEWS._perfAddPC = ()=>{
       sel.disabled = true;
     } else {
       sel.disabled = false;
+      // prefill.proc 이 list 에 있으면 그 인덱스 선택 (한 번만 반영), 아니면 기존 defaultIndex
+      let pickIdx = defaultIndex;
+      if(preferProcOnce){
+        const idx = list.findIndex(p => p.code === preferProcOnce);
+        if(idx >= 0) pickIdx = idx;
+        preferProcOnce = null;
+      }
       sel.innerHTML = list.map((p, i) => {
         const outTag = p.mode==='out' ? ' ·외주' : '';
-        return `<option value="${_esc(p.code)}" ${i===defaultIndex?'selected':''}>${_esc(p.name)}${outTag} — 등록 가능 ${p.avail.toLocaleString()} ea</option>`;
+        return `<option value="${_esc(p.code)}" ${i===pickIdx?'selected':''}>${_esc(p.name)}${outTag} — 등록 가능 ${p.avail.toLocaleString()} ea</option>`;
       }).join('');
     }
   };
@@ -9083,10 +9256,14 @@ VIEWS._perfAddPC = ()=>{
     const dl = document.getElementById('pa-eq-list');
     if(dl) dl.innerHTML = getEquipment(proc).map(n=>`<option value="${_esc(n)}">`).join('');
     // ★ v0.16.2 — WO.plan_eq[현재 공정] 있으면 설비 기본값으로 채움 (사용자가 이미 입력했으면 건드리지 않음)
+    // ★ v0.25.0 — prefill.equipment 우선 (있으면 · 사용자 미입력 상태에서만)
     const eqEl = document.getElementById('pa-eq');
-    const wo = DB.query('work_orders', w => w.plot_no === plot)[0];
-    const planEq = wo?.plan_eq?.[proc];
-    if(planEq && !eqEl.value){ eqEl.value = planEq; eqEl.placeholder = '계획 설비 (수정 가능)'; }
+    if(prefill.equipment && !eqEl.value){ eqEl.value = prefill.equipment; eqEl.placeholder = '재작업 설비 (수정 가능)'; }
+    else {
+      const wo = DB.query('work_orders', w => w.plot_no === plot)[0];
+      const planEq = wo?.plan_eq?.[proc];
+      if(planEq && !eqEl.value){ eqEl.value = planEq; eqEl.placeholder = '계획 설비 (수정 가능)'; }
+    }
   };
   document.getElementById('pa-lot').onchange = ()=>{ refreshProcSelect(); updBal(); };
   document.getElementById('pa-proc').onchange = updBal;
@@ -13392,11 +13569,26 @@ VIEWS._planReject = (id) => {
    활성 판정: (x.active !== false) — 시드 호환(active 필드 없는 기존 문서는 사용중).
    신규 select 소스는 활성만 노출(getActiveItems/getActiveVendors), 과거 이력 표시는 그대로. */
 VIEWS.masters = () => {
-  const state = (window._mstFilter = window._mstFilter || { v_q:'', v_type:'', i_q:'', i_cust:'', e_q:'', e_proc:'' });
+  // ★ v0.25.0 — d_q (불량 유형 검색) 추가 · 기존 필드 무변
+  const state = (window._mstFilter = window._mstFilter || { v_q:'', v_type:'', i_q:'', i_cust:'', e_q:'', e_proc:'', d_q:'' });
+  if(state.d_q === undefined) state.d_q = '';
   const vendorsAll = DB.all('vendors');
   const itemsAll   = getItems();
   // ★ v0.16.7 — 설비 마스터 카드 상태 (equipments 컬렉션)
   const equipmentsAll = DB.all('equipments').slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  // ★ v0.25.0 — 불량 유형 마스터 (qc 플래그 ON 일 때만 카드 노출)
+  const qcOn = !!getFlags().qc;
+  const defectTypesAll = qcOn
+    ? DB.all('defect_types').slice().sort((a,b) => (a.code||'').localeCompare(b.code||''))
+    : [];
+  const dRows = qcOn ? defectTypesAll.filter(d => {
+    if(state.d_q){
+      const q = state.d_q.toLowerCase();
+      const hay = `${d.code||''} ${d.name||''}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  }) : [];
   const activeCusts = vendorsAll.filter(v => v.type === 'cust' && v.active !== false)
                                  .sort((a,b) => (a.name||'').localeCompare(b.name||''));
 
@@ -13589,6 +13781,45 @@ VIEWS.masters = () => {
         <b style="color:var(--amber)">규칙</b> 이름 매칭 — 실적(records.equipment)의 문자열 구조 유지(과거 데이터 호환) · <b>같은 공정 내 이름 중복 차단</b> · 외주 공정은 등록 대상 아님 · 비활성 설비는 신규 선택 목록에서 제외(과거 실적·설비현황 이력 표시는 유지). 컬렉션 미등록 공정은 공정 템플릿의 설비 배열로 폴백.
       </div>
     </div>
+
+    ${qcOn ? `
+    <!-- ★ v0.25.0 — 불량 유형 마스터 (품질 관리 모듈 ON 시만 노출 · 하드코딩 금지 원칙) -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <h3 style="margin:0">불량 유형 <span class="tag">품질 부적합(NC) 등록·파레토·통계 참조 · 취소=비활성</span></h3>
+        <button class="btn primary" id="mst-d-new">${ico('plus')}유형 등록</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <div style="flex:1;min-width:220px;display:flex;align-items:center;gap:9px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 14px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--sub)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          <input id="mst-d-q" placeholder="검색 — 코드 · 이름" value="${_esc(state.d_q)}" style="flex:1;background:none;border:none;outline:none;color:var(--ink);font-size:13px;padding:0">
+        </div>
+        <button class="btn" id="mst-d-xlsx">${ico('excel')}엑셀</button>
+      </div>
+      <div style="display:flex;gap:7px;margin-bottom:8px;flex-wrap:wrap;align-items:center;${!state.d_q?'display:none':''}">
+        ${state.d_q ? `<span class="pill cyan" style="cursor:pointer" data-dclear="d_q">검색: ${_esc(state.d_q)} ✕</span>` : ''}
+        <span style="margin-left:auto;font-size:11px;color:var(--dim)">${dRows.length}건 / 전체 ${defectTypesAll.length}건</span>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>코드</th><th>이름</th><th>상태</th><th></th></tr></thead>
+        <tbody>${dRows.length ? dRows.map(d => {
+          const active = d.active !== false;
+          return `<tr class="${active?'':'mst-off'}">
+            <td><b style="font-family:'JetBrains Mono',monospace">${_esc(d.code)}</b></td>
+            <td>${_esc(d.name||'')}</td>
+            <td>${active ? '<span class="pill cyan">사용중</span>' : '<span class="pill gray">비활성</span>'}</td>
+            <td><div style="display:flex;gap:6px;justify-content:flex-end">
+              <button class="btn ghost" data-dedit="${_esc(d.code)}">수정</button>
+              <button class="btn ghost" data-dtoggle="${_esc(d.code)}">${active?'비활성':'재활성'}</button>
+            </div></td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="4" class="empty">불량 유형 없음 — [유형 등록]으로 추가 (예: 치수 불량 · 외관 흠 · 경도 미달 · 크랙)</td></tr>'}</tbody>
+      </table></div>
+      <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
+        <b style="color:var(--amber)">가드</b> 물리 삭제 없음 — 비활성만(increment-only). 비활성 유형은 부적합 신규 등록 목록에서 제외되지만, 과거 NC·파레토 이력에는 그대로 표시(이력 보존). 코드 중복 등록 차단·코드 불변.
+      </div>
+    </div>
+    ` : ''}
   `;
 
   // 검색·필터 이벤트 (재고 화면과 동일 패턴)
@@ -13640,6 +13871,28 @@ VIEWS.masters = () => {
     }));
     exportXlsx(xrows, '설비', `설비_${fmtDate(Date.now())}.xlsx`);
   };
+
+  // ★ v0.25.0 — 불량 유형 카드 이벤트 (qc ON 시만 DOM 존재)
+  if(qcOn){
+    let dqT;
+    const dqEl = document.getElementById('mst-d-q');
+    if(dqEl) dqEl.oninput = (e) => {
+      clearTimeout(dqT); dqT = setTimeout(() => { state.d_q = e.target.value; router(); }, 220);
+    };
+    document.querySelectorAll('[data-dclear]').forEach(el => el.onclick = () => { state[el.dataset.dclear] = ''; router(); });
+    const dxEl = document.getElementById('mst-d-xlsx');
+    if(dxEl) dxEl.onclick = () => {
+      const xrows = dRows.map(d => ({
+        코드: d.code, 이름: d.name || '',
+        상태: d.active !== false ? '사용중' : '비활성',
+      }));
+      exportXlsx(xrows, '불량유형', `불량유형_${fmtDate(Date.now())}.xlsx`);
+    };
+    const dnEl = document.getElementById('mst-d-new');
+    if(dnEl) dnEl.onclick = () => VIEWS._mstDefectTypeEdit(null);
+    document.querySelectorAll('[data-dedit]').forEach(b => b.onclick = () => VIEWS._mstDefectTypeEdit(b.dataset.dedit));
+    document.querySelectorAll('[data-dtoggle]').forEach(b => b.onclick = () => VIEWS._mstDefectTypeToggle(b.dataset.dtoggle));
+  }
 
   // 등록/수정/토글 액션
   document.getElementById('mst-v-new').onclick = () => VIEWS._mstVendorEdit(null);
@@ -13946,6 +14199,60 @@ VIEWS._mstEquipmentToggle = (id) => {
   toast(wasActive ? `${e.name} 비활성` : `${e.name} 재활성`, wasActive ? 'warn' : 'ok');
   router();
 };
+
+/* ★ v0.25.0 — 불량 유형 마스터 (defect_types 컬렉션) — 등록·수정·비활성/재활성
+   · 하드코딩 금지 원칙: 불량 유형은 전부 이 마스터에서만 관리
+   · 코드 자동 채번(DT-XXX 3자리) · 수동 수정 허용 · 코드 불변 · 중복 차단 · 취소=비활성 */
+function nextDefectTypeCode(){
+  const prefix = 'DT-';
+  const nums = DB.allRaw('defect_types')
+    .filter(x => (x.code||'').startsWith(prefix))
+    .map(x => parseInt((x.code||'').slice(prefix.length))||0);
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `${prefix}${String(next).padStart(3,'0')}`;
+}
+VIEWS._mstDefectTypeEdit = (code) => {
+  const isNew = !code;
+  const d = isNew ? { code:'', name:'', active:true } : DB.get('defect_types', code);
+  if(!isNew && !d){ toast('불량 유형을 찾을 수 없음','err'); return; }
+  openModal(`
+    <h2>${isNew ? '불량 유형 등록' : '불량 유형 수정'} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div class="grid g2">
+        <div><label>코드 ${isNew?'<span style="color:var(--dim);font-weight:400">— 자동 · 수동 수정 허용</span>':'<span style="color:var(--dim);font-weight:400">— 불변</span>'}</label>
+          <input id="md-code" value="${_esc(d.code || nextDefectTypeCode())}" ${isNew?'':'readonly'} style="font-family:'JetBrains Mono',monospace"></div>
+        <div><label>이름</label><input id="md-name" value="${_esc(d.name||'')}" placeholder="예: 치수 불량"></div>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="md-save">${ico('save')}저장</button>
+      </div>
+    </div>
+  `);
+  document.getElementById('md-save').onclick = () => {
+    const codeIn = document.getElementById('md-code').value.trim();
+    const name   = document.getElementById('md-name').value.trim();
+    if(!codeIn){ toast('코드 입력','warn'); return; }
+    if(!name){ toast('이름 입력','warn'); return; }
+    if(isNew && DB.get('defect_types', codeIn)){ toast(`코드 중복 — ${codeIn} 이미 존재`,'err'); return; }
+    const doc = isNew ? { code:codeIn, name, active:true } : { name };
+    DB.set('defect_types', codeIn, doc);
+    toast(isNew ? `불량 유형 등록 — ${name}` : `불량 유형 수정 — ${name}`, 'ok');
+    closeModal(); router();
+  };
+};
+VIEWS._mstDefectTypeToggle = (code) => {
+  const d = DB.get('defect_types', code); if(!d) return;
+  const wasActive = d.active !== false;
+  DB.set('defect_types', code, { active: !wasActive });
+  toast(wasActive ? `${d.name} 비활성` : `${d.name} 재활성`, wasActive ? 'warn' : 'ok');
+  router();
+};
+/* ★ v0.25.0 — 활성 불량 유형 조회 (부적합 등록·품질 화면 셀렉트에서 공용) */
+function getActiveDefectTypes(){
+  return DB.all('defect_types').filter(d => d.active !== false)
+    .sort((a,b) => (a.code||'').localeCompare(b.code||''));
+}
 
 /* -------------------- 마감 (v0.16.26) --------------------
    유형 탭 [매출|매입|외주] + 월 선택 · 거래처별 표 (전월이월/발생/결제 수기/차월이월 자동)
@@ -14397,6 +14704,22 @@ function buildReportData(scope, baseDate){
   const defectRate = totalIn > 0 ? (defectQty/totalIn*100) : 0;
   // 중단(stop) 이력 : records.type === 'stop' (기존 필드) — 없으면 0
   const stopCount = DB.query('records', r => r.ts >= startTs && r.ts <= endTs && (r.type === 'stop' || r.stopReason)).length;
+  // ★ v0.25.0 — NC(부적합) 집계 — qc ON 시만 (OFF 시 0 · 보고서 무영향)
+  const _qcOnRep = !!getFlags().qc;
+  let ncCount = 0, ncWaiting = 0, ncTopTypes = [];
+  if(_qcOnRep){
+    const ncsInPeriod = DB.query('nc_records', n => n.ts >= startTs && n.ts <= endTs);
+    ncCount = ncsInPeriod.length;
+    ncWaiting = ncsInPeriod.filter(n => n.status === '접수').length;
+    const typeMap = {};
+    ncsInPeriod.forEach(n => {
+      const key = n.defect_type;
+      if(!typeMap[key]) typeMap[key] = { name: DB.get('defect_types', key)?.name || key, qty:0, count:0 };
+      typeMap[key].qty   += (+n.qty||0);
+      typeMap[key].count += 1;
+    });
+    ncTopTypes = Object.values(typeMap).sort((a,b) => b.qty - a.qty).slice(0, 3);
+  }
 
   // ─── 경영·정산 (calcClosing sales + getClosing carry) ───
   const salesClose = calcClosing('sales', month);
@@ -14465,6 +14788,10 @@ function buildReportData(scope, baseDate){
         issues.push({ severity:'amber', dept:'fin', text:`${partyName} ${label} ${_wKr(+r.carry)}` });
       });
   });
+  // ★ v0.25.0 — 부적합 처리 대기 (qc ON · 기간 내 접수 상태 NC · amber · qc 태그)
+  if(_qcOnRep && ncWaiting > 0){
+    issues.push({ severity:'amber', dept:'qc', text:`부적합 처리 대기 ${ncWaiting}건 — 접수 상태 (품질)` });
+  }
   // 계획 미발행 임박 (오늘~D+3 · wo_id 없음 · 최대 5건)
   const todayStr = fmtDate(Date.now());
   const nearEnd = new Date(todayStr + 'T00:00:00'); nearEnd.setDate(nearEnd.getDate() + 3);
@@ -14487,7 +14814,7 @@ function buildReportData(scope, baseDate){
     production: { plan: planQty, actual, pct: +pct.toFixed(1), activeLots, byEquipment },
     sales:      { newOrders, shipped, revenue, backlog, byCustomer },
     procurement:{ matInKg, purchaseAmount, osActive: osActiveDispatch, osCost, byMaterial },
-    quality:    { defectRate: +defectRate.toFixed(2), defectQty, stopCount },
+    quality:    { defectRate: +defectRate.toFixed(2), defectQty, stopCount, ncCount, ncWaiting, ncTopTypes },
     finance:    { salesClosing, unpaid, unpayable },
     issues,
     ai_summary: null,
@@ -14635,6 +14962,12 @@ VIEWS.report = () => {
         ${kpi('불량 수량', num(data.quality.defectQty,'ea'))}
         ${kpi('중단 이력', num(data.quality.stopCount,'건'))}
       </div>
+      ${(+data.quality.ncCount||0) > 0 || (+data.quality.ncWaiting||0) > 0 ? `
+      <div class="grid g3" style="margin-top:10px">
+        ${kpi('부적합 건', num(data.quality.ncCount||0,'건'), '기간 · NC 등록')}
+        ${kpi('처리 대기', num(data.quality.ncWaiting||0,'건'), '접수 상태', (+data.quality.ncWaiting||0)>0?'var(--amber)':null)}
+        ${kpi('유형 상위', (data.quality.ncTopTypes && data.quality.ncTopTypes.length) ? _esc(data.quality.ncTopTypes.map(t => `${t.name} ${t.qty}ea`).join(' · ')) : '<span style="color:var(--dim)">—</span>')}
+      </div>` : ''}
     </div>
 
     <!-- 경영·정산 -->
@@ -14788,7 +15121,7 @@ async function _requestAiBriefing(data){
   if(m.byMaterial.length){
     lines.push(`  · 재질별: ${m.byMaterial.map(x => `${x.mat} 잔량 ${Math.round(x.remain)}kg${x.short?'(부족)':''}, 소요 ${Math.round(x.used)}kg`).join(', ')}`);
   }
-  lines.push(`[품질] 불량률 ${q.defectRate.toFixed(2)}% · 불량 ${q.defectQty}ea · 중단 ${q.stopCount}건`);
+  lines.push(`[품질] 불량률 ${q.defectRate.toFixed(2)}% · 불량 ${q.defectQty}ea · 중단 ${q.stopCount}건${((+q.ncCount||0)>0||(+q.ncWaiting||0)>0)?` · 부적합 ${(+q.ncCount||0)}건(대기 ${(+q.ncWaiting||0)})${(q.ncTopTypes&&q.ncTopTypes.length)?` · 상위 ${q.ncTopTypes.map(t=>`${t.name} ${t.qty}ea`).join(', ')}`:''}`:''}`);
   lines.push(`[경영·정산] 마감 매출 ${_wKr(f.salesClosing)} · 미수 ${f.unpaid==null?'미확정':_wKr(f.unpaid)} · 미지급 ${f.unpayable==null?'미확정':_wKr(f.unpayable)}`);
   if(data.issues.length){
     lines.push(`[이슈]`);
@@ -14852,6 +15185,11 @@ function _reportExportXlsx(data){
   rows.push({ 구분:'품질', 항목:'불량률(%)',   값: q.defectRate });
   rows.push({ 구분:'품질', 항목:'불량(ea)',    값: q.defectQty });
   rows.push({ 구분:'품질', 항목:'중단(건)',    값: q.stopCount });
+  if((+q.ncCount||0) > 0 || (+q.ncWaiting||0) > 0){
+    rows.push({ 구분:'품질', 항목:'부적합(건)', 값: (+q.ncCount||0) });
+    rows.push({ 구분:'품질', 항목:'처리 대기(건)', 값: (+q.ncWaiting||0) });
+    (q.ncTopTypes||[]).forEach(t => rows.push({ 구분:'품질·유형', 항목:t.name, 값:t.qty, 비고:`${t.count}건` }));
+  }
   const f = data.finance;
   rows.push({ 구분:'경영·정산', 항목:`마감 매출 ${data.period.month}(원)`, 값: f.salesClosing });
   rows.push({ 구분:'경영·정산', 항목:'미수 잔액(원)',     값: f.unpaid == null ? '미확정' : f.unpaid });
@@ -14912,6 +15250,10 @@ function _reportPrint(data){
     ${kpiBlock([
       line('불량률', q.defectRate.toFixed(2)+' %'),
       line('불량 / 중단', `${q.defectQty} ea · ${q.stopCount}건`),
+      ...(((+q.ncCount||0) > 0 || (+q.ncWaiting||0) > 0) ? [
+        line('부적합 / 대기', `${(+q.ncCount||0)}건 · 대기 ${(+q.ncWaiting||0)}건`),
+        line('유형 상위', (q.ncTopTypes && q.ncTopTypes.length) ? q.ncTopTypes.map(t => `${t.name} ${t.qty}ea`).join(' · ') : '—'),
+      ] : []),
     ])}
     <h4 style="font-size:12px;color:#b91c1c;margin:8px 0 4px">경영·정산</h4>
     ${kpiBlock([
@@ -14936,6 +15278,774 @@ function _reportPrint(data){
     h3{border-bottom:2px solid #16181d;padding-bottom:4px}
   `;
   _openPrint(_REPORT_TITLES[data.scope] || 'AI 보고서', body, css, { formKey:'report' });
+}
+
+/* =================================================================================================
+   ★ v0.25.0 — 품질 관리 (Nonconformance / NC) 모듈
+   시안: vela-mes-qc-mockup.html · 프롬프트: vela-mes-v0.25.0-prompt.md
+   대원칙:
+     G1) 품질 모듈은 재고·실적·마감 원장을 직접 수정하지 않는다 — 기록·추적·통계·안내만.
+         수량이 움직이는 유일한 길 = 기존 실적 등록/수정 경로 (재작업 복귀도 [실적 등록 프리필]).
+     G2) 하드코딩 금지 — 불량 유형은 마스터(defect_types) 참조.
+     G3) void 만 (물리 삭제 금지) · 채번은 nextDocNo('NC').
+     G4) 기존 함수 시그니처·기존 화면 동작 변경 금지 · 헬퍼 1벌.
+     G5) qc 플래그 OFF 시 메뉴·버튼·현황 진입점 완전 비노출.
+================================================================================================= */
+const NC_STATUS = { RCV:'접수', RW:'재작업', SCRAP:'폐기', DEV:'특채', RET:'반품', DONE:'완료' };
+const NC_STATUS_STYLE = {
+  '접수':   { bg:'rgba(251,191,36,.14)',  color:'var(--amber)' },
+  '재작업': { bg:'rgba(125,211,252,.14)', color:'var(--blue)'  },
+  '폐기':   { bg:'rgba(248,113,113,.14)', color:'var(--red)'   },
+  '특채':   { bg:'rgba(74,222,128,.14)',  color:'var(--green)' },
+  '반품':   { bg:'rgba(139,144,156,.16)', color:'var(--sub)'   },
+  '완료':   { bg:'rgba(139,144,156,.16)', color:'var(--sub)'   },
+};
+function ncStatusBadge(status){
+  const s = NC_STATUS_STYLE[status] || NC_STATUS_STYLE['완료'];
+  return `<span style="font-size:10px;font-weight:800;padding:2px 9px;border-radius:99px;background:${s.bg};color:${s.color};display:inline-block">${_esc(status||'—')}</span>`;
+}
+// 같은 실적(record_id)에 이미 등록된 NC 수량 합 · void 제외 · 실적 초과 등록 차단 검증에 사용
+function ncSumByRecord(record_id){
+  if(!record_id) return 0;
+  return DB.query('nc_records', n => n.record_id === record_id).reduce((s,n)=>s+(+n.qty||0), 0);
+}
+// NC 등록 — G1 준수 (원장 무변) · 실적 초과 등록 차단
+function qcRegisterNc({ date, item_code, lot_id, record_id, process, equipment, worker, defect_type, qty, memo }){
+  if(!defect_type) throw new Error('불량 유형 필수');
+  const q = +qty || 0;
+  if(q <= 0) throw new Error('수량은 1 이상');
+  const dtype = DB.get('defect_types', defect_type);
+  if(!dtype) throw new Error(`불량 유형 미등록 — ${defect_type}`);
+  if(dtype.active === false) throw new Error(`비활성 불량 유형 — ${dtype.name}`);
+  if(record_id){
+    const rec = DB.get('records', record_id);
+    if(!rec) throw new Error('연결 실적 없음');
+    if(rec.void) throw new Error('취소된 실적에는 부적합 등록 불가');
+    const already = ncSumByRecord(record_id);
+    const cap = (+rec.defect||0);
+    if(cap <= 0) throw new Error('실적에 불량 수량 없음');
+    if(already + q > cap){
+      throw new Error(`실적 불량 초과 — 실적 ${cap}ea · 기 등록 ${already}ea · 추가 가능 ${Math.max(0, cap-already)}ea`);
+    }
+  }
+  const id = nextDocNo('NC');
+  if(DB.get('nc_records', id)) throw new Error(`NC 번호 중복 — ${id}`);
+  const doc = {
+    id, date: date || fmtDate(Date.now()),
+    item_code: item_code || null,
+    lot_id: lot_id || null,
+    record_id: record_id || null,
+    process: process || null,
+    equipment: equipment || null,
+    worker: worker || null,
+    defect_type, qty: q, memo: memo || '',
+    status: NC_STATUS.RCV,
+    handle: null,
+    rework_record_id: null,
+    ts: Date.now(),
+    by: SESSION.user || 'system',
+    void: null,
+  };
+  DB.set('nc_records', id, doc);
+  return doc;
+}
+// NC 처리 (재작업/폐기/특채/반품) — 상태 전이 · G1 원장 무변
+function qcProcessNc(nc_id, kind, handle){
+  const nc = DB.get('nc_records', nc_id);
+  if(!nc) throw new Error('NC 없음');
+  if(nc.void) throw new Error('취소된 NC 는 처리 불가');
+  if(nc.status !== NC_STATUS.RCV) throw new Error('접수 상태에서만 처리 가능');
+  let next;
+  if(kind === 'rework')         next = NC_STATUS.RW;
+  else if(kind === 'scrap')     next = NC_STATUS.SCRAP;
+  else if(kind === 'deviation') next = NC_STATUS.DEV;
+  else if(kind === 'return')    next = NC_STATUS.RET;
+  else throw new Error('처리 유형 오류');
+  DB.set('nc_records', nc_id, { status: next, handle: { kind, ...(handle||{}), ts: Date.now(), by: SESSION.user||'system' } });
+  return DB.get('nc_records', nc_id);
+}
+// 재작업 실적 연결 → 완료
+function qcLinkReworkRecord(nc_id, record_id){
+  const nc = DB.get('nc_records', nc_id);
+  if(!nc) throw new Error('NC 없음');
+  if(nc.void) throw new Error('취소된 NC');
+  if(nc.status !== NC_STATUS.RW) throw new Error('재작업 상태에서만 연결 가능');
+  const rec = DB.get('records', record_id);
+  if(!rec) throw new Error('실적 없음');
+  DB.set('nc_records', nc_id, { rework_record_id: record_id, status: NC_STATUS.DONE });
+  return DB.get('nc_records', nc_id);
+}
+// 폐기/특채/반품 후 [완료 처리]
+function qcCompleteNc(nc_id){
+  const nc = DB.get('nc_records', nc_id);
+  if(!nc) throw new Error('NC 없음');
+  if(nc.void) throw new Error('취소된 NC');
+  if(nc.status === NC_STATUS.DONE) return nc;
+  if(nc.status === NC_STATUS.RCV) throw new Error('처리 결정 없이 완료 불가');
+  DB.set('nc_records', nc_id, { status: NC_STATUS.DONE });
+  return DB.get('nc_records', nc_id);
+}
+// 파레토 (유형별 · 기간)
+function ncParetoByType(startTs, endTs){
+  const rows = DB.query('nc_records', n => n.ts >= startTs && n.ts <= endTs);
+  const map = {};
+  rows.forEach(n => {
+    const key = n.defect_type;
+    if(!map[key]) map[key] = { code:key, name: DB.get('defect_types', key)?.name || key, qty:0, count:0 };
+    map[key].qty   += (+n.qty||0);
+    map[key].count += 1;
+  });
+  return Object.values(map).sort((a,b) => b.qty - a.qty);
+}
+
+// ─────────────────────────────────────────────────────────────
+// VIEWS._qcRegister(prefill) — 부적합 등록 모달 (실적현황 + 품질 화면 공용)
+//   lockedRecord (prefill.record_id 있음): 실적 잠금 · 유형·수량·메모만 입력
+//   free: LOT/실적 선택 (실적 무관 등록 허용)
+// ─────────────────────────────────────────────────────────────
+VIEWS._qcRegister = (prefill) => {
+  prefill = prefill || {};
+  const types = getActiveDefectTypes();
+  if(!types.length){
+    toast('활성 불량 유형 없음 — 기준정보 › 불량 유형 등록 먼저', 'warn');
+    return;
+  }
+  const lockedRecord = !!prefill.record_id;
+  const lots = DB.all('production_lots').slice().sort((a,b)=>(a.plot_no||'').localeCompare(b.plot_no||''));
+  const capInfo = lockedRecord ? (() => {
+    const cap = +prefill.defect_qty_source || 0;
+    const already = +prefill.already_qty || 0;
+    return { cap, already, remaining: Math.max(0, cap - already) };
+  })() : null;
+
+  openModal(`
+    <h2>부적합 등록 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:10px;line-height:1.55">
+        <b style="color:var(--amber)">원칙</b> 부적합 등록은 <b>기록·추적</b>만 — 재고·실적 원장은 그대로. 수량 이동은 기존 실적 경로만.
+      </div>
+      ${lockedRecord ? `
+        <div style="padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);margin-bottom:10px">
+          <div style="font-size:11.5px;color:var(--sub);margin-bottom:4px">연결 실적 <span class="pill cyan" style="font-size:9.5px;margin-left:4px">${_esc(prefill.record_id)}</span></div>
+          <div style="font-size:12.5px"><b>${_esc(prefill.item_code||'—')}</b> · LOT <span style="font-family:'JetBrains Mono',monospace">${_esc(prefill.lot_id||'—')}</span> · 공정 ${_esc(DB.get('processes',prefill.process)?.name||prefill.process||'—')} · 설비 ${_esc(prefill.equipment||'—')} · 작업자 ${_esc(prefill.worker?.name||prefill.worker||'—')}</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:5px">실적 불량 <b>${capInfo.cap}ea</b> · 기 등록 <b>${capInfo.already}ea</b> · 추가 가능 <b style="color:var(--cyan)">${capInfo.remaining}ea</b></div>
+        </div>
+      ` : `
+        <div class="grid g2">
+          <div><label>LOT (선택) <span style="color:var(--dim);font-weight:400">— 없으면 실적 무관 등록</span></label>
+            <select id="nc-lot">
+              <option value="">— 실적 무관 (수입 소재 불량 등) —</option>
+              ${lots.map(l => `<option value="${_esc(l.plot_no)}" ${prefill.lot_id===l.plot_no?'selected':''}>${_esc(l.plot_no)} (${_esc(l.itemCode)})</option>`).join('')}
+            </select></div>
+          <div><label>연결 실적 (선택)</label>
+            <select id="nc-rec"><option value="">— 실적 무관 —</option></select></div>
+        </div>
+        <div id="nc-rec-hint" style="font-size:11px;color:var(--dim);margin-top:-4px;margin-bottom:6px"></div>
+      `}
+      <div class="grid g2">
+        <div><label>불량 유형 <span style="color:var(--dim);font-weight:400">— 마스터 활성만</span></label>
+          <select id="nc-type">${types.map(t => `<option value="${_esc(t.code)}">${_esc(t.name)}</option>`).join('')}</select></div>
+        <div><label>수량 (ea)</label>
+          <input id="nc-qty" type="number" min="1" step="1" placeholder="${lockedRecord ? Math.max(1, capInfo.remaining) : 1}" style="font-family:'JetBrains Mono',monospace;text-align:right"></div>
+      </div>
+      <div><label>현상 메모 (선택)</label>
+        <textarea id="nc-memo" rows="3" placeholder="예: 오른쪽 상단 3mm 크랙 · 재발 우려" style="width:100%;resize:vertical;font-family:inherit"></textarea></div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="nc-save">${ico('save')}등록</button>
+      </div>
+    </div>
+  `);
+  if(!lockedRecord){
+    const refreshRec = () => {
+      const lotId = document.getElementById('nc-lot').value;
+      const sel   = document.getElementById('nc-rec');
+      const hint  = document.getElementById('nc-rec-hint');
+      if(!lotId){ sel.innerHTML = '<option value="">— 실적 무관 —</option>'; hint.textContent = ''; return; }
+      const recs = DB.query('records', r => r.plot_no === lotId && (+r.defect||0) > 0).slice().sort((a,b)=>b.ts-a.ts);
+      sel.innerHTML = '<option value="">— 실적 무관 —</option>' + recs.map(r => {
+        const p = DB.get('processes', r.proc);
+        const already = ncSumByRecord(r.id);
+        const cap = +r.defect||0;
+        const rem = Math.max(0, cap-already);
+        return `<option value="${_esc(r.id)}" ${rem<=0?'disabled':''}>${fmtDate(r.ts)} ${fmtTime(r.ts).slice(0,5)} · ${_esc(p?.name||r.proc)} · 불량 ${cap}ea (남은 ${rem}ea)${rem<=0?' · 소진':''}</option>`;
+      }).join('');
+      hint.textContent = recs.length ? `불량>0 실적 ${recs.length}건 표시` : '이 LOT 에 불량 실적 없음 — 실적 무관 등록으로 진행';
+    };
+    document.getElementById('nc-lot').onchange = refreshRec;
+    refreshRec();
+  }
+  document.getElementById('nc-save').onclick = () => {
+    const defect_type = document.getElementById('nc-type').value;
+    const qty  = +document.getElementById('nc-qty').value || 0;
+    const memo = document.getElementById('nc-memo').value.trim();
+    let payload;
+    if(lockedRecord){
+      payload = {
+        record_id: prefill.record_id,
+        lot_id: prefill.lot_id || null,
+        item_code: prefill.item_code || null,
+        process: prefill.process || null,
+        equipment: prefill.equipment || null,
+        worker: prefill.worker || null,
+        defect_type, qty, memo,
+      };
+    } else {
+      const lotId = document.getElementById('nc-lot').value || null;
+      const recId = document.getElementById('nc-rec').value || null;
+      const rec = recId ? DB.get('records', recId) : null;
+      const lot = lotId ? DB.get('production_lots', lotId) : null;
+      payload = {
+        record_id: recId || null,
+        lot_id: lotId || null,
+        item_code: lot?.itemCode || null,
+        process: rec?.proc || null,
+        equipment: rec?.equipment || null,
+        worker: rec?.worker || (rec?.by ? { name: rec.by } : null),
+        defect_type, qty, memo,
+      };
+    }
+    try {
+      const nc = qcRegisterNc(payload);
+      toast(`부적합 등록 — ${nc.id}`, 'ok');
+      closeModal(); router();
+    } catch(e){ toast(e.message, 'err'); }
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
+// VIEWS._qcDetail(nc_id) — NC 상세 · 처리 이력 타임라인 · 액션 진입
+// ─────────────────────────────────────────────────────────────
+VIEWS._qcDetail = (nc_id) => {
+  const nc = DB.get('nc_records', nc_id);
+  if(!nc){ toast('NC 없음','err'); return; }
+  const dtype  = DB.get('defect_types', nc.defect_type);
+  const proc   = nc.process ? DB.get('processes', nc.process) : null;
+  const item   = nc.item_code ? DB.get('items', nc.item_code) : null;
+  const rework = nc.rework_record_id ? DB.get('records', nc.rework_record_id) : null;
+  const isVoid = !!nc.void;
+  const isDone = nc.status === NC_STATUS.DONE;
+  const isRcv  = nc.status === NC_STATUS.RCV;
+  const isRw   = nc.status === NC_STATUS.RW;
+
+  const timeline = [];
+  timeline.push({ ts: nc.ts, by: nc.by, label: `접수 등록 · ${(+nc.qty||0).toLocaleString()}ea ${dtype?.name||nc.defect_type}` });
+  if(nc.handle && nc.handle.kind){
+    const kMap = { rework:'재작업 결정', scrap:'폐기 결정', deviation:'특채 결정', return:'반품 접수' };
+    timeline.push({
+      ts: nc.handle.ts, by: nc.handle.by_name || nc.handle.by,
+      label: kMap[nc.handle.kind] || nc.handle.kind,
+      memo: nc.handle.memo, approver: nc.handle.approver, cust_ref: nc.handle.cust_ref, reason: nc.handle.reason,
+    });
+  }
+  if(nc.rework_record_id){
+    timeline.push({ ts: rework?.ts || Date.now(), by:'system', label: `재작업 실적 연결 · ${nc.rework_record_id} (양품 ${(+rework?.good||0).toLocaleString()}ea) → 완료` });
+  }
+  if(isVoid){
+    timeline.push({ ts: nc.void.ts, by: nc.void.by, label: `NC 취소 · ${nc.void.reason||''}` });
+  }
+
+  const actions = [];
+  if(!isVoid && isRcv) actions.push(`<button class="btn primary" id="nc-proc">${ico('save')}처리</button>`);
+  if(!isVoid && isRw)  actions.push(`<button class="btn primary" id="nc-link">${ico('save')}재작업 실적 연결</button>`);
+  if(!isVoid && (nc.status === NC_STATUS.SCRAP || nc.status === NC_STATUS.DEV || nc.status === NC_STATUS.RET)){
+    actions.push(`<button class="btn primary" id="nc-done">${ico('check')}완료 처리</button>`);
+  }
+  if(!isVoid && !isDone) actions.push(`<button class="btn" id="nc-void" style="color:var(--red)">${ico('x')}NC 취소</button>`);
+  actions.push(`<button class="btn" id="nc-print">${ico('print')}인쇄</button>`);
+
+  openModal(`
+    <h2>부적합 상세 <span style="font-family:'JetBrains Mono',monospace;color:var(--cyan);margin-left:6px">${_esc(nc.id)}</span> ${ncStatusBadge(nc.status)} ${isVoid?'<span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9.5px;margin-left:4px">취소</span>':''} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:8px 12px;font-size:12.5px;padding:11px 13px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;margin-bottom:10px">
+        <div style="color:var(--sub)">일자</div><div style="font-family:'JetBrains Mono',monospace">${_esc(nc.date||fmtDate(nc.ts))}</div>
+        <div style="color:var(--sub)">품번</div><div><b>${_esc(nc.item_code||'—')}</b> ${item?`<span style="color:var(--sub);font-size:11px">${_esc(item.name||'')}</span>`:''}</div>
+        <div style="color:var(--sub)">LOT</div><div style="font-family:'JetBrains Mono',monospace">${_esc(nc.lot_id||'—')}</div>
+        <div style="color:var(--sub)">공정 · 설비</div><div>${_esc(proc?.name||nc.process||'—')} · ${_esc(nc.equipment||'—')}</div>
+        <div style="color:var(--sub)">작업자</div><div>${_esc(nc.worker?.name||nc.worker||'—')}</div>
+        <div style="color:var(--sub)">유형 · 수량</div><div><b>${_esc(dtype?.name||nc.defect_type)}</b> · <span style="font-family:'JetBrains Mono',monospace">${(+nc.qty||0).toLocaleString()}ea</span></div>
+        <div style="color:var(--sub)">연결 실적</div><div>${nc.record_id ? `<span style="font-family:'JetBrains Mono',monospace">${_esc(nc.record_id)}</span>` : '<span style="color:var(--dim)">실적 무관</span>'}</div>
+        ${nc.memo ? `<div style="color:var(--sub)">현상</div><div style="white-space:pre-wrap">${_esc(nc.memo)}</div>` : ''}
+        ${nc.rework_record_id ? `<div style="color:var(--sub)">재작업 실적</div><div><span style="font-family:'JetBrains Mono',monospace">${_esc(nc.rework_record_id)}</span> · 양품 ${(+rework?.good||0).toLocaleString()}ea</div>` : ''}
+      </div>
+      <div style="font-size:11.5px;color:var(--sub);margin-bottom:6px"><b>처리 이력</b></div>
+      <div style="border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:var(--bg2);font-size:11.5px;line-height:1.7">
+        ${timeline.map(t => `<div style="display:flex;gap:9px;align-items:baseline;padding:3px 0">
+          <span style="font-family:'JetBrains Mono',monospace;color:var(--dim);font-size:10.5px;min-width:110px">${fmtDate(t.ts)} ${fmtTime(t.ts).slice(0,5)}</span>
+          <span style="flex:1"><b>${_esc(t.label)}</b>${t.reason?` <span style="color:var(--sub)">— ${_esc(t.reason)}</span>`:''}${t.approver?` <span style="color:var(--sub)">· 승인 ${_esc(t.approver)}</span>`:''}${t.cust_ref?` <span style="color:var(--sub)">· ${_esc(t.cust_ref)}</span>`:''}${t.memo?` <span style="color:var(--sub)">— ${_esc(t.memo)}</span>`:''}</span>
+          <span style="color:var(--dim);font-size:10.5px">${_esc(t.by||'')}</span>
+        </div>`).join('')}
+      </div>
+      ${isDone||isVoid ? `<div style="font-size:11px;color:var(--dim);margin-top:8px;line-height:1.55">${isDone?'· 완료된 NC 는 수정 불가 (상세 열람만) · 되돌리기는 취소 후 재등록.':'· 취소된 NC · 이력 보존.'}</div>` : ''}
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">닫기</button>
+        ${actions.join(' ')}
+      </div>
+    </div>
+  `);
+  const bP = document.getElementById('nc-proc');
+  if(bP) bP.onclick = () => { closeModal(); VIEWS._qcProcess(nc_id); };
+  const bL = document.getElementById('nc-link');
+  if(bL) bL.onclick = () => { closeModal(); VIEWS._qcLinkRework(nc_id); };
+  const bD = document.getElementById('nc-done');
+  if(bD) bD.onclick = () => {
+    try { qcCompleteNc(nc_id); toast('완료 처리','ok'); closeModal(); router(); }
+    catch(e){ toast(e.message,'err'); }
+  };
+  const bV = document.getElementById('nc-void');
+  if(bV) bV.onclick = () => {
+    const reason = prompt('취소 사유(선택)', '오입력') || '오입력';
+    voidDoc('nc_records', nc_id, reason);
+    toast('NC 취소 (이력 보존)','ok');
+    closeModal(); router();
+  };
+  const bPrn = document.getElementById('nc-print');
+  if(bPrn) bPrn.onclick = () => _qcPrintNc(nc_id);
+};
+
+// ─────────────────────────────────────────────────────────────
+// VIEWS._qcProcess(nc_id) — 처리 모달 (재작업/폐기/특채/반품)
+// ─────────────────────────────────────────────────────────────
+VIEWS._qcProcess = (nc_id) => {
+  const nc = DB.get('nc_records', nc_id);
+  if(!nc){ toast('NC 없음','err'); return; }
+  if(nc.status !== NC_STATUS.RCV){ toast('접수 상태에서만 처리 가능','warn'); return; }
+  openModal(`
+    <h2>NC 처리 <span style="font-family:'JetBrains Mono',monospace;color:var(--cyan);margin-left:6px">${_esc(nc.id)}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:10px;line-height:1.55">
+        <b style="color:var(--amber)">원칙</b> 처리 기록은 <b>추적·안내</b>만 — 재고·실적 원장 무변. 수량 복귀가 필요하면 <b>재작업 실적 등록</b> 경로.
+      </div>
+      <div class="grid g2">
+        <div><label>처리 유형</label>
+          <select id="ncp-kind">
+            <option value="rework">재작업 (Rework)</option>
+            <option value="scrap">폐기 (Scrap)</option>
+            <option value="deviation">특채 (Deviation)</option>
+            <option value="return">반품 (Return)</option>
+          </select></div>
+        <div><label>처리일</label>
+          <input id="ncp-date" type="date" value="${_esc(fmtDate(Date.now()))}"></div>
+      </div>
+      <div><label>처리자</label>
+        <input id="ncp-by" value="${_esc(SESSION.user||'')}" placeholder="이름"></div>
+      <div id="ncp-extra"></div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="ncp-save">${ico('save')}처리 기록</button>
+      </div>
+    </div>
+  `);
+  const extra  = document.getElementById('ncp-extra');
+  const kindEl = document.getElementById('ncp-kind');
+  const renderExtra = () => {
+    const k = kindEl.value;
+    if(k === 'rework'){
+      extra.innerHTML = `<div><label>재작업 계획 메모 (선택)</label>
+        <textarea id="ncp-memo" rows="3" placeholder="예: 재연마 · 프레스 2호 재작업 예정" style="width:100%;resize:vertical;font-family:inherit"></textarea></div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.55">· 저장 후 목록에 [재작업 실적 등록] 버튼 표시 — 기존 실적 등록 화면(프리필)으로 이어집니다.</div>`;
+    } else if(k === 'scrap'){
+      extra.innerHTML = `<div><label>폐기 사유 <span style="color:var(--red)">*</span></label>
+        <input id="ncp-reason" placeholder="예: 크랙 · 재가공 불가"></div>
+        <div><label>비고 (선택)</label><textarea id="ncp-memo" rows="2" style="width:100%;resize:vertical;font-family:inherit"></textarea></div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.55">· 불량품은 애초 양품 재고에 없으므로 원장 무변 (기록만).</div>`;
+    } else if(k === 'deviation'){
+      extra.innerHTML = `<div class="grid g2">
+          <div><label>승인자 <span style="color:var(--red)">*</span></label><input id="ncp-approver" placeholder="예: 홍길동 (품질팀장)"></div>
+          <div><label>고객 승인 근거 <span style="color:var(--red)">*</span></label><input id="ncp-cust" placeholder="예: 이메일 2026-07-15 · C001"></div>
+        </div>
+        <div><label>비고 (선택)</label><textarea id="ncp-memo" rows="2" style="width:100%;resize:vertical;font-family:inherit"></textarea></div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.55">· 수량의 양품 전환이 필요하면 <b>기존 실적 수정</b> 경로 (품질 모듈은 원장 무수정).</div>`;
+    } else if(k === 'return'){
+      extra.innerHTML = `<div><label>접수 메모 (선택)</label><textarea id="ncp-memo" rows="2" style="width:100%;resize:vertical;font-family:inherit"></textarea></div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.55">· 반품 접수만 기록 · 출하 연계는 후속 버전 (범위 밖).</div>`;
+    }
+  };
+  kindEl.onchange = renderExtra;
+  renderExtra();
+  document.getElementById('ncp-save').onclick = () => {
+    const kind = kindEl.value;
+    const date = document.getElementById('ncp-date').value || fmtDate(Date.now());
+    const by   = document.getElementById('ncp-by').value.trim() || (SESSION.user||'system');
+    const handle = { date, by_name: by };
+    if(kind === 'rework'){
+      handle.memo = document.getElementById('ncp-memo')?.value.trim() || '';
+    } else if(kind === 'scrap'){
+      const reason = document.getElementById('ncp-reason')?.value.trim() || '';
+      if(!reason){ toast('폐기 사유 필수','warn'); return; }
+      handle.reason = reason;
+      handle.memo = document.getElementById('ncp-memo')?.value.trim() || '';
+    } else if(kind === 'deviation'){
+      const approver = document.getElementById('ncp-approver')?.value.trim() || '';
+      const cust_ref = document.getElementById('ncp-cust')?.value.trim() || '';
+      if(!approver){ toast('승인자 필수','warn'); return; }
+      if(!cust_ref){ toast('고객 승인 근거 필수','warn'); return; }
+      handle.approver = approver;
+      handle.cust_ref = cust_ref;
+      handle.memo = document.getElementById('ncp-memo')?.value.trim() || '';
+    } else if(kind === 'return'){
+      handle.memo = document.getElementById('ncp-memo')?.value.trim() || '';
+    }
+    try {
+      qcProcessNc(nc_id, kind, handle);
+      const kMap = { rework:'재작업', scrap:'폐기', deviation:'특채', return:'반품' };
+      toast(`처리 기록 — ${kMap[kind]}`, 'ok');
+      closeModal(); router();
+    } catch(e){ toast(e.message,'err'); }
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
+// VIEWS._qcLinkRework(nc_id) — 재작업 실적 연결 · 프리필 등록 진입
+//   후보 실적: 같은 LOT · 같은 공정 · NC 접수 이후 등록 · 미연결
+// ─────────────────────────────────────────────────────────────
+VIEWS._qcLinkRework = (nc_id) => {
+  const nc = DB.get('nc_records', nc_id);
+  if(!nc){ toast('NC 없음','err'); return; }
+  if(nc.status !== NC_STATUS.RW){ toast('재작업 상태에서만 연결 가능','warn'); return; }
+  const linkedIds = new Set(
+    DB.query('nc_records', n => n.id !== nc_id && n.rework_record_id).map(n => n.rework_record_id)
+  );
+  const candidates = DB.query('records', r =>
+    r.plot_no === nc.lot_id && r.proc === nc.process && r.ts >= nc.ts && !linkedIds.has(r.id)
+  ).slice().sort((a,b)=>b.ts-a.ts);
+  openModal(`
+    <h2>재작업 실적 연결 <span style="font-family:'JetBrains Mono',monospace;color:var(--cyan);margin-left:6px">${_esc(nc.id)}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:10px;line-height:1.55">
+        <b style="color:var(--amber)">원칙</b> 수량 이동은 <b>실적 경로</b>만 — 여기선 <b>연결(추적)</b>만 기록. 실적 없으면 <b>[실적 등록 프리필]</b> 로 이동 → 등록 후 다시 이 창에서 연결.
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <button class="btn primary" id="ncl-prefill">${ico('plus')}실적 등록 (프리필)</button>
+        <span style="font-size:11px;color:var(--dim);align-self:center">→ 등록 후 이 창을 다시 열어 연결</span>
+      </div>
+      <div style="font-size:11.5px;color:var(--sub);margin-bottom:6px"><b>연결 가능 실적</b> — 같은 LOT · 같은 공정 · NC 접수 이후 · 미연결 (${candidates.length}건)</div>
+      ${candidates.length ? `
+        <div class="tbl-wrap"><table style="font-size:12px">
+          <thead><tr><th>선택</th><th>실적</th><th>일시</th><th class="num">양품</th><th class="num">불량</th><th>설비</th></tr></thead>
+          <tbody>${candidates.map((r,i) => {
+            const p = DB.get('processes', r.proc);
+            return `<tr>
+              <td><input type="radio" name="ncl-rec" value="${_esc(r.id)}" ${i===0?'checked':''} style="width:auto;margin:0"></td>
+              <td><span style="font-family:'JetBrains Mono',monospace;font-size:11px">${_esc(r.id)}</span></td>
+              <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${fmtDate(r.ts)} ${fmtTime(r.ts).slice(0,5)}</td>
+              <td class="num" style="color:var(--green)">${(+r.good||0).toLocaleString()}</td>
+              <td class="num" style="color:${(+r.defect||0)>0?'var(--red)':'var(--dim)'}">${(+r.defect||0).toLocaleString()}</td>
+              <td style="font-size:11px">${_esc(r.equipment||'—')}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table></div>
+      ` : `<div style="font-size:11.5px;color:var(--dim);padding:8px 0">연결 가능한 실적 없음 — 위 [실적 등록 (프리필)] 로 먼저 등록.</div>`}
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">닫기</button>
+        ${candidates.length ? `<button class="btn primary" id="ncl-save">${ico('save')}선택 실적 연결 → 완료</button>` : ''}
+      </div>
+    </div>
+  `);
+  document.getElementById('ncl-prefill').onclick = () => {
+    closeModal();
+    VIEWS._perfAddPC({
+      plot_no: nc.lot_id,
+      proc: nc.process,
+      equipment: nc.equipment,
+      _from_nc: nc.id,
+    });
+  };
+  const sv = document.getElementById('ncl-save');
+  if(sv) sv.onclick = () => {
+    const sel = document.querySelector('input[name="ncl-rec"]:checked');
+    if(!sel){ toast('연결할 실적 선택','warn'); return; }
+    try {
+      qcLinkReworkRecord(nc_id, sel.value);
+      toast('재작업 실적 연결 → 완료 처리','ok');
+      closeModal(); router();
+    } catch(e){ toast(e.message,'err'); }
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
+// VIEWS.qc — 품질 관리 화면 (19번째 페이지)
+// 기간(월) · KPI 4 · NC 목록 · 파레토 · 공정/설비/작업자별 통계
+// ─────────────────────────────────────────────────────────────
+VIEWS.qc = () => {
+  if(!getFlags().qc){
+    document.getElementById('view').innerHTML = `<div class="card">품질 관리 모듈 OFF — 설정에서 켜세요.</div>`;
+    return;
+  }
+  const st = (window._qcState = window._qcState || { month: fmtDate(Date.now()).slice(0,7), q:'', status:'', voidView:false });
+  if(!st.month) st.month = fmtDate(Date.now()).slice(0,7);
+  const [yy, mm] = st.month.split('-').map(Number);
+  const first = new Date(yy, (mm||1)-1, 1);
+  const last  = new Date(yy, (mm||1),   0);
+  const startTs = first.getTime();
+  const endTs   = last.getTime() + 86400000 - 1;
+
+  const ncAll = (st.voidView ? DB.allRaw('nc_records') : DB.all('nc_records'))
+    .filter(n => n.ts >= startTs && n.ts <= endTs)
+    .slice().sort((a,b) => b.ts - a.ts);
+  const ncFiltered = ncAll.filter(n => {
+    if(st.status && n.status !== st.status) return false;
+    if(st.q){
+      const q = st.q.toLowerCase();
+      const dt = DB.get('defect_types', n.defect_type);
+      const hay = `${n.id||''} ${n.lot_id||''} ${n.item_code||''} ${dt?.name||''} ${n.process||''} ${n.equipment||''}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // KPI (실적 집계 재사용 · buildReportData 방식과 동일)
+  const recsInPeriod = DB.query('records', r => r.ts >= startTs && r.ts <= endTs);
+  const totalIn = recsInPeriod.reduce((s,r)=>s+(+r.good||0)+(+r.defect||0)+(+r.scrap||0)+(+r.rework||0), 0);
+  const defQty  = recsInPeriod.reduce((s,r)=>s+(+r.defect||0)+(+r.scrap||0), 0);
+  const defRate = totalIn > 0 ? (defQty/totalIn*100) : 0;
+  const ncCount   = ncAll.filter(n => !n.void).length;
+  const ncWaiting = ncAll.filter(n => !n.void && n.status === NC_STATUS.RCV).length;
+  const reworkReturned = ncAll
+    .filter(n => !n.void && n.rework_record_id)
+    .reduce((s,n) => s + (+DB.get('records', n.rework_record_id)?.good||0), 0);
+
+  const pareto = ncParetoByType(startTs, endTs);
+  const paretoMax = pareto.length ? pareto[0].qty : 1;
+  const procMap = {};
+  recsInPeriod.forEach(r => {
+    const p = r.proc || '__';
+    if(!procMap[p]) procMap[p] = { proc:p, name: DB.get('processes',p)?.name||p, produced:0, defect:0 };
+    procMap[p].produced += (+r.good||0) + (+r.defect||0) + (+r.scrap||0) + (+r.rework||0);
+    procMap[p].defect   += (+r.defect||0) + (+r.scrap||0);
+  });
+  const byProc = Object.values(procMap).filter(x => x.produced > 0)
+    .map(x => ({ ...x, rate: x.produced>0 ? x.defect/x.produced*100 : 0 }))
+    .sort((a,b) => b.rate - a.rate);
+  const eqMap = {}, wkMap = {};
+  ncAll.filter(n => !n.void).forEach(n => {
+    if(n.equipment){
+      if(!eqMap[n.equipment]) eqMap[n.equipment] = { name:n.equipment, count:0, qty:0 };
+      eqMap[n.equipment].count += 1;
+      eqMap[n.equipment].qty   += (+n.qty||0);
+    }
+    const wname = n.worker?.name || (typeof n.worker==='string' ? n.worker : '');
+    if(wname){
+      if(!wkMap[wname]) wkMap[wname] = { name:wname, count:0, qty:0 };
+      wkMap[wname].count += 1;
+      wkMap[wname].qty   += (+n.qty||0);
+    }
+  });
+  const byEq = Object.values(eqMap).sort((a,b)=>b.qty-a.qty).slice(0, 6);
+  const byWk = Object.values(wkMap).sort((a,b)=>b.qty-a.qty).slice(0, 6);
+
+  const qcIcon = PAGES.find(p=>p.id==='qc')?.icon || '';
+  const voidInPeriod = ncAll.filter(n => !!n.void).length;
+  document.getElementById('view').innerHTML = `
+    <div class="pghead">
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${qcIcon}</svg>품질 관리 <span class="pill cyan">${APP_VERSION}</span></div>
+      <div class="pgtools">
+        <input id="qc-month" type="month" value="${_esc(st.month)}" style="width:160px">
+        <label class="chk-toggle" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${st.voidView?'rgba(248,113,113,.08)':'var(--bg2)'}"><input type="checkbox" id="qc-void-view" ${st.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기${voidInPeriod>0?` <span style="color:var(--red);font-weight:700">(${voidInPeriod})</span>`:''}</label>
+        <button class="btn" id="qc-xlsx">${ico('excel')}엑셀</button>
+        <button class="btn primary" id="qc-new">${ico('plus')}부적합 등록</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px;line-height:1.6">
+      부적합 관리 · ISO 8.7 실무 최소형 — 원칙: 재고·실적 원장 <b>직접 수정 없음</b>. 수량 이동은 기존 실적 경로만. 불량 유형은 <a href="#masters" style="color:var(--cyan)">기준정보 › 불량 유형</a> 마스터에서 관리.
+    </div>
+
+    <div class="grid g4" style="margin-bottom:14px">
+      <div class="kpi-mini"><div class="lab">기간 불량률</div><div class="val" style="color:${defRate>=3?'var(--red)':(defRate>0?'var(--amber)':'var(--green)')}">${defRate.toFixed(1)}<span style="font-size:12px">%</span></div><div class="sub">실적 집계 재사용</div></div>
+      <div class="kpi-mini"><div class="lab">부적합 건</div><div class="val">${ncCount}<span style="font-size:12px;color:var(--sub)">건</span></div><div class="sub">${_esc(st.month)}</div></div>
+      <div class="kpi-mini"><div class="lab">처리 대기</div><div class="val" style="color:${ncWaiting>0?'var(--amber)':'var(--dim)'}">${ncWaiting}<span style="font-size:12px;color:var(--sub)">건</span></div><div class="sub">접수 상태</div></div>
+      <div class="kpi-mini"><div class="lab">재작업 복귀량</div><div class="val" style="color:var(--blue)">${reworkReturned.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">연결 실적 양품 합</div></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <h3 style="margin:0">부적합 목록 <span class="tag">${ncFiltered.length}건 / 전체 ${ncAll.length}건 · 최신 위</span></h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="qc-q" placeholder="검색 — NC · LOT · 품번 · 유형 · 공정" value="${_esc(st.q)}" style="width:240px;padding:6px 10px">
+          <select id="qc-status" style="width:120px">
+            <option value="">상태 ▾</option>
+            ${['접수','재작업','폐기','특채','반품','완료'].map(s => `<option value="${s}" ${st.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>NC 번호</th><th>일자</th><th>품번·LOT</th><th>공정</th><th>유형</th><th class="num">수량</th><th>상태</th><th></th></tr></thead>
+        <tbody>${ncFiltered.length ? ncFiltered.map(n => {
+          const dt = DB.get('defect_types', n.defect_type);
+          const p  = n.process ? DB.get('processes', n.process) : null;
+          const isVoid = !!n.void;
+          const rowStyle = isVoid ? 'opacity:.6;background:rgba(248,113,113,.05);text-decoration:line-through' : '';
+          let actBtn = '';
+          if(!isVoid){
+            if(n.status === NC_STATUS.RCV) actBtn = `<button class="btn sm" data-nc-proc="${_esc(n.id)}">처리</button>`;
+            else if(n.status === NC_STATUS.RW) actBtn = `<button class="btn sm primary" data-nc-link="${_esc(n.id)}">재작업 실적 등록</button>`;
+            else actBtn = `<button class="btn sm ghost" data-nc-detail="${_esc(n.id)}">상세</button>`;
+          } else {
+            actBtn = `<button class="btn sm ghost" data-nc-detail="${_esc(n.id)}">상세</button>`;
+          }
+          const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px;text-decoration:none">「취소」</span>` : '';
+          return `<tr style="${rowStyle}">
+            <td style="font-family:'JetBrains Mono',monospace;cursor:pointer" data-nc-detail="${_esc(n.id)}"><b style="color:var(--cyan)">${_esc(n.id)}</b>${voidBadge}</td>
+            <td style="font-family:'JetBrains Mono',monospace">${_esc(n.date||fmtDate(n.ts))}</td>
+            <td><b>${_esc(n.item_code||'—')}</b>${n.lot_id?` · <span style="font-family:'JetBrains Mono',monospace;font-size:11px">${_esc(n.lot_id)}</span>`:''}</td>
+            <td>${_esc(p?.name||n.process||'—')}</td>
+            <td>${_esc(dt?.name||n.defect_type||'—')}</td>
+            <td class="num" style="font-family:'JetBrains Mono',monospace">${(+n.qty||0).toLocaleString()}</td>
+            <td>${ncStatusBadge(n.status)}</td>
+            <td style="text-align:right">${actBtn}</td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="8" class="empty">부적합 없음 — [+ 부적합 등록] 또는 실적현황의 불량 실적에서 등록</td></tr>'}</tbody>
+      </table></div>
+    </div>
+
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <h3 style="font-size:13px;margin:0">불량 유형 파레토 <span class="tag">기간 · 유형은 기준정보 마스터</span></h3>
+        </div>
+        ${pareto.length ? `
+          <div style="display:flex;align-items:flex-end;gap:14px;height:130px;padding:6px 4px 0">
+            ${pareto.slice(0, 6).map(p => {
+              const h = paretoMax > 0 ? Math.max(6, Math.round(p.qty/paretoMax*100)) : 6;
+              return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0">
+                <b style="font-size:11px;font-family:'JetBrains Mono',monospace">${p.qty.toLocaleString()}</b>
+                <i style="display:block;width:70%;height:${h}%;background:linear-gradient(180deg,var(--cyan),#0d9488);border-radius:5px 5px 0 0;min-height:6px"></i>
+                <small style="font-size:10px;color:var(--sub);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%" title="${_esc(p.name)}">${_esc(p.name)}</small>
+              </div>`;
+            }).join('')}
+          </div>
+        ` : '<div style="color:var(--dim);font-size:11.5px;padding:14px 0;text-align:center">데이터 없음</div>'}
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <h3 style="font-size:13px;margin:0">공정별 불량률 <span class="tag">records 기반 · 기간</span></h3>
+        </div>
+        ${byProc.length ? `
+          <table style="font-size:12px">
+            <thead><tr><th>공정</th><th class="num">생산</th><th class="num">불량</th><th class="num">률</th></tr></thead>
+            <tbody>${byProc.map(x => `<tr>
+              <td>${_esc(x.name)}</td>
+              <td class="num" style="font-family:'JetBrains Mono',monospace">${x.produced.toLocaleString()}</td>
+              <td class="num" style="font-family:'JetBrains Mono',monospace">${x.defect.toLocaleString()}</td>
+              <td class="num" style="font-family:'JetBrains Mono',monospace;color:${x.rate>=3?'var(--red)':(x.rate>=1?'var(--amber)':'var(--sub)')}">${x.rate.toFixed(1)}%</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        ` : '<div style="color:var(--dim);font-size:11.5px;padding:14px 0;text-align:center">데이터 없음</div>'}
+      </div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <h3 style="font-size:13px;margin:0">설비별 부적합 <span class="tag">기간 · NC 기록</span></h3>
+        </div>
+        ${byEq.length ? `
+          <table style="font-size:12px">
+            <thead><tr><th>설비</th><th class="num">건수</th><th class="num">수량</th></tr></thead>
+            <tbody>${byEq.map(x => `<tr>
+              <td>${_esc(x.name)}</td>
+              <td class="num" style="font-family:'JetBrains Mono',monospace">${x.count.toLocaleString()}</td>
+              <td class="num" style="font-family:'JetBrains Mono',monospace">${x.qty.toLocaleString()}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        ` : '<div style="color:var(--dim);font-size:11.5px;padding:14px 0;text-align:center">데이터 없음</div>'}
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <h3 style="font-size:13px;margin:0">작업자별 부적합 <span class="tag">기간 · NC 기록</span></h3>
+        </div>
+        ${byWk.length ? `
+          <table style="font-size:12px">
+            <thead><tr><th>작업자</th><th class="num">건수</th><th class="num">수량</th></tr></thead>
+            <tbody>${byWk.map(x => `<tr>
+              <td>${_esc(x.name)}</td>
+              <td class="num" style="font-family:'JetBrains Mono',monospace">${x.count.toLocaleString()}</td>
+              <td class="num" style="font-family:'JetBrains Mono',monospace">${x.qty.toLocaleString()}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        ` : '<div style="color:var(--dim);font-size:11.5px;padding:14px 0;text-align:center">데이터 없음</div>'}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('qc-month').onchange = (e) => { st.month = e.target.value; router(); };
+  document.getElementById('qc-void-view').onchange = (e) => { st.voidView = e.target.checked; router(); };
+  let qT;
+  document.getElementById('qc-q').oninput = (e) => { clearTimeout(qT); qT = setTimeout(() => { st.q = e.target.value; router(); }, 220); };
+  document.getElementById('qc-status').onchange = (e) => { st.status = e.target.value; router(); };
+  document.getElementById('qc-new').onclick = () => VIEWS._qcRegister({});
+  document.getElementById('qc-xlsx').onclick = () => {
+    const xrows = ncFiltered.map(n => {
+      const dt = DB.get('defect_types', n.defect_type);
+      const p  = n.process ? DB.get('processes', n.process) : null;
+      return {
+        'NC 번호': n.id, 일자: n.date || fmtDate(n.ts),
+        품번: n.item_code || '',
+        LOT: n.lot_id || '',
+        공정: p?.name || n.process || '',
+        설비: n.equipment || '',
+        작업자: n.worker?.name || n.worker || '',
+        유형: dt?.name || n.defect_type || '',
+        수량: +n.qty || 0,
+        상태: n.status,
+        메모: n.memo || '',
+        '연결 실적': n.record_id || '',
+        '재작업 실적': n.rework_record_id || '',
+        취소: n.void ? (n.void.reason||'') : '',
+      };
+    });
+    exportXlsx(xrows, '부적합', `부적합_${st.month}.xlsx`);
+  };
+  document.querySelectorAll('[data-nc-detail]').forEach(el => el.onclick = (e) => {
+    e.stopPropagation();
+    VIEWS._qcDetail(el.dataset.ncDetail);
+  });
+  document.querySelectorAll('[data-nc-proc]').forEach(b => b.onclick = () => VIEWS._qcProcess(b.dataset.ncProc));
+  document.querySelectorAll('[data-nc-link]').forEach(b => b.onclick = () => VIEWS._qcLinkRework(b.dataset.ncLink));
+};
+
+// NC 상세 인쇄 (F2 — 부적합 보고서 · 기본 세로 · _openPrint 방향 토글)
+function _qcPrintNc(nc_id){
+  const nc = DB.get('nc_records', nc_id);
+  if(!nc){ toast('NC 없음','err'); return; }
+  const dtype  = DB.get('defect_types', nc.defect_type);
+  const proc   = nc.process ? DB.get('processes', nc.process) : null;
+  const item   = nc.item_code ? DB.get('items', nc.item_code) : null;
+  const rework = nc.rework_record_id ? DB.get('records', nc.rework_record_id) : null;
+  const co = getCompany();
+  const kMap = { rework:'재작업', scrap:'폐기', deviation:'특채', return:'반품' };
+  const body = `<div class="page">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #16181d;padding-bottom:6px;margin-bottom:12px">
+      <div><b style="font-size:16px">부적합 보고서</b> <span style="color:#666;font-size:11px;margin-left:6px">${_esc(nc.id)}</span></div>
+      <div style="font-size:11px;color:#333">${_esc(co?.name||'')} · ${fmtDate(Date.now())}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
+      <tr><th>일자</th><td class="v">${_esc(nc.date||fmtDate(nc.ts))}</td><th>상태</th><td class="v">${_esc(nc.status)}</td></tr>
+      <tr><th>품번</th><td class="v">${_esc(nc.item_code||'—')} ${item?`(${_esc(item.name||'')})`:''}</td><th>LOT</th><td class="v">${_esc(nc.lot_id||'—')}</td></tr>
+      <tr><th>공정 · 설비</th><td class="v" colspan="3">${_esc(proc?.name||nc.process||'—')} · ${_esc(nc.equipment||'—')}</td></tr>
+      <tr><th>작업자</th><td class="v" colspan="3">${_esc(nc.worker?.name||nc.worker||'—')}</td></tr>
+      <tr><th>유형</th><td class="v">${_esc(dtype?.name||nc.defect_type||'—')}</td><th>수량</th><td class="v">${(+nc.qty||0).toLocaleString()} ea</td></tr>
+      <tr><th>연결 실적</th><td class="v">${_esc(nc.record_id||'—')}</td><th>재작업 실적</th><td class="v">${nc.rework_record_id?`${_esc(nc.rework_record_id)} · 양품 ${(+rework?.good||0).toLocaleString()}ea`:'—'}</td></tr>
+      <tr><th>현상</th><td class="v" colspan="3" style="white-space:pre-wrap">${_esc(nc.memo||'—')}</td></tr>
+    </table>
+    ${nc.handle ? `
+    <div style="margin-top:14px"><b style="font-size:13px">처리 결정</b></div>
+    <table style="width:100%;border-collapse:collapse;margin-top:6px">
+      <tr><th style="width:120px">유형</th><td class="v">${_esc(kMap[nc.handle.kind]||nc.handle.kind)}</td></tr>
+      <tr><th>처리일 · 처리자</th><td class="v">${_esc(nc.handle.date||'')} · ${_esc(nc.handle.by_name||nc.handle.by||'')}</td></tr>
+      ${nc.handle.reason  ? `<tr><th>사유</th><td class="v">${_esc(nc.handle.reason)}</td></tr>` : ''}
+      ${nc.handle.approver? `<tr><th>승인자</th><td class="v">${_esc(nc.handle.approver)}</td></tr>` : ''}
+      ${nc.handle.cust_ref? `<tr><th>고객 승인 근거</th><td class="v">${_esc(nc.handle.cust_ref)}</td></tr>` : ''}
+      ${nc.handle.memo    ? `<tr><th>비고</th><td class="v" style="white-space:pre-wrap">${_esc(nc.handle.memo)}</td></tr>` : ''}
+    </table>` : ''}
+    <div style="margin-top:18px;font-size:10.5px;color:#666;text-align:right">MADE BY JUNS · VELA SYSTEM · ${_esc(APP_VERSION)}</div>
+  </div>`;
+  const css = `
+    .page{width:794px;min-height:800px;background:#fff;padding:28px 34px;color:#16181d}
+    table th{background:#f5f5f5;padding:6px 8px;font-size:11.5px;text-align:left;border:1px solid #ddd;width:120px}
+    table td{padding:6px 8px;font-size:12px;border:1px solid #ddd}
+    .v{font-family:'JetBrains Mono','Consolas',monospace;font-weight:600;font-size:12px}
+  `;
+  _openPrint(`부적합 보고서 ${nc.id}`, body, css, { formKey:'nc' });
 }
 
 /* -------------------- 설정 -------------------- */
