@@ -957,7 +957,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.26.0';
+const APP_VERSION = 'v0.26.2';
 const APP_DATE    = '2026-07-22';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -2142,9 +2142,10 @@ function seedIfEmpty(){
       default_due_buffer_days: 7,
     });
   }
-  // ★ v0.26.0 — 고객사 마스터 1회 이관 (기존 vendors/orders/closings 참조 → customers)
-  //   플래그 settings/customers_migration.done 로 재실행 방지 (파괴 금지 · 병합만).
+  // ★ v0.26.0 — 고객사 마스터 1회 이관 (기존 vendors/orders/closings 참조 → customers) — v0.26.2 에선 legacy 유지 (flag done 이면 no-op)
   try { runCustomersMigration(); } catch(e){ console.warn('[VELA] customers migration failed', e); }
+  // ★ v0.26.2 — 거래처 단일 진실 통합 (customers → vendors) · 부팅 1회 · 삭제 금지 · idempotent
+  try { runVendorsUnificationMigration(); } catch(e){ console.warn('[VELA] vendors unification failed', e); }
 }
 seedIfEmpty();
 
@@ -2520,44 +2521,41 @@ function seedDemoData(){
     });
   });
 
-  // ─────────────── 14. ★ v0.26.0 — 고객사 마스터 3사 (시안 코드 반영) ─────
-  //   원칙(G1): 이관 이전에 미리 세팅 → 뒤이은 runCustomersMigration 은 이름 매칭으로 재사용.
-  //   demo 코드는 시안(038·041·052) 반영 · 정의 필드 예시(차종) 포함.
-  const custMasters = [
-    { code:'038', name:'현대위아',    vendor:'C001', 차종:'YF SONATA' },
-    { code:'041', name:'경창산업',    vendor:'C002', 차종:'LF SONATA' },
-    { code:'052', name:'동양피스톤',  vendor:'C003', 차종:'ELANTRA'   },
+  // ─────────────── 14. ★ v0.26.2 — 거래처(구분=고객사) 에 정의 필드 값 직접 시드
+  //   원칙: customers 신설 금지 (단일 진실 = vendors). 필드값은 vendors[code].custom 에 병합.
+  const custCustom = [
+    ['C001', { '차종':'YF SONATA' }],
+    ['C002', { '차종':'LF SONATA' }],
+    ['C003', { '차종':'ELANTRA'   }],
   ];
-  custMasters.forEach(c => {
-    DB.set('customers', c.code, {
-      code: c.code, name: c.name,
-      contact:'담당자', phone:'031-000-0000', memo:'',
-      custom:{ '차종': c.차종 },
-      ts: now, by: _demoUser, active:true, void:null,
-      migrated_from_vendor: c.vendor,
-    });
+  custCustom.forEach(([code, custom]) => {
+    if(DB.get('vendors', code)) DB.set('vendors', code, { custom });
   });
 
   // ─────────────── 15. ★ v0.26.0 — 사용자 정의 필드 데모 시드 ────────────
   //   원칙(G2): 단조 특유 항목(차종·단조온도·열처리·경도·자분탐상·표면처리)은
   //             표준 필드가 아니라 반드시 여기 정의 필드로만 존재.
+  //   ★ v0.26.1 — 열처리 사양 옵션 갱신(Q.T/NOR/ISO/CA · allow_other) · 경도 라벨 정비(단위 제거)
+  //     key 는 이전과 동일 유지(경도HB/열처리사양) — 기존 items.custom 값 보존.
   const mfSeed = [
-    ['MF-ITEM-001','items',    '차종',        'text',    null,   1],
-    ['MF-ITEM-002','items',    '단조온도',    'number',  '℃',    2],
-    ['MF-ITEM-003','items',    '열처리사양',  'select',  null,   3, ['Q.T','N','A']],
-    ['MF-ITEM-004','items',    '경도HB',      'text',    null,   4],
-    ['MF-ITEM-005','items',    '자분탐상',    'select',  null,   5, ['적용','미적용']],
-    ['MF-ITEM-006','items',    '표면처리',    'text',    null,   6],
-    ['MF-CUST-001','customers','차종',        'text',    null,   1],
-    ['MF-CUST-002','customers','품질특약',    'text',    null,   2],
-    ['MF-MOLD-001','molds',    '재질',        'text',    null,   1],
-    ['MF-MOLD-002','molds',    '제작일',      'date',    null,   2],
+    { id:'MF-ITEM-001', master:'items',    key:'차종',        label:'차종',        type:'text',   unit:'',  order:1 },
+    { id:'MF-ITEM-002', master:'items',    key:'단조온도',    label:'단조온도',    type:'number', unit:'℃', order:2 },
+    { id:'MF-ITEM-003', master:'items',    key:'열처리사양',  label:'열처리 사양', type:'select', unit:'',  order:3, options:['Q.T','NOR','ISO','CA'], allow_other:true },
+    { id:'MF-ITEM-004', master:'items',    key:'경도HB',      label:'경도',        type:'text',   unit:'',  order:4 },
+    { id:'MF-ITEM-005', master:'items',    key:'자분탐상',    label:'자분탐상',    type:'select', unit:'',  order:5, options:['적용','미적용'] },
+    { id:'MF-ITEM-006', master:'items',    key:'표면처리',    label:'표면처리',    type:'text',   unit:'',  order:6 },
+    // ★ v0.26.2 — master='vendors' (거래처 단일 마스터로 통합)
+    { id:'MF-CUST-001', master:'vendors',  key:'차종',        label:'차종',        type:'text',   unit:'',  order:1 },
+    { id:'MF-CUST-002', master:'vendors',  key:'품질특약',    label:'품질특약',    type:'text',   unit:'',  order:2 },
+    { id:'MF-MOLD-001', master:'molds',    key:'재질',        label:'재질',        type:'text',   unit:'',  order:1 },
+    { id:'MF-MOLD-002', master:'molds',    key:'제작일',      label:'제작일',      type:'date',   unit:'',  order:2 },
   ];
-  mfSeed.forEach(([id, master, label, type, unit, order, options]) => {
-    const key = _mfSlug(label);
-    DB.set('master_fields', id, {
-      id, master, key, label, type, unit: unit||'',
-      options: options||[], order, active:true,
+  mfSeed.forEach(f => {
+    DB.set('master_fields', f.id, {
+      id: f.id, master: f.master, key: f.key,
+      label: f.label, type: f.type, unit: f.unit||'',
+      options: f.options||[], allow_other: !!f.allow_other,
+      order: f.order, active: true,
     });
   });
 
@@ -2580,10 +2578,13 @@ function seedDemoData(){
   ];
   moldDemoBLFI.forEach(m => DB.set('molds', m.id, m));
 
-  // ─────────────── 17. ★ v0.26.0 — 고객사 마스터 이관 재실행 (force · 병합만) ─
-  //   seedIfEmpty 가 이미 실행되어 done=true 여도 강제로 재이관 → 데모 orders/shipments/closings 에
-  //   customer_ref 병합 (이름 매칭으로 중복 생성 없음 · 매출/시뮬 무영향).
-  try { runCustomersMigration(true); } catch(e){ console.warn('[VELA] customers migration (demo) failed', e); }
+  // ─────────────── 17. ★ v0.26.2 — 거래처 단일 진실 통합 재실행 (force)
+  //   기존 데모/실키에 customers 문서가 남아 있으면 vendors 로 병합 · 참조 재매핑.
+  //   customers 자체는 보존 · 이후 코드 경로 미참조 (getCustomers 는 vendors 만 조회).
+  try { runVendorsUnificationMigration(true); } catch(e){ console.warn('[VELA] vendors unification (demo) failed', e); }
+  // 데모 vendors 에 customer_ref 병합 (기존 v0.26.0 흐름 유지: orders/shipments/closings 참조 채움)
+  try { runCustomersMigration(true); } catch(e){ /* legacy · no-op OK */ }
+  try { runVendorsUnificationMigration(true); } catch(e){ /* idempotent */ }
 
   console.log('[VELA] seedDemoData complete');
 }
@@ -2619,23 +2620,32 @@ function accumulateMoldStrokes(itemCode, strokes){
               금형 누적 타수는 파생 표시 계산(저장 금지) · Cav 는 표시 전용.
    ============================================================================ */
 
-/* ── 고객사 마스터 (customers · code 영숫자 1~4자) ─────────────────────── */
+/* ── 고객사 = 거래처(구분=cust) 단일 마스터 (v0.26.2 통합) ──────────────
+   getCustomers() 는 vendors 컬렉션의 type='cust' 활성만 반환 — 헬퍼 1벌.
+   customers 컬렉션은 v0.26.0 잔재 · 데이터 보존만(삭제 금지) · 이후 미참조. */
+function getCustomers(){
+  return DB.all('vendors').filter(v => v.type === 'cust' && v.active !== false)
+    .sort((a,b) => (a.code||'').localeCompare(b.code||''));
+}
+// 하위 호환 (v0.26.0/.1 호출 지점 대비 · 동일 결과)
+function getActiveCustomers(){ return getCustomers(); }
 function isValidCustomerCode(code){
+  // ⑤ 코드 형식 자유 — 영숫자 1~4자 (C001·038 모두). 유일성만 강제.
   const s = String(code||'').trim();
   return /^[A-Za-z0-9]{1,4}$/.test(s);
 }
-function getActiveCustomers(){
-  return DB.all('customers').filter(c => c.active !== false)
-    .sort((a,b) => (a.code||'').localeCompare(b.code||''));
-}
 function nextCustomerCode(){
-  const used = new Set(DB.allRaw('customers').map(c => c.code));
+  // 거래처(type=cust) 중 사용 안 된 3자리 숫자 코드 제안. 사용자 수정 허용.
+  const used = new Set(DB.allRaw('vendors').filter(v => v.type === 'cust').map(v => v.code));
   let n = 1;
   while(used.has(String(n).padStart(3,'0'))) n++;
   return String(n).padStart(3, '0');
 }
 function getCustomerName(ref){
   if(!ref) return '';
+  // v0.26.2 — vendors 우선 조회 (단일 진실). 폴백은 legacy customers (표시 안전망만).
+  const v = DB.get('vendors', ref);
+  if(v) return v.name || ref;
   const c = DB.get('customers', ref);
   return c ? (c.name || ref) : '';
 }
@@ -2708,8 +2718,104 @@ function runCustomersMigration(force){
   return { skipped:false, count: Object.keys(map).length };
 }
 
-/* ── 사용자 정의 필드 엔진 (master_fields · items/customers/molds) ─────── */
-const _MASTER_FIELD_MASTERS = { items:'품목', customers:'고객사', molds:'금형' };
+/* ★ v0.26.2 — 거래처 단일 진실 통합 이관 (customers → vendors 병합)
+   원칙:
+   · 이름 매칭(공백·대소문자 정규화) 되는 customers 문서는 vendors(cust) 문서로 병합
+     (custom 필드·연락처/전화/메모 를 빈 값에만 채워 넣음 · 파괴 금지).
+   · 매칭 실패 시 vendors(type='cust') 로 신설 (customer.code 그대로, 충돌 시 접미).
+   · items/orders/shipments/closings 의 customer_ref = 옛 customer.code → 새 vendor.code
+     로 재매핑 (병합만 · 원장 무변).
+   · master_fields.master='customers' → 'vendors' 로 치환 (기존 값·id 보존).
+   · settings/vendors_unification.done 플래그로 재실행 방지. force=true 시 무시(멱등).
+   · customers 컬렉션 자체는 삭제 금지 · 이후 코드 경로에서 미참조. */
+function runVendorsUnificationMigration(force){
+  const flag = DB.get('settings','vendors_unification');
+  if(!force && flag?.done) return { skipped:true };
+  const _norm = s => String(s==null?'':s).replace(/\s+/g,'').toLowerCase().trim();
+  const map = {}; // customer.code → vendor.code
+  DB.allRaw('customers').forEach(c => {
+    if(!c || !c.code) return;
+    // 1) 이름 매칭 (vendors 전체 대상 · type=cust 우선)
+    const custNameKey = _norm(c.name);
+    let match = null;
+    if(custNameKey){
+      const candidates = DB.allRaw('vendors').filter(v => _norm(v.name) === custNameKey);
+      match = candidates.find(v => v.type === 'cust') || candidates[0] || null;
+    }
+    if(!match){
+      // 2) 매칭 실패 → vendors(type='cust') 신설. customer.code 그대로 사용 · 충돌 시 접미.
+      let newCode = c.code;
+      if(DB.get('vendors', newCode)){
+        let n = 2;
+        while(DB.get('vendors', `${c.code}-${n}`)) n++;
+        newCode = `${c.code}-${n}`;
+      }
+      DB.set('vendors', newCode, {
+        code: newCode, name: c.name || newCode, type: 'cust', active: true,
+        contact: c.contact||'', phone: c.phone||'', memo: c.memo||'',
+        custom: { ...(c.custom||{}) },
+        _migrated_from_customer: c.code,
+        ts: Date.now(), by:'migration',
+      });
+      map[c.code] = newCode;
+    } else {
+      // 병합: vendor 의 빈 값에만 채움 (덮어쓰기 금지). custom 은 vendor 우선 병합.
+      const patch = {};
+      if(!match.contact && c.contact) patch.contact = c.contact;
+      if(!match.phone   && c.phone)   patch.phone   = c.phone;
+      if(!match.memo    && c.memo)    patch.memo    = c.memo;
+      const cCustom = c.custom || {};
+      const vCustom = match.custom || {};
+      const mergedCustom = { ...cCustom, ...vCustom };
+      // 차이 있을 때만 저장
+      if(Object.keys(cCustom).length){
+        patch.custom = mergedCustom;
+      }
+      patch._merged_from_customer = c.code;
+      DB.set('vendors', match.code, patch);
+      map[c.code] = match.code;
+    }
+  });
+  // 참조 재매핑 — items/orders/shipments/closings.customer_ref
+  DB.all('items').forEach(it => {
+    if(!it.customer_ref) return;
+    const nv = map[it.customer_ref];
+    if(nv && nv !== it.customer_ref) DB.set('items', it.code, { customer_ref: nv });
+  });
+  DB.all('orders').forEach(o => {
+    if(!o.customer_ref) return;
+    const nv = map[o.customer_ref];
+    if(nv && nv !== o.customer_ref) DB.set('orders', o.id, { customer_ref: nv });
+  });
+  DB.all('shipments').forEach(s => {
+    if(!s.customer_ref) return;
+    const nv = map[s.customer_ref];
+    if(nv && nv !== s.customer_ref) DB.set('shipments', s.id, { customer_ref: nv });
+  });
+  DB.all('closings').forEach(cl => {
+    if(!cl.rows) return;
+    let updated = false;
+    const nextRows = cl.rows.map(r => {
+      if(!r.customer_ref) return r;
+      const nv = map[r.customer_ref];
+      if(nv && nv !== r.customer_ref){ updated = true; return { ...r, customer_ref: nv }; }
+      return r;
+    });
+    if(updated) DB.set('closings', cl.id, { rows: nextRows });
+  });
+  // master_fields: master='customers' → 'vendors' (id/key/label/type/options/allow_other/order/active 보존)
+  DB.allRaw('master_fields').forEach(f => {
+    if(f.master === 'customers') DB.set('master_fields', f.id, { master: 'vendors' });
+  });
+  DB.set('settings','vendors_unification', {
+    done:true, version:'v0.26.2', ts:Date.now(),
+    mapped: Object.keys(map).length, map,
+  });
+  return { skipped:false, mapped: Object.keys(map).length, map };
+}
+
+/* ── 사용자 정의 필드 엔진 (master_fields · items/vendors/molds) ─────── */
+const _MASTER_FIELD_MASTERS = { items:'품목', vendors:'거래처', molds:'금형' };
 function _mfSlug(label){
   const raw = String(label||'').trim();
   if(!raw) return '';
@@ -2736,6 +2842,16 @@ function nextMasterFieldOrder(master){
   return (fs.length ? Math.max(...fs.map(f => +f.order||0)) : 0) + 1;
 }
 function _cfInputId(master, key){ return `cf-${master}-${key}`; }
+/* ★ v0.26.1 — select+allow_other 기타 입력 토글 (엔진 1벌 · 전용 분기 금지) */
+function _cfOtherToggle(id){
+  const sel = document.getElementById(id);
+  const other = document.getElementById(id+'-other');
+  if(!sel || !other) return;
+  const isOther = sel.value === '__OTHER__';
+  other.style.display = isOther ? '' : 'none';
+  if(isOther) other.focus();
+}
+window._cfOtherToggle = _cfOtherToggle;
 /* renderCustomFields(master, values, mode)
     mode 'form'  → 등록/수정 폼 그리드 HTML
     mode 'detail'→ 상세 표시 행 HTML
@@ -2768,14 +2884,23 @@ function renderCustomFields(master, values, mode){
       inputHtml = `<input id="${id}" type="date" value="${val==null?'':_esc(val)}" data-cf-master="${_esc(master)}" data-cf-key="${_esc(f.key)}" data-cf-type="date">`;
     } else if(f.type === 'select'){
       const rawOpts = Array.isArray(f.options) ? f.options : [];
-      inputHtml = `<select id="${id}" data-cf-master="${_esc(master)}" data-cf-key="${_esc(f.key)}" data-cf-type="select">
-        <option value="">— 선택 —</option>
-        ${rawOpts.map(o=>{
-          const v = typeof o==='object' ? (o.value||o.label||'') : o;
-          const lbl = typeof o==='object' ? (o.label||o.value||'') : o;
-          return `<option value="${_esc(v)}" ${String(val)===String(v)?'selected':''}>${_esc(lbl)}</option>`;
-        }).join('')}
-      </select>`;
+      const optVals = rawOpts.map(o => typeof o==='object' ? String(o.value||o.label||'') : String(o));
+      const inOpts = val!=null && val!=='' && optVals.some(o => o === String(val));
+      const allowOther = !!f.allow_other;
+      const isOther = allowOther && val!=null && val!=='' && !inOpts;
+      const otherToggle = allowOther ? ` onchange="_cfOtherToggle('${id}')"` : '';
+      inputHtml = `<div style="display:flex;gap:6px;align-items:center">
+        <select id="${id}" data-cf-master="${_esc(master)}" data-cf-key="${_esc(f.key)}" data-cf-type="select" data-cf-allowother="${allowOther?1:0}"${otherToggle} style="flex:1">
+          <option value="">— 선택 —</option>
+          ${rawOpts.map(o=>{
+            const v = typeof o==='object' ? (o.value||o.label||'') : o;
+            const lbl = typeof o==='object' ? (o.label||o.value||'') : o;
+            return `<option value="${_esc(v)}" ${!isOther && String(val)===String(v)?'selected':''}>${_esc(lbl)}</option>`;
+          }).join('')}
+          ${allowOther ? `<option value="__OTHER__" ${isOther?'selected':''}>기타 (직접 입력)</option>` : ''}
+        </select>
+        ${allowOther ? `<input id="${id}-other" type="text" value="${isOther?_esc(val):''}" placeholder="기타 값" style="flex:1;display:${isOther?'':'none'}">` : ''}
+      </div>`;
     } else {
       inputHtml = `<input id="${id}" type="text" value="${val==null?'':_esc(val)}" data-cf-master="${_esc(master)}" data-cf-key="${_esc(f.key)}" data-cf-type="text">`;
     }
@@ -2796,6 +2921,11 @@ function readCustomFieldsInputs(master){
     if(type === 'number'){
       const v = raw==='' ? '' : +raw;
       if(raw !== '' && !Number.isNaN(v)) out[key] = v;
+    } else if(type === 'select' && el.dataset.cfAllowother === '1' && raw === '__OTHER__'){
+      // ★ v0.26.1 — allow_other: 페어링된 텍스트 인풋 값을 저장 (엔진 1벌)
+      const other = document.getElementById(el.id + '-other');
+      const otherVal = other ? String(other.value||'').trim() : '';
+      if(otherVal) out[key] = otherVal;
     } else {
       if(raw !== '') out[key] = raw;
     }
@@ -2848,6 +2978,16 @@ function itemRatePerProductKg(it){
   if(!g || !p) return null;
   return Math.round(p / (g/1000));
 }
+/* ★ v0.26.1 — 소재규격 표시 문자열 (Ø{dia}[ × {len}]) · 계산 연동 금지 · 표시用 */
+function matSpecStr(it){
+  if(!it) return '';
+  const dia = +it.dia || 0;
+  const len = +it.mat_len_mm || 0;
+  if(!dia && !len) return '';
+  if(dia && len) return `Ø${dia} × ${(+len).toFixed(1)}`;
+  if(dia) return `Ø${dia}`;
+  return `L${(+len).toFixed(1)}`;
+}
 
 /* ── 금형 파생 누적 타수 (records 기반 · G1 저장 금지 · Cav 반영) ──────── */
 function _forgeQtyForItem(itemCode){
@@ -2889,6 +3029,7 @@ const _IMPORTER_SPEC = {
       { key:'customer_ref', label:'고객코드' },
       { key:'mat',          label:'재질' },
       { key:'dia',          label:'Ø',          kind:'number' },
+      { key:'mat_len_mm',   label:'소재길이(mm)', kind:'number' },
       { key:'weight_g',     label:'절단중량(g)', kind:'number' },
       { key:'product_weight_g', label:'제품중량(g)', kind:'number' },
       { key:'price',        label:'단가(원)',   kind:'number' },
@@ -2899,26 +3040,31 @@ const _IMPORTER_SPEC = {
     ],
     example: {
       code:'999-001-0', name:'예시부품', customer_ref:'999',
-      mat:'S45C', dia:38, weight_g:1553, product_weight_g:535, price:1740,
+      mat:'S45C', dia:38, mat_len_mm:246.1, weight_g:1553, product_weight_g:535, price:1740,
       cav:1, mold_no:'999-001', default_forge_eq:'프레스 1호', pack_qty:200,
     },
   },
-  customers: {
-    label: '고객사',
+  vendors: {
+    label: '거래처',
     columns: [
-      { key:'code',    label:'고객코드', required:true },
+      { key:'code',    label:'코드',     required:true },
       { key:'name',    label:'이름',     required:true },
+      { key:'type',    label:'구분',     required:false },   // cust/sup/out (기본 cust)
       { key:'contact', label:'담당자' },
       { key:'phone',   label:'전화' },
       { key:'memo',    label:'메모' },
     ],
-    example: { code:'999', name:'예시산업', contact:'홍길동', phone:'055-000-0000', memo:'' },
+    example: { code:'C999', name:'예시산업', type:'cust', contact:'홍길동', phone:'055-000-0000', memo:'' },
   },
 };
 function _importerColumns(master){
   const base = (_IMPORTER_SPEC[master]?.columns || []).slice();
   const cfs = getMasterFields(master);
-  cfs.forEach(f => base.push({ key:'cf:'+f.key, label:(f.label||f.key), custom:true, unit:f.unit, kind:(f.type==='number'?'number':'text') }));
+  cfs.forEach(f => base.push({
+    key:'cf:'+f.key, label:(f.label||f.key), custom:true, unit:f.unit,
+    kind:(f.type==='number'?'number':'text'),
+    field: f,   // ★ v0.26.1 — 필드 스펙 참조 (select 검증·allow_other 판정)
+  }));
   return base;
 }
 function _importerTemplateRow(master){
@@ -2942,6 +3088,16 @@ function _parseImportRow(master, rawRow){
       if(Number.isNaN(v)){ errors.push(`${c.label} 숫자 아님`); return; }
       if(c.custom) out['cf:'+c.key.slice(3)] = v; else out[c.key] = v;
     } else {
+      // ★ v0.26.1 — 정의 필드 select 검증 (allow_other 필드 한정 · 선택지 외 값 통과)
+      //   allow_other=false 이면 선택지 외 값은 오류. allow_other=true 이면 통과.
+      if(c.custom && c.field && c.field.type === 'select'){
+        const opts = (Array.isArray(c.field.options) ? c.field.options : []).map(o =>
+          typeof o==='object' ? String(o.value||o.label||'') : String(o));
+        if(!opts.includes(val) && !c.field.allow_other){
+          errors.push(`${c.label} 선택지 외 값 — ${val}`);
+          return;
+        }
+      }
       if(c.custom) out['cf:'+c.key.slice(3)] = val; else out[c.key] = val;
     }
   });
@@ -2954,9 +3110,11 @@ function _importJudgeRow(master, parsed){
   if(master === 'items'){
     if(!isItemIdentifier(d.code) && !/^[A-Za-z0-9\-_.]+$/.test(d.code)) return { ok:false, reason:`식별번호 형식 오류 — ${d.code}` };
     if(DB.get('items', d.code)) return { ok:false, reason:`중복 식별번호 — 건너뜀` };
-  } else if(master === 'customers'){
-    if(!isValidCustomerCode(d.code)) return { ok:false, reason:`고객코드 형식 오류 — ${d.code}` };
-    if(DB.get('customers', d.code)) return { ok:false, reason:`중복 고객코드 — 건너뜀` };
+  } else if(master === 'vendors'){
+    // v0.26.2 — 코드 형식 자유 (영숫자·기호 허용) · 유일성만 강제
+    if(!/^[A-Za-z0-9\-_.]+$/.test(d.code)) return { ok:false, reason:`코드 형식 오류 — ${d.code}` };
+    if(DB.get('vendors', d.code)) return { ok:false, reason:`중복 코드 — 건너뜀` };
+    if(d.type && !['cust','sup','out'].includes(d.type)) return { ok:false, reason:`구분 오류 — ${d.type} (cust/sup/out)` };
   }
   return { ok:true, reason:'등록 가능' };
 }
@@ -2971,6 +3129,7 @@ function _importApplyRow(master, parsed){
       customer_ref: d.customer_ref || (p ? p.cust : ''),
       rev: p ? p.rev : 0,
       mat: d.mat || '', dia: +d.dia||0,
+      mat_len_mm: +d.mat_len_mm || 0,   // v0.26.1 — 표시用 · 계산 연동 금지
       weight: d.weight_g!=null ? (+d.weight_g/1000) : 0,
       product_weight_g: +d.product_weight_g || 0,
       price: +d.price || 0,
@@ -2982,12 +3141,13 @@ function _importApplyRow(master, parsed){
       custom, active: true,
     };
     DB.set('items', d.code, doc);
-  } else if(master === 'customers'){
-    DB.set('customers', d.code, {
+  } else if(master === 'vendors'){
+    DB.set('vendors', d.code, {
       code: d.code, name: d.name || '',
+      type: (d.type || 'cust'),
       contact: d.contact || '', phone: d.phone || '', memo: d.memo || '',
       custom, ts: Date.now(), by: SESSION.user||'import',
-      active: true, void: null,
+      active: true,
     });
   }
 }
@@ -14093,24 +14253,13 @@ VIEWS._planReject = (id) => {
    활성 판정: (x.active !== false) — 시드 호환(active 필드 없는 기존 문서는 사용중).
    신규 select 소스는 활성만 노출(getActiveItems/getActiveVendors), 과거 이력 표시는 그대로. */
 VIEWS.masters = () => {
-  // ★ v0.25.0 — d_q (불량 유형 검색) 추가 · 기존 필드 무변
-  // ★ v0.26.0 — c_q (고객사 검색) 추가 · 기존 필드 무변
-  const state = (window._mstFilter = window._mstFilter || { v_q:'', v_type:'', i_q:'', i_cust:'', e_q:'', e_proc:'', d_q:'', c_q:'' });
+  // ★ v0.25.0 — d_q (불량 유형 검색) · v0.26.0 — c_q 폐지(v0.26.2 통합) · 기존 필드 무변
+  const state = (window._mstFilter = window._mstFilter || { v_q:'', v_type:'', i_q:'', i_cust:'', e_q:'', e_proc:'', d_q:'' });
   if(state.d_q === undefined) state.d_q = '';
-  if(state.c_q === undefined) state.c_q = '';
   const vendorsAll = DB.all('vendors');
   const itemsAll   = getItems();
-  // ★ v0.26.0 — 고객사 마스터 (customers 컬렉션 · 정의 필드 최상위 2개 컬럼 자동)
-  const customersAll = DB.all('customers').slice().sort((a,b) => (a.code||'').localeCompare(b.code||''));
-  const cRows = customersAll.filter(c => {
-    if(state.c_q){
-      const q = state.c_q.toLowerCase();
-      const hay = `${c.code||''} ${c.name||''} ${c.contact||''}`.toLowerCase();
-      if(!hay.includes(q)) return false;
-    }
-    return true;
-  });
-  const cTopFields = getTopCustomFields('customers');
+  // ★ v0.26.2 — 거래처 정의 필드 (구분 무관 공통 · master='vendors')
+  const vTopFields = getTopCustomFields('vendors');
   const iTopFields = getTopCustomFields('items');
   // ★ v0.16.7 — 설비 마스터 카드 상태 (equipments 컬렉션)
   const equipmentsAll = DB.all('equipments').slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
@@ -14176,11 +14325,15 @@ VIEWS.masters = () => {
       <span style="color:var(--amber)">물리 삭제 없음(비활성만)</span> · 사용중 코드 중복 차단 · 코드 불변.
     </div>
 
-    <!-- 거래처 -->
+    <!-- 거래처 (v0.26.2 — 고객사 카드 통합 · 정의 필드·엑셀 임포트 이식) -->
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <h3 style="margin:0">거래처 <span class="tag">고객사 / 외주처 통합 · type으로 구분</span></h3>
-        <button class="btn primary" id="mst-v-new">${ico('plus')}거래처 등록</button>
+        <h3 style="margin:0">거래처 <span class="tag">v0.26.2 · 고객사·구매처·외주처 통합 · 정의 필드·임포트 지원 · 품목 식별번호 채번 기준(구분=고객사)</span></h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn" id="mst-v-fields">${ico('save')}필드 관리</button>
+          <button class="btn" id="mst-v-import">${ico('excel')}엑셀 임포트</button>
+          <button class="btn primary" id="mst-v-new">${ico('plus')}거래처 등록</button>
+        </div>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
         <div style="flex:1;min-width:220px;display:flex;align-items:center;gap:9px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 14px">
@@ -14201,7 +14354,7 @@ VIEWS.masters = () => {
         <span style="margin-left:auto;font-size:11px;color:var(--dim)">${vRows.length}건 / 전체 ${vendorsAll.length}건</span>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>코드</th><th>이름</th><th>구분</th><th>연락처</th><th>상태</th><th></th></tr></thead>
+        <thead><tr><th>코드</th><th>이름</th><th>구분</th><th>연락처</th>${vTopFields.map(f=>`<th>${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
         <tbody>${vRows.length ? vRows.map(v => {
           const active = v.active !== false;
           const isCust = v.type === 'cust';
@@ -14209,63 +14362,23 @@ VIEWS.masters = () => {
           const isSup  = v.type === 'sup';
           const badgeCls = isCust?'cyan':isOut?'blue':isSup?'green':'gray';
           const badgeLbl = isCust?'고객사':isOut?'외주처':isSup?'구매처':_esc(v.type||'기타');
+          const cf = v.custom || {};
           return `<tr class="${active?'':'mst-off'}">
             <td><b style="font-family:'JetBrains Mono',monospace">${_esc(v.code)}</b></td>
             <td>${_esc(v.name||'')}</td>
             <td><span class="pill ${badgeCls}">${badgeLbl}</span></td>
             <td class="muted">${_esc(v.contact||'—')}</td>
+            ${vTopFields.map(f => `<td>${customCellDisplay(f, cf[f.key])}</td>`).join('')}
             <td>${active ? '<span class="pill cyan">사용중</span>' : '<span class="pill gray">비활성</span>'}</td>
             <td><div style="display:flex;gap:6px;justify-content:flex-end">
               <button class="btn ghost" data-vedit="${_esc(v.code)}">수정</button>
               <button class="btn ghost" data-vtoggle="${_esc(v.code)}">${active?'비활성':'재활성'}</button>
             </div></td>
           </tr>`;
-        }).join('') : '<tr><td colspan="6" class="empty">거래처 없음 — [거래처 등록]으로 추가</td></tr>'}</tbody>
-      </table></div>
-    </div>
-
-    <!-- ★ v0.26.0 — 고객사 마스터 (customers · code 1~4자 · 정의 필드 상위 2 컬럼) -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <h3 style="margin:0">고객사 <span class="tag">v0.26 · code 1~4자 · 품목 식별번호 채번 · 정의 필드 지원</span></h3>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn" id="mst-c-fields">${ico('save')}필드 관리</button>
-          <button class="btn" id="mst-c-import">${ico('excel')}엑셀 임포트</button>
-          <button class="btn primary" id="mst-c-new">${ico('plus')}고객사 등록</button>
-        </div>
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-        <div style="flex:1;min-width:220px;display:flex;align-items:center;gap:9px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 14px">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--sub)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-          <input id="mst-c-q" placeholder="검색 — 코드 · 이름 · 담당자" value="${_esc(state.c_q)}" style="flex:1;background:none;border:none;outline:none;color:var(--ink);font-size:13px;padding:0">
-        </div>
-        <button class="btn" id="mst-c-xlsx">${ico('excel')}엑셀</button>
-      </div>
-      <div style="display:flex;gap:7px;margin-bottom:8px;flex-wrap:wrap;align-items:center;${!state.c_q?'display:none':''}">
-        ${state.c_q ? `<span class="pill cyan" style="cursor:pointer" data-cclear="c_q">검색: ${_esc(state.c_q)} ✕</span>` : ''}
-        <span style="margin-left:auto;font-size:11px;color:var(--dim)">${cRows.length}건 / 전체 ${customersAll.length}건</span>
-      </div>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>코드</th><th>이름</th><th>담당자</th><th>전화</th>${cTopFields.map(f=>`<th>${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
-        <tbody>${cRows.length ? cRows.map(c => {
-          const active = c.active !== false && !c.void;
-          const cf = c.custom || {};
-          return `<tr class="${active?'':'mst-off'}">
-            <td><b style="font-family:'JetBrains Mono',monospace">${_esc(c.code)}</b></td>
-            <td>${_esc(c.name||'')}</td>
-            <td class="muted">${_esc(c.contact||'—')}</td>
-            <td class="muted">${_esc(c.phone||'—')}</td>
-            ${cTopFields.map(f => `<td>${customCellDisplay(f, cf[f.key])}</td>`).join('')}
-            <td>${active ? '<span class="pill cyan">사용중</span>' : '<span class="pill gray">비활성</span>'}</td>
-            <td><div style="display:flex;gap:6px;justify-content:flex-end">
-              <button class="btn ghost" data-cedit="${_esc(c.code)}">수정</button>
-              <button class="btn ghost" data-ctoggle="${_esc(c.code)}">${active?'비활성':'재활성'}</button>
-            </div></td>
-          </tr>`;
-        }).join('') : `<tr><td colspan="${6+cTopFields.length}" class="empty">고객사 없음 — [고객사 등록]으로 추가 (또는 [엑셀 임포트])</td></tr>`}</tbody>
+        }).join('') : `<tr><td colspan="${6+vTopFields.length}" class="empty">거래처 없음 — [거래처 등록] 또는 [엑셀 임포트]</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
-        <b style="color:var(--amber)">가드</b> 코드는 <b>영숫자 1~4자·유일</b> · 물리 삭제 없음(비활성만) · 코드 불변 · <b>품목 식별번호({고객코드}-{순번3}-{리비전}) 채번의 기준</b>.
+        <b style="color:var(--amber)">규칙</b> 코드는 <b>영숫자·유일·불변</b>(C001·038 자유) · 물리 삭제 없음 · <b>구분=고객사</b> 는 품목 식별번호(<span style="font-family:'JetBrains Mono',monospace">{코드}-{순번3}-{리비전}</span>) 채번 기준 · 정의 필드는 구분 무관 공통(master_fields).
       </div>
     </div>
 
@@ -14296,19 +14409,19 @@ VIEWS.masters = () => {
         <span style="margin-left:auto;font-size:11px;color:var(--dim)">${iRows.length}건 / 전체 ${itemsAll.length}건</span>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>식별번호/품번</th><th>품명</th><th>고객사</th><th>재질</th><th class="num">Ø</th><th class="num">절단(g)</th><th class="num">제품(g)</th><th class="num">단가(₩)</th><th class="num">Cav</th>${iTopFields.map(f=>`<th class="num">${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
+        <thead><tr><th>식별번호/품번</th><th>품명</th><th>고객사</th><th>재질</th><th>소재규격 <span style="color:var(--dim);font-size:9px">(Ø × 길이)</span></th><th class="num">절단(g)</th><th class="num">제품(g)</th><th class="num">단가(₩)</th><th class="num">Cav</th>${iTopFields.map(f=>`<th class="num">${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
         <tbody>${iRows.length ? iRows.map(i => {
           const active = i.active !== false;
-          // 고객사 이름 — 우선 customer_ref(customers) · 폴백 cust(vendors)
           const cName = i.customer_ref ? getCustomerName(i.customer_ref) : (i.cust ? (DB.get('vendors', i.cust)?.name || i.cust) : '');
           const cutG = +i.weight ? Math.round(+i.weight*1000) : 0;
           const cf = i.custom || {};
+          const spec = matSpecStr(i);
           return `<tr class="${active?'':'mst-off'}">
             <td><b style="font-family:'JetBrains Mono',monospace">${_esc(i.code)}</b></td>
             <td>${_esc(i.name||'')}</td>
             <td class="muted">${_esc(cName||'—')}</td>
             <td>${_esc(i.mat||'—')}</td>
-            <td class="num">${i.dia||'<span class="muted">—</span>'}</td>
+            <td style="font-family:'JetBrains Mono',monospace">${spec ? _esc(spec) : '<span class="muted">—</span>'}</td>
             <td class="num">${cutG? cutG.toLocaleString() :'<span class="muted">—</span>'}</td>
             <td class="num">${i.product_weight_g? (+i.product_weight_g).toLocaleString() :'<span class="muted">—</span>'}</td>
             <td class="num">${i.price? '₩'+(+i.price).toLocaleString() : '<span class="muted">—</span>'}</td>
@@ -14433,12 +14546,17 @@ VIEWS.masters = () => {
 
   // 엑셀 (파일명: 거래처_YYYY-MM-DD.xlsx / 품번_YYYY-MM-DD.xlsx)
   document.getElementById('mst-v-xlsx').onclick = () => {
-    const xrows = vRows.map(v => ({
-      코드: v.code, 이름: v.name || '',
-      구분: v.type==='cust'?'고객사':v.type==='out'?'외주처':v.type==='sup'?'구매처':(v.type||''),
-      연락처: v.contact || '',
-      상태: v.active !== false ? '사용중' : '비활성',
-    }));
+    const cfList = getMasterFields('vendors');   // v0.26.2 — 정의 필드 컬럼 포함
+    const xrows = vRows.map(v => {
+      const base = {
+        코드: v.code, 이름: v.name || '',
+        구분: v.type==='cust'?'고객사':v.type==='out'?'외주처':v.type==='sup'?'구매처':(v.type||''),
+        연락처: v.contact || '', 전화: v.tel || v.phone || '', 메모: v.memo || '',
+        상태: v.active !== false ? '사용중' : '비활성',
+      };
+      cfList.forEach(f => { base[f.label||f.key] = (v.custom||{})[f.key] ?? ''; });
+      return base;
+    });
     exportXlsx(xrows, '거래처', `거래처_${fmtDate(Date.now())}.xlsx`);
   };
   document.getElementById('mst-i-xlsx').onclick = () => {
@@ -14449,6 +14567,8 @@ VIEWS.masters = () => {
         식별번호: i.code, 품명: i.name || '',
         고객코드: i.customer_ref || '', 고객사: cName,
         재질: i.mat || '', Ø: i.dia || '',
+        '소재길이(mm)': i.mat_len_mm || '',
+        '소재규격': matSpecStr(i),
         '절단중량(g)': i.weight ? Math.round(+i.weight*1000) : '',
         '제품중량(g)': i.product_weight_g || '',
         '단가(원)': i.price || '',
@@ -14506,35 +14626,11 @@ VIEWS.masters = () => {
   document.querySelectorAll('[data-eedit]').forEach(b => b.onclick = () => VIEWS._mstEquipmentEdit(b.dataset.eedit));
   document.querySelectorAll('[data-etoggle]').forEach(b => b.onclick = () => VIEWS._mstEquipmentToggle(b.dataset.etoggle));
 
-  // ★ v0.26.0 — 고객사 카드 이벤트
-  let cqT;
-  const cqEl = document.getElementById('mst-c-q');
-  if(cqEl) cqEl.oninput = (e) => {
-    clearTimeout(cqT); cqT = setTimeout(() => { state.c_q = e.target.value; router(); }, 220);
-  };
-  document.querySelectorAll('[data-cclear]').forEach(el => el.onclick = () => { state[el.dataset.cclear] = ''; router(); });
-  const cnEl = document.getElementById('mst-c-new');
-  if(cnEl) cnEl.onclick = () => VIEWS._mstCustomerEdit(null);
-  const cfEl = document.getElementById('mst-c-fields');
-  if(cfEl) cfEl.onclick = () => VIEWS._mstFieldsEdit('customers');
-  const ciEl = document.getElementById('mst-c-import');
-  if(ciEl) ciEl.onclick = () => VIEWS._mstImport('customers');
-  const cxEl = document.getElementById('mst-c-xlsx');
-  if(cxEl) cxEl.onclick = () => {
-    const cfList = getMasterFields('customers');
-    const xrows = cRows.map(c => {
-      const base = {
-        고객코드: c.code, 이름: c.name || '',
-        담당자: c.contact || '', 전화: c.phone || '', 메모: c.memo || '',
-        상태: (c.active !== false && !c.void) ? '사용중' : '비활성',
-      };
-      cfList.forEach(f => { base[f.label||f.key] = (c.custom||{})[f.key] ?? ''; });
-      return base;
-    });
-    exportXlsx(xrows, '고객사', `고객사_${fmtDate(Date.now())}.xlsx`);
-  };
-  document.querySelectorAll('[data-cedit]').forEach(b => b.onclick = () => VIEWS._mstCustomerEdit(b.dataset.cedit));
-  document.querySelectorAll('[data-ctoggle]').forEach(b => b.onclick = () => VIEWS._mstCustomerToggle(b.dataset.ctoggle));
+  // ★ v0.26.2 — 거래처 카드 [필드 관리] · [엑셀 임포트] (고객사 카드 통합)
+  const vfEl = document.getElementById('mst-v-fields');
+  if(vfEl) vfEl.onclick = () => VIEWS._mstFieldsEdit('vendors');
+  const viEl = document.getElementById('mst-v-import');
+  if(viEl) viEl.onclick = () => VIEWS._mstImport('vendors');
 
   // ★ v0.26.0 — 품번 카드 [필드 관리] · [엑셀 임포트]
   const ifEl = document.getElementById('mst-i-fields');
@@ -14587,6 +14683,8 @@ VIEWS._mstVendorEdit = (code) => {
         <div><label>종목 (선택)</label><input id="mv-bi" value="${_esc(v.biz_item||'')}" placeholder="예: 자동차부품"></div>
         <div><label>전화 (선택)</label><input id="mv-tel" value="${_esc(v.tel||'')}" placeholder="055-000-0000"></div>
       </div>
+      <div><label>메모 (선택)</label><input id="mv-memo" value="${_esc(v.memo||'')}"></div>
+      ${renderCustomFields('vendors', v.custom, 'form')}
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn primary" id="mv-save">${ico('save')}저장</button>
@@ -14615,13 +14713,16 @@ VIEWS._mstVendorEdit = (code) => {
     const biz_type = document.getElementById('mv-bt').value.trim();
     const biz_item = document.getElementById('mv-bi').value.trim();
     const tel      = document.getElementById('mv-tel').value.trim();
+    const memoEl   = document.getElementById('mv-memo');
+    const memo     = memoEl ? memoEl.value.trim() : (v.memo||'');
+    const custom   = readCustomFieldsInputs('vendors');   // v0.26.2 — 정의 필드
     if(!code){ toast('코드 입력','warn'); return; }
     if(!name){ toast('이름 입력','warn'); return; }
     // 사용중·비활성 불문 코드 중복 차단 (신규만)
     if(isNew && DB.get('vendors', code)){ toast(`코드 중복 — ${code} 이미 존재`,'err'); return; }
     const doc = isNew
-      ? { code, name, type, contact, biz_no, ceo, addr, biz_type, biz_item, tel, active:true }
-      : { name, contact, biz_no, ceo, addr, biz_type, biz_item, tel };  // 코드·구분·active는 불변
+      ? { code, name, type, contact, biz_no, ceo, addr, biz_type, biz_item, tel, memo, custom, active:true }
+      : { name, contact, biz_no, ceo, addr, biz_type, biz_item, tel, memo, custom };  // 코드·구분·active는 불변
     DB.set('vendors', code, doc);
     toast(isNew?`거래처 등록 — ${name}`:`거래처 수정 — ${name}`,'ok');
     closeModal(); router();
@@ -14648,8 +14749,9 @@ VIEWS._mstItemEdit = (code) => {
         price:'', cav:1, cav_source:'manual', mold_no:'', default_forge_eq:'', pack_qty:'', proc_times:{}, custom:{}, active:true }
     : DB.get('items', code);
   if(!isNew && !it){ toast('품번을 찾을 수 없음','err'); return; }
-  const activeCustsV = getActiveVendors('cust').sort((a,b) => (a.name||'').localeCompare(b.name||''));  // 하위 호환
-  const activeCusts  = getActiveCustomers();  // ★ v0.26 신 고객사 마스터
+  // ★ v0.26.2 — 단일 진실 · vendors(type='cust') 만 참조 (getCustomers)
+  const activeCusts  = getCustomers();
+  const activeCustsV = activeCusts;  // 하위 호환 참조 (제거 예정)
   const routeProcs = (!isNew && it.code) ? getRouteProcs(it.code).filter(p => p.code !== 'SHIP') : [];
   const pt = it.proc_times || {};
   // 절단대비/제품대비 자동 계산 표시 (입력 불가 · 값 없으면 —)
@@ -14666,7 +14768,7 @@ VIEWS._mstItemEdit = (code) => {
     <div class="body">
       <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--cyan);margin:2px 0 8px;padding-left:8px;border-left:3px solid var(--cyan)">표준 (계산·채번에 쓰이는 필드)</div>
       <div class="grid g2">
-        <div><label>고객사 <span style="color:var(--dim);font-weight:400">— customers 마스터</span></label>
+        <div><label>고객사 <span style="color:var(--dim);font-weight:400">— 거래처(구분=고객사) · 단일 마스터</span></label>
           <select id="mi-cref">
             <option value="">— 미지정 —</option>
             ${activeCusts.map(c=>`<option value="${_esc(c.code)}" ${it.customer_ref===c.code?'selected':''}>${_esc(c.name)} · ${_esc(c.code)}</option>`).join('')}
@@ -14682,6 +14784,12 @@ VIEWS._mstItemEdit = (code) => {
       <div class="grid g3">
         <div><label>재질</label><input id="mi-mat" value="${_esc(it.mat||'')}" placeholder="예: SCM435"></div>
         <div><label>Ø</label><input id="mi-dia" type="number" step="0.1" value="${it.dia||''}" placeholder="32"></div>
+        <div><label>소재 길이 (mm) <span style="color:var(--dim);font-weight:400">— 표시用·소수1자리</span></label>
+          <input id="mi-matlen" type="number" step="0.1" min="0" value="${it.mat_len_mm||''}" placeholder="246.1"></div>
+      </div>
+      <div class="grid g2">
+        <div><label>소재규격 <span style="color:var(--dim);font-weight:400">— 자동 병기 (Ø × 길이) · 계산 무관</span></label>
+          <input id="mi-matspec" value="${_esc(matSpecStr(it))}" disabled style="border-style:dashed;color:var(--dim);font-family:'JetBrains Mono',monospace"></div>
         <div><label>리비전 <span style="color:var(--dim);font-weight:400">— 기본 0</span></label>
           <input id="mi-rev" type="number" min="0" step="1" value="${it.rev==null?0:it.rev}" ${isNew?'':'readonly'}></div>
       </div>
@@ -14801,6 +14909,15 @@ VIEWS._mstItemEdit = (code) => {
   ['mi-price','mi-cutg','mi-prodg'].forEach(id => {
     const el = document.getElementById(id); if(el) el.oninput = _refreshRates;
   });
+  // ★ v0.26.1 — 소재규격 자동 병기 (Ø · 길이 입력 시 실시간)
+  const _refreshMatSpec = () => {
+    const dia = +document.getElementById('mi-dia').value || 0;
+    const len = +document.getElementById('mi-matlen').value || 0;
+    document.getElementById('mi-matspec').value = matSpecStr({ dia, mat_len_mm: len });
+  };
+  ['mi-dia','mi-matlen'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.oninput = _refreshMatSpec;
+  });
 
   // ★ v0.26.0 — 리비전 올리기: 현 값 복제 + rev+1 · 원본 비활성 (이력 보존)
   const revUpBtn = document.getElementById('mi-revup');
@@ -14824,6 +14941,7 @@ VIEWS._mstItemEdit = (code) => {
     const cref   = document.getElementById('mi-cref').value;
     const mat    = document.getElementById('mi-mat').value.trim();
     const dia    = +document.getElementById('mi-dia').value || 0;
+    const matLen = Math.round((+document.getElementById('mi-matlen').value || 0) * 10) / 10;  // 소수 1자리
     const rev    = +document.getElementById('mi-rev').value || 0;
     const cutG   = +document.getElementById('mi-cutg').value || 0;
     const prodG  = +document.getElementById('mi-prodg').value || 0;
@@ -14847,15 +14965,15 @@ VIEWS._mstItemEdit = (code) => {
       else delete nextPt[proc];
     });
     const custom = readCustomFieldsInputs('items');
-    // 하위 호환: cust(vendors 코드) 는 customer_ref → migrated_from_vendor 로 채움
-    const custVendor = cref ? (DB.get('customers', cref)?.migrated_from_vendor || '') : (it.cust||'');
+    // ★ v0.26.2 — customer_ref = vendor.code (단일 진실). cust 도 동일 값으로 유지 (하위 호환).
+    const custVendor = cref || (it.cust||'');
     const doc = isNew
       ? { code, name, cust: custVendor, customer_ref: cref, rev,
-          mat, dia, weight, product_weight_g: prodG, price, cav, cav_source:'manual',
+          mat, dia, mat_len_mm: matLen, weight, product_weight_g: prodG, price, cav, cav_source:'manual',
           mold_no: moldNo, default_forge_eq: forgeEq,
           pack_qty, proc_times: nextPt, custom, active:true }
       : { name, cust: custVendor, customer_ref: cref, rev,
-          mat, dia, weight, product_weight_g: prodG, price, cav, cav_source:'manual',
+          mat, dia, mat_len_mm: matLen, weight, product_weight_g: prodG, price, cav, cav_source:'manual',
           mold_no: moldNo, default_forge_eq: forgeEq,
           pack_qty, proc_times: nextPt, custom };
     DB.set('items', code, doc);
@@ -14873,66 +14991,7 @@ VIEWS._mstItemToggle = (code) => {
   router();
 };
 
-/* ★ v0.26.0 — 고객사 등록·수정 모달 (customers 컬렉션 · code 1~4자 · 정의 필드) */
-VIEWS._mstCustomerEdit = (code) => {
-  const isNew = !code;
-  const c = isNew
-    ? { code:'', name:'', contact:'', phone:'', memo:'', custom:{}, active:true }
-    : DB.get('customers', code);
-  if(!isNew && !c){ toast('고객사를 찾을 수 없음','err'); return; }
-  openModal(`
-    <h2>${isNew ? '고객사 등록' : '고객사 수정'} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
-    <div class="body">
-      <div class="grid g2">
-        <div><label>고객코드 ${isNew?'<span style="color:var(--dim);font-weight:400">— 자동 · 수동 수정 허용 · 영숫자 1~4자</span>':'<span style="color:var(--dim);font-weight:400">— 불변</span>'}</label>
-          <input id="mc-code" value="${_esc(c.code || nextCustomerCode())}" ${isNew?'':'readonly'} maxlength="4" style="font-family:'JetBrains Mono',monospace;text-transform:uppercase"></div>
-        <div><label>이름</label><input id="mc-name" value="${_esc(c.name||'')}" placeholder="예: 현대위아"></div>
-      </div>
-      <div class="grid g2">
-        <div><label>담당자 (선택)</label><input id="mc-contact" value="${_esc(c.contact||'')}" placeholder="예: 홍길동"></div>
-        <div><label>전화 (선택)</label><input id="mc-phone" value="${_esc(c.phone||'')}" placeholder="예: 055-000-0000"></div>
-      </div>
-      <div><label>메모 (선택)</label><input id="mc-memo" value="${_esc(c.memo||'')}"></div>
-      ${renderCustomFields('customers', c.custom, 'form')}
-      <div class="actions">
-        <button class="btn" onclick="closeModal()">취소</button>
-        <button class="btn primary" id="mc-save">${ico('save')}저장</button>
-      </div>
-    </div>
-  `);
-  document.getElementById('mc-save').onclick = () => {
-    const codeIn = document.getElementById('mc-code').value.trim().toUpperCase();
-    const name   = document.getElementById('mc-name').value.trim();
-    if(!isValidCustomerCode(codeIn)){ toast('고객코드는 영숫자 1~4자','err'); return; }
-    if(!name){ toast('이름 입력','warn'); return; }
-    if(isNew && DB.get('customers', codeIn)){ toast(`코드 중복 — ${codeIn} 이미 존재`,'err'); return; }
-    const custom = readCustomFieldsInputs('customers');
-    const doc = isNew ? {
-      code: codeIn, name,
-      contact: document.getElementById('mc-contact').value.trim(),
-      phone:   document.getElementById('mc-phone').value.trim(),
-      memo:    document.getElementById('mc-memo').value.trim(),
-      custom, ts: Date.now(), by: SESSION.user||'system',
-      active:true, void:null,
-    } : {
-      name,
-      contact: document.getElementById('mc-contact').value.trim(),
-      phone:   document.getElementById('mc-phone').value.trim(),
-      memo:    document.getElementById('mc-memo').value.trim(),
-      custom,
-    };
-    DB.set('customers', codeIn, doc);
-    toast(isNew ? `고객사 등록 — ${name} (${codeIn})` : `고객사 수정 — ${name}`, 'ok');
-    closeModal(); router();
-  };
-};
-VIEWS._mstCustomerToggle = (code) => {
-  const c = DB.get('customers', code); if(!c) return;
-  const wasActive = c.active !== false && !c.void;
-  DB.set('customers', code, { active: !wasActive, void: wasActive ? { ts:Date.now(), by:SESSION.user||'system', reason:'비활성' } : null });
-  toast(wasActive ? `${c.name} 비활성` : `${c.name} 재활성`, wasActive ? 'warn' : 'ok');
-  router();
-};
+/* v0.26.2 — VIEWS._mstCustomerEdit/_mstCustomerToggle 제거 (거래처 카드로 통합 · vendor 모달이 정의 필드 포함) */
 
 /* ★ v0.26.0 — 사용자 정의 필드 관리 모달 (master_fields · items/customers/molds 공용) */
 VIEWS._mstFieldsEdit = (master) => {
@@ -14949,13 +15008,14 @@ VIEWS._mstFieldsEdit = (master) => {
         <thead><tr><th>순서</th><th>라벨</th><th>유형</th><th>단위</th><th>옵션(select)</th><th>상태</th><th></th></tr></thead>
         <tbody>${fields.length ? fields.map(f => {
           const active = f.active !== false;
-          const opts = (f.type==='select' && Array.isArray(f.options)) ? f.options.join(', ') : '—';
+          const optsList = (f.type==='select' && Array.isArray(f.options)) ? f.options.join(', ') : '—';
+          const otherBadge = (f.type==='select' && f.allow_other) ? ' <span class="pill" style="background:rgba(251,191,36,.15);color:var(--amber);font-size:9.5px">+기타</span>' : '';
           return `<tr class="${active?'':'mst-off'}">
             <td class="mono num">${f.order||''}</td>
             <td><b>${_esc(f.label||f.key)}</b> <span style="color:var(--dim);font-size:10px">${_esc(f.key)}</span></td>
             <td>${_esc(f.type||'text')}</td>
             <td>${_esc(f.unit||'—')}</td>
-            <td class="muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(opts)}</td>
+            <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(optsList)}${otherBadge}</td>
             <td>${active ? '<span class="pill cyan">사용중</span>' : '<span class="pill gray">비활성</span>'}</td>
             <td><div style="display:flex;gap:6px;justify-content:flex-end">
               <button class="btn ghost" data-mfedit="${_esc(f.id)}">수정</button>
@@ -14983,7 +15043,7 @@ VIEWS._mstFieldsEdit = (master) => {
 VIEWS._mstFieldEdit = (master, id) => {
   const isNew = !id;
   const f = isNew
-    ? { id:'', master, key:'', label:'', type:'text', unit:'', options:[], order:nextMasterFieldOrder(master), active:true }
+    ? { id:'', master, key:'', label:'', type:'text', unit:'', options:[], allow_other:false, order:nextMasterFieldOrder(master), active:true }
     : DB.get('master_fields', id);
   if(!isNew && !f){ toast('필드 없음','err'); return; }
   openModal(`
@@ -15001,12 +15061,16 @@ VIEWS._mstFieldEdit = (master, id) => {
         </div>
       </div>
       <div class="grid g2">
-        <div><label>단위 (선택 · 숫자형에 표시)</label><input id="mf-unit" value="${_esc(f.unit||'')}" placeholder="예: ℃ · mm · HB"></div>
+        <div><label>단위 (선택 · 숫자형에 표시)</label><input id="mf-unit" value="${_esc(f.unit||'')}" placeholder="예: ℃ · mm"></div>
         <div><label>순서</label><input id="mf-order" type="number" min="0" step="1" value="${f.order||0}"></div>
       </div>
       <div id="mf-opts-wrap" style="${f.type==='select'?'':'display:none'}">
         <label>옵션 (콤마 구분 · select 형 전용)</label>
-        <input id="mf-opts" value="${_esc((f.options||[]).join(', '))}" placeholder="예: Q.T, N, A">
+        <input id="mf-opts" value="${_esc((f.options||[]).join(', '))}" placeholder="예: Q.T, NOR, ISO, CA">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--sub);cursor:pointer">
+          <input type="checkbox" id="mf-allowother" ${f.allow_other?'checked':''} style="width:16px;height:16px;cursor:pointer">
+          <span><b style="color:var(--amber)">기타(직접 입력) 허용</b> — 선택지 끝에 '기타' 옵션을 노출 · 사용자가 직접 값 입력 · 임포트에서 선택지 외 값 통과</span>
+        </label>
       </div>
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
@@ -15023,16 +15087,17 @@ VIEWS._mstFieldEdit = (master, id) => {
     const unit  = document.getElementById('mf-unit').value.trim();
     const order = +document.getElementById('mf-order').value || 0;
     if(!label){ toast('라벨 입력','warn'); return; }
-    let options = [];
+    let options = []; let allow_other = false;
     if(type === 'select'){
       options = document.getElementById('mf-opts').value.split(',').map(s=>s.trim()).filter(Boolean);
-      if(!options.length){ toast('select 형은 옵션 1개 이상','warn'); return; }
+      allow_other = !!document.getElementById('mf-allowother').checked;
+      if(!options.length && !allow_other){ toast('select 형은 옵션 1개 이상 또는 기타 허용','warn'); return; }
     }
     const key = f.key || _mfSlug(label);
     const finalId = isNew ? nextMasterFieldId(master) : f.id;
     const doc = isNew
-      ? { id:finalId, master, key, label, type, unit, options, order, active:true }
-      : { label, type, unit, options, order };
+      ? { id:finalId, master, key, label, type, unit, options, allow_other, order, active:true }
+      : { label, type, unit, options, allow_other, order };
     DB.set('master_fields', finalId, doc);
     toast(isNew ? `필드 추가 — ${label}` : `필드 수정 — ${label}`, 'ok');
     closeModal(); VIEWS._mstFieldsEdit(master);
