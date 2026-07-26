@@ -979,7 +979,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.27.1';
+const APP_VERSION = 'v0.27.2';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -2049,13 +2049,36 @@ function saveMenuOrder(order){ DB.set('settings','menu', { order: order.slice() 
 /* -------------------------------------------------------------------------------------------------
    §시드 데이터 — 단조 프리셋
    ------------------------------------------------------------------------------------------------- */
+/* ★ v0.27.2 — 계정과목(경비) 표준 세트 (판관비 · 실사용 지적 "상세히 전부")
+   · 재료비·외주가공비는 제외 — 매입/외주 원장에서 자동 집계되므로 경비로 넣으면 이중 계상.
+   · [표준명, 구버전 별칭] — 별칭이 이미 있으면 추가 생략 (기존 데이터·경비 기록 보존). */
+const STD_EXPENSE_CATS = [
+  ['급여',[]], ['잡급(일용직)',[]], ['퇴직급여',[]], ['복리후생비',[]], ['여비교통비',[]],
+  ['기업업무추진비(접대비)',['접대비']], ['통신비',[]], ['수도광열비',['전기·수도']], ['세금과공과',[]],
+  ['지급임차료',['임차료']], ['수선비',[]], ['보험료',[]], ['차량유지비',['차량·유류']], ['운반비',[]],
+  ['교육훈련비',[]], ['도서인쇄비',[]], ['사무용품비',[]], ['소모품비',['소모품']], ['지급수수료',[]],
+  ['광고선전비',[]], ['이자비용',[]], ['잡비(기타)',['기타']],
+];
+function seedStdExpenseCategories(){
+  STD_EXPENSE_CATS.forEach(([name], i) => {
+    const id = 'EC-STD-'+String(i+1).padStart(3,'0');
+    DB.set('expense_categories', id, { id, name, order:(i+1)*10, active:true });
+  });
+}
+/* 기존 DB 보강 (멱등 · 물리 삭제 없음) — 표준명·별칭 어느 쪽도 없을 때만 추가. 구 분류·경비 기록 그대로. */
+function migrateExpenseCategories(){
+  const names = new Set(DB.allRaw('expense_categories').map(c => c.name));
+  STD_EXPENSE_CATS.forEach(([name, aliases], i) => {
+    if(names.has(name) || aliases.some(a => names.has(a))) return;
+    const id = 'EC-STD-'+String(i+1).padStart(3,'0');
+    if(DB.get('expense_categories', id)) return;
+    DB.set('expense_categories', id, { id, name, order:(i+1)*10, active:true });
+  });
+}
 function seedIfEmpty(){
-  // ★ v0.27.0 — 경비 분류 기본 마스터 (데이터 — 사용자가 추가/비활성 관리)
+  // ★ v0.27.0 — 경비 계정과목 기본 마스터 · v0.27.2 표준 22과목으로 확충
   if(DB.all('expense_categories').length===0){
-    ['임차료','전기·수도','보험료','소모품','차량·유류','기타'].forEach((n,i)=>{
-      const id = 'EC-'+String(i+1).padStart(3,'0');
-      DB.set('expense_categories', id, { id, name:n, order:(i+1)*10, active:true });
-    });
+    seedStdExpenseCategories();
   }
   if(DB.all('items').length===0){
     // ★ v0.6.0 — items에서 coining 제거. 라우트(BOM)가 공정 포함 여부를 정함.
@@ -2189,6 +2212,8 @@ function seedIfEmpty(){
   try { runVendorsUnificationMigration(); } catch(e){ console.warn('[VELA] vendors unification failed', e); }
   // ★ v0.26.5 — 열처리 사양 표준 승격: 구 정의 필드 비활성 (멱등 · 값 보존)
   try { migrateHtSpecField(); } catch(e){ console.warn('[VELA] ht_spec migration failed', e); }
+  // ★ v0.27.2 — 계정과목 표준 세트 보강 (기존 DB · 멱등)
+  try { migrateExpenseCategories(); } catch(e){ console.warn('[VELA] expense categories migration failed', e); }
 }
 seedIfEmpty();
 
@@ -2499,12 +2524,8 @@ function seedDemoData(){
 
   // ─────────────── 12-1. ★ v0.27.0 — 회계 데모 시드 (수금·지급·경비·계산서) ───────────────
   //   원칙(G1): 기존 원장 무변 — acct_* 컬렉션과 경비 분류만 증분. 고정 id (재시드 멱등).
-  if(DB.all('expense_categories').length===0){
-    ['임차료','전기·수도','보험료','소모품','차량·유류','기타'].forEach((n,i)=>{
-      const ecId = 'EC-'+String(i+1).padStart(3,'0');
-      DB.set('expense_categories', ecId, { id:ecId, name:n, order:(i+1)*10, active:true });
-    });
-  }
+  if(DB.all('expense_categories').length===0){ seedStdExpenseCategories(); }   // ★ v0.27.2 — 표준 22과목
+  migrateExpenseCategories();   // 기존 데모 DB 보강 (멱등)
   DB.set('settings','acct', { warn_days:45 });
   const _amFmt = ts => fmt(ts);
   [ // 수금 3건 — C001 두 번(이체·어음), C002 한 번
@@ -2519,8 +2540,8 @@ function seedDemoData(){
   { // 경비 — 지난달 임차료(매월 반복) + 이번 달 소모품 (반복 제안 데모: 이번 달 임차료 미등록 상태)
     const lastM = _tsMonth(daysBack(32)), thisM = _tsMonth(now);
     [
-      { id:'EX-DEMO-001', category:'임차료', name:'공장 임차료', amount:2000000, date:`${lastM}-05`, cl_month:lastM, repeat_monthly:true,  memo:'', ts:daysBack(32) },
-      { id:'EX-DEMO-002', category:'소모품', name:'절삭유',      amount: 150000, date:`${thisM}-03`, cl_month:thisM, repeat_monthly:false, memo:'', ts:daysBack(3) },
+      { id:'EX-DEMO-001', category:'지급임차료', name:'공장 임차료', amount:2000000, date:`${lastM}-05`, cl_month:lastM, repeat_monthly:true,  memo:'', ts:daysBack(32) },
+      { id:'EX-DEMO-002', category:'소모품비',   name:'절삭유',      amount: 150000, date:`${thisM}-03`, cl_month:thisM, repeat_monthly:false, memo:'', ts:daysBack(3) },
     ].forEach(e => DB.set('acct_expenses', e.id, { ...e, by:'데모' }));
   }
   { // 계산서 발행 기록 1건 — 지난달 C001
@@ -11890,12 +11911,12 @@ VIEWS._acctInvoice = () => {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
         <h3 style="margin:0">경비 <span class="tag">${month} 합계 ₩${fmtN(expSum)}</span></h3>
         <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="btn" id="acct-cat-manage" style="font-size:11.5px;padding:7px 12px">분류 관리</button>
+          <button class="btn" id="acct-cat-manage" style="font-size:11.5px;padding:7px 12px">계정과목 관리</button>
           <button class="btn primary" id="acct-exp-new" style="font-size:11.5px;padding:7px 14px">${ico('plus')}경비 등록</button>
         </div>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>분류</th><th>항목</th><th class="num">금액</th><th>일자</th><th>메모</th><th></th></tr></thead>
+        <thead><tr><th>계정과목</th><th>항목</th><th class="num">금액</th><th>일자</th><th>메모</th><th></th></tr></thead>
         <tbody>${expRows}</tbody>
       </table></div>
     </div>`;
@@ -11965,7 +11986,7 @@ VIEWS._acctExpModal = (month, cats) => {
     <div class="body">
       ${docNoField('EX', 'ex-id')}
       <div class="grid g2">
-        <div><label>분류</label><select id="ex-cat">${cats.map(c=>`<option value="${_esc(c.name)}">${_esc(c.name)}</option>`).join('')}</select></div>
+        <div><label>계정과목</label><select id="ex-cat">${cats.map(c=>`<option value="${_esc(c.name)}">${_esc(c.name)}</option>`).join('')}</select></div>
         <div><label>항목명</label><input id="ex-name" placeholder="예: 공장 임차료"></div>
       </div>
       <div class="grid g3">
@@ -12000,10 +12021,10 @@ VIEWS._acctExpModal = (month, cats) => {
 VIEWS._acctCatModal = () => {
   const cats = DB.all('expense_categories').sort((a,b)=>(a.order||0)-(b.order||0));
   openModal(`
-    <h2>경비 분류 관리 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <h2>계정과목 관리 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
       <div class="tbl-wrap"><table>
-        <thead><tr><th>분류</th><th>상태</th><th></th></tr></thead>
+        <thead><tr><th>계정과목</th><th>상태</th><th></th></tr></thead>
         <tbody>${cats.map(c=>`<tr>
           <td><b>${_esc(c.name)}</b></td>
           <td>${c.active!==false?'<span class="pill cyan">사용중</span>':'<span class="pill gray">비활성</span>'}</td>
@@ -12011,7 +12032,7 @@ VIEWS._acctCatModal = () => {
         </tr>`).join('')}</tbody>
       </table></div>
       <div style="display:flex;gap:8px;margin-top:10px">
-        <input id="ec-new-name" placeholder="새 분류명" style="flex:1">
+        <input id="ec-new-name" placeholder="새 계정과목명" style="flex:1">
         <button class="btn primary" id="ec-add">${ico('plus')}추가</button>
       </div>
       <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div>
@@ -12023,8 +12044,8 @@ VIEWS._acctCatModal = () => {
   });
   document.getElementById('ec-add').onclick = () => {
     const name = document.getElementById('ec-new-name').value.trim();
-    if(!name){ toast('분류명 입력','warn'); return; }
-    if(DB.all('expense_categories').some(c=>c.name===name)){ toast('이미 있는 분류','warn'); return; }
+    if(!name){ toast('계정과목명 입력','warn'); return; }
+    if(DB.all('expense_categories').some(c=>c.name===name)){ toast('이미 있는 계정과목','warn'); return; }
     const n = DB.allRaw('expense_categories').length + 1;
     const id = 'EC-'+String(n).padStart(3,'0')+'-'+Date.now().toString(36).slice(-3);
     DB.set('expense_categories', id, { id, name, order:(n+1)*10, active:true });
@@ -16318,7 +16339,7 @@ VIEWS.closing = () => {
       <div class="pgtools">
         <button class="btn" id="cl-xlsx">${ico('excel')}엑셀</button>
         ${isClosed
-          ? `<span class="pill green" style="align-self:center">${state.month} ${typeLabels[state.type].split(' ')[0]} · 마감 완료</span>`
+          ? `<span class="pill green" style="align-self:center">${state.month} ${typeLabels[state.type].split(' ')[0]} · 마감 완료</span>${state.type==='sales' && getFlags().acct ? `<button class="btn" id="cl-goto-invoice">${ico('print')}세금계산서 발행</button>` : ''}`
           : `<button class="btn primary" id="cl-confirm" ${rows.length===0 && !allowStart ? 'disabled' : ''}>${ico('save')}${state.month} ${typeLabels[state.type].split(' ')[0]} 마감 확정</button>`
         }
       </div>
@@ -16469,6 +16490,12 @@ VIEWS.closing = () => {
       closeModal(); router();
     };
   });
+  // ★ v0.27.2 — 마감 완료 상태 → 세금계산서 발행 진입 버튼
+  const clGotoInv = document.getElementById('cl-goto-invoice');
+  if(clGotoInv) clGotoInv.onclick = () => {
+    window._acctHub = { ...(window._acctHub||{}), tab:'invoice', month: state.month };
+    location.hash = '#acct';
+  };
   // 마감 확정
   const clConfirm = document.getElementById('cl-confirm');
   if(clConfirm){
@@ -16494,6 +16521,13 @@ VIEWS.closing = () => {
       });
       state.paidDraft = {}; state.startDraft = {}; state._key = null;
       toast(`${state.month} · ${{sales:'매출',purchase:'매입',outsource:'외주'}[state.type]} 마감 확정`,'ok');
+      // ★ v0.27.2 — 매출 마감 확정 → 세금계산서 발행 관리로 자동 이동 (회계 모듈 ON · 실사용 요청)
+      if(state.type==='sales' && getFlags().acct){
+        window._acctHub = { ...(window._acctHub||{}), tab:'invoice', month: state.month };
+        toast(`세금계산서 발행 관리로 이동 — ${state.month} 발행 대상 확인`,'ok',3000);
+        location.hash = '#acct';
+        return;
+      }
       router();
     };
   }
