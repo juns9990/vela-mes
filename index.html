@@ -962,7 +962,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.26.4';
+const APP_VERSION = 'v0.26.5';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -2151,6 +2151,8 @@ function seedIfEmpty(){
   try { runCustomersMigration(); } catch(e){ console.warn('[VELA] customers migration failed', e); }
   // ★ v0.26.2 — 거래처 단일 진실 통합 (customers → vendors) · 부팅 1회 · 삭제 금지 · idempotent
   try { runVendorsUnificationMigration(); } catch(e){ console.warn('[VELA] vendors unification failed', e); }
+  // ★ v0.26.5 — 열처리 사양 표준 승격: 구 정의 필드 비활성 (멱등 · 값 보존)
+  try { migrateHtSpecField(); } catch(e){ console.warn('[VELA] ht_spec migration failed', e); }
 }
 seedIfEmpty();
 
@@ -2260,6 +2262,8 @@ function seedDemoData(){
       material: { type: it.mat, dia: it.dia, weight: it.weight },
       route: list.map(([proc,mode]) => ({ seq: SEQ[proc], proc, mode })),
     });
+    // ★ v0.26.5 — 열처리 사양 표준 필드 시드 (라우트에 HEAT 있는 품번만 Q.T)
+    DB.set('items', code, { ht_spec: list.some(([p]) => p==='HEAT') ? 'Q.T' : '' });
   });
 
   // ─────────────── 5. 소재 입고 (5개 heat · 3개월 분산 · 잔량 다양) ───────────────
@@ -2545,7 +2549,7 @@ function seedDemoData(){
   const mfSeed = [
     { id:'MF-ITEM-001', master:'items',    key:'차종',        label:'차종',        type:'text',   unit:'',  order:1 },
     { id:'MF-ITEM-002', master:'items',    key:'단조온도',    label:'단조온도',    type:'number', unit:'℃', order:2 },
-    { id:'MF-ITEM-003', master:'items',    key:'열처리사양',  label:'열처리 사양', type:'select', unit:'',  order:3, options:['Q.T','NOR','ISO','CA'], allow_other:true },
+    // ★ v0.26.5 — MF-ITEM-003(열처리사양) 시드 제거: 표준 필드 ht_spec 로 승격 (아래 bomSeed 뒤에서 시드)
     { id:'MF-ITEM-004', master:'items',    key:'경도HB',      label:'경도',        type:'text',   unit:'',  order:4 },
     { id:'MF-ITEM-005', master:'items',    key:'자분탐상',    label:'자분탐상',    type:'select', unit:'',  order:5, options:['적용','미적용'] },
     { id:'MF-ITEM-006', master:'items',    key:'표면처리',    label:'표면처리',    type:'text',   unit:'',  order:6 },
@@ -2819,6 +2823,17 @@ function runVendorsUnificationMigration(force){
   return { skipped:false, mapped: Object.keys(map).length, map };
 }
 
+/* ★ v0.26.5 — 열처리 사양 표준 승격 마이그레이션 (멱등 · 물리 삭제 없음)
+   items 정의 필드 '열처리사양' 을 비활성만 한다 — 정의·기존 custom 값 전부 보존.
+   표준 필드가 폼·표·엑셀을 담당하고, 과거 custom 값은 getHtSpec 폴백으로 계속 읽힌다. */
+function migrateHtSpecField(){
+  DB.allRaw('master_fields').forEach(f => {
+    if(f.master === 'items' && f.key === '열처리사양' && f.active !== false){
+      DB.set('master_fields', f.id, { active:false });
+    }
+  });
+}
+
 /* ── 사용자 정의 필드 엔진 (master_fields · items/vendors/molds) ─────── */
 const _MASTER_FIELD_MASTERS = { items:'품목', vendors:'거래처', molds:'금형' };
 function _mfSlug(label){
@@ -2994,6 +3009,16 @@ function matSpecStr(it){
   return `L${(+len).toFixed(1)}`;
 }
 
+/* ★ v0.26.5 — 열처리 사양: 표준 필드 승격 (G2 예외 · 2026-07-26 사용자 판정)
+   · items.ht_spec 표준 저장 · 구 정의 필드(custom['열처리사양']) 값은 폴백으로 계속 읽음(이력 보존)
+   · 선택지 상수 1벌 + 조회 헬퍼 1벌 — 화면·엑셀·임포트 공통 참조 (복사 금지) */
+const HT_SPEC_OPTS = ['Q.T','NOR','ISO','CA'];
+function getHtSpec(it){
+  if(!it) return '';
+  const v = (it.ht_spec != null && it.ht_spec !== '') ? it.ht_spec : (it.custom?.['열처리사양'] ?? '');
+  return String(v || '').trim();
+}
+
 /* ── 금형 파생 누적 타수 (records 기반 · G1 저장 금지 · Cav 반영) ──────── */
 function _forgeQtyForItem(itemCode){
   if(!itemCode) return 0;
@@ -3035,6 +3060,7 @@ const _IMPORTER_SPEC = {
       { key:'mat',          label:'재질' },
       { key:'dia',          label:'Ø',          kind:'number' },
       { key:'mat_len_mm',   label:'소재길이(mm)', kind:'number' },
+      { key:'ht_spec',      label:'열처리사양' },   // ★ v0.26.5 — 표준 필드 (선택지 외 값도 통과 · 기타 수기 허용)
       { key:'weight_g',     label:'절단중량(g)', kind:'number' },
       { key:'product_weight_g', label:'제품중량(g)', kind:'number' },
       { key:'price',        label:'단가(원)',   kind:'number' },
@@ -3045,7 +3071,7 @@ const _IMPORTER_SPEC = {
     ],
     example: {
       code:'999-001-0', name:'예시부품', customer_ref:'999',
-      mat:'S45C', dia:38, mat_len_mm:246.1, weight_g:1553, product_weight_g:535, price:1740,
+      mat:'S45C', dia:38, mat_len_mm:246.1, ht_spec:'Q.T', weight_g:1553, product_weight_g:535, price:1740,
       cav:1, mold_no:'999-001', default_forge_eq:'프레스 1호', pack_qty:200,
     },
   },
@@ -3135,6 +3161,7 @@ function _importApplyRow(master, parsed){
       rev: p ? p.rev : 0,
       mat: d.mat || '', dia: +d.dia||0,
       mat_len_mm: +d.mat_len_mm || 0,   // v0.26.1 — 표시用 · 계산 연동 금지
+      ht_spec: (d.ht_spec || '').trim(),  // ★ v0.26.5 — 표준 필드
       weight: d.weight_g!=null ? (+d.weight_g/1000) : 0,
       product_weight_g: +d.product_weight_g || 0,
       price: +d.price || 0,
@@ -14588,7 +14615,7 @@ VIEWS.masters = () => {
         <span style="margin-left:auto;font-size:11px;color:var(--dim)">${iRows.length}건 / 전체 ${itemsAll.length}건</span>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>식별번호/품번</th><th>품명</th><th>고객사</th><th>재질</th><th>소재규격 <span style="color:var(--dim);font-size:9px">(Ø × 길이)</span></th><th class="num">절단(g)</th><th class="num">제품(g)</th><th class="num">단가(₩)</th><th class="num">Cav</th>${iTopFields.map(f=>`<th class="num">${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
+        <thead><tr><th>식별번호/품번</th><th>품명</th><th>고객사</th><th>재질</th><th>소재규격 <span style="color:var(--dim);font-size:9px">(Ø × 길이)</span></th><th>열처리</th><th class="num">절단(g)</th><th class="num">제품(g)</th><th class="num">단가(₩)</th><th class="num">Cav</th>${iTopFields.map(f=>`<th class="num">${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
         <tbody>${iRows.length ? iRows.map(i => {
           const active = i.active !== false;
           const cName = i.customer_ref ? getCustomerName(i.customer_ref) : (i.cust ? (DB.get('vendors', i.cust)?.name || i.cust) : '');
@@ -14601,6 +14628,7 @@ VIEWS.masters = () => {
             <td class="muted">${_esc(cName||'—')}</td>
             <td>${_esc(i.mat||'—')}</td>
             <td style="font-family:'JetBrains Mono',monospace">${spec ? _esc(spec) : '<span class="muted">—</span>'}</td>
+            <td>${getHtSpec(i) ? _esc(getHtSpec(i)) : '<span class="muted">—</span>'}</td>
             <td class="num">${cutG? cutG.toLocaleString() :'<span class="muted">—</span>'}</td>
             <td class="num">${i.product_weight_g? (+i.product_weight_g).toLocaleString() :'<span class="muted">—</span>'}</td>
             <td class="num">${i.price? '₩'+(+i.price).toLocaleString() : '<span class="muted">—</span>'}</td>
@@ -14612,7 +14640,7 @@ VIEWS.masters = () => {
               <button class="btn ghost" data-itoggle="${_esc(i.code)}">${active?'비활성':'재활성'}</button>
             </div></td>
           </tr>`;
-        }).join('') : `<tr><td colspan="${11+iTopFields.length}" class="empty">품번 없음 — [품번 등록] 또는 [엑셀 임포트]</td></tr>`}</tbody>
+        }).join('') : `<tr><td colspan="${12+iTopFields.length}" class="empty">품번 없음 — [품번 등록] 또는 [엑셀 임포트]</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
         <b style="color:var(--amber)">가드</b> 물리 삭제 없음 — 비활성만(increment-only). 비활성 마스터는 신규 수주·출하·외주 선택 목록에서 제외되지만, 과거 이력·재고·LOT 추적에는 그대로 표시(이력 보존). 사용중 코드 중복 등록 차단.
@@ -14748,6 +14776,7 @@ VIEWS.masters = () => {
         재질: i.mat || '', Ø: i.dia || '',
         '소재길이(mm)': i.mat_len_mm || '',
         '소재규격': matSpecStr(i),
+        '열처리사양': getHtSpec(i),
         '절단중량(g)': i.weight ? Math.round(+i.weight*1000) : '',
         '제품중량(g)': i.product_weight_g || '',
         '단가(원)': i.price || '',
@@ -14996,6 +15025,18 @@ VIEWS._mstItemEdit = (code) => {
         <div><label>포장단위 (ea/포장) <span style="color:var(--dim);font-weight:400">— 표준값(선택)</span></label>
           <input id="mi-pack" type="number" min="1" step="1" value="${it.pack_qty!=null?it.pack_qty:''}" placeholder="예: 200"></div>
       </div>
+      <!-- ★ v0.26.5 — 열처리 사양 표준 필드 (G2 예외 · 선택형 + 기타 수기) -->
+      <div class="grid g2">
+        <div><label>열처리 사양 <span style="color:var(--dim);font-weight:400">— 선택 또는 기타(직접 입력)</span></label>
+          <select id="mi-htspec">
+            <option value="">— 미지정 —</option>
+            ${HT_SPEC_OPTS.map(o=>`<option value="${_esc(o)}" ${getHtSpec(it)===o?'selected':''}>${_esc(o)}</option>`).join('')}
+            <option value="__other" ${getHtSpec(it) && !HT_SPEC_OPTS.includes(getHtSpec(it))?'selected':''}>기타 (직접 입력)</option>
+          </select></div>
+        <div id="mi-htspec-other-wrap" style="${getHtSpec(it) && !HT_SPEC_OPTS.includes(getHtSpec(it))?'':'display:none'}">
+          <label>열처리 사양 — 기타</label>
+          <input id="mi-htspec-other" value="${_esc(getHtSpec(it) && !HT_SPEC_OPTS.includes(getHtSpec(it))?getHtSpec(it):'')}" placeholder="예: 침탄 QT"></div>
+      </div>
       ${renderCustomFields('items', it.custom, 'form')}
       <!-- ★ v0.20.4 — 공정별 시간 (라우트 기반) · CT ↔ 시간당 타수 상호 자동 (저장은 ct 1값) -->
       <div style="margin-top:12px;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:8px">
@@ -15098,6 +15139,12 @@ VIEWS._mstItemEdit = (code) => {
     const el = document.getElementById(id); if(el) el.oninput = _refreshMatSpec;
   });
 
+  // ★ v0.26.5 — 열처리 사양: '기타' 선택 시 직접 입력칸 토글
+  const htSel = document.getElementById('mi-htspec');
+  if(htSel) htSel.onchange = () => {
+    document.getElementById('mi-htspec-other-wrap').style.display = htSel.value==='__other' ? '' : 'none';
+  };
+
   // ★ v0.26.0 — 리비전 올리기: 현 값 복제 + rev+1 · 원본 비활성 (이력 보존)
   const revUpBtn = document.getElementById('mi-revup');
   if(revUpBtn) revUpBtn.onclick = () => {
@@ -15130,6 +15177,9 @@ VIEWS._mstItemEdit = (code) => {
     const forgeEq= document.getElementById('mi-forgeeq').value;
     const packRaw = document.getElementById('mi-pack').value.trim();
     const pack_qty = packRaw==='' ? null : (+packRaw>0 ? Math.floor(+packRaw) : null);
+    // ★ v0.26.5 — 열처리 사양 (표준 필드 · '기타'는 수기값)
+    const htSelVal = document.getElementById('mi-htspec').value;
+    const ht_spec  = htSelVal==='__other' ? document.getElementById('mi-htspec-other').value.trim() : htSelVal;
     if(!code){ toast('식별번호 또는 품번 입력','warn'); return; }
     if(!name){ toast('품명 입력','warn'); return; }
     if(isNew && DB.get('items', code)){ toast(`코드 중복 — ${code} 이미 존재`,'err'); return; }
@@ -15149,11 +15199,11 @@ VIEWS._mstItemEdit = (code) => {
     const doc = isNew
       ? { code, name, cust: custVendor, customer_ref: cref, rev,
           mat, dia, mat_len_mm: matLen, weight, product_weight_g: prodG, price, cav, cav_source:'manual',
-          mold_no: moldNo, default_forge_eq: forgeEq,
+          mold_no: moldNo, default_forge_eq: forgeEq, ht_spec,
           pack_qty, proc_times: nextPt, custom, active:true }
       : { name, cust: custVendor, customer_ref: cref, rev,
           mat, dia, mat_len_mm: matLen, weight, product_weight_g: prodG, price, cav, cav_source:'manual',
-          mold_no: moldNo, default_forge_eq: forgeEq,
+          mold_no: moldNo, default_forge_eq: forgeEq, ht_spec,
           pack_qty, proc_times: nextPt, custom };
     DB.set('items', code, doc);
     toast(isNew?`품번 등록 — ${code}`:`품번 수정 — ${code}`,'ok');
