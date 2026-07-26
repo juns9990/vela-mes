@@ -979,7 +979,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.27.3';
+const APP_VERSION = 'v0.27.6';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -2564,6 +2564,9 @@ function seedDemoData(){
     { id:'051-007-D', itemCode:'HF-3305', current_rev:'0', memo:'',
       revs:[ { rev:'0', date:fmt(daysBack(60)), reason:'신규 제정', by:'데모', ts:daysBack(60) } ]},
   ].forEach(d => DB.set('drawings', d.id, { ...d, active:true, created: d.revs[0].ts, by:'데모' }));
+  DB.set('drawings', '038-031-D', { attachments: [
+    { fid:'L-DEMO-1', kind:'link', name:'고객 도면 PDF (포털)', url:'https://example.com/drawings/038-031-D_rev2.pdf', rev:'2', ts:daysBack(10), by:'데모', removed:null },
+  ]});
 
   // ─────────────── 13. 품질 (v0.25.0) — 불량 유형 4종 + NC 6건 (상태 골고루) ───────────────
   //   원칙(G1): 기존 원장(records/lots/orders/shipments)에는 손대지 않음 — nc_records/defect_types 만 증분.
@@ -12168,6 +12171,7 @@ VIEWS.draw = () => {
       <td class="muted" style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(last.reason||'')}</td>
       <td class="num">${(d.revs||[]).length}</td>
       <td><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn ghost" data-dw-files="${_esc(d.id)}">첨부 ${_drawAttList(d).length}</button>
         <button class="btn ghost" data-dw-hist="${_esc(d.id)}">이력</button>
         ${active?`<button class="btn ghost" data-dw-rev="${_esc(d.id)}" style="color:var(--cyan)">리비전 업</button>`:''}
         <button class="btn ghost" data-dw-toggle="${_esc(d.id)}">${active?'비활성':'재활성'}</button>
@@ -12201,6 +12205,7 @@ VIEWS.draw = () => {
   document.getElementById('dw-q').oninput = e => { clearTimeout(_dwDeb); _dwDeb = setTimeout(()=>{ state.q = e.target.value; router(); }, 250); };
   document.getElementById('dw-showoff').onchange = e => { state.showOff = e.target.checked; router(); };
   document.getElementById('dw-new').onclick = () => VIEWS._drawNewModal();
+  document.querySelectorAll('[data-dw-files]').forEach(b => b.onclick = () => VIEWS._drawFilesModal(b.dataset.dwFiles));
   document.querySelectorAll('[data-dw-hist]').forEach(b => b.onclick = () => VIEWS._drawHistModal(b.dataset.dwHist));
   document.querySelectorAll('[data-dw-rev]').forEach(b => b.onclick = () => VIEWS._drawRevModal(b.dataset.dwRev));
   document.querySelectorAll('[data-dw-toggle]').forEach(b => b.onclick = () => {
@@ -12212,10 +12217,269 @@ VIEWS.draw = () => {
     exportXlsx(rows.map(d => {
       const it = items.find(i=>i.code===d.itemCode);
       const last = (d.revs||[])[(d.revs||[]).length-1] || {};
-      return { 도면번호:d.id, 품번:d.itemCode||'', 품명:it?.name||'', 현행Rev:String(d.current_rev??''), 개정일:last.date||'', 최근사유:last.reason||'', 이력수:(d.revs||[]).length, 상태:d.active!==false?'현행':'비활성' };
+      return { 도면번호:d.id, 품번:d.itemCode||'', 품명:it?.name||'', 현행Rev:String(d.current_rev??''), 개정일:last.date||'', 최근사유:last.reason||'', 이력수:(d.revs||[]).length, 첨부수:_drawAttList(d).length, 상태:d.active!==false?'현행':'비활성' };
     }), '도면', `도면_${fmtDate(Date.now())}.xlsx`);
   };
 };
+/* =================================================================================================
+   ★ v0.27.4 — 도면 첨부 파일 (CAD·PDF·이미지) · Firebase Storage
+   원칙:
+   · 파일 원본 = Firebase Storage (서버 연결 모드 전용 · SDK 는 첫 사용 시 지연 로드 — 부팅 무영향).
+     데모/로컬 모드 = 링크 첨부만 (외부 저장소 URL) — 정직한 안내, 가짜 업로드 없음.
+   · 메타 이력 = drawings.attachments[] 증분 누적. [삭제] = Storage 원본 삭제 + removed 마킹
+     (메타는 남긴다 — §1-3 물리 삭제 금지의 절충: 용량은 회수하되 "무엇이 있었는지" 감사 추적 보존).
+   · 순수 헬퍼(_drawAttAdd/_drawAttRemove) 1벌 — 데이터 규칙과 화면 분리 (검증 가능).
+   ================================================================================================= */
+const DW_FILE_MAX_MB = 20;
+function _drawAttList(d){ return (d?.attachments || []).filter(a => !a.removed); }
+function _drawAttAdd(d, meta){
+  return [ ...(d?.attachments || []), { ...meta, removed: null } ];
+}
+function _drawAttRemove(d, fid, by){
+  return (d?.attachments || []).map(a => a.fid === fid && !a.removed
+    ? { ...a, removed: { ts: Date.now(), by: by || 'system' } } : a);
+}
+function _drawFileExt(name){ const m = String(name||'').match(/\.([A-Za-z0-9]+)$/); return m ? m[1].toLowerCase() : ''; }
+function _drawSafeName(name){ return String(name||'file').replace(/[^\w.\-가-힣]/g, '_').slice(0, 120); }
+function _fmtBytes(b){ b=+b||0; if(b>=1048576) return (b/1048576).toFixed(1)+' MB'; if(b>=1024) return Math.round(b/1024)+' KB'; return b+' B'; }
+let _DW_STORAGE = null;
+async function _drawEnsureStorage(){
+  if(_DW_STORAGE) return _DW_STORAGE;
+  if(DB._backend !== 'firestore') throw new Error('파일 업로드는 서버(Firebase) 연결 모드 전용입니다 — 데모/로컬 모드에서는 [링크 추가]를 사용하세요.');
+  if(!window.firebase || !window.firebase.apps || !window.firebase.apps.length) throw new Error('서버 연결 준비 중 — 잠시 후 다시 시도하세요.');
+  if(!window.firebase.storage){
+    await _loadScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js');
+  }
+  if(!window.firebase.storage) throw new Error('Storage SDK 로드 실패 — 네트워크 확인 후 재시도');
+  _DW_STORAGE = window.firebase.storage();
+  return _DW_STORAGE;
+}
+/* =================================================================================================
+   ★ v0.27.6 — 도면 첨부 확장: 앱 내 저장(무료 · Firestore 분할) + PC 경로 첨부
+   업체 환경별 커버(범용 원칙 — 개별성은 데이터로):
+   · 링크(NAS·드라이브 https) — 기존 · PC 경로(\\서버\도면\… — [복사] 버튼, file:// 직접 열기는 웹 보안상 불가)
+   · 앱 내 저장 = 2MB 이하 파일을 base64 조각(≤900k chars ≈ 675KB)으로 drawing_file_chunks 에 분할 저장
+     — 기존 Firestore 무료 한도 사용 · 미러 동기화 대상 제외(필요 시 직접 읽기 — 트래픽·메모리 보호)
+   · 삭제 = 조각 data 비우기(write — delete 금지 서버 규칙과 무충돌 · 용량 회수) + 메타 removed 마킹(이력 보존)
+   · 업로드 자동 판정: ≤2MB → 앱 내 저장(0원) · 초과 → Storage(Blaze) 경로
+   ================================================================================================= */
+const DW_STORE_MAX_MB = 2;               // 앱 내 저장 상한 (Firestore 문서 1MB · 무료 총량 보호)
+const DW_CHUNK_CHARS = 900000;           // base64 조각 크기 (문서당 < 1MB 보장)
+function _dwB64Chunks(b64){
+  const out = [];
+  for(let i=0;i<b64.length;i+=DW_CHUNK_CHARS) out.push(b64.slice(i, i+DW_CHUNK_CHARS));
+  return out;
+}
+function _dwMime(ext){
+  const m = { pdf:'application/pdf', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', tif:'image/tiff', tiff:'image/tiff', svg:'image/svg+xml' };
+  return m[String(ext||'').toLowerCase()] || 'application/octet-stream';
+}
+function _dwFsDirect(){
+  const fs = (typeof _ACTIVE_ADAPTER !== 'undefined' && _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs) ? _ACTIVE_ADAPTER._fs : null;
+  if(DB._backend !== 'firestore' || !fs) throw new Error('앱 내 저장은 서버(Firebase) 연결 모드 전용입니다 — 데모/로컬 모드에서는 링크·경로 첨부를 사용하세요.');
+  return fs;
+}
+function _dwReadFileB64(file){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1] || '');
+    r.onerror = () => rej(new Error('파일 읽기 실패'));
+    r.readAsDataURL(file);
+  });
+}
+/* 앱 내 저장 업로드 — 조각 직접 기록(미러 제외) + 도면 메타 첨부 */
+async function _dwStoreUpload(drawingId, file){
+  const fs = _dwFsDirect();
+  const b64 = await _dwReadFileB64(file);
+  const chunks = _dwB64Chunks(b64);
+  const fid = 'S-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6);
+  for(let i=0;i<chunks.length;i++){
+    await fs.collection('drawing_file_chunks').doc(`${fid}_${i}`).set({
+      id:`${fid}_${i}`, fid, seq:i, data:chunks[i], drawing_no:drawingId, ts:Date.now(),
+    });
+  }
+  const cur = DB.get('drawings', drawingId);
+  DB.set('drawings', drawingId, { attachments: _drawAttAdd(cur, {
+    fid, kind:'store', name:file.name, size:file.size, ext:_drawFileExt(file.name),
+    chunks: chunks.length, rev: cur.current_rev, ts:Date.now(), by:SESSION.user,
+  })});
+  return fid;
+}
+/* 앱 내 저장 열람 — 조각 재조립 → Blob → 새 탭 (PDF·이미지 = 열람+인쇄 · 그 외 다운로드) */
+async function _dwStoreOpen(att){
+  const fs = _dwFsDirect();
+  const snap = await fs.collection('drawing_file_chunks').where('fid','==',att.fid).get();
+  const parts = snap.docs.map(d=>d.data()).sort((a,b)=>a.seq-b.seq);
+  if(!parts.length || parts.some(p=>!p.data)) throw new Error('파일 조각 없음 — 삭제되었거나 손상됨');
+  const b64 = parts.map(p=>p.data).join('');
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  const blob = new Blob([arr], { type:_dwMime(att.ext) });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(()=>URL.revokeObjectURL(url), 120000);
+}
+/* 앱 내 저장 삭제 — 조각 data 비우기(용량 회수 · delete 금지 규칙과 무충돌) */
+async function _dwStoreDelete(att){
+  const fs = _dwFsDirect();
+  const snap = await fs.collection('drawing_file_chunks').where('fid','==',att.fid).get();
+  for(const doc of snap.docs){
+    await doc.ref.set({ id:doc.id, fid:att.fid, seq:doc.data().seq, data:'', purged:Date.now() });
+  }
+}
+/* 첨부 모달 — 파일(서버 모드) + 링크(전 모드) · 보기 · 삭제 */
+VIEWS._drawFilesModal = (id) => {
+  const d = DB.get('drawings', id); if(!d) return;
+  const files = _drawAttList(d);
+  const isServer = DB._backend === 'firestore';
+  const _dwBadge = a => a.kind==='link' ? '<span class="pill blue" style="font-size:9px">링크</span>'
+    : a.kind==='path' ? '<span class="pill gray" style="font-size:9px">PC 경로</span>'
+    : a.kind==='store' ? `<span class="pill green" style="font-size:9px">내장 ${_esc((a.ext||'').toUpperCase())}</span>`
+    : `<span class="pill cyan" style="font-size:9px">${_esc((a.ext||'file').toUpperCase())}</span>`;
+  const rows = files.length ? files.map(a => `<tr>
+      <td>${_dwBadge(a)}
+        <b style="font-size:12px;margin-left:6px">${_esc(a.name)}</b></td>
+      <td class="num muted">${(a.kind==='link'||a.kind==='path') ? '—' : _fmtBytes(a.size)}</td>
+      <td class="muted">Rev ${_esc(String(a.rev ?? '—'))}</td>
+      <td class="muted">${fmtDate(a.ts)}</td>
+      <td><div style="display:flex;gap:6px;justify-content:flex-end">
+        ${a.kind==='path'
+          ? `<button class="btn ghost" data-dwf-copy="${_esc(a.fid)}">경로 복사</button>`
+          : `<button class="btn ghost" data-dwf-open="${_esc(a.fid)}">${ico('eye')}보기</button>`}
+        <button class="btn ghost" data-dwf-del="${_esc(a.fid)}" style="color:var(--red)">${ico('x')}삭제</button>
+      </div></td>
+    </tr>`).join('') : `<tr><td colspan="5" class="empty">첨부 없음 — 아래에서 파일 업로드 · 링크 · PC 경로 추가</td></tr>`;
+  openModal(`
+    <h2>첨부 파일 — ${_esc(d.id)} <span class="pill cyan" style="font-size:10px">Rev ${_esc(String(d.current_rev??''))}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>파일</th><th class="num">크기</th><th>업로드 시 Rev</th><th>일자</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      <div style="margin-top:12px;padding:12px;background:var(--bg2);border:1px solid var(--line);border-radius:10px">
+        ${isServer ? `
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="dwf-file" multiple accept=".dwg,.dxf,.step,.stp,.igs,.iges,.pdf,.png,.jpg,.jpeg,.tif,.tiff,.zip,.hwp,.xlsx" style="flex:1;min-width:220px;padding:8px">
+          <button class="btn primary" id="dwf-upload">${ico('plus')}업로드</button>
+        </div>
+        <div style="font-size:10.5px;color:var(--dim);margin-top:6px">자동 판정: <b style="color:var(--green)">${DW_STORE_MAX_MB}MB 이하 → 앱 내 저장 (무료 · 기존 DB)</b> — 도면 PDF·이미지 대부분 커버 · <b>초과 → Firebase Storage</b> (최대 ${DW_FILE_MAX_MB}MB)</div>
+        <div style="font-size:10.5px;color:var(--amber);margin-top:4px">⚠ ${DW_STORE_MAX_MB}MB 초과 대형 파일(CAD 원본 등)의 Storage 저장은 <b>Blaze(종량제) 요금제 전용</b> — 무료로 쓰려면 링크(NAS·드라이브)나 PC 경로 첨부를 권장</div>
+        ` : `
+        <div style="font-size:11.5px;color:var(--amber)">파일 업로드는 서버(Firebase) 연결 모드 전용 — 데모/로컬 모드에서는 아래 링크 첨부를 사용하세요.</div>
+        `}
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <input id="dwf-link-name" placeholder="링크 이름 (예: 고객 도면 PDF)" style="flex:1;min-width:150px">
+          <input id="dwf-link-url" placeholder="https:// … (NAS·드라이브·고객 포털)" style="flex:2;min-width:220px">
+          <button class="btn" id="dwf-link-add">${ico('plus')}링크 추가</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <input id="dwf-path-name" placeholder="경로 이름 (예: 원본 DWG)" style="flex:1;min-width:150px">
+          <input id="dwf-path-val" placeholder="\\\\메인PC\\도면\\038-031.dwg 또는 D:\\도면\\… (사내 PC·공유폴더)" style="flex:2;min-width:220px;font-family:'JetBrains Mono',monospace;font-size:12px">
+          <button class="btn" id="dwf-path-add">${ico('plus')}PC 경로 추가</button>
+        </div>
+        <div style="font-size:10px;color:var(--dim);margin-top:5px">PC 경로는 웹 보안상 클릭으로 직접 열 수 없어 <b>[경로 복사] → 탐색기 주소창 붙여넣기</b>로 엽니다 (같은 PC·사내망에서)</div>
+      </div>
+      <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div>
+    </div>`, { width: '680px' });
+  const reopen = () => { closeModal(); VIEWS._drawFilesModal(id); router(); };
+  document.querySelectorAll('[data-dwf-open]').forEach(b => b.onclick = async () => {
+    const a = _drawAttList(DB.get('drawings', id)).find(x => x.fid === b.dataset.dwfOpen);
+    if(!a) return;
+    if(a.kind === 'store'){
+      try { toast('파일 여는 중…','ok',1200); await _dwStoreOpen(a); }
+      catch(e){ toast('열기 실패 — ' + (e.message||e), 'err', 4000); }
+      return;
+    }
+    if(!a.url){ toast('열 수 있는 주소 없음','warn'); return; }
+    window.open(a.url, '_blank');
+  });
+  // ★ v0.27.6 — PC 경로 복사 (클립보드 · 폴백 포함)
+  document.querySelectorAll('[data-dwf-copy]').forEach(b => b.onclick = () => {
+    const a = _drawAttList(DB.get('drawings', id)).find(x => x.fid === b.dataset.dwfCopy);
+    if(!a || !a.path_str){ toast('경로 없음','warn'); return; }
+    const done = () => toast('경로 복사됨 — 탐색기 주소창에 붙여넣기','ok',2500);
+    if(navigator.clipboard?.writeText){ navigator.clipboard.writeText(a.path_str).then(done).catch(()=>{ prompt('아래 경로를 복사하세요', a.path_str); }); }
+    else { prompt('아래 경로를 복사하세요', a.path_str); }
+  });
+  document.querySelectorAll('[data-dwf-del]').forEach(b => b.onclick = async () => {
+    const cur = DB.get('drawings', id);
+    const a = _drawAttList(cur).find(x => x.fid === b.dataset.dwfDel);
+    if(!a) return;
+    if(!confirm(`'${a.name}' 첨부를 삭제할까요?\n(파일 원본 삭제 · 삭제 이력은 남습니다)`)) return;
+    try {
+      if(a.kind === 'store'){
+        await _dwStoreDelete(a);   // 조각 비우기 — 용량 회수 (delete 금지 규칙과 무충돌)
+      } else if(a.kind === 'file' && a.path){
+        const st = await _drawEnsureStorage();
+        try { await st.ref(a.path).delete(); }
+        catch(e){ if(e?.code !== 'storage/object-not-found') throw e; }
+      }
+      DB.set('drawings', id, { attachments: _drawAttRemove(cur, a.fid, SESSION.user) });
+      toast(`첨부 삭제 — ${a.name}`,'warn'); reopen();
+    } catch(e){ toast('삭제 실패 — ' + (e.message||e), 'err', 4000); }
+  });
+  const upBtn = document.getElementById('dwf-upload');
+  if(upBtn) upBtn.onclick = async () => {
+    const inp = document.getElementById('dwf-file');
+    const list = [...(inp.files||[])];
+    if(!list.length){ toast('파일 선택','warn'); return; }
+    const over = list.find(f => f.size > DW_FILE_MAX_MB*1048576);
+    if(over){ toast(`${over.name} — ${DW_FILE_MAX_MB}MB 초과`,'err'); return; }
+    upBtn.disabled = true;
+    try {
+      for(const f of list){
+        toast(`업로드 중 — ${f.name}`,'ok',1500);
+        if(f.size <= DW_STORE_MAX_MB*1048576){
+          // ★ v0.27.6 — 소형: 앱 내 저장 (무료 · Firestore 분할)
+          await _dwStoreUpload(id, f);
+        } else {
+          // 대형: Firebase Storage (Blaze)
+          const st = await _drawEnsureStorage();
+          const path = `drawings/${d.id}/${Date.now()}_${_drawSafeName(f.name)}`;
+          const snap = await st.ref(path).put(f);
+          const url = await snap.ref.getDownloadURL();
+          const cur = DB.get('drawings', id);
+          DB.set('drawings', id, { attachments: _drawAttAdd(cur, {
+            fid: 'F-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),
+            kind:'file', name: f.name, size: f.size, ext: _drawFileExt(f.name),
+            url, path, rev: cur.current_rev, ts: Date.now(), by: SESSION.user,
+          })});
+        }
+      }
+      toast(`업로드 완료 — ${list.length}건`,'ok'); reopen();
+    } catch(e){
+      const msg = String(e?.message||e);
+      toast('업로드 실패 — ' + (msg.includes('storage/unknown')||msg.includes('does not exist') ? 'Firebase 콘솔에서 Storage 활성화 필요' : msg), 'err', 5000);
+    } finally { upBtn.disabled = false; }
+  };
+  document.getElementById('dwf-link-add').onclick = () => {
+    const name = document.getElementById('dwf-link-name').value.trim();
+    const url = document.getElementById('dwf-link-url').value.trim();
+    if(!name){ toast('링크 이름 입력','warn'); return; }
+    if(!/^https?:\/\//.test(url)){ toast('http(s):// 로 시작하는 주소 입력','warn'); return; }
+    const cur = DB.get('drawings', id);
+    DB.set('drawings', id, { attachments: _drawAttAdd(cur, {
+      fid: 'L-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),
+      kind:'link', name, url, rev: cur.current_rev, ts: Date.now(), by: SESSION.user,
+    })});
+    toast(`링크 추가 — ${name}`,'ok'); reopen();
+  };
+  // ★ v0.27.6 — PC 경로 첨부 (사내 저장 업체용 · 참조 기록)
+  document.getElementById('dwf-path-add').onclick = () => {
+    const name = document.getElementById('dwf-path-name').value.trim();
+    const pv = document.getElementById('dwf-path-val').value.trim();
+    if(!name){ toast('경로 이름 입력','warn'); return; }
+    if(!pv){ toast('경로 입력','warn'); return; }
+    const cur = DB.get('drawings', id);
+    DB.set('drawings', id, { attachments: _drawAttAdd(cur, {
+      fid: 'P-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),
+      kind:'path', name, path_str: pv, rev: cur.current_rev, ts: Date.now(), by: SESSION.user,
+    })});
+    toast(`PC 경로 추가 — ${name}`,'ok'); reopen();
+  };
+};
+
 /* 도면 등록 모달 */
 VIEWS._drawNewModal = () => {
   const items = DB.all('items').filter(i => i.active !== false);
