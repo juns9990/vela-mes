@@ -979,7 +979,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.27.2';
+const APP_VERSION = 'v0.27.3';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -2006,6 +2006,8 @@ const PAGES = [
   { id:'autoplan', flag:'pl_auto', title:'자동계획', icon:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v16M14 14l2 2 4-4"/>' },
   { id:'eqstatus', flag:'capa', title:'설비현황', icon:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
   { id:'mold',  flag:'a_mold',title:'금형',       icon:'<path d="M12 2l9 4.5v9L12 22 3 15.5v-9z"/><path d="M3 6.5l9 4.5 9-4.5M12 11v11"/>' },
+  // ★ v0.27.3 — 도면·리비전 관리 (제품 데이터 모듈 p_drawing 플래그 — 기존 키 재사용)
+  { id:'draw',  flag:'p_drawing', title:'도면',   icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v18M3 8h18"/><circle cx="14.5" cy="14.5" r="3"/><path d="M14.5 11.5v3h3"/>' },
   { id:'docs',  flag:'doc_wo',title:'문서 출력',  icon:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>' },
   { id:'proc',  flag:'proc',  title:'공정 템플릿',icon:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>' },
   { id:'masters', flag:'masters', title:'기준정보', icon:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>' },
@@ -2550,6 +2552,18 @@ function seedDemoData(){
       amount: Math.round(calcClosing('sales', lastM).byParty['C001']?.amount || 0),
       issue_date:`${lastM}-28`, memo:'전자발행', ts:daysBack(2), by:'데모' });
   }
+
+  // ─────────────── 12-2. ★ v0.27.3 — 도면 데모 시드 (리비전 이력 포함 · 고정 id 멱등) ───────────────
+  [
+    { id:'038-031-D', itemCode:'HF-3301', current_rev:'2', memo:'고객 지급 도면',
+      revs:[
+        { rev:'0', date:fmt(daysBack(80)), reason:'신규 제정', by:'데모', ts:daysBack(80) },
+        { rev:'1', date:fmt(daysBack(45)), reason:'고객 ECN — 모따기 치수 변경', by:'데모', ts:daysBack(45) },
+        { rev:'2', date:fmt(daysBack(10)), reason:'열처리 경도 범위 조정 (HB 269~331)', by:'데모', ts:daysBack(10) },
+      ]},
+    { id:'051-007-D', itemCode:'HF-3305', current_rev:'0', memo:'',
+      revs:[ { rev:'0', date:fmt(daysBack(60)), reason:'신규 제정', by:'데모', ts:daysBack(60) } ]},
+  ].forEach(d => DB.set('drawings', d.id, { ...d, active:true, created: d.revs[0].ts, by:'데모' }));
 
   // ─────────────── 13. 품질 (v0.25.0) — 불량 유형 4종 + NC 6건 (상태 골고루) ───────────────
   //   원칙(G1): 기존 원장(records/lots/orders/shipments)에는 손대지 않음 — nc_records/defect_types 만 증분.
@@ -4241,6 +4255,13 @@ function autoLoginDemo(){
     try { seedDemoData(); } catch(e){ console.error('[VELA] seedDemoData failed', e); }
     u = DB.query('users', x => x.name === '데모')[0];
   }
+  // ★ v0.27.3 — 데모 = 풀옵션 시연 원칙: 재진입 시에도 기능 플래그를 현재 MODULE_DEFS 전체 ON 으로 동기화.
+  //   (구 데모 DB 의 플래그 스냅샷 고착으로 이후 추가된 메뉴 — 원가·견적·품질·회계 등 — 가 안 보이던 실사용 지적)
+  try {
+    const allOn = {};
+    MODULE_DEFS.forEach(m => m.items.forEach(([k]) => { allOn[k] = true; }));
+    DB.set('settings','features', { flags: allOn });
+  } catch(e){ console.warn('[VELA] demo flag sync failed', e); }
   if(!u){
     // 시드 실패 폴백 — 최소 사용자 하나 만들어서 진입
     u = { id:'U-DEMO', name:'데모', pin:'000000', role:'manager', active:true, created_at:Date.now(), last_login:null };
@@ -12111,6 +12132,184 @@ VIEWS._acctPnl = () => {
     exportXlsx(hist.map(h=>({ 월:h.month, 매출:h.revenue, 매입:h.purchase, 외주:h.outsource, 경비:h.expenses, 관리이익:h.profit })),
       '월관리손익', `월관리손익_${month}.xlsx`);
   };
+};
+
+/* =================================================================================================
+   ★ v0.27.3 — 도면·리비전 관리 (제품 데이터 · p_drawing 플래그 · drawings 컬렉션 재사용)
+   원칙:
+   · 도면 파일 자체는 저장하지 않는다 (단일 HTML·Firestore 문서 한계) — 번호·현행 Rev·개정 이력의 단일 진실만 관리.
+   · Rev 변경은 [리비전 업] 경로만 — revs[] 에 증분 누적 (원본 이력 보존 · 물리 삭제 없음 · 비활성만).
+   · 품번 연결은 참조만 (품번 마스터 무변 — 원장 무변 원칙).
+   ================================================================================================= */
+function _drawNextRev(cur){
+  const n = parseInt(String(cur ?? '').trim(), 10);
+  return isNaN(n) ? '' : String(n + 1);
+}
+VIEWS.draw = () => {
+  const state = (window._drawState = window._drawState || { q:'', showOff:false });
+  const items = DB.all('items');
+  const all = DB.all('drawings').slice().sort((a,b)=>(b.created||0)-(a.created||0));
+  const list = state.showOff ? all : all.filter(d => d.active !== false);
+  const q = (state.q||'').trim().toLowerCase();
+  const rows = q ? list.filter(d => {
+    const it = items.find(i => i.code === d.itemCode);
+    return [d.id, d.itemCode, it?.name||''].join(' ').toLowerCase().includes(q);
+  }) : list;
+
+  const trs = rows.length ? rows.map(d => {
+    const it = items.find(i => i.code === d.itemCode);
+    const last = (d.revs||[])[ (d.revs||[]).length-1 ] || {};
+    const active = d.active !== false;
+    return `<tr class="${active?'':'mst-off'}">
+      <td><b style="font-family:'JetBrains Mono',monospace">${_esc(d.id)}</b></td>
+      <td>${_esc(d.itemCode||'—')}<div style="font-size:10px;color:var(--dim)">${_esc(it?.name||'')}</div></td>
+      <td class="num"><span class="pill cyan" style="font-family:'JetBrains Mono',monospace">Rev ${_esc(String(d.current_rev ?? '0'))}</span></td>
+      <td class="muted">${_esc(last.date||'—')}</td>
+      <td class="muted" style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(last.reason||'')}</td>
+      <td class="num">${(d.revs||[]).length}</td>
+      <td><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn ghost" data-dw-hist="${_esc(d.id)}">이력</button>
+        ${active?`<button class="btn ghost" data-dw-rev="${_esc(d.id)}" style="color:var(--cyan)">리비전 업</button>`:''}
+        <button class="btn ghost" data-dw-toggle="${_esc(d.id)}">${active?'비활성':'재활성'}</button>
+      </div></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7" class="empty">${q?'검색 결과 없음':'등록된 도면 없음 — [도면 등록]'}</td></tr>`;
+
+  document.getElementById('view').innerHTML = `
+    <div class="pghead">
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('draw')}</svg>도면 관리 <span class="pill cyan">${APP_VERSION}</span></div>
+      <div class="pgtools">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--bg2)"><input type="checkbox" id="dw-showoff" ${state.showOff?'checked':''} style="width:auto;margin:0"> 비활성 포함</label>
+        <button class="btn" id="dw-xlsx">${ico('excel')}엑셀</button>
+        <button class="btn primary" id="dw-new">${ico('plus')}도면 등록</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:12px">도면 파일은 여기 저장하지 않습니다 — <b>도면번호·현행 Rev·개정 이력의 단일 진실</b>만 관리 (Rev 변경은 [리비전 업]으로만 · 이력 전부 보존)</div>
+    <div class="card" style="padding:14px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:9px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 14px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--sub)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input id="dw-q" placeholder="검색 — 도면번호 · 품번 · 품명" value="${_esc(state.q)}" style="flex:1;background:none;border:none;outline:none;color:var(--ink);font-size:13px;padding:0">
+        <span style="font-size:11px;color:var(--dim)">${rows.length}건 / 전체 ${all.length}건</span>
+      </div>
+    </div>
+    <div class="card"><div class="tbl-wrap"><table>
+      <thead><tr><th>도면번호</th><th>품번·품명</th><th class="num">현행 Rev</th><th>개정일</th><th>최근 개정 사유</th><th class="num">이력</th><th></th></tr></thead>
+      <tbody>${trs}</tbody>
+    </table></div></div>`;
+
+  let _dwDeb = null;
+  document.getElementById('dw-q').oninput = e => { clearTimeout(_dwDeb); _dwDeb = setTimeout(()=>{ state.q = e.target.value; router(); }, 250); };
+  document.getElementById('dw-showoff').onchange = e => { state.showOff = e.target.checked; router(); };
+  document.getElementById('dw-new').onclick = () => VIEWS._drawNewModal();
+  document.querySelectorAll('[data-dw-hist]').forEach(b => b.onclick = () => VIEWS._drawHistModal(b.dataset.dwHist));
+  document.querySelectorAll('[data-dw-rev]').forEach(b => b.onclick = () => VIEWS._drawRevModal(b.dataset.dwRev));
+  document.querySelectorAll('[data-dw-toggle]').forEach(b => b.onclick = () => {
+    const d = DB.get('drawings', b.dataset.dwToggle); if(!d) return;
+    DB.set('drawings', d.id, { active: d.active === false });
+    toast(d.active===false ? `${d.id} 재활성` : `${d.id} 비활성`, d.active===false?'ok':'warn'); router();
+  });
+  document.getElementById('dw-xlsx').onclick = () => {
+    exportXlsx(rows.map(d => {
+      const it = items.find(i=>i.code===d.itemCode);
+      const last = (d.revs||[])[(d.revs||[]).length-1] || {};
+      return { 도면번호:d.id, 품번:d.itemCode||'', 품명:it?.name||'', 현행Rev:String(d.current_rev??''), 개정일:last.date||'', 최근사유:last.reason||'', 이력수:(d.revs||[]).length, 상태:d.active!==false?'현행':'비활성' };
+    }), '도면', `도면_${fmtDate(Date.now())}.xlsx`);
+  };
+};
+/* 도면 등록 모달 */
+VIEWS._drawNewModal = () => {
+  const items = DB.all('items').filter(i => i.active !== false);
+  openModal(`
+    <h2>도면 등록 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div class="grid g2">
+        <div><label>도면번호 <span style="color:var(--dim);font-weight:400">— 실물 도면의 번호 그대로</span></label>
+          <input id="dw-no" placeholder="예: 038-031-D" style="font-family:'JetBrains Mono',monospace"></div>
+        <div><label>품번 연결</label>
+          <select id="dw-item"><option value="">— 미연결 —</option>${items.map(i=>`<option value="${_esc(i.code)}">${_esc(i.code)} · ${_esc(i.name||'')}</option>`).join('')}</select></div>
+      </div>
+      <div class="grid g3">
+        <div><label>초기 Rev</label><input id="dw-rev" value="0" style="font-family:'JetBrains Mono',monospace"></div>
+        <div><label>제정일</label><input id="dw-date" type="date" value="${fmtDate(Date.now())}"></div>
+        <div><label>사유</label><input id="dw-reason" value="신규 제정"></div>
+      </div>
+      <div><label>메모 (선택)</label><input id="dw-memo"></div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="dw-ok">${ico('save')}등록</button>
+      </div>
+    </div>`);
+  document.getElementById('dw-ok').onclick = () => {
+    const no = document.getElementById('dw-no').value.trim();
+    if(!no){ toast('도면번호 입력','warn'); return; }
+    if(DB.get('drawings', no)){ toast(`중복 — ${no} 이미 존재`,'err'); return; }
+    const rev = document.getElementById('dw-rev').value.trim() || '0';
+    const date = document.getElementById('dw-date').value || fmtDate(Date.now());
+    const reason = document.getElementById('dw-reason').value.trim() || '신규 제정';
+    DB.set('drawings', no, {
+      id: no, itemCode: document.getElementById('dw-item').value || '',
+      current_rev: rev,
+      revs: [{ rev, date, reason, by: SESSION.user, ts: Date.now() }],
+      memo: document.getElementById('dw-memo').value.trim(),
+      active: true, created: Date.now(), by: SESSION.user,
+    });
+    toast(`도면 등록 — ${no} · Rev ${rev}`,'ok'); closeModal(); router();
+  };
+};
+/* 리비전 업 모달 — revs 증분 누적 · current_rev 갱신 (이력 보존) */
+VIEWS._drawRevModal = (id) => {
+  const d = DB.get('drawings', id); if(!d) return;
+  const next = _drawNextRev(d.current_rev);
+  openModal(`
+    <h2>리비전 업 — ${_esc(d.id)} <span class="pill cyan" style="font-size:10px">현행 Rev ${_esc(String(d.current_rev??''))}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div class="grid g2">
+        <div><label>새 Rev ${next?`<span style="color:var(--dim);font-weight:400">— 제안 ${_esc(next)}</span>`:''}</label>
+          <input id="dwr-rev" value="${_esc(next)}" style="font-family:'JetBrains Mono',monospace"></div>
+        <div><label>개정일</label><input id="dwr-date" type="date" value="${fmtDate(Date.now())}"></div>
+      </div>
+      <div><label>개정 사유 <span style="color:var(--red)">*</span></label><input id="dwr-reason" placeholder="예: 고객 ECN — 모따기 치수 변경"></div>
+      <div style="font-size:10.5px;color:var(--dim);margin-top:6px">이전 Rev 이력은 그대로 보존됩니다 (증분 누적 · 삭제 없음)</div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="dwr-ok">${ico('save')}리비전 업</button>
+      </div>
+    </div>`);
+  document.getElementById('dwr-ok').onclick = () => {
+    const rev = document.getElementById('dwr-rev').value.trim();
+    const reason = document.getElementById('dwr-reason').value.trim();
+    if(!rev){ toast('새 Rev 입력','warn'); return; }
+    if(String(rev) === String(d.current_rev)){ toast('현행 Rev 와 동일','warn'); return; }
+    if((d.revs||[]).some(r => String(r.rev) === String(rev))){ toast(`이미 이력에 있는 Rev — ${rev}`,'err'); return; }
+    if(!reason){ toast('개정 사유 입력 (이력 필수)','warn'); return; }
+    const date = document.getElementById('dwr-date').value || fmtDate(Date.now());
+    DB.set('drawings', d.id, {
+      current_rev: rev,
+      revs: [ ...(d.revs||[]), { rev, date, reason, by: SESSION.user, ts: Date.now() } ],
+    });
+    toast(`리비전 업 — ${d.id} · Rev ${rev}`,'ok'); closeModal(); router();
+  };
+};
+/* 개정 이력 모달 */
+VIEWS._drawHistModal = (id) => {
+  const d = DB.get('drawings', id); if(!d) return;
+  const it = DB.get('items', d.itemCode);
+  const revs = (d.revs||[]).slice().reverse();
+  openModal(`
+    <h2>개정 이력 — ${_esc(d.id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="font-size:12px;color:var(--sub);margin-bottom:10px">${_esc(d.itemCode||'미연결')}${it?` · ${_esc(it.name||'')}`:''} · 현행 <b style="color:var(--cyan)">Rev ${_esc(String(d.current_rev??''))}</b>${d.memo?` · ${_esc(d.memo)}`:''}</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Rev</th><th>개정일</th><th>사유</th><th>작성</th></tr></thead>
+        <tbody>${revs.map(r=>`<tr ${String(r.rev)===String(d.current_rev)?'style="background:rgba(94,234,212,.05)"':''}>
+          <td><b style="font-family:'JetBrains Mono',monospace">${_esc(String(r.rev))}</b>${String(r.rev)===String(d.current_rev)?' <span class="pill cyan" style="font-size:9px">현행</span>':''}</td>
+          <td class="muted">${_esc(r.date||'')}</td>
+          <td>${_esc(r.reason||'')}</td>
+          <td class="muted" style="font-size:11px">${_esc(String(r.by||''))}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div>
+    </div>`);
 };
 
 /* -------------------- 공정 템플릿 -------------------- */
