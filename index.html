@@ -23,11 +23,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
-<!-- Vendor libs : SheetJS(엑셀) + html5-qrcode(스캔) + qrcode-generator(QR 생성). ★ v0.12.2 — 자체 인코더 폐기 → 검증된 라이브러리
-     ★ v0.23.2 — 단일 HTML 배포 원칙 · 로컬 파일 의존 제거 → cdnjs 로 복원 (v0.23.1 로컬 참조에서 회귀 수정) -->
+<!-- Vendor libs : SheetJS(엑셀) + html5-qrcode(스캔) + qrcode-generator(QR 생성) + PptxGenJS(PPT).
+     ★ v0.12.2 — 자체 인코더 폐기 → 검증된 라이브러리
+     ★ v0.23.2 — 단일 HTML 배포 원칙 · 로컬 파일 의존 제거 → cdnjs 로 복원 (v0.23.1 로컬 참조에서 회귀 수정)
+     ★ v0.26.4 — 외부 참조 허용 목록 = cdnjs.cloudflare.com + cdn.jsdelivr.net (둘 다 버전 고정 URL 만).
+                 로컬 스크립트 참조 · 그 외 CDN 은 계속 금지. @latest·무버전 URL 금지(무단 업그레이드 방지).
+                 PptxGenJS 는 cdnjs 미배포 → 공식 배포처인 jsDelivr 사용 (bundle = JSZip 포함 단일 파일). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js" defer></script>
 <style>
 /* ============================================================
    디자인 토큰 — vela-mes-dashboard.html v0.1.6 그대로 승계
@@ -957,7 +962,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.26.3';
+const APP_VERSION = 'v0.26.4';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -3694,6 +3699,8 @@ function ico(name){
     eye:'<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>',
     check:'<path d="M20 6L9 17l-5-5"/>',
     x:'<path d="M18 6L6 18M6 6l12 12"/>',
+    // ★ v0.26.4 — PPT 내보내기 (보고서 화면 전용 · 추가만)
+    ppt:'<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8M7 8h4a2 2 0 0 1 0 4H7v-4z"/>',
   };
   return `<svg viewBox="0 0 24 24">${map[name]||''}</svg>`;
 }
@@ -15812,12 +15819,13 @@ function setAiKey(v){
 // 스코프별 상품명
 const _REPORT_TITLES = { day:'AI 일일보고서', week:'AI 주간보고서', month:'AI 월간보고서' };
 // 부서 메타 1벌 (배지·엑셀·인쇄 공용 · ★ v0.26.3 화면 밖에서도 같은 이름 쓰도록 상수 분리)
+//   ink = 흰 배경(인쇄·PPT·투사)용 진한 대응색 — 화면 배지 색 계열을 어둡게 (인쇄 양식 _reportPrint 와 동일 색상)
 const _DEPT_META = {
-  prod:  { name:'생산부',       bg:'rgba(94,234,212,.12)',  color:'var(--cyan)' },
-  sales: { name:'영업부',       bg:'rgba(125,211,252,.12)', color:'var(--blue)' },
-  pur:   { name:'구매·자재',    bg:'rgba(251,191,36,.12)',  color:'var(--amber)' },
-  qc:    { name:'품질',         bg:'rgba(74,222,128,.12)',  color:'var(--green)' },
-  fin:   { name:'경영·정산',    bg:'rgba(248,113,113,.10)', color:'#f0a8a8' },
+  prod:  { name:'생산부',       bg:'rgba(94,234,212,.12)',  color:'var(--cyan)',  ink:'0A7A6A' },
+  sales: { name:'영업부',       bg:'rgba(125,211,252,.12)', color:'var(--blue)',  ink:'0369A1' },
+  pur:   { name:'구매·자재',    bg:'rgba(251,191,36,.12)',  color:'var(--amber)', ink:'A16207' },
+  qc:    { name:'품질',         bg:'rgba(74,222,128,.12)',  color:'var(--green)', ink:'16A34A' },
+  fin:   { name:'경영·정산',    bg:'rgba(248,113,113,.10)', color:'#f0a8a8',      ink:'B91C1C' },
 };
 function _deptName(dept){ return (_DEPT_META[dept] && _DEPT_META[dept].name) || dept || ''; }
 // 부서 배지 · 태그
@@ -16118,6 +16126,7 @@ VIEWS.report = () => {
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('report')}</svg>${_esc(title)} <span class="pill cyan">${APP_VERSION}</span>${snap?` <span class="pill amber" title="이력 스냅샷 열람 중">이력</span>`:''}</div>
       <div class="pgtools">
         <button class="btn" id="btn-rep-xlsx">${ico('excel')}엑셀</button>
+        <button class="btn" id="btn-rep-ppt">${ico('ppt')}PPT</button>
         <button class="btn" id="btn-rep-print">${ico('print')}인쇄</button>
         ${snap
           ? `<button class="btn primary" id="btn-rep-back">${ico('refresh')}라이브로 돌아가기</button>`
@@ -16135,9 +16144,10 @@ VIEWS.report = () => {
         </div>
         <span style="color:var(--sub);font-size:11.5px;margin-left:10px">${_esc(data.period.label)}${coTag}${snap?` · ${_esc(snap.id)} · 생성 ${fmtDate(snap.ts)} ${fmtTime(snap.ts)}`:''}</span>
       </div>
-      <!-- ★ v0.26.3 — 라이브러리 한계 정직 고지 (무료 SheetJS 는 셀 색·테두리 미지원) -->
+      <!-- ★ v0.26.3 — 라이브러리 한계 정직 고지 (무료 SheetJS 는 셀 색·테두리 미지원)
+           ★ v0.26.4 — 색이 필요한 제출용 경로에 [PPT] 추가 -->
       <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.5">
-        · [엑셀]은 구조·병합·숫자 서식까지 지원합니다 — <b>색·테두리 있는 제출용은 [인쇄] → PDF 저장</b>을 사용하세요.
+        · [엑셀]은 구조·병합·숫자 서식까지 지원합니다 — <b>색·테두리 있는 제출용은 [인쇄] → PDF 저장</b> 또는 <b>[PPT]</b>를 사용하세요.
       </div>
     </div>
 
@@ -16359,6 +16369,7 @@ VIEWS.report = () => {
   // 엑셀 · 인쇄
   // ★ v0.26.3 — 스냅샷 열람 중이면 스냅샷 문서를 넘겨 작성자·문서번호까지 반영 (재계산 없음)
   document.getElementById('btn-rep-xlsx').onclick = () => _reportExportXlsx(snap || data);
+  document.getElementById('btn-rep-ppt').onclick  = () => _reportExportPpt(snap || data);   // ★ v0.26.4
   document.getElementById('btn-rep-print').onclick = () => _reportPrint(data);
 };
 
@@ -16615,6 +16626,276 @@ function _reportExportXlsx(reportDoc){
   XLSX.utils.book_append_sheet(wb, ws, _REPORT_TITLES[data.scope] || 'AI 보고서');
   XLSX.writeFile(wb, `보고서_${data.scope}_${data.period.label.replace(/[ ~]/g,'_')}.xlsx`);
   toast('엑셀 내보내기 완료','ok');
+}
+
+/* =================================================================================================
+   ★ v0.26.4 — AI 보고서 PPT 내보내기 1벌 (buildReportPpt)
+   PptxGenJS 3.12.0 (jsDelivr · 버전 고정 · bundle = JSZip 포함).
+   16:9 (10 × 5.625 in) · 슬라이드 = 화면 구조 그대로:
+     ①표지 ②전사 요약(KPI 4) ③생산부 ④영업부 ⑤구매·자재 ⑥품질 ⑦경영·정산 ⑧이슈
+     ⑨AI 종합 브리핑(ai_summary 있을 때만 — 없으면 8장)
+   색: VELA 민트 #0d9488 포인트 · 흰 배경 · 검정 텍스트 (인쇄·투사 겸용) · 부서색 = _DEPT_META.ink
+   원칙: reportDoc 스냅샷 값만 사용 — 재계산·재집계 금지 (엑셀·인쇄와 같은 규약).
+   ================================================================================================= */
+const PPT_MINT  = '0D9488';   // VELA 민트 (흰 배경용)
+const PPT_INK   = '16181D';
+const PPT_SUB   = '6B7280';
+const PPT_LINE  = 'E5E7EB';
+const PPT_FONT  = 'Malgun Gothic';
+const PPT_MONO  = 'Consolas';
+const PPT_W     = 10;         // LAYOUT_16x9 = 10 × 5.625 in
+
+// 파일명 — AI주간보고서_2026-07-13_0719.pptx (기간 라벨 'YYYY-MM-DD ~ YYYY-MM-DD' → 시작 전체 + 종료 MMDD)
+function _reportPptFileName(title, periodLabel){
+  const t = String(title||'AI 보고서').replace(/\s+/g,'');
+  const lab = String(periodLabel||'').trim();
+  let per = lab.replace(/\s/g,'');
+  if(lab.includes('~')){
+    const [a,b] = lab.split('~').map(x => x.trim());
+    per = `${a}_${b.slice(5).replace(/-/g,'')}`;
+  }
+  return `${t}_${per}.pptx`;
+}
+
+function buildReportPpt(reportDoc){
+  if(!window.PptxGenJS) return null;
+  // 스냅샷 문서({id,ts,by,data}) · 라이브 데이터 객체 둘 다 허용 (엑셀 빌더와 동일 규약)
+  const doc  = (reportDoc && reportDoc.data) ? reportDoc : null;
+  const data = doc ? doc.data : reportDoc;
+  if(!data || !data.period) return null;
+
+  const t     = _REPORT_TITLES[data.scope] || 'AI 보고서';
+  const co    = getCompany();
+  const coName= (co?.name && String(co.name).trim()) ? String(co.name).trim() : '';
+  const genTs = doc?.ts || Date.now();
+  const genBy = doc?.by || SESSION.user || 'system';
+
+  const pptx = new window.PptxGenJS();
+  pptx.layout = 'LAYOUT_16x9';
+  pptx.title  = `${t} · ${data.period.label}`;
+  pptx.author = genBy;
+  pptx.company= coName || 'VELA SYSTEM';
+  pptx.subject= 'VELA SYSTEM · MADE BY JUNS';
+
+  const won = (v) => '₩' + Math.round(+v||0).toLocaleString();
+  const ea  = (v, u) => (Math.round(+v||0)).toLocaleString() + (u ? ` ${u}` : '');
+
+  // 공통 프레임 — 상단 포인트 바 + 제목 + 구분선 + 하단 푸터
+  function frame(title, accent){
+    const s = pptx.addSlide();
+    s.background = { color:'FFFFFF' };
+    s.addShape(pptx.ShapeType.rect, { x:0, y:0, w:PPT_W, h:0.08, fill:{ color: accent || PPT_MINT } });
+    s.addText(title, { x:0.5, y:0.28, w:6.6, h:0.48, fontSize:22, bold:true, color:PPT_INK, fontFace:PPT_FONT });
+    s.addText(`${data.period.label}${coName?` · ${coName}`:''}`,
+      { x:7.0, y:0.34, w:2.5, h:0.36, fontSize:11, color:PPT_SUB, align:'right', fontFace:PPT_FONT });
+    s.addShape(pptx.ShapeType.rect, { x:0.5, y:0.86, w:9.0, h:0.02, fill:{ color:PPT_LINE } });
+    s.addText('VELA SYSTEM · MADE BY JUNS',
+      { x:0.5, y:5.16, w:4.5, h:0.3, fontSize:9, color:PPT_SUB, fontFace:PPT_FONT });
+    s.addText(`${fmtDate(genTs)} ${fmtTime(genTs)} · ${genBy}${doc?.id?` · ${doc.id}`:''}`,
+      { x:5.0, y:5.16, w:4.5, h:0.3, fontSize:9, color:PPT_SUB, align:'right', fontFace:PPT_FONT });
+    return s;
+  }
+  // KPI 행 — n개 균등 배치 (라벨 + 큰 숫자)
+  function kpiRow(s, items, y, valSize){
+    const n = Math.max(1, items.length);
+    const gap = 0.16, total = 9.0;
+    const w = (total - gap*(n-1)) / n;
+    items.forEach((it, i) => {
+      const x = 0.5 + i*(w+gap);
+      s.addShape(pptx.ShapeType.rect, { x, y, w, h:1.12, fill:{ color:'F7F8FA' }, line:{ color:PPT_LINE, width:0.5 } });
+      s.addText(it.label, { x:x+0.14, y:y+0.1, w:w-0.28, h:0.28, fontSize:10, color:PPT_SUB, fontFace:PPT_FONT });
+      s.addText(String(it.value), { x:x+0.14, y:y+0.38, w:w-0.28, h:0.5, fontSize: valSize || 22, bold:true,
+        color: it.color || PPT_INK, fontFace:PPT_MONO, fit:'shrink' });
+      if(it.sub) s.addText(it.sub, { x:x+0.14, y:y+0.86, w:w-0.28, h:0.22, fontSize:9, color:PPT_SUB, fontFace:PPT_FONT });
+    });
+  }
+  // 표 — 헤더 행 색 채움 + 본문. 행 수는 화면과 동일(상위 5) · 열폭 고정으로 넘침 방지(autoPage 미사용)
+  function table(s, head, rows, y, colW, accent){
+    if(!rows || !rows.length){
+      s.addText('데이터 없음', { x:0.5, y, w:9.0, h:0.3, fontSize:11, color:PPT_SUB, fontFace:PPT_FONT });
+      return;
+    }
+    const body = [
+      head.map(h => ({ text:String(h), options:{ bold:true, color:'FFFFFF', fill:{ color: accent || PPT_MINT }, align:'left' } })),
+      ...rows.map(r => r.map(c => (c && typeof c === 'object')
+        ? { text:String(c.text), options:{ color:c.color || PPT_INK, align:c.align || 'left', bold:!!c.bold } }
+        : { text:String(c), options:{ color:PPT_INK, align:'left' } })),
+    ];
+    s.addTable(body, {
+      x:0.5, y, w:9.0, colW,
+      fontSize:11, fontFace:PPT_FONT, color:PPT_INK, valign:'middle',
+      border:{ type:'solid', color:PPT_LINE, pt:0.5 },
+      rowH:0.32, autoPage:false,
+    });
+  }
+  // 부서 슬라이드 1벌 (KPI 행 + 표) — 5개 부서가 같은 틀을 쓴다
+  function deptSlide(deptKey, kpis, head, rows, colW, tableCaption){
+    const meta = _DEPT_META[deptKey] || {};
+    const accent = meta.ink || PPT_MINT;
+    const s = frame(meta.name || deptKey, accent);
+    s.addShape(pptx.ShapeType.rect, { x:0.5, y:1.06, w:0.9, h:0.26, fill:{ color: accent } });
+    s.addText(meta.name || deptKey, { x:0.5, y:1.06, w:0.9, h:0.26, fontSize:10, bold:true, color:'FFFFFF',
+      align:'center', valign:'middle', fontFace:PPT_FONT });
+    kpiRow(s, kpis, 1.46);
+    if(tableCaption) s.addText(tableCaption, { x:0.5, y:2.72, w:9.0, h:0.26, fontSize:11, bold:true, color:accent, fontFace:PPT_FONT });
+    table(s, head, rows, 3.02, colW, accent);
+    return s;
+  }
+
+  // ── ① 표지 ──
+  const cover = pptx.addSlide();
+  cover.background = { color:'FFFFFF' };
+  cover.addShape(pptx.ShapeType.rect, { x:0, y:0, w:PPT_W, h:0.14, fill:{ color:PPT_MINT } });
+  cover.addShape(pptx.ShapeType.rect, { x:0.9, y:2.02, w:1.5, h:0.06, fill:{ color:PPT_MINT } });
+  cover.addText(t, { x:0.9, y:2.24, w:8.2, h:0.95, fontSize:42, bold:true, color:PPT_INK, fontFace:PPT_FONT });
+  cover.addText(data.period.label, { x:0.9, y:3.22, w:8.2, h:0.45, fontSize:20, color:PPT_MINT, fontFace:PPT_MONO });
+  if(coName) cover.addText(coName, { x:0.9, y:3.72, w:8.2, h:0.4, fontSize:16, color:PPT_SUB, fontFace:PPT_FONT });
+  cover.addText('VELA SYSTEM · MADE BY JUNS', { x:0.9, y:4.72, w:5.0, h:0.32, fontSize:11, bold:true, color:PPT_INK, fontFace:PPT_FONT });
+  cover.addText(`${fmtDate(genTs)} ${fmtTime(genTs)} · ${genBy}${doc?.id?` · ${doc.id}`:''}`,
+    { x:4.5, y:4.72, w:4.6, h:0.32, fontSize:10, color:PPT_SUB, align:'right', fontFace:PPT_FONT });
+
+  // ── ② 전사 요약 (KPI 4 · 큰 숫자) ──
+  const k = data.companyKPI || {};
+  const sSum = frame('전사 요약', PPT_MINT);
+  kpiRow(sSum, [
+    { label:'생산 실적', value: ea(k.actual, 'ea'), color:'15803D' },
+    { label:'매출',      value: won(k.sales),       color:PPT_MINT },
+    { label:'매입 + 외주', value: won(k.purchases) },
+    { label:'이슈',      value: ea(k.issueCount, '건'), color:(+k.issueCount||0) > 0 ? 'B45309' : PPT_SUB },
+  ], 1.5, 24);
+  sSum.addText('· 수치는 보고서 생성 시점 스냅샷입니다 (재계산 없음).',
+    { x:0.5, y:3.0, w:9.0, h:0.3, fontSize:11, color:PPT_SUB, fontFace:PPT_FONT });
+
+  // ── ③ 생산부 ──
+  const p = data.production || {};
+  deptSlide('prod',
+    [ { label:'계획',   value: ea(p.plan, 'ea') },
+      { label:'실적',   value: ea(p.actual, 'ea'), color:'15803D' },
+      { label:'달성률', value: `${(+p.pct||0).toFixed(1)} %`,
+        color: (+p.pct||0) >= 80 ? '15803D' : ((+p.pct||0) >= 50 ? 'B45309' : 'B91C1C') },
+      { label:'진행 LOT', value: ea(p.activeLots, '개') } ],
+    ['설비','실적(ea)','부하율(계획)'],
+    (p.byEquipment||[]).map(e => [ e.name,
+      { text: ea(e.actual), align:'right' },
+      { text: `${(+e.loadPct||0).toFixed(0)}%`, align:'right', color:(+e.loadPct||0) > 100 ? 'B91C1C' : PPT_INK } ]),
+    [4.4, 2.3, 2.3], '설비별 실적');
+
+  // ── ④ 영업부 ──
+  const s2 = data.sales || {};
+  deptSlide('sales',
+    [ { label:'신규 수주', value: ea(s2.newOrders, '건') },
+      { label:'출하',      value: ea(s2.shipped, 'ea') },
+      { label:'매출',      value: won(s2.revenue), color:'0369A1' },
+      { label:'수주 잔량',  value: ea(s2.backlog, 'ea') } ],
+    ['고객사','매출','잔량(ea)','최근 납기'],
+    (s2.byCustomer||[]).map(c => [ c.name,
+      { text: won(c.revenue), align:'right' },
+      { text: ea(c.backlog), align:'right' },
+      { text: c.nextDue || '—', align:'right' } ]),
+    [3.0, 2.4, 1.8, 1.8], '고객사별');
+
+  // ── ⑤ 구매·자재 ──
+  const m = data.procurement || {};
+  deptSlide('pur',
+    [ { label:'소재 입고', value: ea(m.matInKg, 'kg') },
+      { label:'매입액',    value: won(m.purchaseAmount) },
+      { label:'외주 진행',  value: ea(m.osActive, '건') },
+      { label:'외주비',    value: won(m.osCost) } ],
+    ['재질','현 잔량(kg)','기간 소요(kg)','판정'],
+    (m.byMaterial||[]).map(x => [ x.mat,
+      { text: ea(x.remain), align:'right', color: x.short ? 'B91C1C' : PPT_INK },
+      { text: ea(x.used), align:'right' },
+      { text: x.short ? '부족' : '—', align:'right', color: x.short ? 'B91C1C' : PPT_SUB } ]),
+    [3.0, 2.2, 2.2, 1.6], '재질별');
+
+  // ── ⑥ 품질 ──
+  const q = data.quality || {};
+  const qKpis = [
+    { label:'불량률',   value:`${(+q.defectRate||0).toFixed(2)} %`,
+      color:(+q.defectRate||0) >= 3 ? 'B91C1C' : ((+q.defectRate||0) > 0 ? 'B45309' : '15803D') },
+    { label:'불량 수량', value: ea(q.defectQty, 'ea') },
+    { label:'중단 이력', value: ea(q.stopCount, '건') },
+  ];
+  if((+q.ncCount||0) > 0 || (+q.ncWaiting||0) > 0){
+    qKpis.push({ label:'부적합 / 대기', value:`${(+q.ncCount||0)} / ${(+q.ncWaiting||0)}`, sub:'건 · 접수 상태',
+      color:(+q.ncWaiting||0) > 0 ? 'B45309' : PPT_INK });
+  }
+  deptSlide('qc', qKpis,
+    ['부적합 유형','수량(ea)','건수'],
+    (q.ncTopTypes||[]).map(x => [ x.name,
+      { text: ea(x.qty), align:'right' },
+      { text: ea(x.count), align:'right' } ]),
+    [4.4, 2.3, 2.3], '부적합 유형 상위');
+
+  // ── ⑦ 경영·정산 (표 없음 — KPI 3 + 마감 안내) ──
+  const f = data.finance || {};
+  const finMeta = _DEPT_META.fin;
+  const sFin = frame(finMeta.name, finMeta.ink);
+  sFin.addShape(pptx.ShapeType.rect, { x:0.5, y:1.06, w:0.9, h:0.26, fill:{ color:finMeta.ink } });
+  sFin.addText(finMeta.name, { x:0.5, y:1.06, w:0.9, h:0.26, fontSize:10, bold:true, color:'FFFFFF',
+    align:'center', valign:'middle', fontFace:PPT_FONT });
+  kpiRow(sFin, [
+    { label:`마감 매출 (${data.period.month})`, value: won(f.salesClosing) },
+    { label:'미수 잔액',  value: f.unpaid    == null ? '미확정' : won(f.unpaid),
+      sub: f.unpaid    == null ? '마감 미확정' : null, color:(+f.unpaid||0) > 0 ? 'B45309' : PPT_INK },
+    { label:'미지급 (매입·외주)', value: f.unpayable == null ? '미확정' : won(f.unpayable),
+      sub: f.unpayable == null ? '마감 미확정' : null },
+  ], 1.46, 20);
+  sFin.addText('· 미수·미지급은 해당 월 마감 확정 시에만 집계됩니다.',
+    { x:0.5, y:2.78, w:9.0, h:0.3, fontSize:11, color:PPT_SUB, fontFace:PPT_FONT });
+
+  // ── ⑧ 이슈 (부서 태그 · red/amber) ──
+  const issues = data.issues || [];
+  const sIss = frame(`이슈 · ${issues.length}건`, issues.length ? 'B45309' : PPT_MINT);
+  if(issues.length){
+    table(sIss, ['심각도','부서','내용'],
+      issues.slice(0, 10).map(iss => {
+        const sev = iss.severity === 'red' ? 'B91C1C' : 'B45309';
+        return [
+          { text: iss.severity === 'red' ? '긴급' : '주의', color: sev, bold:true },
+          { text: _deptName(iss.dept), color: (_DEPT_META[iss.dept]||{}).ink || PPT_INK, bold:true },
+          { text: iss.text },
+        ];
+      }), 1.16, [1.2, 1.6, 6.2], 'B45309');
+    if(issues.length > 10){
+      sIss.addText(`· 외 ${issues.length - 10}건 — 전체는 보고서 화면·엑셀 참조`,
+        { x:0.5, y:4.78, w:9.0, h:0.3, fontSize:10, color:PPT_SUB, fontFace:PPT_FONT });
+    }
+  } else {
+    sIss.addText('감지된 이슈 없음', { x:0.5, y:1.4, w:9.0, h:0.4, fontSize:14, color:PPT_SUB, fontFace:PPT_FONT });
+  }
+
+  // ── ⑨ AI 종합 브리핑 (있을 때만) ──
+  const ai = String(data.ai_summary || '').trim();
+  if(ai){
+    const sAi = frame('AI 종합 브리핑', PPT_MINT);
+    const paras = ai.split(/\n+/).map(x => x.trim()).filter(Boolean);
+    sAi.addText(paras.map((line, i) => ({
+      text: line,
+      options: { fontSize: 12, color: PPT_INK, breakLine: true, paraSpaceAfter: 6,
+                 bold: /^\[총평\]/.test(line), fontFace: PPT_FONT },
+    })), { x:0.5, y:1.16, w:9.0, h:3.8, valign:'top', fit:'shrink' });
+    sAi.addText('· 앱 수치 인용만 · 데이터 밖 생성 금지 프롬프트로 작성됨.',
+      { x:0.5, y:4.82, w:9.0, h:0.28, fontSize:9, color:PPT_SUB, fontFace:PPT_FONT });
+  }
+
+  return pptx;
+}
+
+// 보고서 화면 [PPT] — 미로드 안내는 엑셀 패턴 재사용 (로딩 중 / 로드 실패 구분)
+function _reportExportPpt(reportDoc){
+  if(!window.PptxGenJS){
+    const loading = document.readyState !== 'complete';
+    toast(loading ? 'PPT 라이브러리 로딩 중 — 잠시 후 다시 시도' : 'PPT 라이브러리 로드 실패 — 인터넷 연결 확인', 'warn', 3200);
+    return;
+  }
+  const data = (reportDoc && reportDoc.data) ? reportDoc.data : reportDoc;
+  const pptx = buildReportPpt(reportDoc);
+  if(!pptx || !data?.period){ toast('내보낼 데이터 없음','warn'); return; }
+  const fileName = _reportPptFileName(_REPORT_TITLES[data.scope] || 'AI 보고서', data.period.label);
+  Promise.resolve(pptx.writeFile({ fileName }))
+    .then(() => toast('PPT 내보내기 완료','ok'))
+    .catch(e => toast(`PPT 생성 실패 — ${e?.message || '알 수 없는 오류'}`,'err', 3200));
 }
 
 // 인쇄 — 기존 _openPrint 경유 (formKey:'report' · 기본 세로) + 결재란 미포함(엑셀만 결재)
