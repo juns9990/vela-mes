@@ -979,7 +979,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.27.6';
+const APP_VERSION = 'v0.28.0';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -1247,6 +1247,8 @@ const DB = (() => {
     // DB.get(단건)은 void 포함 유지 — 직접 참조·이름 조회·복원용 (변경 금지)
     get(col,id){ ensure(col); return state[col][id]||null; },
     set(col,id,doc){
+      // ★ v0.28.0 — 보기 전용 권한 쓰기 차단 (단일 쓰기 경로 가드 — correct/voidDoc 도 이 경로 경유)
+      if(typeof _permBlockWrite === 'function' && _permBlockWrite(col)) return null;
       ensure(col);
       const prev = state[col][id]||null;
       const next = {...(prev||{}), ...doc, id, _updated: Date.now()};
@@ -1258,6 +1260,7 @@ const DB = (() => {
     },
     // 보정 레코드 (원본 보존). 수정 = 새 레코드 누적
     correct(col,id,fields,reason){
+      if(typeof _permBlockWrite === 'function' && _permBlockWrite(col)) return null;   // ★ v0.28.0
       const prev = state[col][id];
       if(!prev) return null;
       const corr = {...prev, ...fields, _corrected: true, _correction_reason: reason||'', _updated: Date.now()};
@@ -4280,11 +4283,46 @@ function autoLoginDemo(){
 // ★ v0.15.2 — 관리책임자 전용 페이지 (nav 숨김 + 직접 hash 접근 차단)
 const MANAGER_ONLY = ['set','masters'];
 
+/* ★ v0.28.0 — 담당자별 메뉴 권한 (없음 none / 보기 view / 등록 edit) · 코어 1벌
+   · 관리책임자·개발자 = 전권 고정. 일반 사용자 = users/{id}.perms[pageId] — 미설정 시 'edit' (기존 동작 호환).
+   · 노출: renderNav / router 가 none 차단 · 쓰기: DB.set 단일 경로 가드가 view 차단 (화면별 복사 금지).
+   · 대시보드는 항상 최소 '보기' (홈 상실 방지 — 권한 UI 에서 none 설정 불가). */
+const PERM_LEVELS = ['none','view','edit'];
+const PERM_LABELS = { none:'없음', view:'보기', edit:'등록' };
+function getUserPerm(userId, pageId){
+  if(!userId) return 'edit';
+  const u = DB.get('users', userId);
+  if(!u) return 'edit';
+  if(u.role === 'manager') return 'edit';
+  if(pageId === 'dash'){ const p = u.perms?.dash; return p === 'view' ? 'view' : 'edit'; }
+  const p = u.perms?.[pageId];
+  return PERM_LEVELS.includes(p) ? p : 'edit';
+}
+function currentPagePerm(){
+  if(typeof SESSION === 'undefined' || !SESSION.loggedIn) return 'edit';
+  if(SESSION.role === 'manager' || SESSION.role === 'vendor') return 'edit';
+  return getUserPerm(SESSION.userId, (location.hash||'#dash').replace('#',''));
+}
+let _permToastTs = 0;
+function _permBlockWrite(col){
+  try {
+    if(typeof SESSION === 'undefined' || !SESSION.loggedIn) return false;   // 부팅·시드·마이그레이션
+    if(SESSION.role === 'manager' || SESSION.role === 'vendor') return false;
+    if(col === 'users') return false;                                        // last_login 등 시스템 기록
+    if(currentPagePerm() !== 'view') return false;
+    const now = Date.now();
+    if(now - _permToastTs > 1500){ _permToastTs = now; try { toast('보기 전용 권한 — 등록·수정할 수 없습니다','warn'); } catch(e){} }
+    return true;
+  } catch(e){ return false; }
+}
+
 function renderNav(){
   const flags = getFlags();
   const nav = document.getElementById('nav');
   // MANAGER_ONLY 페이지는 role==='manager' 일 때만 노출 (v0.15.4 — vendor 도 허용)
-  const canSee = p => flags[p.flag] && (!MANAGER_ONLY.includes(p.id) || SESSION.role === 'manager' || SESSION.role === 'vendor');
+  // ★ v0.28.0 — 권한 none 메뉴 숨김 (관리책임자·개발자 제외)
+  const canSee = p => flags[p.flag] && (!MANAGER_ONLY.includes(p.id) || SESSION.role === 'manager' || SESSION.role === 'vendor')
+    && (SESSION.role === 'manager' || SESSION.role === 'vendor' || getUserPerm(SESSION.userId, p.id) !== 'none');
   // ★ v0.16.24 — 정렬 소스만 교체: getMenuOrder() → PAGES 조회 → 게이팅. flags·MANAGER_ONLY 로직 불변.
   const ordered = getMenuOrder().map(id => PAGES.find(p => p.id === id)).filter(Boolean);
   nav.innerHTML = ordered.filter(canSee).map(p=>(
@@ -4305,6 +4343,12 @@ function router(){
     if(location.hash !== '#dash') location.hash = '#dash';
     return;
   }
+  // ★ v0.28.0 — 권한 none 페이지 직접 접근 차단 (대시보드는 항상 허용 — 홈)
+  if(id !== 'dash' && SESSION.role !== 'manager' && SESSION.role !== 'vendor' && getUserPerm(SESSION.userId, id) === 'none'){
+    toast('접근 권한이 없는 메뉴입니다 — 관리책임자에게 문의하세요','warn');
+    if(location.hash !== '#dash') location.hash = '#dash';
+    return;
+  }
   const flags = getFlags();
   const page = PAGES.find(p=>p.id===id && flags[p.flag]) || PAGES.find(p=>flags[p.flag]);
   if(!page){ document.getElementById('view').innerHTML='<div class="card">사용 가능한 화면이 없습니다.</div>'; return; }
@@ -4312,6 +4356,11 @@ function router(){
   const fn = VIEWS[page.id];
   if(!fn){ document.getElementById('view').innerHTML='<div class="card">미구현</div>'; return; }
   fn();
+  // ★ v0.28.0 — 보기 전용 배너 (렌더 후 상단 1줄 · 쓰기는 DB.set 가드가 차단)
+  if(currentPagePerm() === 'view'){
+    document.getElementById('view').insertAdjacentHTML('afterbegin',
+      `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--amber);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:9px;padding:8px 13px;margin-bottom:14px">👁 <b>보기 전용</b> — 이 메뉴에서는 조회만 가능합니다 (등록·수정 권한: 관리책임자 문의)</div>`);
+  }
 }
 window.addEventListener('hashchange', router);
 
@@ -12498,6 +12547,7 @@ VIEWS._drawNewModal = () => {
         <div><label>사유</label><input id="dw-reason" value="신규 제정"></div>
       </div>
       <div><label>메모 (선택)</label><input id="dw-memo"></div>
+      <div style="font-size:10.5px;color:var(--cyan-dim);margin-top:6px">저장하면 <b>첨부 창(파일 업로드 · 링크 · PC 경로)</b>이 바로 열립니다 — 이후엔 목록의 [첨부 N] 버튼</div>
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn primary" id="dw-ok">${ico('save')}등록</button>
@@ -12518,6 +12568,8 @@ VIEWS._drawNewModal = () => {
       active: true, created: Date.now(), by: SESSION.user,
     });
     toast(`도면 등록 — ${no} · Rev ${rev}`,'ok'); closeModal(); router();
+    // ★ v0.28.0 — 등록 직후 첨부 창 자동 오픈 (파일·링크·PC 경로를 바로 등록하도록 동선 연결)
+    setTimeout(()=>{ try { VIEWS._drawFilesModal(no); } catch(e){} }, 150);
   };
 };
 /* 리비전 업 모달 — revs 증분 누적 · current_rev 갱신 (이력 보존) */
@@ -19741,6 +19793,57 @@ VIEWS.set = () => {
   function activeManagerCount(){
     return DB.all('users').filter(x => x.active !== false && x.role === 'manager').length;
   }
+  /* ★ v0.28.0 — 담당자별 메뉴 권한 설정 모달 (없음/보기/등록 · 관리책임자 전용 UI) */
+  function openUserPermModal(uid){
+    const u = DB.get('users', uid); if(!u) return;
+    const flags = getFlags();
+    const pages = PAGES.filter(p => flags[p.flag] && !MANAGER_ONLY.includes(p.id) && p.id !== 'dash');
+    const cur = pid => { const v = u.perms?.[pid]; return PERM_LEVELS.includes(v) ? v : 'edit'; };
+    const dashCur = u.perms?.dash === 'view' ? 'view' : 'edit';
+    const radio = (pid, lv, checked) => `<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:11.5px;margin:0"><input type="radio" name="pm-${pid}" value="${lv}" ${checked?'checked':''} style="width:auto;margin:0"> ${PERM_LABELS[lv]}</label>`;
+    openModal(`
+      <h2>메뉴 권한 — ${_esc(u.name)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+      <div class="body">
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <button class="btn" id="pm-all-edit" style="font-size:11px;padding:6px 12px">전체 등록</button>
+          <button class="btn" id="pm-all-view" style="font-size:11px;padding:6px 12px">전체 보기</button>
+          <button class="btn" id="pm-all-none" style="font-size:11px;padding:6px 12px">전체 없음</button>
+          <span style="margin-left:auto;font-size:10.5px;color:var(--dim);align-self:center">없음=메뉴 숨김 · 보기=조회만 · 등록=현행 전체</span>
+        </div>
+        <div class="tbl-wrap" style="max-height:340px;overflow-y:auto"><table style="font-size:12px">
+          <thead><tr><th>메뉴</th><th>권한</th></tr></thead>
+          <tbody>
+            <tr><td><b>대시보드</b> <span class="tag" style="font-size:9px">항상 표시 — 홈</span></td>
+              <td><div style="display:flex;gap:14px">${radio('dash','edit',dashCur==='edit')}${radio('dash','view',dashCur==='view')}</div></td></tr>
+            ${pages.map(p=>`<tr><td><b>${_esc(p.title)}</b></td>
+              <td><div style="display:flex;gap:14px">${PERM_LEVELS.slice().reverse().map(lv=>radio(p.id,lv,cur(p.id)===lv)).join('')}</div></td></tr>`).join('')}
+          </tbody>
+        </table></div>
+        <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.6">
+          보기 권한에서는 화면의 등록·수정·취소가 전부 차단됩니다(저장 경로 공통 가드). 설정·기준정보는 관리책임자 전용이라 목록에 없습니다.
+        </div>
+        <div class="actions">
+          <button class="btn" onclick="closeModal()">취소</button>
+          <button class="btn primary" id="pm-save">${ico('save')}권한 저장</button>
+        </div>
+      </div>`, { width:'560px' });
+    const setAll = lv => { document.querySelectorAll('[name^="pm-"]').forEach(r => { if(r.value===lv && (r.name!=='pm-dash' || lv!=='none')) r.checked = true; }); };
+    document.getElementById('pm-all-edit').onclick = () => setAll('edit');
+    document.getElementById('pm-all-view').onclick = () => setAll('view');
+    document.getElementById('pm-all-none').onclick = () => { setAll('none'); document.querySelector('[name="pm-dash"][value="view"]').checked = true; };
+    document.getElementById('pm-save').onclick = () => {
+      const perms = {};
+      const dv = document.querySelector('[name="pm-dash"]:checked')?.value;
+      if(dv === 'view') perms.dash = 'view';
+      pages.forEach(p => {
+        const v = document.querySelector(`[name="pm-${p.id}"]:checked`)?.value;
+        if(v && v !== 'edit') perms[p.id] = v;   // edit = 기본값 → 저장 생략 (문서 슬림)
+      });
+      DB.set('users', uid, { perms });
+      toast(`권한 저장 — ${u.name}`,'ok');
+      closeModal(); renderUsers();
+    };
+  }
   function renderUsers(){
     const users = DB.all('users').sort((a,b)=>{
       const aa = a.active !== false, ba = b.active !== false;
@@ -19765,6 +19868,7 @@ VIEWS.set = () => {
         <td class="muted">${last}</td>
         <td style="text-align:right">
           <div style="display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+            ${!isMgr && active ? `<button class="btn ghost" data-usr-perm="${u.id}" style="color:var(--cyan)">권한</button>` : ''}
             <button class="btn ghost" data-usr-pin="${u.id}">PIN 재설정</button>
             <button class="btn ghost" data-usr-edit="${u.id}">수정</button>
             ${stateBtn}
@@ -19772,6 +19876,7 @@ VIEWS.set = () => {
         </td>
       </tr>`;
     }).join('') : `<tr><td colspan="5" class="empty">사용자 없음</td></tr>`;
+    document.querySelectorAll('[data-usr-perm]').forEach(b=>b.onclick      = ()=>openUserPermModal(b.dataset.usrPerm));
     document.querySelectorAll('[data-usr-pin]').forEach(b=>b.onclick       = ()=>usrResetPin(b.dataset.usrPin));
     document.querySelectorAll('[data-usr-edit]').forEach(b=>b.onclick      = ()=>usrEdit(b.dataset.usrEdit));
     document.querySelectorAll('[data-usr-quit]').forEach(b=>b.onclick      = ()=>usrQuit(b.dataset.usrQuit));
