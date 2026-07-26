@@ -426,8 +426,16 @@ tr.mst-off td{opacity:.45}
   .print-only{display:block!important}
 }
 .print-only{display:none}
-.print-doc{padding:8mm;background:#fff;color:#000;font-size:12px;border:1px dashed var(--line);margin-bottom:14px}
+.print-doc{padding:8mm;background:#fff;color:#000;font-size:12px;border:1px dashed #bbb;margin-bottom:14px;
+  /* ★ v0.26.7 — 출력물 미리보기 = 항상 밝은 인쇄물 (테마 무관 · 실사용 지적)
+     내부 마크업이 참조하는 CSS 변수를 인쇄 안전값으로 스코프 재정의 —
+     다크 테마에서도 머리글 배경(--bg2)·보조 텍스트(--sub)·상태색(--red/--amber 등)이 종이 기준으로 고정된다. */
+  --bg:#fff; --bg2:#f0f0f0; --panel:#fff; --panel2:#f4f4f4;
+  --ink:#000; --sub:#333; --dim:#666; --line:#bbb; --line2:#888;
+  --cyan:#0d9488; --cyan-dim:#0d9488; --green:#047857; --red:#b91c1c;
+  --amber:#92400e; --blue:#0369a1; --heat:#c2410c; --heat2:#b45309;}
 .print-doc h1{font-size:18px;margin-bottom:10px;text-align:center;letter-spacing:2px}
+.print-doc table th{background:#efefef;color:#111}
 .print-doc table th,.print-doc table td{color:#000;border-bottom:1px solid #888;padding:6px 8px}
 .print-doc .doc-head{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
 .print-doc .doc-sign{display:flex;justify-content:flex-end;gap:30px;margin-top:24px;font-size:11px}
@@ -967,7 +975,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.26.6';
+const APP_VERSION = 'v0.27.0';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -1128,6 +1136,7 @@ const _FS_COLLECTIONS = [
   'reports',   // ★ v0.24.0 — AI 보고서 스냅샷 (RP 채번)
   'nc_records','defect_types',   // ★ v0.25.0 — 부적합·불량 유형 (누락 보정)
   'customers','master_fields','import_logs',   // ★ v0.26.0 — 고객사 마스터·정의 필드·임포트 이력
+  'acct_receipts','acct_payments','acct_expenses','acct_invoices','expense_categories',   // ★ v0.27.0 — 회계 (특급)
 ];
 /* ★ v0.21.2 — config 해석: 로컬 오버라이드 우선 → 없으면 내장 DEFAULT_FIREBASE_CONFIG.
    반환 { cfg, source } — source 는 pill/설정 표시용. cfg 없음(둘 다 없음) 시 null. */
@@ -1434,6 +1443,10 @@ function unvoidDoc(col,id){
    · 수동 번호 편집 허용 · 저장 시 checkDocIdDup 로 중복 차단(가짜 채번 방지)
    · deleteDoc 금지 — 채번 카운트는 allRaw 기준(void 포함)이어서 취소된 번호는 재사용 안 함 */
 const _PREFIX_TO_COL = {
+  AR: 'acct_receipts',    // ★ v0.27.0 — 수금
+  AP: 'acct_payments',    // ★ v0.27.0 — 지급
+  EX: 'acct_expenses',    // ★ v0.27.0 — 경비
+  TI: 'acct_invoices',    // ★ v0.27.0 — 세금계산서 발행 기록
   PO: 'purchase_orders',
   WO: 'work_orders',
   MR: 'material_receipts',
@@ -1773,6 +1786,11 @@ const MODULE_DEFS = [
     ]},
   // ★ v0.25.0 — 품질 관리 (판매 옵션) — 부적합 등록·처리(재작업/폐기/특채/반품) · 파레토 · LOT/보고서 연동
   //   대원칙(G1): 재고·실적·마감 원장을 직접 수정하지 않는다 — 기록·추적·통계·안내만.
+  // ★ v0.27.0 — 회계 (특급 옵션 1호) · 원장 읽기 전용
+  { mod:'acct',    title:'회계 (특급)', desc:'수금/지급 원장 · 세금계산서 발행 관리 · 경비 · 월 관리 손익 — 실적·마감 원장은 읽기만',
+    items:[
+      ['acct',     '회계',           false, false],
+    ]},
   { mod:'qc',      title:'품질 관리', desc:'부적합(NC) 등록·처리 4갈래·파레토·LOT 이력 연동 · ISO 8.7 최소형',
     items:[
       ['qc',       '품질 관리',      false, false],
@@ -1975,6 +1993,8 @@ const PAGES = [
   { id:'pallet',flag:'pallet',title:'파렛트',     icon:'<rect x="3" y="7" width="18" height="13" rx="1"/><path d="M3 12h18M8 7v13M16 7v13"/>' },
   // ★ v0.16.26 — 마감 (파렛트와 문서출력 사이 기본 위치)
   { id:'closing', flag:'closing', title:'마감',   icon:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 15h3M13 15h3M8 18h8"/>' },
+  // ★ v0.27.0 — 회계 (마감 뒤 · 특급)
+  { id:'acct',  flag:'acct',  title:'회계',  icon:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 14h4M7 17h2"/><circle cx="17" cy="15.5" r="2.2"/>' },
   // ★ v0.24.0 — AI 보고서 (마감 뒤)
   { id:'report',  flag:'report',  title:'AI 보고서', icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>' },
   // ★ '그 외 기존' — 원가 · 자동계획 · 설비현황 · 금형 (파렛트와 문서출력 사이 위치 유지)
@@ -2026,6 +2046,13 @@ function saveMenuOrder(order){ DB.set('settings','menu', { order: order.slice() 
    §시드 데이터 — 단조 프리셋
    ------------------------------------------------------------------------------------------------- */
 function seedIfEmpty(){
+  // ★ v0.27.0 — 경비 분류 기본 마스터 (데이터 — 사용자가 추가/비활성 관리)
+  if(DB.all('expense_categories').length===0){
+    ['임차료','전기·수도','보험료','소모품','차량·유류','기타'].forEach((n,i)=>{
+      const id = 'EC-'+String(i+1).padStart(3,'0');
+      DB.set('expense_categories', id, { id, name:n, order:(i+1)*10, active:true });
+    });
+  }
   if(DB.all('items').length===0){
     // ★ v0.6.0 — items에서 coining 제거. 라우트(BOM)가 공정 포함 여부를 정함.
     // ★ v0.13.0 — cust(고객사 vendor code) 추가. 검색·재고화면 표시용.
@@ -2465,6 +2492,39 @@ function seedDemoData(){
     const id = _closingId('sales', m);
     DB.set('closings', id, { id, type:'sales', month:m, rows, totals, missingCount:0, closed_at: now - (90-idx*30)*DAY, by:'데모', void:null });
   });
+
+  // ─────────────── 12-1. ★ v0.27.0 — 회계 데모 시드 (수금·지급·경비·계산서) ───────────────
+  //   원칙(G1): 기존 원장 무변 — acct_* 컬렉션과 경비 분류만 증분. 고정 id (재시드 멱등).
+  if(DB.all('expense_categories').length===0){
+    ['임차료','전기·수도','보험료','소모품','차량·유류','기타'].forEach((n,i)=>{
+      const ecId = 'EC-'+String(i+1).padStart(3,'0');
+      DB.set('expense_categories', ecId, { id:ecId, name:n, order:(i+1)*10, active:true });
+    });
+  }
+  DB.set('settings','acct', { warn_days:45 });
+  const _amFmt = ts => fmt(ts);
+  [ // 수금 3건 — C001 두 번(이체·어음), C002 한 번
+    { id:'AR-DEMO-001', vendor:'C001', amount:1500000, method:'계좌이체', bill_due:'', date:_amFmt(daysBack(40)), memo:'전전월 수금', ts:daysBack(40) },
+    { id:'AR-DEMO-002', vendor:'C001', amount: 800000, method:'어음',     bill_due:_amFmt(now+30*DAY), date:_amFmt(daysBack(12)), memo:'어음 수취', ts:daysBack(12) },
+    { id:'AR-DEMO-003', vendor:'C002', amount: 600000, method:'현금',     bill_due:'', date:_amFmt(daysBack(8)),  memo:'', ts:daysBack(8) },
+  ].forEach(r => DB.set('acct_receipts', r.id, { ...r, by:'데모' }));
+  [ // 지급 2건 — 소재사·외주처
+    { id:'AP-DEMO-001', vendor:'S001', amount:900000, method:'계좌이체', bill_due:'', date:_amFmt(daysBack(20)), memo:'소재대', ts:daysBack(20) },
+    { id:'AP-DEMO-002', vendor:'V001', amount:300000, method:'계좌이체', bill_due:'', date:_amFmt(daysBack(6)),  memo:'열처리비', ts:daysBack(6) },
+  ].forEach(p => DB.set('acct_payments', p.id, { ...p, by:'데모' }));
+  { // 경비 — 지난달 임차료(매월 반복) + 이번 달 소모품 (반복 제안 데모: 이번 달 임차료 미등록 상태)
+    const lastM = _tsMonth(daysBack(32)), thisM = _tsMonth(now);
+    [
+      { id:'EX-DEMO-001', category:'임차료', name:'공장 임차료', amount:2000000, date:`${lastM}-05`, cl_month:lastM, repeat_monthly:true,  memo:'', ts:daysBack(32) },
+      { id:'EX-DEMO-002', category:'소모품', name:'절삭유',      amount: 150000, date:`${thisM}-03`, cl_month:thisM, repeat_monthly:false, memo:'', ts:daysBack(3) },
+    ].forEach(e => DB.set('acct_expenses', e.id, { ...e, by:'데모' }));
+  }
+  { // 계산서 발행 기록 1건 — 지난달 C001
+    const lastM = _tsMonth(daysBack(32));
+    DB.set('acct_invoices', 'TI-DEMO-001', { id:'TI-DEMO-001', vendor:'C001', month:lastM,
+      amount: Math.round(calcClosing('sales', lastM).byParty['C001']?.amount || 0),
+      issue_date:`${lastM}-28`, memo:'전자발행', ts:daysBack(2), by:'데모' });
+  }
 
   // ─────────────── 13. 품질 (v0.25.0) — 불량 유형 4종 + NC 6건 (상태 골고루) ───────────────
   //   원칙(G1): 기존 원장(records/lots/orders/shipments)에는 손대지 않음 — nc_records/defect_types 만 증분.
@@ -11466,6 +11526,566 @@ VIEWS.docs = () => {
   }
 
   render();
+};
+
+/* =================================================================================================
+   ★ v0.27.0 — 회계 (특급 옵션 1호) · 페이즈 A~E
+   원칙 (CLAUDE.md §5 · §1-6 원장 무변):
+   · 회계는 실적·재고·마감 원장을 **읽기만** 한다. 발생액 산식 = calcClosing 1벌 재사용 (재계산 금지).
+   · 미수 진실 = calcReceivable 1벌 — 이후 마감·대시보드·AI 보고서가 공통 참조할 유일 함수.
+   · 수금/지급/경비/계산서 = 부가 기록(acct_*) — void 만, deleteDoc 금지, increment-only.
+   · 어음 = 수금/지급 '수단' 선택지 + 만기일 기록만 (별도 어음 관리 화면은 후속 — 사용자 판정: 선택형).
+   · 경고 기준(기본 45일)·수단 목록 = settings/acct 설정값 (하드코딩 금지 — 사용자 판정: 변동 가능).
+   · 고정비 = 항목별 '매월 반복' 플래그 + 새 달 제안형 일괄 등록 (무단 자동 기록 없음 — 원장 무변 정신).
+   · 마감 paid(월 결제 수기)와 건별 수금 원장은 이번 버전에선 독립 — 통합안은 별도 제안.
+   ================================================================================================= */
+/* 숫자 천단위 1벌 (전역 — 마감 화면의 동명 지역 const 와 무충돌·동일 산식) */
+function fmtN(n){ return Math.round(+n||0).toLocaleString(); }
+function getAcctSettings(){
+  const s = DB.get('settings','acct') || {};
+  return {
+    warn_days: (+s.warn_days > 0) ? +s.warn_days : 45,
+    methods: (Array.isArray(s.methods) && s.methods.length) ? s.methods : ['현금','계좌이체','어음'],
+  };
+}
+/* 전 기간 발생액 (거래처별 매출/매입/외주) — calcClosing 1벌을 월 단위로 합산 (산식 복제 금지) */
+function _acctMonthsInData(){
+  const set = new Set();
+  ['shipments','material_receipts','purchase_receipts','os_receipts'].forEach(c =>
+    DB.all(c).forEach(d => { const m = getClMonth(d); if(m) set.add(m); }));
+  return [...set].sort();
+}
+function calcAcctFlows(){
+  const flows = { sales:{}, purchase:{}, outsource:{}, missingCount:0 };
+  _acctMonthsInData().forEach(m => {
+    ['sales','purchase','outsource'].forEach(t => {
+      const cl = calcClosing(t, m);
+      Object.values(cl.byParty).forEach(r => { flows[t][r.party] = (flows[t][r.party]||0) + r.amount; });
+      if(t==='purchase') flows.missingCount += cl.missingCount;
+    });
+  });
+  return flows;
+}
+/* ★ 미수 진실 1벌 — vendor 생략 시 전체 맵. balance = 매출 발생 누계 − 수금 누계 */
+function calcReceivable(vendor){
+  const sales = calcAcctFlows().sales;
+  const recv = {};
+  Object.keys(sales).forEach(v => { recv[v] = { accrued: sales[v], received: 0, balance: sales[v], last_receipt: null }; });
+  DB.all('acct_receipts').forEach(r => {
+    const v = r.vendor;
+    if(!recv[v]) recv[v] = { accrued: 0, received: 0, balance: 0, last_receipt: null };
+    recv[v].received += (+r.amount||0);
+    if(!recv[v].last_receipt || (r.date||'') > recv[v].last_receipt) recv[v].last_receipt = r.date || null;
+  });
+  Object.keys(recv).forEach(v => { recv[v].balance = recv[v].accrued - recv[v].received; });
+  return vendor===undefined ? recv : (recv[vendor] || { accrued:0, received:0, balance:0, last_receipt:null });
+}
+/* 미지급 1벌 — 매입+외주 발생 − 지급 */
+function calcPayable(vendor){
+  const f = calcAcctFlows();
+  const pay = {};
+  const add = map => Object.keys(map).forEach(v => {
+    pay[v] = pay[v] || { accrued:0, paid:0, balance:0, last_payment:null };
+    pay[v].accrued += map[v];
+  });
+  add(f.purchase); add(f.outsource);
+  DB.all('acct_payments').forEach(p => {
+    const v = p.vendor;
+    if(!pay[v]) pay[v] = { accrued:0, paid:0, balance:0, last_payment:null };
+    pay[v].paid += (+p.amount||0);
+    if(!pay[v].last_payment || (p.date||'') > pay[v].last_payment) pay[v].last_payment = p.date || null;
+  });
+  Object.keys(pay).forEach(v => { pay[v].balance = pay[v].accrued - pay[v].paid; });
+  return vendor===undefined ? pay : (pay[vendor] || { accrued:0, paid:0, balance:0, last_payment:null });
+}
+/* 경과일 — 마지막 수금일 기준 (수금 이력 없으면 null → "수금 이력 없음" 표기) · 정직 라벨 */
+function acctOverdueDays(info){
+  if(!info || info.balance<=0 || !info.last_receipt) return null;
+  const t = new Date(info.last_receipt + 'T00:00:00').getTime();
+  if(isNaN(t)) return null;
+  return Math.floor((Date.now()-t)/86400000);
+}
+/* 월 경비 (귀속 월 = cl_month 우선 · date 파생 — 마감과 동일 규칙) */
+function acctExpensesOf(month){
+  return DB.all('acct_expenses').filter(e => (e.cl_month || (e.date||'').slice(0,7) || _tsMonth(e.ts)) === month);
+}
+/* 반복 경비 제안 1벌 — 이전 달 repeat_monthly 항목 중 이번 달 (분류|이름) 미등록분 */
+function _acctRepeatSuggestions(month){
+  const key = e => `${e.category}|${e.name}`;
+  const curKeys = new Set(acctExpensesOf(month).map(key));
+  const map = {};
+  DB.all('acct_expenses').forEach(e => {
+    if(!e.repeat_monthly) return;
+    const m = e.cl_month || (e.date||'').slice(0,7) || _tsMonth(e.ts);
+    if(m >= month) return;
+    const k = key(e);
+    if(!map[k] || m > map[k]._m) map[k] = { ...e, _m: m };
+  });
+  return Object.values(map).filter(e => !curKeys.has(key(e)));
+}
+/* 월 관리 손익 1벌 — 마감 발생액 기준 (간이·세전 · 세무 신고용 아님) */
+function calcAcctPnl(month){
+  const sum = cl => Object.values(cl.byParty).reduce((s,r)=>s+r.amount,0);
+  const sales = calcClosing('sales', month);
+  const purchase = calcClosing('purchase', month);
+  const outsource = calcClosing('outsource', month);
+  const expenses = acctExpensesOf(month).reduce((s,e)=>s+(+e.amount||0),0);
+  const revenue = sum(sales), pur = sum(purchase), os = sum(outsource);
+  return { month, revenue, purchase: pur, outsource: os, expenses,
+           profit: revenue - pur - os - expenses, missingCount: purchase.missingCount };
+}
+/* 세금계산서 대상 1벌 = 마감 매출 산식 그대로 (calcClosing) — "대상 = 마감 일치" 구조적 보장 */
+function calcInvoiceTargets(month){
+  const cl = calcClosing('sales', month);
+  return Object.values(cl.byParty)
+    .map(r => ({ vendor: r.party, name: DB.get('vendors', r.party)?.name || r.party, amount: r.amount }))
+    .filter(x => x.amount > 0).sort((a,b)=>b.amount-a.amount);
+}
+function _acctVName(code){ return DB.get('vendors', code)?.name || code || '—'; }
+function _acctThisMonth(){ return _tsMonth(Date.now()); }
+
+/* ── 회계 허브 (원장 · 계산서·경비 · 손익) — matin 허브 패턴 재사용 ─────────────── */
+function _acctHubBar(active){
+  const btn = (k, label) => `<button class="btn ${active===k?'primary':''}" data-accttab="${k}" style="border-radius:99px;padding:8px 20px;font-weight:600">${label}</button>`;
+  return `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">${btn('ledger','수금/지급 원장')}${btn('invoice','세금계산서·경비')}${btn('pnl','월 관리 손익')}</div>`;
+}
+function _acctBindHub(){
+  document.querySelectorAll('[data-accttab]').forEach(b => b.onclick = () => {
+    window._acctHub.tab = b.dataset.accttab; router();
+  });
+}
+VIEWS.acct = () => {
+  const state = (window._acctHub = window._acctHub || { tab:'ledger', month:_acctThisMonth() });
+  if(state.tab==='invoice') return VIEWS._acctInvoice();
+  if(state.tab==='pnl')     return VIEWS._acctPnl();
+  return VIEWS._acctLedger();
+};
+
+/* ── 화면 1 · 수금/지급 원장 ─────────────────────────────────────────────────── */
+VIEWS._acctLedger = () => {
+  const st = getAcctSettings();
+  const recv = calcReceivable();
+  const pay  = calcPayable();
+  const month = _acctThisMonth();
+  const rcpts = DB.all('acct_receipts').slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const pmts  = DB.all('acct_payments').slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const monthSum = (arr) => arr.filter(x => (x.date||'').slice(0,7)===month).reduce((s,x)=>s+(+x.amount||0),0);
+  const totRecv = Object.values(recv).reduce((s,r)=>s+Math.max(0,r.balance),0);
+  const totPay  = Object.values(pay ).reduce((s,r)=>s+Math.max(0,r.balance),0);
+
+  const recvRows = Object.entries(recv).filter(([,r]) => r.accrued>0 || r.received>0)
+    .sort((a,b)=>b[1].balance-a[1].balance).map(([v,r]) => {
+      const od = acctOverdueDays(r);
+      const warn = od!=null && od >= st.warn_days;
+      return `<tr>
+        <td><b>${_esc(_acctVName(v))}</b></td>
+        <td class="num mono">${fmtN(r.accrued)}</td>
+        <td class="num mono">${fmtN(r.received)}</td>
+        <td class="num mono" style="font-weight:700;color:${r.balance>0?'var(--amber)':'var(--green)'}">${fmtN(r.balance)}</td>
+        <td class="muted">${r.last_receipt || '<span class="muted">수금 이력 없음</span>'}</td>
+        <td>${warn ? `<span class="pill red">경과 ${od}일</span>` : (od!=null ? `<span class="pill gray">${od}일</span>` : '—')}</td>
+        <td><button class="btn ghost" data-ar-new="${_esc(v)}">${ico('plus')}수금</button></td>
+      </tr>`;
+    }).join('');
+
+  const payRows = Object.entries(pay).filter(([,r]) => r.accrued>0 || r.paid>0)
+    .sort((a,b)=>b[1].balance-a[1].balance).map(([v,r]) => `<tr>
+        <td><b>${_esc(_acctVName(v))}</b></td>
+        <td class="num mono">${fmtN(r.accrued)}</td>
+        <td class="num mono">${fmtN(r.paid)}</td>
+        <td class="num mono" style="font-weight:700;color:${r.balance>0?'var(--amber)':'var(--green)'}">${fmtN(r.balance)}</td>
+        <td class="muted">${r.last_payment || '—'}</td>
+        <td><button class="btn ghost" data-ap-new="${_esc(v)}">${ico('plus')}지급</button></td>
+      </tr>`).join('');
+
+  const flow = [
+    ...rcpts.map(r => ({...r, _t:'수금'})),
+    ...pmts.map(p => ({...p, _t:'지급'})),
+  ].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,40);
+  const flowRows = flow.length ? flow.map(x => `<tr>
+      <td><span class="pill ${x._t==='수금'?'green':'blue'}">${x._t}</span></td>
+      <td class="mono">${_esc(x.id)}</td>
+      <td>${_esc(_acctVName(x.vendor))}</td>
+      <td class="num mono"><b>${fmtN(x.amount)}</b></td>
+      <td>${_esc(x.method||'—')}${x.bill_due?` <span class="pill amber" style="font-size:9px">어음 ${_esc(x.bill_due)}</span>`:''}</td>
+      <td class="muted">${_esc(x.date||'')}</td>
+      <td class="muted" style="font-size:11px">${_esc(x.memo||'')}</td>
+      <td><button class="btn ghost" data-acct-void="${x._t==='수금'?'acct_receipts':'acct_payments'}:${_esc(x.id)}" style="color:var(--red)">${ico('x')}취소</button></td>
+    </tr>`).join('') : `<tr><td colspan="8" class="empty">수금·지급 기록 없음 — 위 표에서 [수금]/[지급]으로 등록</td></tr>`;
+
+  document.getElementById('view').innerHTML = `
+    <div class="pghead">
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('acct')}</svg>회계 <span class="pill cyan">${APP_VERSION}</span></div>
+      <div class="pgtools"><button class="btn" id="acct-lg-xlsx">${ico('excel')}엑셀</button></div>
+    </div>
+    ${_acctHubBar('ledger')}
+    <div style="font-size:11px;color:var(--dim);margin-bottom:12px">발생액 = 마감과 동일 산식(calcClosing) · 회계는 실적·재고 원장을 읽기만 합니다 · 건별 수금/지급 원장 (마감의 월 결제 수기와 독립)</div>
+    <div class="grid g4" style="margin-bottom:14px">
+      <div class="card"><div style="font-size:11px;color:var(--sub)">총 미수</div><div class="mono" style="font-size:22px;font-weight:800;color:var(--amber)">₩${fmtN(totRecv)}</div></div>
+      <div class="card"><div style="font-size:11px;color:var(--sub)">총 미지급</div><div class="mono" style="font-size:22px;font-weight:800;color:var(--blue)">₩${fmtN(totPay)}</div></div>
+      <div class="card"><div style="font-size:11px;color:var(--sub)">${month} 수금</div><div class="mono" style="font-size:22px;font-weight:800;color:var(--green)">₩${fmtN(monthSum(rcpts))}</div></div>
+      <div class="card"><div style="font-size:11px;color:var(--sub)">${month} 지급</div><div class="mono" style="font-size:22px;font-weight:800">₩${fmtN(monthSum(pmts))}</div></div>
+    </div>
+    <div class="card" style="padding:12px 14px;margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--sub)">미수 경과 경고 기준</span>
+      <input id="acct-warn-days" type="number" min="1" step="1" value="${st.warn_days}" style="width:80px;text-align:right">
+      <span style="font-size:12px;color:var(--sub)">일 (마지막 수금일 기준)</span>
+      <button class="btn" id="acct-warn-save" style="font-size:11.5px;padding:6px 12px">${ico('save')}저장</button>
+      <span style="margin-left:auto;font-size:11px;color:var(--dim)">설정값 — settings/acct (업체별 변경 가능)</span>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <h3 style="margin-bottom:10px">수금 (매출채권) <span class="tag">고객사별</span></h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>고객사</th><th class="num">매출 발생 누계</th><th class="num">수금 누계</th><th class="num">미수</th><th>마지막 수금</th><th>경과</th><th></th></tr></thead>
+        <tbody>${recvRows || '<tr><td colspan="7" class="empty">매출 발생 없음</td></tr>'}</tbody>
+      </table></div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <h3 style="margin-bottom:10px">지급 (매입채무) <span class="tag">구매처·외주처별 · 매입+외주 발생 기준</span></h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>거래처</th><th class="num">발생 누계</th><th class="num">지급 누계</th><th class="num">미지급</th><th>마지막 지급</th><th></th></tr></thead>
+        <tbody>${payRows || '<tr><td colspan="6" class="empty">매입·외주 발생 없음</td></tr>'}</tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:10px">원장 흐름 <span class="tag">최근 40건 · 취소=void (물리 삭제 없음)</span></h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>구분</th><th>번호</th><th>거래처</th><th class="num">금액</th><th>수단</th><th>일자</th><th>메모</th><th></th></tr></thead>
+        <tbody>${flowRows}</tbody>
+      </table></div>
+    </div>`;
+  _acctBindHub();
+  document.getElementById('acct-warn-save').onclick = () => {
+    const d = Math.max(1, Math.floor(+document.getElementById('acct-warn-days').value || 45));
+    DB.set('settings','acct', { warn_days: d });
+    toast(`미수 경고 기준 — ${d}일 저장`,'ok'); router();
+  };
+  document.querySelectorAll('[data-ar-new]').forEach(b => b.onclick = () => VIEWS._acctMoneyModal('receipt', b.dataset.arNew));
+  document.querySelectorAll('[data-ap-new]').forEach(b => b.onclick = () => VIEWS._acctMoneyModal('payment', b.dataset.apNew));
+  document.querySelectorAll('[data-acct-void]').forEach(b => b.onclick = () => {
+    const [col, id] = b.dataset.acctVoid.split(':');
+    if(!confirm('이 기록을 취소(void)할까요? 물리 삭제는 되지 않습니다.')) return;
+    voidDoc(col, id, '오입력'); toast('취소 처리 — '+id,'warn'); router();
+  });
+  document.getElementById('acct-lg-xlsx').onclick = () => {
+    const rows = [
+      ...Object.entries(recv).map(([v,r])=>({ 구분:'수금(미수)', 거래처:_acctVName(v), 발생누계:r.accrued, 결제누계:r.received, 잔액:r.balance, 마지막일:r.last_receipt||'' })),
+      ...Object.entries(pay ).map(([v,r])=>({ 구분:'지급(미지급)', 거래처:_acctVName(v), 발생누계:r.accrued, 결제누계:r.paid, 잔액:r.balance, 마지막일:r.last_payment||'' })),
+    ];
+    exportXlsx(rows, '수금지급원장', `수금지급원장_${fmtDate(Date.now())}.xlsx`);
+  };
+};
+/* 수금/지급 등록 모달 (공용 1벌 · 어음 = 수단 + 만기일) */
+VIEWS._acctMoneyModal = (kind, vendor) => {
+  const isR = kind==='receipt';
+  const st = getAcctSettings();
+  const prefix = isR ? 'AR' : 'AP';
+  const info = isR ? calcReceivable(vendor) : calcPayable(vendor);
+  const bal = Math.max(0, info.balance||0);
+  openModal(`
+    <h2>${isR?'수금':'지급'} 등록 — ${_esc(_acctVName(vendor))} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      ${docNoField(prefix, 'am-id')}
+      <div class="grid g2">
+        <div><label>금액 (원) <span style="color:var(--dim);font-weight:400">— 현재 ${isR?'미수':'미지급'} ₩${fmtN(bal)}</span></label>
+          <input id="am-amt" type="number" min="1" step="1" value="${bal>0?bal:''}" placeholder="금액"></div>
+        <div><label>일자</label><input id="am-date" type="date" value="${fmtDate(Date.now())}"></div>
+      </div>
+      <div class="grid g2">
+        <div><label>수단</label>
+          <select id="am-method">${st.methods.map(m=>`<option value="${_esc(m)}">${_esc(m)}</option>`).join('')}</select></div>
+        <div id="am-bill-wrap" style="display:none"><label>어음 만기일</label><input id="am-bill-due" type="date"></div>
+      </div>
+      <div><label>메모 (선택)</label><input id="am-memo" placeholder="예: ${isR?'6월분 수금':'6월 소재대 지급'}"></div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="am-ok">${ico('save')}등록</button>
+      </div>
+    </div>`);
+  const mSel = document.getElementById('am-method');
+  mSel.onchange = () => { document.getElementById('am-bill-wrap').style.display = mSel.value==='어음' ? '' : 'none'; };
+  document.getElementById('am-ok').onclick = () => {
+    const amt = Math.round(+document.getElementById('am-amt').value || 0);
+    if(amt<=0){ toast('금액 입력','warn'); return; }
+    const no = resolveDocNo('am-id', prefix);
+    if(no.dup){ toast(`번호 중복 — ${no.id}`,'err'); return; }
+    const method = mSel.value;
+    const doc = {
+      id: no.id, vendor, amount: amt, method,
+      bill_due: method==='어음' ? (document.getElementById('am-bill-due').value || '') : '',
+      date: document.getElementById('am-date').value || fmtDate(Date.now()),
+      memo: document.getElementById('am-memo').value.trim(),
+      ts: Date.now(), by: SESSION.user,
+    };
+    DB.set(isR?'acct_receipts':'acct_payments', no.id, doc);
+    toast(`${isR?'수금':'지급'} 등록 — ${no.id} · ₩${fmtN(amt)}`,'ok');
+    closeModal(); router();
+  };
+};
+
+/* ── 화면 2 · 세금계산서 발행 관리 + 경비 ────────────────────────────────────── */
+VIEWS._acctInvoice = () => {
+  const state = window._acctHub;
+  const month = state.month || _acctThisMonth();
+  const targets = calcInvoiceTargets(month);
+  const invs = DB.all('acct_invoices').filter(x => x.month===month);
+  const invOf = v => invs.find(x => x.vendor===v);
+  const targetRows = targets.length ? targets.map(t => {
+    const inv = invOf(t.vendor);
+    return `<tr>
+      <td><b>${_esc(t.name)}</b></td>
+      <td class="num mono">${fmtN(t.amount)}</td>
+      <td>${inv
+        ? `<span class="pill green">발행 ${_esc(inv.issue_date||'')}</span>${Math.round(+inv.amount||0)!==Math.round(t.amount)?` <span class="pill amber" style="font-size:9px" title="발행액 ₩${fmtN(inv.amount)} ≠ 대상액">금액 상이</span>`:''}`
+        : '<span class="pill gray">미발행</span>'}</td>
+      <td>${inv
+        ? `<button class="btn ghost" data-ti-void="${_esc(inv.id)}" style="color:var(--red)">${ico('x')}발행 취소</button>`
+        : `<button class="btn ghost" data-ti-new="${_esc(t.vendor)}" data-ti-amt="${Math.round(t.amount)}">${ico('save')}발행 기록</button>`}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="4" class="empty">${month} 매출 발생 없음</td></tr>`;
+
+  const cats = DB.all('expense_categories').filter(c=>c.active!==false).sort((a,b)=>(a.order||0)-(b.order||0));
+  const exps = acctExpensesOf(month).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const expSum = exps.reduce((s,e)=>s+(+e.amount||0),0);
+  const sugg = _acctRepeatSuggestions(month);
+  const expRows = exps.length ? exps.map(e => `<tr>
+      <td>${_esc(e.category||'—')}</td>
+      <td><b>${_esc(e.name||'')}</b>${e.repeat_monthly?' <span class="pill cyan" style="font-size:9px">매월</span>':''}</td>
+      <td class="num mono">${fmtN(e.amount)}</td>
+      <td class="muted">${_esc(e.date||'')}</td>
+      <td class="muted" style="font-size:11px">${_esc(e.memo||'')}</td>
+      <td><button class="btn ghost" data-ex-void="${_esc(e.id)}" style="color:var(--red)">${ico('x')}취소</button></td>
+    </tr>`).join('') : `<tr><td colspan="6" class="empty">${month} 경비 없음 — [경비 등록]</td></tr>`;
+
+  document.getElementById('view').innerHTML = `
+    <div class="pghead">
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('acct')}</svg>회계 <span class="pill cyan">${APP_VERSION}</span></div>
+      <div class="pgtools">
+        <input id="acct-inv-month" type="month" value="${month}" style="width:150px">
+        <button class="btn" id="acct-inv-xlsx">${ico('excel')}엑셀</button>
+      </div>
+    </div>
+    ${_acctHubBar('invoice')}
+    <div class="card" style="margin-bottom:14px">
+      <h3 style="margin-bottom:6px">세금계산서 발행 관리 <span class="tag">${month} · 대상 = 마감 매출 산식(calcClosing) 동일</span></h3>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:10px">발행 대상액은 공급가 기준(마감 발생액) — 실제 발행은 홈택스 등 외부에서, 여기는 발행 여부·일자 기록만.</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>고객사</th><th class="num">대상액 (공급가)</th><th>상태</th><th></th></tr></thead>
+        <tbody>${targetRows}</tbody>
+      </table></div>
+    </div>
+    ${sugg.length ? `<div class="card" style="margin-bottom:14px;border-color:var(--cyan-dim)">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <b style="font-size:13px">반복 경비 제안</b>
+        <span style="font-size:11.5px;color:var(--sub)">'매월 반복' 표시된 전월 경비 ${sugg.length}건이 ${month}에 아직 없습니다 — 확인 후 일괄 등록 (자동 기록 없음)</span>
+        <button class="btn primary" id="acct-exp-repeat" style="margin-left:auto;font-size:11.5px;padding:7px 14px">${ico('plus')}${sugg.length}건 일괄 등록</button>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-top:8px">${sugg.map(s=>`${_esc(s.category)}·${_esc(s.name)} ₩${fmtN(s.amount)}`).join(' · ')}</div>
+    </div>` : ''}
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <h3 style="margin:0">경비 <span class="tag">${month} 합계 ₩${fmtN(expSum)}</span></h3>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn" id="acct-cat-manage" style="font-size:11.5px;padding:7px 12px">분류 관리</button>
+          <button class="btn primary" id="acct-exp-new" style="font-size:11.5px;padding:7px 14px">${ico('plus')}경비 등록</button>
+        </div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>분류</th><th>항목</th><th class="num">금액</th><th>일자</th><th>메모</th><th></th></tr></thead>
+        <tbody>${expRows}</tbody>
+      </table></div>
+    </div>`;
+  _acctBindHub();
+  document.getElementById('acct-inv-month').onchange = e => { window._acctHub.month = e.target.value || _acctThisMonth(); router(); };
+  document.querySelectorAll('[data-ti-new]').forEach(b => b.onclick = () => {
+    const vendor = b.dataset.tiNew, amt = +b.dataset.tiAmt||0;
+    openModal(`
+      <h2>세금계산서 발행 기록 — ${_esc(_acctVName(vendor))} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+      <div class="body">
+        ${docNoField('TI', 'ti-id')}
+        <div class="grid g2">
+          <div><label>발행액 (공급가 · 대상액 기본)</label><input id="ti-amt" type="number" value="${amt}"></div>
+          <div><label>발행일</label><input id="ti-date" type="date" value="${fmtDate(Date.now())}"></div>
+        </div>
+        <div><label>메모 (선택)</label><input id="ti-memo" placeholder="예: 홈택스 전자발행"></div>
+        <div class="actions">
+          <button class="btn" onclick="closeModal()">취소</button>
+          <button class="btn primary" id="ti-ok">${ico('save')}기록</button>
+        </div>
+      </div>`);
+    document.getElementById('ti-ok').onclick = () => {
+      const no = resolveDocNo('ti-id','TI');
+      if(no.dup){ toast(`번호 중복 — ${no.id}`,'err'); return; }
+      DB.set('acct_invoices', no.id, {
+        id:no.id, vendor, month, amount: Math.round(+document.getElementById('ti-amt').value||0),
+        issue_date: document.getElementById('ti-date').value || fmtDate(Date.now()),
+        memo: document.getElementById('ti-memo').value.trim(), ts: Date.now(), by: SESSION.user,
+      });
+      toast(`발행 기록 — ${no.id}`,'ok'); closeModal(); router();
+    };
+  });
+  document.querySelectorAll('[data-ti-void]').forEach(b => b.onclick = () => {
+    if(!confirm('발행 기록을 취소(void)할까요?')) return;
+    voidDoc('acct_invoices', b.dataset.tiVoid, '오입력'); toast('발행 기록 취소','warn'); router();
+  });
+  document.getElementById('acct-exp-new').onclick = () => VIEWS._acctExpModal(month, cats);
+  const rp = document.getElementById('acct-exp-repeat');
+  if(rp) rp.onclick = () => {
+    _acctRepeatSuggestions(month).forEach(s => {
+      const id = nextDocNo('EX');
+      DB.set('acct_expenses', id, {
+        id, category: s.category, name: s.name, amount: +s.amount||0,
+        date: `${month}-01`, cl_month: month, repeat_monthly: true,
+        memo: '반복 등록', ts: Date.now(), by: SESSION.user,
+      });
+    });
+    toast('반복 경비 일괄 등록 완료','ok'); router();
+  };
+  document.querySelectorAll('[data-ex-void]').forEach(b => b.onclick = () => {
+    if(!confirm('경비를 취소(void)할까요?')) return;
+    voidDoc('acct_expenses', b.dataset.exVoid, '오입력'); toast('경비 취소','warn'); router();
+  });
+  document.getElementById('acct-cat-manage').onclick = () => VIEWS._acctCatModal();
+  document.getElementById('acct-inv-xlsx').onclick = () => {
+    const rows = [
+      ...targets.map(t => ({ 구분:'계산서 대상', 항목:t.name, 금액:t.amount, 상태: invOf(t.vendor)?'발행':'미발행', 일자: invOf(t.vendor)?.issue_date||'' })),
+      ...exps.map(e => ({ 구분:'경비', 항목:`${e.category}·${e.name}`, 금액:+e.amount||0, 상태: e.repeat_monthly?'매월':'', 일자: e.date||'' })),
+    ];
+    exportXlsx(rows, '계산서경비', `계산서경비_${month}.xlsx`);
+  };
+};
+/* 경비 등록 모달 */
+VIEWS._acctExpModal = (month, cats) => {
+  openModal(`
+    <h2>경비 등록 — ${month} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      ${docNoField('EX', 'ex-id')}
+      <div class="grid g2">
+        <div><label>분류</label><select id="ex-cat">${cats.map(c=>`<option value="${_esc(c.name)}">${_esc(c.name)}</option>`).join('')}</select></div>
+        <div><label>항목명</label><input id="ex-name" placeholder="예: 공장 임차료"></div>
+      </div>
+      <div class="grid g3">
+        <div><label>금액 (원)</label><input id="ex-amt" type="number" min="1" step="1"></div>
+        <div><label>일자</label><input id="ex-date" type="date" value="${fmtDate(Date.now())}"></div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:4px"><label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;margin:0"><input type="checkbox" id="ex-repeat" style="width:auto;margin:0"> 매월 반복 (제안 대상)</label></div>
+      </div>
+      <div><label>메모 (선택)</label><input id="ex-memo"></div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="ex-ok">${ico('save')}등록</button>
+      </div>
+    </div>`);
+  document.getElementById('ex-ok').onclick = () => {
+    const name = document.getElementById('ex-name').value.trim();
+    const amt = Math.round(+document.getElementById('ex-amt').value||0);
+    if(!name){ toast('항목명 입력','warn'); return; }
+    if(amt<=0){ toast('금액 입력','warn'); return; }
+    const no = resolveDocNo('ex-id','EX');
+    if(no.dup){ toast(`번호 중복 — ${no.id}`,'err'); return; }
+    const date = document.getElementById('ex-date').value || fmtDate(Date.now());
+    DB.set('acct_expenses', no.id, {
+      id:no.id, category: document.getElementById('ex-cat').value, name, amount: amt,
+      date, cl_month: date.slice(0,7),
+      repeat_monthly: document.getElementById('ex-repeat').checked,
+      memo: document.getElementById('ex-memo').value.trim(), ts: Date.now(), by: SESSION.user,
+    });
+    toast(`경비 등록 — ₩${fmtN(amt)}`,'ok'); closeModal(); router();
+  };
+};
+/* 경비 분류 관리 모달 (추가·비활성 — 물리 삭제 없음) */
+VIEWS._acctCatModal = () => {
+  const cats = DB.all('expense_categories').sort((a,b)=>(a.order||0)-(b.order||0));
+  openModal(`
+    <h2>경비 분류 관리 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>분류</th><th>상태</th><th></th></tr></thead>
+        <tbody>${cats.map(c=>`<tr>
+          <td><b>${_esc(c.name)}</b></td>
+          <td>${c.active!==false?'<span class="pill cyan">사용중</span>':'<span class="pill gray">비활성</span>'}</td>
+          <td><button class="btn ghost" data-ec-toggle="${_esc(c.id)}">${c.active!==false?'비활성':'재활성'}</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input id="ec-new-name" placeholder="새 분류명" style="flex:1">
+        <button class="btn primary" id="ec-add">${ico('plus')}추가</button>
+      </div>
+      <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div>
+    </div>`);
+  document.querySelectorAll('[data-ec-toggle]').forEach(b => b.onclick = () => {
+    const c = DB.get('expense_categories', b.dataset.ecToggle); if(!c) return;
+    DB.set('expense_categories', c.id, { active: c.active===false });
+    closeModal(); VIEWS._acctCatModal();
+  });
+  document.getElementById('ec-add').onclick = () => {
+    const name = document.getElementById('ec-new-name').value.trim();
+    if(!name){ toast('분류명 입력','warn'); return; }
+    if(DB.all('expense_categories').some(c=>c.name===name)){ toast('이미 있는 분류','warn'); return; }
+    const n = DB.allRaw('expense_categories').length + 1;
+    const id = 'EC-'+String(n).padStart(3,'0')+'-'+Date.now().toString(36).slice(-3);
+    DB.set('expense_categories', id, { id, name, order:(n+1)*10, active:true });
+    closeModal(); VIEWS._acctCatModal();
+  };
+};
+
+/* ── 화면 3 · 월 관리 손익 ───────────────────────────────────────────────────── */
+VIEWS._acctPnl = () => {
+  const state = window._acctHub;
+  const month = state.month || _acctThisMonth();
+  const p = calcAcctPnl(month);
+  const margin = p.revenue>0 ? (p.profit/p.revenue*100) : null;
+  // 최근 6개월 미니 추이 (해당 월 데이터 있는 것만)
+  const months = [];
+  { const [y,m] = month.split('-').map(Number);
+    for(let k=5;k>=0;k--){ const d=new Date(y, m-1-k, 1); months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); } }
+  const hist = months.map(mm => calcAcctPnl(mm));
+  const row = (label, val, sign, strong) => `<tr>
+      <td style="${strong?'font-weight:800':''}">${label}</td>
+      <td class="num mono" style="${strong?'font-weight:800;font-size:15px':''};color:${sign==='-'?'var(--red)':(strong?(val>=0?'var(--green)':'var(--red)'):'var(--ink)')}">${sign==='-'&&val>0?'−':''}₩${fmtN(Math.abs(val))}</td>
+    </tr>`;
+  document.getElementById('view').innerHTML = `
+    <div class="pghead">
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('acct')}</svg>회계 <span class="pill cyan">${APP_VERSION}</span></div>
+      <div class="pgtools">
+        <input id="acct-pnl-month" type="month" value="${month}" style="width:150px">
+        <button class="btn" id="acct-pnl-xlsx">${ico('excel')}엑셀</button>
+      </div>
+    </div>
+    ${_acctHubBar('pnl')}
+    <div class="card" style="margin-bottom:14px">
+      <h3 style="margin-bottom:6px">월 관리 손익 <span class="tag">${month} · 간이·세전 — 마감 발생액 기준 · 세무 신고용 아님</span></h3>
+      ${p.missingCount>0?`<div style="font-size:11px;color:var(--amber);margin-bottom:8px">⚠ 단가 미지정 매입 ${p.missingCount}건 미집계 — 합계가 실제보다 작을 수 있습니다 (가짜 합계 금지 원칙)</div>`:''}
+      <div class="tbl-wrap"><table>
+        <tbody>
+          ${row('매출 (출하 발생)', p.revenue, '+')}
+          ${row('매입 (소재·구매품)', p.purchase, '-')}
+          ${row('외주비', p.outsource, '-')}
+          ${row('경비', p.expenses, '-')}
+          ${row('관리 이익', p.profit, '+', true)}
+          <tr><td>이익률</td><td class="num mono">${margin==null?'—':margin.toFixed(1)+' %'}</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:10px">최근 6개월 추이</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>월</th><th class="num">매출</th><th class="num">매입</th><th class="num">외주</th><th class="num">경비</th><th class="num">관리 이익</th></tr></thead>
+        <tbody>${hist.map(h=>`<tr ${h.month===month?'style="background:rgba(94,234,212,.05)"':''}>
+          <td class="mono">${h.month}</td>
+          <td class="num mono">${fmtN(h.revenue)}</td>
+          <td class="num mono">${fmtN(h.purchase)}</td>
+          <td class="num mono">${fmtN(h.outsource)}</td>
+          <td class="num mono">${fmtN(h.expenses)}</td>
+          <td class="num mono" style="font-weight:700;color:${h.profit>=0?'var(--green)':'var(--red)'}">${fmtN(h.profit)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  _acctBindHub();
+  document.getElementById('acct-pnl-month').onchange = e => { window._acctHub.month = e.target.value || _acctThisMonth(); router(); };
+  document.getElementById('acct-pnl-xlsx').onclick = () => {
+    exportXlsx(hist.map(h=>({ 월:h.month, 매출:h.revenue, 매입:h.purchase, 외주:h.outsource, 경비:h.expenses, 관리이익:h.profit })),
+      '월관리손익', `월관리손익_${month}.xlsx`);
+  };
 };
 
 /* -------------------- 공정 템플릿 -------------------- */
