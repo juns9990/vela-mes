@@ -221,6 +221,10 @@ label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spaci
 .up-badge.mgr{color:var(--amber)} .up-badge.op{color:var(--sub)} .up-badge.vd{color:var(--blue)}
 /* ★ v0.20.0 — 동기화 상태 pill (2막 STEP 1 · 슬롯) */
 .sync-pill{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:11px;color:var(--sub);letter-spacing:.3px}
+/* ★ v0.27.1 — hidden 속성 전역 강제 (버그 픽스 · 실사용 지적)
+   .demo-badge 등 display 를 지정한 클래스가 [hidden] 의 UA 기본(display:none)을 덮어써
+   실모드에서도 DEMO 배지가 상시 노출되던 문제 — hidden 은 어떤 클래스보다 우선한다. */
+[hidden]{display:none !important}
 /* ★ v0.22.0 — DEMO 배지 (헤더 · amber) · 데모 체험 모드에서만 노출 */
 .demo-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(251,191,36,.14);color:var(--amber);border:1px solid rgba(251,191,36,.4);border-radius:99px;padding:5px 12px;font-size:11px;font-weight:800;letter-spacing:1.3px}
 .demo-badge::before{content:"●";font-size:8px;line-height:1}
@@ -975,7 +979,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.27.0';
+const APP_VERSION = 'v0.27.1';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
