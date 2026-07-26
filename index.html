@@ -54,6 +54,11 @@ html[data-theme="light"]{
      이전: --sub #4a5262(7.75:1), --dim #8a91a0(3.4:1 · WCAG 미달) → 현재: sub 8.5:1+, dim 4.8:1+ */
   --sub:#3d4451; --dim:#6b7280;
   --cyan:#0d9488;
+  /* ★ v0.26.6 — 상태 포인트색 라이트 대비 보정 (실사용 지적: LOT추적·재고 초록/파랑/노랑 판독 불가)
+     CSS 변수 경유 원칙(§1-9) → 변수 재정의 한 번으로 전 메뉴 일괄 적용 · 다크 :root 불변.
+     흰 배경 대비: green #15803d 5.0:1 · blue #0369a1 5.9:1 · amber #b45309 5.2:1 · red #dc2626 4.5:1
+     (배경 용도 10곳은 전부 점·바·칩 — 어두워져도 무해 · --heat 계열은 텍스트 미사용이라 유지) */
+  --green:#15803d; --blue:#0369a1; --amber:#b45309; --red:#dc2626;
 }
 /* ★ v0.21.5 — 라이트 국소 보정 (다크 하드코딩 색이 밝은 배경에서 깨지는 최소 지점만)
    원칙: 로직 무변화 · 배경/텍스트 반전 필요한 스팟만 · 변수 안 쓰는 인라인은 그대로 둠(불가피). */
@@ -962,7 +967,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.26.5';
+const APP_VERSION = 'v0.26.6';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -2263,7 +2268,9 @@ function seedDemoData(){
       route: list.map(([proc,mode]) => ({ seq: SEQ[proc], proc, mode })),
     });
     // ★ v0.26.5 — 열처리 사양 표준 필드 시드 (라우트에 HEAT 있는 품번만 Q.T)
-    DB.set('items', code, { ht_spec: list.some(([p]) => p==='HEAT') ? 'Q.T' : '' });
+    // ★ v0.26.6 — 경도 표준 필드 시드 (열처리 품번만 · 단위 포함 수기 예시)
+    const _hasHeat = list.some(([p]) => p==='HEAT');
+    DB.set('items', code, { ht_spec: _hasHeat ? 'Q.T' : '', hardness: _hasHeat ? 'HB 269~331' : '' });
   });
 
   // ─────────────── 5. 소재 입고 (5개 heat · 3개월 분산 · 잔량 다양) ───────────────
@@ -2550,7 +2557,7 @@ function seedDemoData(){
     { id:'MF-ITEM-001', master:'items',    key:'차종',        label:'차종',        type:'text',   unit:'',  order:1 },
     { id:'MF-ITEM-002', master:'items',    key:'단조온도',    label:'단조온도',    type:'number', unit:'℃', order:2 },
     // ★ v0.26.5 — MF-ITEM-003(열처리사양) 시드 제거: 표준 필드 ht_spec 로 승격 (아래 bomSeed 뒤에서 시드)
-    { id:'MF-ITEM-004', master:'items',    key:'경도HB',      label:'경도',        type:'text',   unit:'',  order:4 },
+    // ★ v0.26.6 — MF-ITEM-004(경도HB) 시드 제거: 표준 필드 hardness 로 승격 (동일)
     { id:'MF-ITEM-005', master:'items',    key:'자분탐상',    label:'자분탐상',    type:'select', unit:'',  order:5, options:['적용','미적용'] },
     { id:'MF-ITEM-006', master:'items',    key:'표면처리',    label:'표면처리',    type:'text',   unit:'',  order:6 },
     // ★ v0.26.2 — master='vendors' (거래처 단일 마스터로 통합)
@@ -2827,8 +2834,10 @@ function runVendorsUnificationMigration(force){
    items 정의 필드 '열처리사양' 을 비활성만 한다 — 정의·기존 custom 값 전부 보존.
    표준 필드가 폼·표·엑셀을 담당하고, 과거 custom 값은 getHtSpec 폴백으로 계속 읽힌다. */
 function migrateHtSpecField(){
+  // ★ v0.26.6 — 경도HB 도 표준 승격 (동일 패턴 · 1벌 유지)
+  const PROMOTED_KEYS = ['열처리사양','경도HB'];
   DB.allRaw('master_fields').forEach(f => {
-    if(f.master === 'items' && f.key === '열처리사양' && f.active !== false){
+    if(f.master === 'items' && PROMOTED_KEYS.includes(f.key) && f.active !== false){
       DB.set('master_fields', f.id, { active:false });
     }
   });
@@ -3018,6 +3027,13 @@ function getHtSpec(it){
   const v = (it.ht_spec != null && it.ht_spec !== '') ? it.ht_spec : (it.custom?.['열처리사양'] ?? '');
   return String(v || '').trim();
 }
+/* ★ v0.26.6 — 경도 표준 필드 (열처리 사양과 동일 G2 예외 · 단위 없음 — HB/HRC 혼재 수기)
+   구 정의 필드 custom['경도HB'] 값은 폴백으로 계속 읽음 (이력 보존) */
+function getHardness(it){
+  if(!it) return '';
+  const v = (it.hardness != null && it.hardness !== '') ? it.hardness : (it.custom?.['경도HB'] ?? '');
+  return String(v || '').trim();
+}
 
 /* ── 금형 파생 누적 타수 (records 기반 · G1 저장 금지 · Cav 반영) ──────── */
 function _forgeQtyForItem(itemCode){
@@ -3061,6 +3077,7 @@ const _IMPORTER_SPEC = {
       { key:'dia',          label:'Ø',          kind:'number' },
       { key:'mat_len_mm',   label:'소재길이(mm)', kind:'number' },
       { key:'ht_spec',      label:'열처리사양' },   // ★ v0.26.5 — 표준 필드 (선택지 외 값도 통과 · 기타 수기 허용)
+      { key:'hardness',     label:'경도' },          // ★ v0.26.6 — 표준 필드 (단위 포함 수기 · HB/HRC 혼재)
       { key:'weight_g',     label:'절단중량(g)', kind:'number' },
       { key:'product_weight_g', label:'제품중량(g)', kind:'number' },
       { key:'price',        label:'단가(원)',   kind:'number' },
@@ -3071,7 +3088,7 @@ const _IMPORTER_SPEC = {
     ],
     example: {
       code:'999-001-0', name:'예시부품', customer_ref:'999',
-      mat:'S45C', dia:38, mat_len_mm:246.1, ht_spec:'Q.T', weight_g:1553, product_weight_g:535, price:1740,
+      mat:'S45C', dia:38, mat_len_mm:246.1, ht_spec:'Q.T', hardness:'HB 269~331', weight_g:1553, product_weight_g:535, price:1740,
       cav:1, mold_no:'999-001', default_forge_eq:'프레스 1호', pack_qty:200,
     },
   },
@@ -3162,6 +3179,7 @@ function _importApplyRow(master, parsed){
       mat: d.mat || '', dia: +d.dia||0,
       mat_len_mm: +d.mat_len_mm || 0,   // v0.26.1 — 표시用 · 계산 연동 금지
       ht_spec: (d.ht_spec || '').trim(),  // ★ v0.26.5 — 표준 필드
+      hardness: (d.hardness || '').trim(),  // ★ v0.26.6 — 표준 필드
       weight: d.weight_g!=null ? (+d.weight_g/1000) : 0,
       product_weight_g: +d.product_weight_g || 0,
       price: +d.price || 0,
@@ -6791,7 +6809,7 @@ VIEWS.po = () => {
     const first = items[0];
     const summary = items.length===0
       ? '<span class="muted">품목 없음</span>'
-      : `${_esc(first.name||'—')}${first.spec?' '+_esc(first.spec):''}${items.length>1?` <span style="color:var(--dim);font-size:11px">외 ${items.length-1}건</span>`:''}`;
+      : `${_esc(first.name||'—')}${first.spec?' '+_esc(first.spec):''}${items.length>1?` <span style="color:var(--dim);font-size:11px">외 ${items.length-1}건</span>`:''}${items.some(i=>i.kind==='gen')?` <span class="pill blue" style="font-size:9px">일반 ${items.filter(i=>i.kind==='gen').length}</span>`:''}`;
     const amtItems = items.filter(i => i.price != null && !isNaN(+i.price));
     const amt = amtItems.reduce((s,i) => s + (+i.qty||0)*(+i.price||0), 0);
     const amtDisp = amtItems.length ? Math.round(amt).toLocaleString() : '<span class="muted">—</span>';
@@ -6931,10 +6949,11 @@ VIEWS._poNew = () => {
     return;
   }
   const UNITS = ['ea','kg','L','통','box','세트','기타'];
+  // ★ v0.26.6 — 품목 구분: 소재(mat — 소재 입고·heat 등록 경로) / 일반(gen — 구매품 입고 경로)
   const draft = {
     vendor: vendors[0].code,
     due: fmtDate(Date.now() + 7*24*3600*1000),
-    items: [{name:'', spec:'', unit:'ea', qty:'', price:''}],
+    items: [{kind:'mat', name:'', spec:'', unit:'kg', qty:'', price:''}],
   };
   // ★ v0.16.8 — 품명 자동완성 (기존 live 발주 items + 구매입고 이름) — 소재 전용 인상 제거
   const _poNamesSet = new Set();
@@ -6953,7 +6972,12 @@ VIEWS._poNew = () => {
                value="${_esc(it.name||'')}"
                style="padding:11px 13px;font-size:13.5px;font-weight:600">
       </div>
-      <div style="display:grid;grid-template-columns:1.4fr 0.8fr 1fr 1fr;gap:8px">
+      <div style="display:grid;grid-template-columns:0.8fr 1.3fr 0.75fr 0.9fr 0.9fr;gap:8px">
+        <div><label style="font-size:10px;color:var(--sub);letter-spacing:.3px;margin-bottom:4px;display:block">구분</label>
+          <select class="poi-kind" data-i="${i}" style="padding:8px 10px;font-size:12.5px">
+            <option value="mat" ${it.kind!=='gen'?'selected':''}>소재</option>
+            <option value="gen" ${it.kind==='gen'?'selected':''}>일반</option>
+          </select></div>
         <div><label style="font-size:10px;color:var(--sub);letter-spacing:.3px;margin-bottom:4px;display:block">규격</label>
           <input class="poi-spec" data-i="${i}" placeholder="예: Ø55" value="${_esc(it.spec||'')}" style="padding:8px 10px;font-size:12.5px"></div>
         <div><label style="font-size:10px;color:var(--sub);letter-spacing:.3px;margin-bottom:4px;display:block">단위</label>
@@ -6967,9 +6991,15 @@ VIEWS._poNew = () => {
   `).join('');
 
   const bindGrid = () => {
+    // ★ v0.26.6 — 구분 변경 시 단위 기본값 제안 (소재→kg · 일반→ea) — 이미 손댄 단위는 유지
+    document.querySelectorAll('.poi-kind').forEach(el => el.onchange = e => {
+      const row = draft.items[+el.dataset.i];
+      row.kind = e.target.value;
+      if(!row._unitTouched){ row.unit = row.kind==='mat' ? 'kg' : 'ea'; rerender(); }
+    });
     document.querySelectorAll('.poi-name').forEach(el => el.oninput = e => { draft.items[+el.dataset.i].name = e.target.value; });
     document.querySelectorAll('.poi-spec').forEach(el => el.oninput = e => { draft.items[+el.dataset.i].spec = e.target.value; });
-    document.querySelectorAll('.poi-unit').forEach(el => el.onchange = e => { draft.items[+el.dataset.i].unit = e.target.value; });
+    document.querySelectorAll('.poi-unit').forEach(el => el.onchange = e => { const r=draft.items[+el.dataset.i]; r.unit = e.target.value; r._unitTouched = true; });
     document.querySelectorAll('.poi-qty' ).forEach(el => el.oninput = e => { draft.items[+el.dataset.i].qty  = e.target.value; });
     document.querySelectorAll('.poi-price').forEach(el => el.oninput = e => { draft.items[+el.dataset.i].price = e.target.value; });
     document.querySelectorAll('.poi-del').forEach(b => b.onclick = () => {
@@ -6995,7 +7025,7 @@ VIEWS._poNew = () => {
         </div>
         <div><label>납기</label><input id="po-due" type="date" value="${draft.due}"></div>
       </div>
-      <div style="font-size:11px;color:var(--sub);margin:6px 0 6px">품목 카드 (품명 전폭 · 규격·단위·수량·단가 2줄째 · [+ 품목 추가])</div>
+      <div style="font-size:11px;color:var(--sub);margin:6px 0 6px">품목 카드 — <b>구분: 소재</b>(환봉 등 — 소재 입고·heat 등록 경로) / <b>일반</b>(소모품·부자재·공구 등 — 구매품 입고 경로) · 한 발주에 혼합 가능 · [+ 품목 추가]</div>
       <div id="po-grid-body">${renderCards()}</div>
       <datalist id="poi-name-list">${poNameOpts.map(n=>`<option value="${_esc(n)}">`).join('')}</datalist>
       <button class="btn" id="po-row-add" style="font-size:11.5px;padding:6px 12px">${ico('plus')}품목 추가</button>
@@ -7009,7 +7039,7 @@ VIEWS._poNew = () => {
   document.getElementById('po-vendor').onchange = e => { draft.vendor = e.target.value; };
   document.getElementById('po-due').onchange = e => { draft.due = e.target.value; };
   document.getElementById('po-row-add').onclick = () => {
-    draft.items.push({name:'', spec:'', unit:'ea', qty:'', price:''});
+    draft.items.push({kind:'gen', name:'', spec:'', unit:'ea', qty:'', price:''});
     rerender();
   };
   document.getElementById('po-ok').onclick = () => {
@@ -7019,6 +7049,7 @@ VIEWS._poNew = () => {
     const items = draft.items
       .filter(it => (it.name||'').trim())
       .map(it => ({
+        kind: it.kind==='gen' ? 'gen' : 'mat',   // ★ v0.26.6 — 소재/일반 구분
         name: (it.name||'').trim(),
         spec: (it.spec||'').trim(),
         unit: it.unit||'ea',
@@ -7312,12 +7343,14 @@ VIEWS._matinMaterial = () => {
       return;
     }
     const today = fmtDate(Date.now());
-    // ★ v0.16.6 — 발주 연결 옵션 (잔량 있는 kg 품목만) — calcPoStatus 1벌 사용
+    // ★ v0.16.6 — 발주 연결 옵션 — calcPoStatus 1벌 사용
+    // ★ v0.26.6 — 구분(kind) 우선: 소재(mat)만 연결 · 구분 없는 구버전 발주는 kg 단위 = 소재 간주(호환)
     const poOptions = [];
     DB.all('purchase_orders').forEach(p => {
       const st = calcPoStatus(p);
       (p.items||[]).forEach((it, i) => {
-        if((it.unit||'') !== 'kg') return;
+        const kind = it.kind || ((it.unit||'')==='kg' ? 'mat' : 'gen');
+        if(kind !== 'mat') return;
         const r = st.items[i]; if(!r || r.remain<=0) return;
         const vName = DB.get('vendors', p.vendor)?.name || p.vendor || '';
         poOptions.push({
@@ -7765,11 +7798,13 @@ VIEWS._matinBuy = () => {
   // + 구매품 입고 모달 (자유 입력 · 품명 datalist)
   document.getElementById('mbuy-add').onclick = ()=>{
     const today = fmtDate(Date.now());
-    // ★ v0.16.6 — 발주 연결 옵션 (잔량 있는 전체 품목) — calcPoStatus 1벌
+    // ★ v0.16.6 — 발주 연결 옵션 (잔량 있는 품목) — calcPoStatus 1벌
+    // ★ v0.26.6 — 구분=소재(mat) 품목은 소재 입고 경로 전용이라 제외 · 구분 없는 구버전은 전부 허용(호환)
     const poOptions = [];
     DB.all('purchase_orders').forEach(p => {
       const st = calcPoStatus(p);
       (p.items||[]).forEach((it, i) => {
+        if(it.kind === 'mat') return;
         const r = st.items[i]; if(!r || r.remain<=0) return;
         const vName = DB.get('vendors', p.vendor)?.name || p.vendor || '';
         poOptions.push({
@@ -14615,7 +14650,7 @@ VIEWS.masters = () => {
         <span style="margin-left:auto;font-size:11px;color:var(--dim)">${iRows.length}건 / 전체 ${itemsAll.length}건</span>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>식별번호/품번</th><th>품명</th><th>고객사</th><th>재질</th><th>소재규격 <span style="color:var(--dim);font-size:9px">(Ø × 길이)</span></th><th>열처리</th><th class="num">절단(g)</th><th class="num">제품(g)</th><th class="num">단가(₩)</th><th class="num">Cav</th>${iTopFields.map(f=>`<th class="num">${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
+        <thead><tr><th>식별번호/품번</th><th>품명</th><th>고객사</th><th>재질</th><th>소재규격 <span style="color:var(--dim);font-size:9px">(Ø × 길이)</span></th><th>열처리</th><th>경도</th><th class="num">절단(g)</th><th class="num">제품(g)</th><th class="num">단가(₩)</th><th class="num">Cav</th>${iTopFields.map(f=>`<th class="num">${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
         <tbody>${iRows.length ? iRows.map(i => {
           const active = i.active !== false;
           const cName = i.customer_ref ? getCustomerName(i.customer_ref) : (i.cust ? (DB.get('vendors', i.cust)?.name || i.cust) : '');
@@ -14629,6 +14664,7 @@ VIEWS.masters = () => {
             <td>${_esc(i.mat||'—')}</td>
             <td style="font-family:'JetBrains Mono',monospace">${spec ? _esc(spec) : '<span class="muted">—</span>'}</td>
             <td>${getHtSpec(i) ? _esc(getHtSpec(i)) : '<span class="muted">—</span>'}</td>
+            <td>${getHardness(i) ? _esc(getHardness(i)) : '<span class="muted">—</span>'}</td>
             <td class="num">${cutG? cutG.toLocaleString() :'<span class="muted">—</span>'}</td>
             <td class="num">${i.product_weight_g? (+i.product_weight_g).toLocaleString() :'<span class="muted">—</span>'}</td>
             <td class="num">${i.price? '₩'+(+i.price).toLocaleString() : '<span class="muted">—</span>'}</td>
@@ -14640,7 +14676,7 @@ VIEWS.masters = () => {
               <button class="btn ghost" data-itoggle="${_esc(i.code)}">${active?'비활성':'재활성'}</button>
             </div></td>
           </tr>`;
-        }).join('') : `<tr><td colspan="${12+iTopFields.length}" class="empty">품번 없음 — [품번 등록] 또는 [엑셀 임포트]</td></tr>`}</tbody>
+        }).join('') : `<tr><td colspan="${13+iTopFields.length}" class="empty">품번 없음 — [품번 등록] 또는 [엑셀 임포트]</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
         <b style="color:var(--amber)">가드</b> 물리 삭제 없음 — 비활성만(increment-only). 비활성 마스터는 신규 수주·출하·외주 선택 목록에서 제외되지만, 과거 이력·재고·LOT 추적에는 그대로 표시(이력 보존). 사용중 코드 중복 등록 차단.
@@ -14777,6 +14813,7 @@ VIEWS.masters = () => {
         '소재길이(mm)': i.mat_len_mm || '',
         '소재규격': matSpecStr(i),
         '열처리사양': getHtSpec(i),
+        '경도': getHardness(i),
         '절단중량(g)': i.weight ? Math.round(+i.weight*1000) : '',
         '제품중량(g)': i.product_weight_g || '',
         '단가(원)': i.price || '',
@@ -15025,8 +15062,9 @@ VIEWS._mstItemEdit = (code) => {
         <div><label>포장단위 (ea/포장) <span style="color:var(--dim);font-weight:400">— 표준값(선택)</span></label>
           <input id="mi-pack" type="number" min="1" step="1" value="${it.pack_qty!=null?it.pack_qty:''}" placeholder="예: 200"></div>
       </div>
-      <!-- ★ v0.26.5 — 열처리 사양 표준 필드 (G2 예외 · 선택형 + 기타 수기) -->
-      <div class="grid g2">
+      <!-- ★ v0.26.5 — 열처리 사양 표준 필드 (G2 예외 · 선택형 + 기타 수기)
+           ★ v0.26.6 — 경도 표준 필드 추가 (같은 행 · 단위 없음 — HB/HRC 혼재 수기) -->
+      <div class="grid g3">
         <div><label>열처리 사양 <span style="color:var(--dim);font-weight:400">— 선택 또는 기타(직접 입력)</span></label>
           <select id="mi-htspec">
             <option value="">— 미지정 —</option>
@@ -15036,6 +15074,8 @@ VIEWS._mstItemEdit = (code) => {
         <div id="mi-htspec-other-wrap" style="${getHtSpec(it) && !HT_SPEC_OPTS.includes(getHtSpec(it))?'':'display:none'}">
           <label>열처리 사양 — 기타</label>
           <input id="mi-htspec-other" value="${_esc(getHtSpec(it) && !HT_SPEC_OPTS.includes(getHtSpec(it))?getHtSpec(it):'')}" placeholder="예: 침탄 QT"></div>
+        <div><label>경도 <span style="color:var(--dim);font-weight:400">— 단위 포함 수기 (HB/HRC 혼재)</span></label>
+          <input id="mi-hardness" value="${_esc(getHardness(it))}" placeholder="예: HB 269~331"></div>
       </div>
       ${renderCustomFields('items', it.custom, 'form')}
       <!-- ★ v0.20.4 — 공정별 시간 (라우트 기반) · CT ↔ 시간당 타수 상호 자동 (저장은 ct 1값) -->
@@ -15180,6 +15220,8 @@ VIEWS._mstItemEdit = (code) => {
     // ★ v0.26.5 — 열처리 사양 (표준 필드 · '기타'는 수기값)
     const htSelVal = document.getElementById('mi-htspec').value;
     const ht_spec  = htSelVal==='__other' ? document.getElementById('mi-htspec-other').value.trim() : htSelVal;
+    // ★ v0.26.6 — 경도 (표준 필드 · 단위 포함 수기)
+    const hardness = document.getElementById('mi-hardness').value.trim();
     if(!code){ toast('식별번호 또는 품번 입력','warn'); return; }
     if(!name){ toast('품명 입력','warn'); return; }
     if(isNew && DB.get('items', code)){ toast(`코드 중복 — ${code} 이미 존재`,'err'); return; }
@@ -15199,11 +15241,11 @@ VIEWS._mstItemEdit = (code) => {
     const doc = isNew
       ? { code, name, cust: custVendor, customer_ref: cref, rev,
           mat, dia, mat_len_mm: matLen, weight, product_weight_g: prodG, price, cav, cav_source:'manual',
-          mold_no: moldNo, default_forge_eq: forgeEq, ht_spec,
+          mold_no: moldNo, default_forge_eq: forgeEq, ht_spec, hardness,
           pack_qty, proc_times: nextPt, custom, active:true }
       : { name, cust: custVendor, customer_ref: cref, rev,
           mat, dia, mat_len_mm: matLen, weight, product_weight_g: prodG, price, cav, cav_source:'manual',
-          mold_no: moldNo, default_forge_eq: forgeEq, ht_spec,
+          mold_no: moldNo, default_forge_eq: forgeEq, ht_spec, hardness,
           pack_qty, proc_times: nextPt, custom };
     DB.set('items', code, doc);
     toast(isNew?`품번 등록 — ${code}`:`품번 수정 — ${code}`,'ok');
