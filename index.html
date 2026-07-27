@@ -979,7 +979,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.28.0';
+const APP_VERSION = 'v0.28.1';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -1141,6 +1141,7 @@ const _FS_COLLECTIONS = [
   'nc_records','defect_types',   // ★ v0.25.0 — 부적합·불량 유형 (누락 보정)
   'customers','master_fields','import_logs',   // ★ v0.26.0 — 고객사 마스터·정의 필드·임포트 이력
   'acct_receipts','acct_payments','acct_expenses','acct_invoices','expense_categories',   // ★ v0.27.0 — 회계 (특급)
+  'price_agreements',   // ★ v0.28.1 — 단가합의서
 ];
 /* ★ v0.21.2 — config 해석: 로컬 오버라이드 우선 → 없으면 내장 DEFAULT_FIREBASE_CONFIG.
    반환 { cfg, source } — source 는 pill/설정 표시용. cfg 없음(둘 다 없음) 시 null. */
@@ -1450,6 +1451,7 @@ function unvoidDoc(col,id){
    · 수동 번호 편집 허용 · 저장 시 checkDocIdDup 로 중복 차단(가짜 채번 방지)
    · deleteDoc 금지 — 채번 카운트는 allRaw 기준(void 포함)이어서 취소된 번호는 재사용 안 함 */
 const _PREFIX_TO_COL = {
+  PA: 'price_agreements', // ★ v0.28.1 — 단가합의서
   AR: 'acct_receipts',    // ★ v0.27.0 — 수금
   AP: 'acct_payments',    // ★ v0.27.0 — 지급
   EX: 'acct_expenses',    // ★ v0.27.0 — 경비
@@ -1727,6 +1729,7 @@ const MODULE_DEFS = [
       ['doc_disp',   '외주 반출증', true, false],
       ['doc_stmt',   '거래명세서',  true, false],
       ['doc_label',  '현품표/라벨', true, false],
+      ['doc_price',  '단가합의서',  true, false],   // ★ v0.28.1
     ]},
   { mod:'quality',     title:'품질 (QMS)',     desc:'v1.5→v2 ISO 9001 인증팩',
     items:[
@@ -2567,6 +2570,15 @@ function seedDemoData(){
     { id:'051-007-D', itemCode:'HF-3305', current_rev:'0', memo:'',
       revs:[ { rev:'0', date:fmt(daysBack(60)), reason:'신규 제정', by:'데모', ts:daysBack(60) } ]},
   ].forEach(d => DB.set('drawings', d.id, { ...d, active:true, created: d.revs[0].ts, by:'데모' }));
+  // ─────────────── 12-3. ★ v0.28.1 — 단가합의서 데모 시드 (고정 id 멱등) ───────────────
+  DB.set('price_agreements', 'PA-DEMO-001', {
+    id:'PA-DEMO-001', customer_ref:'C001', effective_date: fmt(now + 5*DAY),
+    items: [
+      { code:'HF-3301', name:'플랜지', spec:'Ø55', prev_price:3200, price:3350, remark:'원자재 인상 반영' },
+      { code:'HF-3302', name:'샤프트', spec:'Ø38', prev_price:2800, price:2900, remark:'' },
+    ],
+    memo:'2026 하반기 단가 조정', master_synced:false, ts: daysBack(1), by:'데모',
+  });
   DB.set('drawings', '038-031-D', { attachments: [
     { fid:'L-DEMO-1', kind:'link', name:'고객 도면 PDF (포털)', url:'https://example.com/drawings/038-031-D_rev2.pdf', rev:'2', ts:daysBack(10), by:'데모', removed:null },
   ]});
@@ -11386,6 +11398,7 @@ VIEWS.docs = () => {
             ['move','③ 공정 이동표','LOT당 A5'],
             ['os','④ 외주 반출증','반출 건당'],
             ['tx','⑤ 거래명세서','거래처별'],
+            ...(getFlags().doc_price ? [['pa','⑥ 단가합의서','고객사·아이템 건별']] : []),
           ].map(([k,t,d])=>`<span class="chip ${docType===k?'on':''}" data-dt="${k}" title="${d}">${t}</span>`).join('')}
         </div>
         <div style="font-size:11px;color:var(--sub);margin-top:6px" id="dt-help"></div>
@@ -11432,6 +11445,7 @@ VIEWS.docs = () => {
     if(docType==='move')  return DB.all('production_lots').sort((a,b)=>b.created-a.created).map(l=>l.plot_no);
     if(docType==='os')    return DB.all('os_dispatches').sort((a,b)=>b.ts-a.ts).map(d=>d.id);
     if(docType==='tx')    return DB.all('shipments').sort((a,b)=>b.ts-a.ts).map(s=>s.id);
+    if(docType==='pa')    return DB.all('price_agreements').sort((a,b)=>(b.ts||0)-(a.ts||0)).map(a=>a.id);
     return [];
   }
 
@@ -11448,13 +11462,18 @@ VIEWS.docs = () => {
       move: 'LOT당 A5 1장씩 연속 출력. 공정 라우트가 동적으로 채워지고, 완료 공정은 ✓ 표시.',
       os: '외주 반출 건당 A4 (위 공급자 보관용 / 아래 외주처 보관용 · 절취선).',
       tx: '출하 → 거래처별로 묶어서 거래명세서 출력 (공급자 보관용 + 공급받는자용 = 2장).',
+      pa: '고객사·아이템 건별 단가 합의 문서 — [+ 새 합의서]로 작성 (품목 1건만 선택하면 아이템건별) · 저장된 합의서 선택 → 인쇄 (공급자+구매자용 2장 · 서명란).',
     };
     help.textContent = HELP[docType] || '';
 
     if(!ids.length){
-      list.innerHTML = `<div class="empty">대상 데이터 없음 — 먼저 해당 화면에서 생성하세요.</div>`;
+      list.innerHTML = docType==='pa'
+        ? `<div class="empty">작성된 단가합의서 없음 — <button class="btn primary" id="pa-new" style="margin-left:8px">${ico('plus')}새 합의서 작성</button></div>`
+        : `<div class="empty">대상 데이터 없음 — 먼저 해당 화면에서 생성하세요.</div>`;
       btn.disabled = true;
       btn.innerHTML = `${ico('print')}인쇄 (0)`;
+      const nb0 = document.getElementById('pa-new');
+      if(nb0) nb0.onclick = () => VIEWS._paNewModal(()=>renderList());
       return;
     }
 
@@ -11599,6 +11618,35 @@ VIEWS.docs = () => {
       </table></div>`;
     }
 
+    else if(docType==='pa'){
+      title.innerHTML = `단가합의서 선택 <span class="tag" style="font-size:11px;color:var(--sub);margin-left:6px">${ids.length}건</span> <button class="btn primary" id="pa-new" style="margin-left:10px;font-size:11.5px;padding:6px 14px">${ico('plus')}새 합의서 작성</button>`;
+      list.innerHTML = `<div class="tbl-wrap"><table>
+        <thead><tr><th style="width:36px"></th><th>합의서No</th><th>고객사</th><th>품목</th><th class="num">건수</th><th>적용일</th><th>작성</th><th></th></tr></thead>
+        <tbody>${ids.map(id=>{
+          const a = DB.get('price_agreements', id);
+          const cust = DB.get('vendors', a.customer_ref);
+          const first = (a.items||[])[0];
+          const on = selection.has(id);
+          return `<tr>
+            <td><input type="checkbox" data-sel="${id}" ${on?'checked':''}></td>
+            <td><b class="mono">${_esc(id)}</b></td>
+            <td>${_esc(cust?.name||a.customer_ref||'—')}</td>
+            <td>${first?`${_esc(first.code)}${(a.items||[]).length>1?` <span style="color:var(--dim);font-size:11px">외 ${(a.items||[]).length-1}건</span>`:''}`:'—'}</td>
+            <td class="num">${(a.items||[]).length}</td>
+            <td class="muted">${_esc(a.effective_date||'—')}</td>
+            <td class="muted">${fmtDate(a.ts)}</td>
+            <td><button class="btn ghost" data-pa-void="${_esc(id)}" style="color:var(--red)">${ico('x')}취소</button></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+      const nb = document.getElementById('pa-new');
+      if(nb) nb.onclick = () => VIEWS._paNewModal(()=>renderList());
+      document.querySelectorAll('[data-pa-void]').forEach(b=>b.onclick=()=>{
+        if(!confirm('이 합의서를 취소(void)할까요? 반영된 마스터 단가는 되돌리지 않습니다.')) return;
+        voidDoc('price_agreements', b.dataset.paVoid, '오입력'); selection.delete(b.dataset.paVoid); renderList();
+      });
+    }
+
     document.querySelectorAll('[data-sel]').forEach(cb=>cb.onchange = ()=>{
       const id = cb.dataset.sel;
       if(cb.checked) selection.add(id); else selection.delete(id);
@@ -11621,9 +11669,185 @@ VIEWS.docs = () => {
     else if(docType==='move')  printForm.move(ids);
     else if(docType==='os')    printForm.os(ids);
     else if(docType==='tx')    printForm.tx(ids);
+    else if(docType==='pa')    printForm.pa(ids);
   }
 
   render();
+};
+
+/* =================================================================================================
+   ★ v0.28.1 — 단가합의서 (고객사별 · 아이템 건별)
+   · 작성: 고객사 선택 → 그 고객사 품번 목록 자동 로드(현 단가 프리필) → 건별 체크 → 합의 단가 입력
+   · 저장: price_agreements (PA 채번 · void 만) — 옵션: 합의 단가를 품번 마스터에 반영 (마스터 정비 경로)
+   · 인쇄: printForm.pa — A4 · 공급자/구매자 2단(bizBlock 1벌) · 품목표(기존→합의 단가) · 서명란 · 2부(보관용)
+   ================================================================================================= */
+VIEWS._paNewModal = (onDone) => {
+  const custs = (typeof getCustomers === 'function' ? getCustomers() : DB.query('vendors', v=>v.type==='cust')).filter(c=>c.active!==false);
+  if(!custs.length){ toast('고객사(거래처 구분=고객사) 없음 — 기준정보에서 등록','warn'); return; }
+  const draft = { cust: custs[0].code, apply: fmtDate(Date.now()), memo:'', rows:{} };
+  const itemsOf = code => DB.all('items').filter(i => i.active!==false && (i.customer_ref===code || i.cust===code));
+  const body = () => {
+    const list = itemsOf(draft.cust);
+    return list.length ? `<div class="tbl-wrap" style="max-height:300px;overflow-y:auto"><table style="font-size:12px">
+      <thead><tr><th style="width:34px"></th><th>품번</th><th>품명</th><th class="num">현 단가</th><th class="num" style="width:120px">합의 단가</th><th style="width:130px">비고</th></tr></thead>
+      <tbody>${list.map(i=>{
+        const r = draft.rows[i.code] || {};
+        return `<tr>
+          <td><input type="checkbox" class="pa-chk" data-code="${_esc(i.code)}" ${r.on?'checked':''}></td>
+          <td><b class="mono" style="font-size:11.5px">${_esc(i.code)}</b></td>
+          <td>${_esc(i.name||'')}</td>
+          <td class="num mono">${i.price?(+i.price).toLocaleString():'—'}</td>
+          <td><input type="number" class="pa-price" data-code="${_esc(i.code)}" value="${r.price!=null?r.price:(i.price||'')}" style="padding:6px 8px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px"></td>
+          <td><input class="pa-rmk" data-code="${_esc(i.code)}" value="${_esc(r.remark||'')}" placeholder="예: 재질 인상분" style="padding:6px 8px;font-size:11.5px"></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>` : `<div class="empty">이 고객사에 연결된 품번 없음 — 품번 마스터에서 고객사를 연결하세요.</div>`;
+  };
+  openModal(`
+    <h2>단가합의서 작성 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div class="grid g3">
+        <div><label>고객사</label><select id="pa-cust">${custs.map(c=>`<option value="${_esc(c.code)}">${_esc(c.name)}</option>`).join('')}</select></div>
+        <div><label>적용일 (합의 단가 발효)</label><input id="pa-apply" type="date" value="${draft.apply}"></div>
+        <div>${docNoField('PA','pa-id')}</div>
+      </div>
+      <div style="font-size:11px;color:var(--sub);margin:6px 0">품목 체크 후 합의 단가 입력 — <b>1건만 체크하면 아이템건별 합의서</b> · 여러 건 체크하면 일괄 합의서</div>
+      <div id="pa-items">${body()}</div>
+      <div style="margin-top:10px"><label>메모 (선택 — 합의 배경)</label><input id="pa-memo" placeholder="예: 2026 하반기 원자재 인상 반영"></div>
+      <label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;margin-top:10px">
+        <input type="checkbox" id="pa-sync" checked style="width:auto;margin:0"> 저장 시 합의 단가를 <b>품번 마스터 단가에 반영</b> (이후 수주·출하 기본 단가)
+      </label>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="pa-ok">${ico('save')}저장 + 인쇄</button>
+      </div>
+    </div>`, { width:'720px' });
+  const bindRows = () => {
+    document.querySelectorAll('.pa-chk').forEach(el=>el.onchange=()=>{ const c=el.dataset.code; draft.rows[c]={...(draft.rows[c]||{}), on:el.checked}; });
+    document.querySelectorAll('.pa-price').forEach(el=>el.oninput=()=>{ const c=el.dataset.code; draft.rows[c]={...(draft.rows[c]||{}), price:el.value}; });
+    document.querySelectorAll('.pa-rmk').forEach(el=>el.oninput=()=>{ const c=el.dataset.code; draft.rows[c]={...(draft.rows[c]||{}), remark:el.value}; });
+  };
+  bindRows();
+  document.getElementById('pa-cust').onchange = e => {
+    draft.cust = e.target.value; draft.rows = {};
+    document.getElementById('pa-items').innerHTML = body(); bindRows();
+  };
+  document.getElementById('pa-apply').onchange = e => { draft.apply = e.target.value; };
+  document.getElementById('pa-ok').onclick = () => {
+    const picked = Object.entries(draft.rows).filter(([,r])=>r.on);
+    if(!picked.length){ toast('품목을 1건 이상 체크하세요','warn'); return; }
+    const items = [];
+    for(const [code, r] of picked){
+      const it = DB.get('items', code);
+      const price = Math.round(+r.price||0);
+      if(price<=0){ toast(`${code} — 합의 단가 입력`,'warn'); return; }
+      items.push({ code, name: it?.name||'', spec: matSpecStr(it), prev_price: +it?.price||0, price, remark:(r.remark||'').trim() });
+    }
+    const no = resolveDocNo('pa-id','PA');
+    if(no.dup){ toast(`번호 중복 — ${no.id}`,'err'); return; }
+    const doc = {
+      id: no.id, customer_ref: draft.cust,
+      effective_date: document.getElementById('pa-apply').value || fmtDate(Date.now()),
+      items, memo: document.getElementById('pa-memo').value.trim(),
+      master_synced: document.getElementById('pa-sync').checked,
+      ts: Date.now(), by: SESSION.user,
+    };
+    DB.set('price_agreements', no.id, doc);
+    if(doc.master_synced){
+      items.forEach(x => { if(DB.get('items', x.code)) DB.set('items', x.code, { price: x.price }); });
+    }
+    toast(`단가합의서 저장 — ${no.id} · ${items.length}건${doc.master_synced?' · 마스터 반영':''}`,'ok');
+    closeModal();
+    printForm.pa([no.id]);
+    if(typeof onDone === 'function') onDone();
+  };
+};
+/* 인쇄 양식 — 거래명세서 스타일 계열 · 합의서당 2부(공급자/구매자 보관용) */
+printForm.pa = (ids) => {
+  const ags = (ids||[]).map(id=>DB.get('price_agreements', id)).filter(Boolean);
+  if(!ags.length){ toast('출력할 합의서 없음','warn'); return; }
+  const co = getCompany();
+  const page = (a, copyTag) => {
+    const cust = DB.get('vendors', a.customer_ref) || {};
+    const rows = (a.items||[]).map((x,i)=>`<tr>
+        <td class="c mono">${i+1}</td>
+        <td class="b"><b class="mono">${_esc(x.code)}</b> ${_esc(x.name||'')}</td>
+        <td class="c mono">${_esc(x.spec||'—')}</td>
+        <td class="r mono">${x.prev_price?x.prev_price.toLocaleString():'—'}</td>
+        <td class="r mono"><b>${x.price.toLocaleString()}</b></td>
+        <td class="note">${_esc(x.remark||'')}</td>
+      </tr>`).join('');
+    const blanks = Math.max(0, 6-(a.items||[]).length);
+    const blankRows = Array(blanks).fill('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
+    return `<div class="page">
+      <div class="top-bar"><div class="doc-title">단가합의서</div><div class="copy-tag">${copyTag}</div></div>
+      <div class="rule"></div>
+      <div class="parties">
+        ${bizBlock(co, '공급자', {compact:true})}
+        ${bizBlock({...cust, name: cust.name || a.customer_ref}, '구매자 (합의 상대방)', {compact:true})}
+      </div>
+      <div class="meta-qr"><div class="meta">
+        <div class="mr">합의서 번호 <b class="mono">${_esc(a.id)}</b></div>
+        <div class="mr">작성일 <b>${fmtDate(a.ts)}</b> · 적용일 <b>${_esc(a.effective_date||'')}</b></div>
+        ${a.memo?`<div class="mr">비고 <b>${_esc(a.memo)}</b></div>`:''}
+      </div></div>
+      <table>
+        <thead><tr>
+          <th class="c" style="width:6%">No</th><th style="width:32%">품번 · 품명</th>
+          <th class="c" style="width:14%">소재규격</th><th class="r" style="width:14%">기존 단가</th>
+          <th class="r" style="width:14%">합의 단가</th><th style="width:20%">비고</th>
+        </tr></thead>
+        <tbody>${rows}${blankRows}</tbody>
+      </table>
+      <div style="font-size:11px;color:#444;line-height:1.8;border:1px solid #ccc;border-radius:6px;padding:10px 14px;margin-bottom:14px">
+        위 품목의 공급 단가를 상기와 같이 합의하며, <b>적용일부터 발주·납품·정산에 본 단가를 적용</b>한다.
+        본 합의서는 양사 서명(날인)으로 효력이 발생하며, 재합의 전까지 유효하다. (단가는 VAT 별도)
+      </div>
+      <div style="display:flex;gap:14px">
+        ${['공급자','구매자'].map(t=>`<div style="flex:1;border:1px solid #ccc;border-radius:6px;padding:12px 16px">
+          <div style="font-size:10px;color:#888;font-weight:700;letter-spacing:1px;margin-bottom:14px">${t} 서명</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#666">
+            <span>서명일 : &nbsp;&nbsp;&nbsp;&nbsp;년 &nbsp;&nbsp;&nbsp;월 &nbsp;&nbsp;&nbsp;일</span>
+            <span>(서명 / 인) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+          </div>
+        </div>`).join('')}
+      </div>
+      <div class="foot"><span>본 합의서는 단가 합의 내역을 증빙합니다</span><span>VELA SYSTEM</span></div>
+    </div>`;
+  };
+  const css = `
+    .page{width:794px;min-height:700px;background:#fff;padding:40px 44px;box-shadow:0 8px 30px rgba(0,0,0,.4);margin-bottom:20px}
+    .top-bar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+    .doc-title{font-size:25px;font-weight:900;letter-spacing:10px}
+    .copy-tag{font-size:11px;font-weight:700;color:#16181d;border:1.5px solid #16181d;padding:4px 12px;border-radius:4px}
+    .rule{height:3px;background:#16181d;margin-bottom:16px}
+    .parties{display:flex;gap:14px;margin-bottom:8px}
+    .party{flex:1;border:1px solid #ccc;border-radius:6px;padding:13px 16px;position:relative}
+    .party .ptag{font-size:10px;color:#888;font-weight:700;margin-bottom:8px;letter-spacing:1px}
+    .party .pr{display:flex;font-size:12px;padding:3px 0;align-items:center}
+    .party .pr .k{width:58px;color:#888;font-size:10.5px;flex-shrink:0}
+    .party .pr .v{font-weight:600;flex:1}
+    .party .pr .mono{font-family:'JetBrains Mono','Consolas',monospace}
+    .party .p-seal{display:inline-block;width:32px;height:32px;border:1.5px dashed #bbb;border-radius:50%;font-size:10px;color:#bbb;text-align:center;line-height:29px;margin-left:6px;flex-shrink:0}
+    .party.party-cmp{padding:8px 12px}
+    .party.party-cmp .ptag{font-size:9px;margin-bottom:4px}
+    .party.party-cmp .pr{font-size:10.5px;padding:1.5px 0}
+    .party.party-cmp .pr .k{width:44px;font-size:9.5px}
+    .party.party-cmp .pr .v{font-size:10.5px}
+    .party.party-cmp .p-seal{width:22px;height:22px;line-height:20px;font-size:8.5px;margin-left:4px}
+    .meta-qr{display:flex;justify-content:space-between;align-items:center;margin:10px 0}
+    .meta{font-size:11.5px} .meta .mr{padding:2px 0;color:#444} .meta .mr b{color:#16181d}
+    .mono{font-family:'JetBrains Mono','Consolas',monospace}
+    table{width:100%;border-collapse:collapse;margin-bottom:12px}
+    th{background:#16181d;color:#fff;font-size:10.5px;font-weight:500;padding:7px 6px;text-align:left}
+    th.c{text-align:center} th.r{text-align:right}
+    td{border-bottom:1px solid #d5d7dc;padding:7px 6px;font-size:11.5px;height:26px}
+    td.c{text-align:center} td.r{text-align:right} td.b{font-weight:600} td.note{font-size:10.5px;color:#555}
+    .foot{display:flex;justify-content:space-between;font-size:9.5px;color:#999;margin-top:14px;border-top:1px solid #eee;padding-top:8px}
+    @media print { .page{box-shadow:none;margin-bottom:0;page-break-after:always} }
+  `;
+  const bodyHTML = ags.map(a => page(a,'공급자 보관용') + page(a,'구매자용')).join('');
+  _openPrint('단가합의서', bodyHTML, css, { formKey:'pa' });
 };
 
 /* =================================================================================================
