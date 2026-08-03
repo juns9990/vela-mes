@@ -307,7 +307,8 @@ td.muted{color:var(--sub)}
 /* ★ v0.29.2 — 리스트 세로 스크롤 (전 메뉴 공통 · 실사용 지적)
    긴 표는 화면 안(최대 64vh)에서 휠·우하단 화살표·PageUp/Down 으로 스크롤 · 머리글 고정(sticky)
    (인라인 max-height 를 가진 표 — 모달 내 180px/300px 등 — 는 인라인 값이 우선 · 인쇄 시 전체 펼침) */
-.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:64vh;border:1px solid var(--line);border-radius:10px;overscroll-behavior:contain}
+/* ★ v0.29.9 — overscroll 격리 제거 (실사용 지적: 표 끝에서 휠이 페이지로 이어져 다음 단락으로 넘어가야 함) */
+.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:64vh;border:1px solid var(--line);border-radius:10px}
 .tbl-wrap thead th{position:sticky;top:0;z-index:5}
 @media print{.tbl-wrap{max-height:none !important;overflow:visible !important}}
 /* 스크롤 화살표 (우하단 고정 — 대상: 모달 > 마지막 사용 리스트 > 화면 최대 리스트 > 페이지) */
@@ -1054,7 +1055,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.29.7';
+const APP_VERSION = 'v0.29.9';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -4345,8 +4346,16 @@ function _scrollTarget(){
   return null;
 }
 function _snScroll(dir){
-  const t = _scrollTarget();
+  let t = _scrollTarget();
   if(!t) return;
+  // ★ v0.29.9 — 단락 흐름 (실사용 지적): 리스트가 그 방향 끝에 닿아 있으면 페이지로 넘어가
+  //   다음/이전 단락(카드)이 보이게 스크롤. 모달은 예외(뒤 페이지로 새지 않음).
+  if(t !== window && t.id !== 'modal'){
+    const atEnd = dir > 0
+      ? (t.scrollTop + t.clientHeight >= t.scrollHeight - 4)
+      : (t.scrollTop <= 4);
+    if(atEnd && document.documentElement.scrollHeight > window.innerHeight + 4) t = window;
+  }
   const step = (t === window ? window.innerHeight : t.clientHeight) * 0.8 * dir;
   try {
     if(t === window) window.scrollBy({ top: step, behavior: 'smooth' });
@@ -14847,6 +14856,15 @@ VIEWS.mold = () => {
   const total = molds.length;
   const warn = molds.filter(m=>m._st==='임박').length;
   const replace = molds.filter(m=>m._st==='교체').length;
+  // ★ v0.29.8 — 구분별 보유 벌수 집계 (사용자 지적: 수량은 BL/FI/일체형 나눠 보여야)
+  const totalUnits = molds.reduce((s,m)=>s+m._qty,0);
+  const unitsByVar = {};
+  molds.forEach(m => { const k = m.variant || '미지정'; unitsByVar[k] = (unitsByVar[k]||0) + m._qty; });
+  const varOrder = ['ONE','BL','FI'];
+  const varSummary = Object.keys(unitsByVar)
+    .sort((a,b)=>{ const ia=varOrder.indexOf(a), ib=varOrder.indexOf(b); return (ia<0?9:ia)-(ib<0?9:ib) || a.localeCompare(b); })
+    .map(k => `${k==='미지정'?'미지정':(MOLD_VARIANT_LABELS[k]?MOLD_VARIANT_LABELS[k].split(' — ')[0]+`(${k})`:k)} ${unitsByVar[k]}벌`)
+    .join(' · ');
   const mTopFields = getTopCustomFields('molds');
 
   document.getElementById('view').innerHTML = `
@@ -14861,7 +14879,7 @@ VIEWS.mold = () => {
     </div>
 
     <div class="grid g3">
-      <div class="kpi-mini"><div class="lab">${ico('check')}금형 합계</div><div class="val c">${total}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">구분(블로커 BL/피니셔 FI) 각 1개</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}금형 합계</div><div class="val c">${total}<span style="font-size:12px;color:var(--sub)">건 · ${totalUnits}벌</span></div><div class="sub">${varSummary || '등록된 금형 없음'}</div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}임박 (90%+)</div><div class="val h">${warn}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">amber 게이지</div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}교체 필요 (100%+)</div><div class="val r">${replace}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">red 게이지</div></div>
     </div>
@@ -14955,7 +14973,7 @@ VIEWS.mold = () => {
             <option value="">— 직접 입력 (품번에 없는 금형) —</option>
             ${_mnOpts.map(mn => {
               const reg = _regByMoldNo[mn] || [];
-              const regTag = reg.length ? ` — 등록 ${reg.length}벌 (${reg.map(v=>v.variant||'미지정').join('/')})` : '';
+              const regTag = reg.length ? ` — 등록 ${reg.length}건 (${reg.map(v=>`${v.variant||'미지정'}×${moldQty(v)}벌`).join('/')})` : '';
               return `<option value="${_esc(mn)}">${_esc(mn)} · ${_esc(_byMoldNo[mn][0].name||'')}${_byMoldNo[mn].length>1?` 외 ${_byMoldNo[mn].length-1}품번`:''}${_esc(regTag)}</option>`;
             }).join('')}
           </select>
@@ -15034,7 +15052,7 @@ VIEWS.mold = () => {
         const vLbl = varSelEl && MOLD_VARIANT_LABELS[varSelEl.value] ? ` (${MOLD_VARIANT_LABELS[varSelEl.value].split(' — ')[0]})` : '';
         nmEl.value = `${linked[0]?.name || mn} 금형${vLbl}`;
       }
-      const regNote = reg.length ? ` · 기존 ${reg.length}벌(${reg.map(v=>v.variant||'미지정').join('/')})` : '';
+      const regNote = reg.length ? ` · 기존 ${reg.length}건(${reg.map(v=>`${v.variant||'미지정'}×${moldQty(v)}벌`).join('/')})` : '';
       toast(`${mn} — 적용 품번 ${linked.length}건 자동 연결${regNote}`, 'ok', 2600);
     };
     document.getElementById('m-ok').onclick = ()=>{
