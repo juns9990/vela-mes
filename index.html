@@ -1054,7 +1054,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.29.2';
+const APP_VERSION = 'v0.29.3';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -14919,9 +14919,25 @@ VIEWS.mold = () => {
     const m = id? DB.get('molds', id) : { id:'', name:'', type:'mold', mold_no:'', variant:'',
       itemCodes:[], life_limit:50000, cum_strokes:0, offset:0, shots_source:'derived',
       status:'정상', qr:'', custom:{} };
+    // ★ v0.29.3 — 품번 마스터 금형번호 연동 등록 (사용자 제안 2026-08-03)
+    //   품번 등록의 금형번호가 품번↔금형 연결의 단일 진실 — 여기서 선택하면
+    //   금형번호·적용 품번·이름·ID 가 자동으로 채워지고, 수명 등 나머지만 기록하면 된다.
+    //   (이미 금형으로 등록된 번호는 목록에서 제외 · 품번에 없는 금형은 기존처럼 직접 입력)
+    const _byMoldNo = {};
+    items.forEach(i => { const mn = (i.mold_no||'').trim(); if(mn) (_byMoldNo[mn] = _byMoldNo[mn] || []).push(i); });
+    const _regMoldNos = new Set(DB.all('molds').flatMap(x => [(x.mold_no||'').trim(), String(x.id||'').trim()]).filter(Boolean));
+    const _mnOpts = Object.keys(_byMoldNo).sort().filter(mn => !_regMoldNos.has(mn));
     openModal(`
       <h2>${id?'금형 편집':'금형 추가'} — ${_esc(id||'신규')} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
+        ${!id ? `
+        <div style="border:1px solid var(--cyan-dim);border-radius:11px;padding:12px 14px;margin-bottom:12px;background:rgba(94,234,212,.05)">
+          <label style="color:var(--cyan)">품번 마스터의 금형번호에서 선택 <span style="color:var(--dim);font-weight:400">— 선택 시 금형번호·적용 품번·이름 자동 (미등록 ${_mnOpts.length}건)</span></label>
+          <select id="m-from-item">
+            <option value="">— 직접 입력 (품번에 없는 금형) —</option>
+            ${_mnOpts.map(mn => `<option value="${_esc(mn)}">${_esc(mn)} · ${_esc(_byMoldNo[mn][0].name||'')}${_byMoldNo[mn].length>1?` 외 ${_byMoldNo[mn].length-1}품번`:''}</option>`).join('')}
+          </select>
+        </div>` : ''}
         <div class="grid g2">
           <div><label>금형ID ${id?'<span style="color:var(--dim);font-weight:400">— 불변</span>':''}</label><input id="m-id" value="${_esc(m.id)}" ${id?'readonly':''} placeholder="예: M-3310"></div>
           <div><label>type</label><select id="m-type"><option value="mold"${m.type==='mold'?' selected':''}>금형(mold)</option><option value="jig"${m.type==='jig'?' selected':''}>지그(jig)</option></select></div>
@@ -14949,6 +14965,20 @@ VIEWS.mold = () => {
         </div>
       </div>
     `);
+    // ★ v0.29.3 — 금형번호 선택 → 자동 채움 (금형번호·ID 제안·적용 품번 전체·이름 제안 — 전부 수정 가능)
+    const fromSel = document.getElementById('m-from-item');
+    if(fromSel) fromSel.onchange = () => {
+      const mn = fromSel.value;
+      if(!mn) return;
+      const linked = _byMoldNo[mn] || [];
+      document.getElementById('m-moldno').value = mn;
+      document.getElementById('m-items').value = linked.map(i => i.code).join(',');
+      const idEl = document.getElementById('m-id');
+      if(!idEl.value.trim()) idEl.value = mn;
+      const nmEl = document.getElementById('m-name');
+      if(!nmEl.value.trim()) nmEl.value = `${linked[0]?.name || mn} 금형`;
+      toast(`${mn} — 적용 품번 ${linked.length}건 자동 연결`, 'ok', 2200);
+    };
     document.getElementById('m-ok').onclick = ()=>{
       const mid    = document.getElementById('m-id').value.trim();
       const name   = document.getElementById('m-name').value.trim();
