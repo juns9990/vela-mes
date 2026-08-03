@@ -979,7 +979,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.28.4';
+const APP_VERSION = 'v0.28.5';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -3263,7 +3263,96 @@ const _IMPORTER_SPEC = {
     ],
     example: { id:'038-031-D', itemCode:'HF-3301', rev:'2', rev_date:'2026-07-01', reason:'기존 데이터 이관' },
   },
+  // ★ v0.28.5 — 이관 임포트 확대 (BOM=마스터 · 이하 원장은 기존 검증 경로 경유 — 보존식·초과 차단 동일 적용)
+  bom: {
+    label: 'BOM(라우트)',
+    columns: [
+      { key:'code',   label:'품번', required:true },
+      { key:'route',  label:'라우트(공정코드>순서, 외주는 :out)', required:true },
+      { key:'mat',    label:'재질' },
+      { key:'dia',    label:'Ø', kind:'number' },
+      { key:'weight', label:'단중(kg)', kind:'number' },
+    ],
+    example: { code:'999-001-0', route:'CUT>FORGE>HEAT:out>SHOT>SHIP', mat:'SCM440', dia:55, weight:0.42 },
+  },
+  material_receipts: {
+    label: '소재 입고(heat)',
+    columns: [
+      { key:'heat',  label:'heat번호', required:true },
+      { key:'mat',   label:'재질' },
+      { key:'dia',   label:'Ø', kind:'number' },
+      { key:'kg',    label:'입고량(kg)', required:true, kind:'number' },
+      { key:'vendor',label:'공급처코드' },
+      { key:'date',  label:'입고일(YYYY-MM-DD)' },
+    ],
+    example: { heat:'H2605-101', mat:'SCM440', dia:55, kg:850, vendor:'S001', date:'2026-06-01' },
+  },
+  production_lots: {
+    label: '생산LOT',
+    columns: [
+      { key:'plot_no',  label:'생산LOT', required:true },
+      { key:'itemCode', label:'품번', required:true },
+      { key:'qty_initial', label:'초기수량(절단 투입)', required:true, kind:'number' },
+      { key:'heat',     label:'소재heat(선택)' },
+      { key:'date',     label:'생성일(YYYY-MM-DD)' },
+    ],
+    example: { plot_no:'PL-2026-001', itemCode:'999-001-0', qty_initial:1000, heat:'H2605-101', date:'2026-06-05' },
+  },
+  records: {
+    label: '생산실적',
+    columns: [
+      { key:'plot_no',  label:'생산LOT', required:true },
+      { key:'proc',     label:'공정코드', required:true },
+      { key:'good',     label:'양품', kind:'number' },
+      { key:'defect',   label:'불량', kind:'number' },
+      { key:'date',     label:'작업일(YYYY-MM-DD)' },
+      { key:'equipment',label:'설비(선택)' },
+      { key:'defect_reason', label:'불량사유(선택)' },
+    ],
+    example: { plot_no:'PL-2026-001', proc:'CUT', good:950, defect:30, date:'2026-06-06', equipment:'절단기 1호', defect_reason:'' },
+  },
+  os_dispatches: {
+    label: '외주 반출',
+    columns: [
+      { key:'plot_no', label:'생산LOT', required:true },
+      { key:'proc',    label:'외주 공정코드', required:true },
+      { key:'vendor',  label:'외주처코드', required:true },
+      { key:'qty',     label:'반출수량', required:true, kind:'number' },
+      { key:'date',    label:'반출일(YYYY-MM-DD)' },
+    ],
+    example: { plot_no:'PL-2026-001', proc:'HEAT', vendor:'V001', qty:500, date:'2026-06-10' },
+  },
+  orders: {
+    label: '수주(SO)',
+    columns: [
+      { key:'so_no',    label:'수주번호(빈칸=자동)' },
+      { key:'cust',     label:'고객사코드', required:true },
+      { key:'itemCode', label:'품번', required:true },
+      { key:'qty',      label:'수주수량', required:true, kind:'number' },
+      { key:'price',    label:'단가(원)', kind:'number' },
+      { key:'due',      label:'납기(YYYY-MM-DD)' },
+      { key:'date',     label:'수주일(YYYY-MM-DD)' },
+    ],
+    example: { so_no:'', cust:'C001', itemCode:'999-001-0', qty:900, price:3000, due:'2026-07-15', date:'2026-06-01' },
+  },
 };
+/* ★ v0.28.5 — 원장 임포트 공용: 날짜 문자열 → ts (자정 기준 · 미래/형식 오류는 now) */
+function _importDateTs(dateStr){
+  const t = new Date(String(dateStr||'').trim() + 'T09:00:00').getTime();
+  return (!isNaN(t) && t <= Date.now()) ? t : Date.now();
+}
+/* 라우트 문자열 파서 1벌 — "CUT>FORGE>HEAT:out>SHIP" → [{seq,proc,mode}] · 오류 시 null */
+function _importParseRoute(str){
+  const parts = String(str||'').split('>').map(x=>x.trim()).filter(Boolean);
+  if(!parts.length) return null;
+  const route = [];
+  for(let i=0;i<parts.length;i++){
+    const [proc, mode] = parts[i].split(':').map(x=>x.trim());
+    if(!proc || !DB.get('processes', proc)) return { error: `공정 없음 — ${proc||parts[i]}` };
+    route.push({ seq:(i+1)*10, proc, mode: (mode==='out'||mode==='both') ? mode : 'in' });
+  }
+  return { route };
+}
 function _importerColumns(master){
   const base = (_IMPORTER_SPEC[master]?.columns || []).slice();
   const cfs = getMasterFields(master);
@@ -3335,6 +3424,39 @@ function _importJudgeRow(master, parsed){
   } else if(master === 'drawings'){
     if(DB.get('drawings', d.id)) return { ok:false, reason:'중복 도면번호 — 건너뜀' };
     if(d.itemCode && !DB.get('items', d.itemCode)) return { ok:false, reason:`품번 없음 — ${d.itemCode} (품목 먼저 임포트)` };
+  } else if(master === 'bom'){
+    if(!DB.get('items', d.code)) return { ok:false, reason:`품번 없음 — ${d.code} (품목 먼저 임포트)` };
+    if(DB.get('bom', d.code)) return { ok:false, reason:'BOM 이미 존재 — 건너뜀 (수정은 화면에서)' };
+    const r = _importParseRoute(d.route);
+    if(!r || r.error) return { ok:false, reason: r?.error || '라우트 형식 오류 (예: CUT>FORGE>HEAT:out>SHIP)' };
+  } else if(master === 'material_receipts'){
+    if(DB.get('material_lots', d.heat)) return { ok:false, reason:'중복 heat — 건너뜀' };
+    if(+d.kg <= 0) return { ok:false, reason:'입고량(kg) > 0 필요' };
+    if(d.vendor && !DB.get('vendors', d.vendor)) return { ok:false, reason:`공급처 없음 — ${d.vendor}` };
+  } else if(master === 'production_lots'){
+    if(DB.get('production_lots', d.plot_no)) return { ok:false, reason:'중복 생산LOT — 건너뜀' };
+    if(!DB.get('items', d.itemCode)) return { ok:false, reason:`품번 없음 — ${d.itemCode}` };
+    if(+d.qty_initial <= 0) return { ok:false, reason:'초기수량 > 0 필요' };
+    if(d.heat && !DB.get('material_lots', d.heat)) return { ok:false, reason:`heat 없음 — ${d.heat} (소재 입고 먼저 임포트)` };
+  } else if(master === 'records'){
+    const lot = DB.get('production_lots', d.plot_no);
+    if(!lot) return { ok:false, reason:`생산LOT 없음 — ${d.plot_no} (생산LOT 먼저 임포트)` };
+    if(!DB.get('processes', d.proc)) return { ok:false, reason:`공정 없음 — ${d.proc}` };
+    if(!bomHasProc(lot.itemCode, d.proc)) return { ok:false, reason:`${lot.itemCode} 라우트에 없는 공정 — ${d.proc}` };
+    if((+d.good||0) + (+d.defect||0) <= 0) return { ok:false, reason:'양품+불량 > 0 필요' };
+    // 잔량 검증은 등록 시 LOT.registerRecord 가 최종 판정 (행 순서 반영 — 초과 행은 등록 단계에서 건너뜀 처리)
+  } else if(master === 'os_dispatches'){
+    if(!DB.get('production_lots', d.plot_no)) return { ok:false, reason:`생산LOT 없음 — ${d.plot_no}` };
+    if(!DB.get('processes', d.proc)) return { ok:false, reason:`공정 없음 — ${d.proc}` };
+    const v = DB.get('vendors', d.vendor);
+    if(!v) return { ok:false, reason:`외주처 없음 — ${d.vendor}` };
+    if(+d.qty <= 0) return { ok:false, reason:'반출수량 > 0 필요' };
+    // 가능량 초과는 등록 시 osAvailable 로 최종 판정 (선행 행 반영)
+  } else if(master === 'orders'){
+    if(d.so_no && DB.get('orders', d.so_no)) return { ok:false, reason:`중복 수주번호 — ${d.so_no}` };
+    if(!DB.get('vendors', d.cust)) return { ok:false, reason:`고객사 없음 — ${d.cust}` };
+    if(!DB.get('items', d.itemCode)) return { ok:false, reason:`품번 없음 — ${d.itemCode}` };
+    if(+d.qty <= 0) return { ok:false, reason:'수주수량 > 0 필요' };
   }
   return { ok:true, reason:'등록 가능' };
 }
@@ -3390,6 +3512,45 @@ function _importApplyRow(master, parsed){
       revs:[{ rev, date, reason:(d.reason||'기존 데이터 이관'), by:SESSION.user, ts:Date.now() }],
       memo:'', active:true, created:Date.now(), by:SESSION.user,
     });
+  } else if(master === 'bom'){
+    // ★ v0.28.5 — BOM 라우트 (마스터 · 기존 시드와 동일 구조)
+    const it = DB.get('items', d.code);
+    const parsed = _importParseRoute(d.route);
+    DB.set('bom', d.code, {
+      code:d.code, name: it?.name || d.code, rev:'A',
+      material: { type: d.mat || it?.mat || '', dia: +d.dia || +it?.dia || 0, weight: +d.weight || +it?.weight || 0 },
+      route: parsed.route,
+    });
+  } else if(master === 'material_receipts'){
+    // ★ v0.28.5 — 소재 입고 (원장 · UI 등록과 동일한 두 문서: material_receipts + material_lots)
+    const ts = _importDateTs(d.date);
+    const kg = +d.kg || 0;
+    const id = `MR-IMP-${d.heat}`;
+    DB.set('material_receipts', id, { id, heat:d.heat, mat:d.mat||'', dia:+d.dia||0, kg, vendor:d.vendor||'', po_id:null, po_item_key:null, date:(d.date||fmtDate(ts)), ts, by:SESSION.user });
+    DB.set('material_lots', d.heat, { heat:d.heat, mat:d.mat||'', dia:+d.dia||0, qty_in_kg:kg, remain_kg:kg, ts });
+  } else if(master === 'production_lots'){
+    // ★ v0.28.5 — 생산LOT (원장 · LOT.create 기존 경로 1벌 — 중복·heat 승계 동일)
+    const lot = LOT.create({ plot_no:d.plot_no, itemCode:d.itemCode, materialLots: d.heat ? [d.heat] : [], qty_initial:+d.qty_initial||0 });
+    DB.set('production_lots', d.plot_no, { created:_importDateTs(d.date) });
+  } else if(master === 'records'){
+    // ★ v0.28.5 — 생산실적 (원장 · LOT.registerRecord 기존 검증 경로 1벌 — 초과등록·라우트 위반은 여기서 throw → 해당 행 건너뜀)
+    const saved = LOT.registerRecord({
+      plot_no:d.plot_no, proc:d.proc, equipment:d.equipment||'',
+      good:+d.good||0, defect:+d.defect||0, defect_reason:d.defect_reason||'',
+      source:'import',
+    });
+    if(saved) DB.set('records', saved.id, { ts:_importDateTs(d.date) });
+  } else if(master === 'os_dispatches'){
+    // ★ v0.28.5 — 외주 반출 (원장 · osAvailable 초과 차단 — 화면 등록과 동일 판정)
+    const info = osAvailable(d.plot_no, d.proc);
+    if(+d.qty > info.avail) throw new Error(`반출 가능 초과 — ${d.plot_no}/${d.proc} 가능 ${info.avail}`);
+    const id = `OD-IMP-${d.plot_no}-${d.proc}-${Date.now().toString(36)}`;
+    DB.set('os_dispatches', id, { id, vendor:d.vendor, proc:d.proc, plot_no:d.plot_no, qty:+d.qty||0, pallets:0, ts:_importDateTs(d.date), by:SESSION.user, imported:true });
+  } else if(master === 'orders'){
+    // ★ v0.28.5 — 수주 (원장 · 화면 등록과 동일 문서 구조)
+    const id = (d.so_no||'').trim() || nextDocNo('SO');
+    if(DB.get('orders', id)) throw new Error(`중복 수주번호 — ${id}`);
+    DB.set('orders', id, { id, cust:d.cust, customer_ref:d.cust, itemCode:d.itemCode, qty:+d.qty||0, price:+d.price||0, due:(d.due||''), created:_importDateTs(d.date), imported:true });
   }
 }
 function nextImportLogId(){
@@ -9202,9 +9363,46 @@ VIEWS.os = () => {
       `);
       return;
     }
+    // ★ v0.28.5 — 반출 대상 실적 목록 (실사용 요청: 실적 선택 → 자동 채움 → 부분 수량 수정)
+    //   후보 = 가능 잔량 > 0 인 (LOT × 외주 가능 공정) · 직전공정 최근 실적 참고 표시 · osAvailable 1벌 재사용
+    const dispatchTargets = [];
+    lots.forEach(l => {
+      const route = getRoute(l.itemCode);
+      route.forEach((r, idx) => {
+        const p = DB.get('processes', r.proc);
+        if(!p) return;
+        if(!(r.mode === 'out' || p.type === 'out' || p.type === 'both')) return;
+        const info = osAvailable(l.plot_no, r.proc);
+        if(info.avail <= 0) return;
+        const prevProc = idx > 0 ? route[idx-1].proc : null;
+        const last = prevProc
+          ? DB.query('records', x => x.plot_no===l.plot_no && x.proc===prevProc && (x.good||0)>0)
+              .sort((a,b)=>(b.ts||0)-(a.ts||0))[0]
+          : null;
+        dispatchTargets.push({ plot:l.plot_no, itemCode:l.itemCode, proc:r.proc, procName:p.name||r.proc,
+          avail:info.avail, dispatched:info.C, lastTs:last?.ts||null, lastGood:last?.good||0 });
+      });
+    });
+    dispatchTargets.sort((a,b)=>(b.lastTs||0)-(a.lastTs||0));
     openModal(`
       <h2>외주 반출 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
+        ${dispatchTargets.length ? `
+        <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--bg2)">
+          <div style="font-size:11.5px;color:var(--sub);margin-bottom:6px"><b style="color:var(--cyan)">반출 대상 실적</b> — 행을 클릭하면 LOT·공정·수량(가능 잔량)이 자동 입력됩니다 · 일부만 반출할 땐 수량을 줄여 등록 (남은 만큼 다음에 다시 반출 가능)</div>
+          <div class="tbl-wrap" style="max-height:180px;overflow-y:auto"><table style="font-size:11.5px">
+            <thead><tr><th>LOT</th><th>품번</th><th>외주 공정</th><th>최근 실적</th><th class="num">직전 양품</th><th class="num">반출 중</th><th class="num">반출 가능</th></tr></thead>
+            <tbody>${dispatchTargets.map(t=>`<tr data-odt="${_esc(t.plot)}|${_esc(t.proc)}|${t.avail}" style="cursor:pointer">
+              <td><b class="mono">${_esc(t.plot)}</b></td>
+              <td>${_esc(t.itemCode)}</td>
+              <td>${_esc(t.procName)}</td>
+              <td class="muted">${t.lastTs?fmtDate(t.lastTs):'—'}</td>
+              <td class="num mono">${t.lastGood?t.lastGood.toLocaleString():'—'}</td>
+              <td class="num mono">${t.dispatched?t.dispatched.toLocaleString():'—'}</td>
+              <td class="num mono" style="color:var(--cyan);font-weight:700">${t.avail.toLocaleString()}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>
+        </div>` : ''}
         <div class="grid g2">
           <div><label>외주처</label>
             <select id="od-v">${vendors.map(v=>`<option value="${v.code}">${_esc(v.name)}</option>`).join('')}</select></div>
@@ -9298,6 +9496,20 @@ VIEWS.os = () => {
     document.getElementById('od-q').oninput  = (e) => { e.target.dataset.touched = '1'; };
     setMode('ea');
     updAvail();
+    // ★ v0.28.5 — 반출 대상 실적 행 클릭 → LOT·공정·수량 자동 채움 (수량은 수정 가능 = 부분 반출)
+    document.querySelectorAll('[data-odt]').forEach(tr => tr.onclick = () => {
+      const [plot, proc, avail] = tr.dataset.odt.split('|');
+      document.getElementById('od-l').value = plot;
+      document.getElementById('od-p').value = proc;
+      const qEl = document.getElementById('od-q');
+      delete qEl.dataset.touched;
+      setMode('ea');
+      updAvail();
+      qEl.value = +avail || '';
+      document.querySelectorAll('[data-odt]').forEach(x => x.style.background='');
+      tr.style.background = 'rgba(94,234,212,.08)';
+      toast(`선택 — ${plot} · 가능 ${(+avail).toLocaleString()}ea (수량 수정 = 부분 반출)`,'ok',2000);
+    });
     document.getElementById('od-ok').onclick = () => {
       const vendor = document.getElementById('od-v').value;
       const proc   = document.getElementById('od-p').value;
@@ -19538,6 +19750,24 @@ VIEWS.set = () => {
     </div>
     ` : ''}
 
+    <!-- ★ v0.28.5 — 데이터 이관 허브 (업체 기존 데이터 일괄 임포트 · 온보딩) -->
+    <div class="card">
+      <h3>데이터 이관 — 일괄 임포트 <span class="tag">엑셀 템플릿 → 미리보기 판정 → 등록 · 중복 자동 건너뜀 · 재실행 안전</span></h3>
+      <div style="font-size:11.5px;color:var(--sub);margin-bottom:10px;line-height:1.7">
+        <b style="color:var(--amber)">권장 순서</b> — 왼쪽부터: 참조가 앞 단계에 걸려 있습니다 (예: 실적은 생산LOT 필요 · 금형/도면/BOM 은 품목 필요).
+        원장(소재입고~수주)은 화면 등록과 <b>같은 검증 경로</b>를 통과합니다 — 초과·보존식 위반 행은 자동 거부.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${[
+          ['vendors','① 거래처'], ['workers','② 작업자'], ['equipments','③ 설비'],
+          ['items','④ 품목'], ['bom','⑤ BOM(라우트)'], ['molds','⑥ 금형'], ['drawings','⑦ 도면'],
+          ['material_receipts','⑧ 소재 입고'], ['production_lots','⑨ 생산LOT'], ['records','⑩ 생산실적'],
+          ['os_dispatches','⑪ 외주 반출'], ['orders','⑫ 수주'],
+        ].map(([k,t])=>`<button class="btn" data-mig-import="${k}" style="font-size:11.5px;padding:7px 13px">${ico('excel')}${t}</button>`).join('')}
+      </div>
+      <div style="font-size:10.5px;color:var(--dim);margin-top:8px">각 버튼 → [템플릿 다운로드]로 형식 확인 · 공정 템플릿(절단·단조 등)은 공정 템플릿 화면에서 먼저 구성</div>
+    </div>
+
     <!-- ★ v0.15.2 — 사용자·PIN 관리 (인증) ※ 작업자 마스터(생산부 직원)와 별개 — users/workers 통합 아님 -->
     <div class="card">
       <h3>사용자 · 비밀번호 관리 <span class="tag">v0.16.22 · 이름(식별자) + 비밀번호(6자리) · 초기 000000 자동 부여</span></h3>
@@ -20407,6 +20637,8 @@ VIEWS.set = () => {
     };
   }
   document.getElementById('wk-add').onclick = ()=>editWorker(null);
+  // ★ v0.28.5 — 데이터 이관 허브 버튼
+  document.querySelectorAll('[data-mig-import]').forEach(b => b.onclick = () => VIEWS._mstImport(b.dataset.migImport));
   const wkImp = document.getElementById('wk-import');
   if(wkImp) wkImp.onclick = ()=>VIEWS._mstImport('workers');   // ★ v0.28.4
   renderWorkers();
