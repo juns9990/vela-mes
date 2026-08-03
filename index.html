@@ -979,8 +979,8 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.28.6';
-const APP_DATE    = '2026-07-26';
+const APP_VERSION = 'v0.28.7';
+const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1054,6 +1054,14 @@ const _DEMO_FLAG_KEY = 'vela_demo';
 const _DEMO_LS_KEY   = 'vela_mes_demo_v1';
 function isDemoMode(){
   try { return localStorage.getItem(_DEMO_FLAG_KEY) === '1'; }
+  catch { return false; }
+}
+/* ★ v0.28.7 — 빈 상태 데모(시연·테스트 캔버스) 판정 1벌
+   · 데모 격리(별도 키·서버 0) 그대로 재사용 · 차이는 시드뿐: 뼈대(공정 템플릿·계정과목)만, 데이터 0
+   · 단말 고유값 원칙 — 플래그는 localStorage (DB 밖) */
+const _DEMO_EMPTY_KEY = 'vela_demo_empty';
+function isEmptyDemo(){
+  try { return isDemoMode() && localStorage.getItem(_DEMO_EMPTY_KEY) === '1'; }
   catch { return false; }
 }
 function _activeLSKey(){ return isDemoMode() ? _DEMO_LS_KEY : _LS_KEY; }
@@ -2088,7 +2096,9 @@ function seedIfEmpty(){
   if(DB.all('expense_categories').length===0){
     seedStdExpenseCategories();
   }
-  if(DB.all('items').length===0){
+  // ★ v0.28.7 — 빈 상태 데모: 데이터성 시드(품번·BOM·거래처·작업자·단가·설비·금형)는 건너뜀.
+  //   구조성 시드(계정과목·공정 템플릿·설정·교대·중단사유·자동계획)는 유지 — 뼈대만 있는 시연용.
+  if(!isEmptyDemo() && DB.all('items').length===0){
     // ★ v0.6.0 — items에서 coining 제거. 라우트(BOM)가 공정 포함 여부를 정함.
     // ★ v0.13.0 — cust(고객사 vendor code) 추가. 검색·재고화면 표시용.
     [
@@ -2110,7 +2120,7 @@ function seedIfEmpty(){
     ].forEach(p=>DB.set('processes',p.code,p));
   }
   // ★ v0.6.0 — BOM(품번별 공정 라우팅) 시드
-  if(DB.all('bom').length===0){
+  if(!isEmptyDemo() && DB.all('bom').length===0){
     const SEQ = {CUT:10, FORGE:20, HEAT:30, SHOT:40, COIN:50, SHIP:99};
     const BOM_SEED = {
       'HF-3301': [['CUT','in'],['FORGE','in'],['HEAT','out'],['SHOT','in'],['SHIP','in']],                  // 코이닝 X
@@ -2127,7 +2137,7 @@ function seedIfEmpty(){
       });
     });
   }
-  if(DB.all('vendors').length===0){
+  if(!isEmptyDemo() && DB.all('vendors').length===0){
     [
       {code:'V001', name:'한국열처리', type:'out', processes:['HEAT'], grade:'A'},
       {code:'V002', name:'대성특수강', type:'sup', processes:[],       grade:'A'},  // ★ v0.16.8 — 구매처(sup)
@@ -2159,7 +2169,7 @@ function seedIfEmpty(){
     });
   }
   // ★ v0.11.0 — 작업자 마스터 (생산부 직원 — 명찰 QR 없음, 목록 선택)
-  if(DB.all('workers').length===0){
+  if(!isEmptyDemo() && DB.all('workers').length===0){
     [
       {id:'OP-014', name:'홍길동', emp_no:'OP-014', dept:'단조반',   active:true},
       {id:'OP-008', name:'김철수', emp_no:'OP-008', dept:'절단반',   active:true},
@@ -2169,7 +2179,7 @@ function seedIfEmpty(){
     ].forEach(w=>DB.set('workers', w.id, w));
   }
   // ★ v0.7.0 — 원가 단가표 (간이: 공정별·자재별·외주별 ea단가 + 간접비율)
-  if(!DB.get('settings','cost_rates')){
+  if(!isEmptyDemo() && !DB.get('settings','cost_rates')){
     DB.set('settings','cost_rates', {
       // 자재 단가 (₩/kg) — heat 시 단중×weight×rate
       material_rates: { 'SCM440':3500, 'SCM435':3200, 'S45C':2800, 'SCM420':3300 },
@@ -2183,7 +2193,7 @@ function seedIfEmpty(){
   }
   // ★ v0.8.0 — 설비 마스터 (CAPA 산정 기준)
   // v0.10.0 — status / counter_* 필드 추가 (자리만, 실 연동은 다음 단계)
-  if(DB.all('equipment').length===0){
+  if(!isEmptyDemo() && DB.all('equipment').length===0){
     const eqDefaults = { status:'idle', counter_enabled:false, counter_source:null, counter_endpoint:null, counter_last:null };
     [
       {id:'EQ-CUT-1',   name:'절단기 1호',     proc:'CUT',   hourly_capa: 80, working_hours: 8, qr:'EQ-CUT-1'},
@@ -2194,7 +2204,7 @@ function seedIfEmpty(){
     ].forEach(e=>DB.set('equipment', e.id, {...eqDefaults, ...e}));
   }
   // ★ v0.8.0 — 금형 마스터 (품번별 1개씩, 수명 50,000타)
-  if(DB.all('molds').length===0){
+  if(!isEmptyDemo() && DB.all('molds').length===0){
     [
       {id:'M-3301', name:'플랜지 단조 금형', type:'mold', itemCodes:['HF-3301'], life_limit:50000, cum_strokes:0, status:'정상', qr:'M-3301'},
       {id:'M-3302', name:'샤프트 단조 금형', type:'mold', itemCodes:['HF-3302'], life_limit:50000, cum_strokes:0, status:'정상', qr:'M-3302'},
@@ -4291,7 +4301,7 @@ function renderPinPad(){
       <div class="pw-hint">초기 비밀번호 <b style="color:var(--cyan)">000000</b> · 첫 로그인 시 새 정책으로 변경</div>
     </form>
     <!-- ★ v0.22.0 — 데모 체험 진입 (보조 스타일 · 주 동선 방해 금지) -->
-    <button class="gate-demo-btn" type="button" onclick="onDemoClick()" title="샘플 데이터로 전 기능 체험 (실데이터·서버와 완전 분리)">▶ 데모 체험</button>
+    <button class="gate-demo-btn" type="button" onclick="onDemoClick()" title="샘플 체험 또는 빈 상태 시연·테스트 (실데이터·서버와 완전 분리)">▶ 데모 · 테스트</button>
   `;
   const nameEl = document.getElementById('gt-name');
   const pwEl   = document.getElementById('gt-pw');
@@ -4475,8 +4485,23 @@ function enterAsUser(u){
 
 /* ★ v0.22.0 — 게이트 [데모 체험] 클릭 → 확인 1회 → 데모 모드 재부팅 */
 function onDemoClick(){
-  if(!confirm('데모 모드 — 샘플 데이터로 전 기능을 체험합니다.\n\n실제 데이터와 완전 분리됩니다.\n(별도 로컬 키 · 서버 접속 없음 · 언제든 [데모 종료] 로 원상 복귀)')) return;
-  enterDemoMode();
+  // ★ v0.28.7 — 진입 2종: 샘플 체험(데모정밀) / 빈 상태(고객사 시연·테스트 — 쓰고 지우고 반복)
+  openModal(`
+    <h2>데모 · 테스트 모드 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="font-size:12px;color:var(--sub);margin-bottom:12px">실제 데이터·서버와 <b>완전 분리</b>됩니다 (별도 저장소 · 서버 접속 없음 · [데모 종료]로 언제든 원상 복귀)</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn" id="demo-go-sample" style="text-align:left;padding:14px 16px">
+          <b>▶ 샘플 데이터로 체험</b><br><span style="font-size:11px;color:var(--sub)">가상 회사 '데모정밀' — 3개월 실적·수주·계획이 채워진 상태로 전 기능 구경</span>
+        </button>
+        <button class="btn" id="demo-go-empty" style="text-align:left;padding:14px 16px;border-color:var(--cyan-dim)">
+          <b style="color:var(--cyan)">▶ 빈 상태로 시작 (시연 · 테스트)</b><br><span style="font-size:11px;color:var(--sub)">공정 템플릿·계정과목 등 뼈대만 — 고객사 데이터를 직접 등록·임포트하며 시연. 끝나면 설정에서 원클릭 초기화</span>
+        </button>
+      </div>
+      <div class="actions"><button class="btn" onclick="closeModal()">취소</button></div>
+    </div>`);
+  document.getElementById('demo-go-sample').onclick = () => { try{ localStorage.removeItem(_DEMO_EMPTY_KEY); localStorage.removeItem(_DEMO_LS_KEY); }catch(e){} closeModal(); enterDemoMode(); };
+  document.getElementById('demo-go-empty').onclick  = () => { try{ localStorage.setItem(_DEMO_EMPTY_KEY,'1'); localStorage.removeItem(_DEMO_LS_KEY); }catch(e){} closeModal(); enterDemoMode(); };
 }
 /* ★ v0.22.0 — 데모 체험 진입/자동 시드/자동 로그인/종료 (분기는 부팅·게이트만)
    ★ v0.22.3 — 원자화: 플래그 set/remove 후 즉시 reload · 실모드 로컬 키(vela_device_code / vela_theme /
@@ -4505,8 +4530,12 @@ function autoLoginDemo(){
   let u = DB.query('users', x => x.name === '데모')[0];
   if(!u){
     // 첫 진입: 시드 실행 후 사용자 확보
-    try { seedDemoData(); } catch(e){ console.error('[VELA] seedDemoData failed', e); }
-    u = DB.query('users', x => x.name === '데모')[0];
+    // ★ v0.28.7 — 빈 상태 데모(시연·테스트)는 샘플 시드 없이 시작: seedDemoData 스킵
+    //   (아래 폴백이 U-DEMO 사용자를 만들고, seedIfEmpty 가 뼈대 — 공정·계정과목·설정 — 만 시드)
+    if(!isEmptyDemo()){
+      try { seedDemoData(); } catch(e){ console.error('[VELA] seedDemoData failed', e); }
+      u = DB.query('users', x => x.name === '데모')[0];
+    }
   }
   // ★ v0.27.3 — 데모 = 풀옵션 시연 원칙: 재진입 시에도 기능 플래그를 현재 MODULE_DEFS 전체 ON 으로 동기화.
   //   (구 데모 DB 의 플래그 스냅샷 고착으로 이후 추가된 메뉴 — 원가·견적·품질·회계 등 — 가 안 보이던 실사용 지적)
@@ -19577,12 +19606,14 @@ VIEWS.set = () => {
     ${isDemoMode() ? `
     <!-- ★ v0.22.0 — 데모 체험 컨트롤 (상단 강조) -->
     <div class="card" style="border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.06)">
-      <h3><span class="demo-badge" style="margin-right:6px">DEMO</span>데모 체험 모드 <span class="tag">별도 로컬 키(<code>${_esc(_DEMO_LS_KEY)}</code>) · 서버 접속 없음 · 단말 D 고정</span></h3>
+      <h3><span class="demo-badge" style="margin-right:6px">DEMO</span>데모 · 테스트 모드 <span class="tag">${isEmptyDemo() ? '빈 상태 (시연·테스트)' : '샘플 데이터 (데모정밀)'}</span> <span class="tag">별도 로컬 키(<code>${_esc(_DEMO_LS_KEY)}</code>) · 서버 접속 없음 · 단말 D 고정</span></h3>
       <div style="font-size:11.5px;color:var(--sub);line-height:1.6;margin-bottom:10px">
-        전 모듈이 켜진 상태로 샘플 데이터를 체험 중입니다. 이 화면에서 등록·취소·수정은 <b>데모 저장소에만</b> 기록되며 실데이터·서버에 영향 없습니다. 종료 시 원래 모드(백엔드·데이터·로그인)로 그대로 복귀합니다.
+        ${isEmptyDemo()
+          ? '전 모듈이 켜진 <b>빈 상태</b>에서 시연·테스트 중입니다. 데이터를 직접 등록·임포트하며 보여주고, 끝나면 아래 [데모 초기화]로 깨끗이 지우고 반복할 수 있습니다.'
+          : '전 모듈이 켜진 상태로 샘플 데이터를 체험 중입니다.'} 이 화면에서 등록·취소·수정은 <b>데모 저장소에만</b> 기록되며 실데이터·서버에 영향 없습니다. 종료 시 원래 모드(백엔드·데이터·로그인)로 그대로 복귀합니다.
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" id="btn-demo-reset">${ico('refresh')}데모 초기화 <span style="color:var(--dim);font-size:10.5px;margin-left:4px">— 샘플 재생성</span></button>
+        <button class="btn" id="btn-demo-reset">${ico('refresh')}데모 초기화 <span style="color:var(--dim);font-size:10.5px;margin-left:4px">— 샘플 재생성 / 빈 상태 선택</span></button>
         <button class="btn primary" id="btn-demo-exit">${ico('x')}데모 종료 <span style="opacity:.7;font-size:10.5px;margin-left:4px">— 원래 모드 복귀</span></button>
       </div>
     </div>
@@ -20175,8 +20206,23 @@ VIEWS.set = () => {
   // ★ v0.22.0 — 데모 컨트롤 (데모 모드 카드 표시 시에만 존재)
   const dReset = document.getElementById('btn-demo-reset');
   if(dReset) dReset.onclick = () => {
-    if(!confirm('데모 저장소를 초기화하고 샘플 데이터를 재생성합니다. (실 데이터 영향 없음)')) return;
-    resetDemoData();
+    // ★ v0.28.7 — 초기화 2선택: 샘플 재생성 / 빈 상태 (시연 반복용 — 실 데이터 영향 없음)
+    openModal(`
+      <h2>데모 초기화 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+      <div class="body">
+        <div style="font-size:12px;color:var(--sub);margin-bottom:12px">데모 저장소를 지우고 다시 시작합니다. <b>실 데이터에는 아무 영향이 없습니다.</b></div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn" id="demo-reset-sample" style="text-align:left;padding:14px 16px">
+            <b>▶ 샘플 데이터로 재생성</b><br><span style="font-size:11px;color:var(--sub)">가상 회사 '데모정밀' 3개월치 데이터가 다시 채워집니다</span>
+          </button>
+          <button class="btn" id="demo-reset-empty" style="text-align:left;padding:14px 16px;border-color:var(--cyan-dim)">
+            <b style="color:var(--cyan)">▶ 빈 상태로 초기화 (시연 · 테스트)</b><br><span style="font-size:11px;color:var(--sub)">뼈대(공정 템플릿·계정과목·설정)만 남고 데이터 0에서 다시 시작</span>
+          </button>
+        </div>
+        <div class="actions"><button class="btn" onclick="closeModal()">취소</button></div>
+      </div>`);
+    document.getElementById('demo-reset-sample').onclick = () => { try{ localStorage.removeItem(_DEMO_EMPTY_KEY); }catch(e){} resetDemoData(); };
+    document.getElementById('demo-reset-empty').onclick  = () => { try{ localStorage.setItem(_DEMO_EMPTY_KEY,'1'); }catch(e){} resetDemoData(); };
   };
   const dExit = document.getElementById('btn-demo-exit');
   if(dExit) dExit.onclick = () => {
