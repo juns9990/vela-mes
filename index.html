@@ -874,6 +874,38 @@ tr.mst-off td{opacity:.45}
   .eqrow{grid-template-columns:1.6fr 0.8fr 1fr;font-size:11.5px}
   .eqrow > :nth-child(n+4){display:none}
 }
+
+/* ★ v0.29.0 — 대기화면 (우측 상단 시계 클릭 진입 · 키/클릭/터치로 복귀 — 마우스 이동은 깨우지 않음)
+   가운데: 회사 CI·상호 → 년월일요일 → 시간(최대) → 오늘 날씨 · 하단: VELA SYSTEM·버전 · 번인 방지 미세 이동 */
+.clock{cursor:pointer;border:1px solid transparent;border-radius:9px;padding:3px 9px;transition:.15s;user-select:none}
+.clock:hover{border-color:var(--cyan-dim);background:rgba(94,234,212,.06)}
+.standby{position:fixed;inset:0;background:#04060a;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:9999;cursor:none;overflow:hidden}
+.standby.on{display:flex;animation:sb-fadein .6s ease}
+@keyframes sb-fadein{from{opacity:0}to{opacity:1}}
+.standby .sb-glow{position:absolute;width:60vw;height:60vw;border-radius:50%;filter:blur(120px);opacity:.10;background:radial-gradient(circle,#2dd4bf,transparent 70%);animation:sb-drift 60s linear infinite alternate}
+@keyframes sb-drift{from{transform:translate(-12%,-8%)}to{transform:translate(12%,8%)}}
+.sb-wrap{position:relative;text-align:center;display:flex;flex-direction:column;align-items:center;animation:sb-shift 120s linear infinite alternate}
+@keyframes sb-shift{from{transform:translate(-14px,-10px)}to{transform:translate(14px,10px)}}
+.sb-ci{display:flex;align-items:center;gap:16px;margin-bottom:26px}
+.sb-ci img{width:58px;height:58px;border-radius:14px;object-fit:contain;border:1px solid #2a3648;background:rgba(94,234,212,.07)}
+.sb-ci .sb-nm{font-size:clamp(22px,3.4vw,34px);font-weight:800;letter-spacing:2px;color:#dbe4f0}
+.sb-date{font-size:clamp(20px,3.4vw,34px);color:#8b98ab;letter-spacing:3px}
+.sb-date b{color:#5eead4}
+.sb-time{font-family:'JetBrains Mono',monospace;font-size:clamp(72px,16vw,170px);font-weight:800;letter-spacing:4px;color:#dbe4f0;line-height:1.08;text-shadow:0 0 60px rgba(94,234,212,.15)}
+.sb-time .sb-sec{font-size:.36em;color:#2dd4bf;vertical-align:top;margin-left:10px}
+.sb-weather{margin-top:30px;display:inline-flex;align-items:center;gap:22px;border:1px solid #2a3648;border-radius:16px;padding:16px 30px;background:rgba(13,17,23,.6)}
+.sb-weather .sb-wico{font-size:44px;line-height:1}
+.sb-weather .sb-wtmp{font-family:'JetBrains Mono',monospace;font-size:38px;font-weight:800;color:#dbe4f0}
+.sb-weather .sb-wtmp small{font-size:.45em;color:#8b98ab;font-weight:400}
+.sb-weather .sb-wdesc{text-align:left;font-size:13px;color:#8b98ab;line-height:1.8}
+.sb-weather .sb-wdesc b{color:#dbe4f0;font-size:15px}
+.sb-brand{position:absolute;bottom:30px;left:0;right:0;text-align:center}
+.sb-brand .sb-lg{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;letter-spacing:8px;color:#2dd4bf;opacity:.8}
+.sb-brand .sb-ver{font-family:'JetBrains Mono',monospace;font-size:10px;color:#5c6879;margin-top:4px;letter-spacing:2px}
+.sb-brand .sb-wake{margin-top:12px;font-size:11.5px;color:#5c6879;animation:sb-blink 3s ease infinite}
+@keyframes sb-blink{0%,100%{opacity:.35}50%{opacity:.9}}
+.sb-src{position:absolute;bottom:12px;right:16px;font-size:9.5px;color:#5c6879;opacity:.6}
+@media print{.standby{display:none !important}}
 </style>
 </head>
 <body>
@@ -953,7 +985,8 @@ tr.mst-off td{opacity:.45}
         <span class="up-avatar" id="up-avatar">?</span>
         <span class="up-info"><span class="up-name" id="up-name">-</span><span class="up-badge" id="up-badge">-</span></span>
       </button>
-      <div class="clock"><b id="ck-t">--:--:--</b><br><span id="ck-d">----</span></div>
+      <!-- ★ v0.29.0 — 시계 클릭 → 대기화면 (시계·날짜·날씨 · 키/클릭으로 복귀) -->
+      <div class="clock" id="ck-clock" onclick="enterStandby()" title="클릭 → 대기화면 (시계·날짜·오늘 날씨)"><b id="ck-t">--:--:--</b><br><span id="ck-d">----</span></div>
     </div>
   </div>
 
@@ -971,6 +1004,31 @@ tr.mst-off td{opacity:.45}
 <div id="toast"></div>
 <div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
 
+<!-- ★ v0.29.0 — 대기화면 (항상 다크 고정 · 로그아웃 없음 — 깨우면 보던 화면 그대로) -->
+<div class="standby" id="standby">
+  <div class="sb-glow"></div>
+  <div class="sb-wrap">
+    <div class="sb-ci" id="sb-ci"><span class="sb-nm" id="sb-nm">VELA MES</span></div>
+    <div class="sb-date" id="sb-date">----년 --월 --일 <b>-요일</b></div>
+    <div class="sb-time"><span id="sb-hm">--:--</span><span class="sb-sec" id="sb-s">--</span></div>
+    <div class="sb-weather" id="sb-weather" hidden>
+      <div class="sb-wico" id="sb-wico">☀️</div>
+      <div class="sb-wtmp"><span id="sb-wtmp">--</span><small>°C</small></div>
+      <div class="sb-wdesc">
+        <b id="sb-wdesc">—</b><br>
+        <span id="sb-wrange">최고 --° · 최저 --°</span><br>
+        <span id="sb-wextra" style="font-size:11.5px;color:#5c6879">습도 --% · 강수확률 --%</span>
+      </div>
+    </div>
+  </div>
+  <div class="sb-brand">
+    <div class="sb-lg">VELA SYSTEM</div>
+    <div class="sb-ver" id="sb-ver">v0 · MADE BY JUNS</div>
+    <div class="sb-wake">아무 키나 누르거나 화면을 클릭하면 돌아갑니다</div>
+  </div>
+  <div class="sb-src" id="sb-src"></div>
+</div>
+
 <script>
 /* =================================================================================================
    VELA MES SYSTEM — MVP 프로토타입
@@ -979,7 +1037,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.28.7';
+const APP_VERSION = 'v0.29.1';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -1129,6 +1187,8 @@ const _LOCAL_ADAPTER = {
     try { localStorage.setItem(_activeLSKey(), JSON.stringify(this._state)); }
     catch(e){ console.warn('[VELA] local adapter write failed', e); }
   },
+  // ★ v0.28.9 — 물리 삭제 (마스터 한정 — DB.remove 가드 경유 전용). 메모리는 이미 삭제됨 → 전체 재직렬화.
+  remove(col, id){ this.write(col, id, null); },
 };
 
 /* ★ v0.21.0 — Firestore 어댑터 (compat SDK 동적 로드 · 오프라인 퍼시스턴스 · 익명 인증 · onSnapshot 구독)
@@ -1209,6 +1269,14 @@ const _FIRESTORE_ADAPTER = {
       this._pending.push({ col, id, doc });
     }
   },
+  // ★ v0.28.9 — 물리 삭제 (마스터 한정 — DB.remove 가드 경유 전용).
+  //   서버 rules 가 items/bom delete 를 허용해야 실제 삭제됨 (firestore.rules v2 배포 필요 —
+  //   미배포 시 서버가 거부 → onSnapshot 재동기화로 문서가 되살아나는 게 정직한 동작).
+  remove(col, id){
+    if(!this._ready){ this._pending.push({ col, id, doc: null, _op: 'delete' }); return; }
+    this._fs.collection(col).doc(String(id)).delete()
+      .catch(e => console.warn('[VELA] firestore delete 거부 — rules 에서 items/bom delete 허용 필요', col, id, e));
+  },
 };
 
 function _pickBackendName(){
@@ -1277,6 +1345,21 @@ const DB = (() => {
       state[col][id] = corr;
       persist(col, id, corr);
       return corr;
+    },
+    // ★ v0.28.9 — 마스터 한정 물리 삭제 (사용자 승인 예외 · 2026-08-03)
+    //   허용: items·bom 만. 전제: 실적·이력 참조 0 (호출부 itemHistoryRefs 가드 필수 — 원장은 여전히 void 만).
+    //   목적: 오등록 품번을 지우고 그 번호를 즉시 재사용. 서버 모드는 rules v2(items/bom delete 허용) 배포 필요.
+    remove(col,id){
+      if(!['items','bom'].includes(col)){ console.warn('[VELA] DB.remove 불허 컬렉션 —', col); return false; }
+      if(typeof _permBlockWrite === 'function' && _permBlockWrite(col)) return false;
+      ensure(col);
+      if(!state[col][id]) return false;
+      delete state[col][id];
+      try {
+        if(_ACTIVE_ADAPTER.remove) _ACTIVE_ADAPTER.remove(col, id);
+        else _ACTIVE_ADAPTER.write(col, id, null);
+      } catch(e){ console.warn('[VELA] backend remove failed', col, id, e); }
+      return true;
     },
     query(col,fn){ ensure(col); return Object.values(state[col]).filter(x=>!x.void).filter(fn); },
     // ★ v0.16.0 — void 포함 Raw 조회 (이력 표시·복원 UI 전용)
@@ -1378,8 +1461,11 @@ async function _bootFirestore(){
     adapter._ready = true;
     const pending = adapter._pending.slice();
     adapter._pending.length = 0;
-    pending.forEach(({col,id,doc}) => {
-      try { fs.collection(col).doc(String(id)).set(doc, { merge:true }); }
+    pending.forEach(({col,id,doc,_op}) => {
+      try {
+        if(_op === 'delete'){ fs.collection(col).doc(String(id)).delete().catch(e=>console.warn('[VELA] flush delete fail', col, id, e)); }  // ★ v0.28.9
+        else fs.collection(col).doc(String(id)).set(doc, { merge:true });
+      }
       catch(e){ console.warn('[VELA] flush write fail', col, id, e); }
     });
     // 컬렉션 구독 — 첫 스냅샷 라운드가 다 도착하면 router() 재호출
@@ -3097,11 +3183,30 @@ function customCellDisplay(f, val){
   return _esc(val);
 }
 
-/* ── 품목 식별번호 채번 ({custCode}-{seq3}-{rev}) ───────────────────────── */
-function isItemIdentifier(code){ return /^[A-Za-z0-9]{1,4}-\d{3}-\d+$/.test(String(code||'')); }
+/* ── 품목 식별번호 채번 — ★ v0.28.9 {custCode}-{seq3} (리비전 분리 — 별도 rev 필드가 진실)
+   · 구 3분절 코드({cust}-{seq}-{rev})는 그대로 인식·보존 (doc id 불변 — 마이그레이션 없음)
+   · 신규 채번은 2분절 · 순번은 최소 빈 번호(삭제된 번호 즉시 재사용) · 중복은 저장 시 차단 ── */
+function isItemIdentifier(code){ return /^[A-Za-z0-9]{1,4}-\d{3}(-\d+)?$/.test(String(code||'')); }
 function splitItemIdentifier(code){
-  const m = String(code||'').match(/^([A-Za-z0-9]{1,4})-(\d{3})-(\d+)$/);
-  return m ? { cust:m[1], seq:+m[2], rev:+m[3] } : null;
+  const m = String(code||'').match(/^([A-Za-z0-9]{1,4})-(\d{3})(?:-(\d+))?$/);
+  return m ? { cust:m[1], seq:+m[2], rev: m[3]==null ? null : +m[3] } : null;
+}
+/* ★ v0.29.1 — 원장·이력에 등장한 순번 수집 (자동채번 제외용 — 사용자 판정 2026-08-03)
+   품번 문서가 삭제·부재여도 실적·이력이 남아 있는 번호는 절대 재채번하지 않는다
+   (옛 이력이 새 품번에 붙는 사고 방지). void 포함(Raw) — 취소된 이력도 이력. */
+function _itemSeqsInHistory(custCode){
+  const seqs = new Set();
+  const mark = (code) => { const p = splitItemIdentifier(code); if(p && p.cust === custCode) seqs.add(p.seq); };
+  DB.allRaw('production_lots').forEach(l => mark(l.itemCode));
+  DB.allRaw('orders').forEach(o => mark(o.itemCode));
+  DB.allRaw('production_plans').forEach(p => mark(p.itemCode));
+  DB.allRaw('work_orders').forEach(w => mark(w.itemCode));
+  DB.allRaw('shipments').forEach(s => mark(s.itemCode));
+  DB.allRaw('quotes').forEach(q => mark(q.itemCode));
+  DB.allRaw('price_agreements').forEach(a => (a.items||[]).forEach(x => mark(x.code)));
+  DB.allRaw('nc_records').forEach(n => mark(n.item_code || n.itemCode));
+  DB.allRaw('drawings').forEach(d => mark(d.itemCode));
+  return seqs;
 }
 function nextItemSeqForCustomer(custCode){
   if(!custCode) return 1;
@@ -3110,18 +3215,39 @@ function nextItemSeqForCustomer(custCode){
     const p = splitItemIdentifier(it.code);
     if(p && p.cust === custCode) seen.add(p.seq);
   });
+  // ★ v0.29.1 — 이력 있는 순번도 사용 중으로 간주 (재채번 금지)
+  _itemSeqsInHistory(custCode).forEach(s => seen.add(s));
   let n = 1;
   while(seen.has(n)) n++;
   return n;
 }
-function makeItemIdentifier(custCode, seq, rev){
-  return `${custCode}-${String(seq).padStart(3,'0')}-${rev==null?0:rev}`;
+function makeItemIdentifier(custCode, seq){
+  // ★ v0.28.9 — 리비전은 코드에 넣지 않음 (별도 rev 필드)
+  return `${custCode}-${String(seq).padStart(3,'0')}`;
 }
 function nextItemIdentifier(custCode){
   if(!custCode) return '';
-  return makeItemIdentifier(custCode, nextItemSeqForCustomer(custCode), 0);
+  return makeItemIdentifier(custCode, nextItemSeqForCustomer(custCode));
+}
+/* ★ v0.28.9 — 품번 실적·이력 참조 검사 (물리 삭제 가드 — 하나라도 있으면 삭제 불가·비활성만)
+   void 포함(Raw) 검사: 취소된 이력도 이력이다. */
+function itemHistoryRefs(code){
+  const refs = [];
+  const add = (label, n) => { if(n > 0) refs.push(`${label} ${n}건`); };
+  add('생산 LOT',   DB.queryRaw('production_lots',  l => l.itemCode === code).length);
+  add('수주',       DB.queryRaw('orders',           o => o.itemCode === code).length);
+  add('생산계획',   DB.queryRaw('production_plans', p => p.itemCode === code).length);
+  add('작업지시',   DB.queryRaw('work_orders',      w => w.itemCode === code).length);
+  add('출하',       DB.queryRaw('shipments',        s => s.itemCode === code).length);
+  add('견적',       DB.queryRaw('quotes',           q => q.itemCode === code).length);
+  add('단가합의서', DB.queryRaw('price_agreements', a => (a.items||[]).some(x => x.code === code)).length);
+  add('부적합',     DB.queryRaw('nc_records',       n => n.item_code === code || n.itemCode === code).length);
+  add('도면',       DB.queryRaw('drawings',         d => d.itemCode === code).length);
+  return refs;
 }
 /* 표시用 계산 — 원/kg (반올림 정수) · 값 없으면 null. weight(kg) = 절단중량. */
+/* ★ v0.28.8 — 중량 표시 1벌: kg · 소수 최대 3자리 (저장은 기존 필드 그대로 — weight(kg)/product_weight_g(g) 무변, 표시·입력만 kg) */
+function fmtKg(v){ const n = +v || 0; return n ? n.toLocaleString(undefined,{maximumFractionDigits:3}) : ''; }
 function itemRatePerCutKg(it){
   const w = +(it?.weight||0);
   const p = +(it?.price||0);
@@ -3205,8 +3331,8 @@ const _IMPORTER_SPEC = {
       { key:'mat_len_mm',   label:'소재길이(mm)', kind:'number' },
       { key:'ht_spec',      label:'열처리사양' },   // ★ v0.26.5 — 표준 필드 (선택지 외 값도 통과 · 기타 수기 허용)
       { key:'hardness',     label:'경도' },          // ★ v0.26.6 — 표준 필드 (단위 포함 수기 · HB/HRC 혼재)
-      { key:'weight_g',     label:'절단중량(g)', kind:'number' },
-      { key:'product_weight_g', label:'제품중량(g)', kind:'number' },
+      { key:'weight_kg',    label:'절단중량(kg)', kind:'number' },    // ★ v0.28.8 — kg·소수 허용 (저장은 weight(kg) 동일)
+      { key:'product_weight_kg', label:'제품중량(kg)', kind:'number' },
       { key:'price',        label:'단가(원)',   kind:'number' },
       { key:'cav',          label:'Cav',        kind:'number' },
       { key:'mold_no',      label:'금형번호' },
@@ -3215,7 +3341,7 @@ const _IMPORTER_SPEC = {
     ],
     example: {
       code:'999-001-0', name:'예시부품', customer_ref:'999',
-      mat:'S45C', dia:38, mat_len_mm:246.1, ht_spec:'Q.T', hardness:'HB 269~331', weight_g:1553, product_weight_g:535, price:1740,
+      mat:'S45C', dia:38, mat_len_mm:246.1, ht_spec:'Q.T', hardness:'HB 269~331', weight_kg:1.553, product_weight_kg:0.535, price:1740,
       cav:1, mold_no:'999-001', default_forge_eq:'프레스 1호', pack_qty:200,
     },
   },
@@ -3479,13 +3605,14 @@ function _importApplyRow(master, parsed){
     const doc = {
       code: d.code, name: d.name || '',
       customer_ref: d.customer_ref || (p ? p.cust : ''),
-      rev: p ? p.rev : 0,
+      rev: (p && p.rev!=null) ? p.rev : 0,   // ★ v0.28.9 — 2분절 코드(리비전 분리)는 rev 0
+
       mat: d.mat || '', dia: +d.dia||0,
       mat_len_mm: +d.mat_len_mm || 0,   // v0.26.1 — 표시用 · 계산 연동 금지
       ht_spec: (d.ht_spec || '').trim(),  // ★ v0.26.5 — 표준 필드
       hardness: (d.hardness || '').trim(),  // ★ v0.26.6 — 표준 필드
-      weight: d.weight_g!=null ? (+d.weight_g/1000) : 0,
-      product_weight_g: +d.product_weight_g || 0,
+      weight: +d.weight_kg || 0,                                              // ★ v0.28.8 — kg 직접 입력
+      product_weight_g: d.product_weight_kg!=null ? Math.round((+d.product_weight_kg||0)*1000*1000)/1000 : 0,  // 저장은 g 유지 (하위 호환)
       price: +d.price || 0,
       cav: +d.cav || 1,
       cav_source: 'manual',
@@ -4072,6 +4199,7 @@ function attachCalendar(inputEl){
   inputEl.addEventListener('keydown', e => { if(e.key==='Escape') _closeCal(); });
 }
 
+let _sbOn = false, _sbWTimer = null;   // ★ v0.29.0 — 대기화면 상태 (tickClock 이 참조 — 선언이 먼저)
 function tickClock(){
   const n=new Date(), p=x=>String(x).padStart(2,'0');
   const t = `${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
@@ -4081,8 +4209,92 @@ function tickClock(){
   // v0.14.0 — 게이트 좌 패널 시계
   const gt = document.getElementById('gt-t'); if(gt) gt.textContent = t;
   const gd = document.getElementById('gt-d'); if(gd) gd.textContent = d;
+  // ★ v0.29.0 — 대기화면 시계 (활성 시에만)
+  if(_sbOn){
+    const WD = ['일','월','화','수','목','금','토'];
+    const hm = document.getElementById('sb-hm'); if(hm) hm.textContent = `${p(n.getHours())}:${p(n.getMinutes())}`;
+    const ss = document.getElementById('sb-s');  if(ss) ss.textContent = p(n.getSeconds());
+    const sd = document.getElementById('sb-date');
+    if(sd) sd.innerHTML = `${n.getFullYear()}년 ${n.getMonth()+1}월 ${n.getDate()}일 <b>${WD[n.getDay()]}요일</b>`;
+  }
 }
 setInterval(tickClock, 1000); tickClock();
+
+/* ★ v0.29.0 — 대기화면 (자리비움 · 고객사 대기 시연)
+   · 진입: 우측 상단 시계 클릭 · 복귀: 아무 키 / 클릭 / 터치 (마우스 이동으로는 깨우지 않음 — 사용자 판정 2026-08-03)
+   · 로그아웃 없음 — 화면만 덮고, 깨우면 보던 화면 그대로.
+   · 구성: 회사 CI·상호(설정 › 회사정보) + 년월일요일 + 시간 + 오늘 날씨 + 하단 VELA SYSTEM·버전.
+   · 날씨: Open-Meteo (무료 · API키 불필요) — 위치는 브라우저 위치 권한 → 실패 시 창원 기본값.
+     실패·오프라인 시 날씨 칸만 숨김(시계는 항상). 30분 간격 갱신. (_sbOn 선언은 tickClock 위) */
+const _SB_WCODE = {
+  0:['맑음','☀️'],1:['대체로 맑음','🌤️'],2:['구름 조금','⛅'],3:['흐림','☁️'],
+  45:['안개','🌫️'],48:['짙은 안개','🌫️'],51:['이슬비','🌦️'],53:['이슬비','🌦️'],55:['이슬비','🌧️'],
+  61:['약한 비','🌧️'],63:['비','🌧️'],65:['강한 비','🌧️'],66:['어는 비','🌧️'],67:['어는 비','🌧️'],
+  71:['약한 눈','🌨️'],73:['눈','🌨️'],75:['강한 눈','❄️'],77:['싸락눈','🌨️'],
+  80:['소나기','🌦️'],81:['소나기','🌧️'],82:['강한 소나기','⛈️'],85:['소낙눈','🌨️'],86:['강한 소낙눈','❄️'],
+  95:['뇌우','⛈️'],96:['뇌우·우박','⛈️'],99:['강한 뇌우·우박','⛈️'],
+};
+async function _sbLoadWeather(lat, lon, label){
+  const box = document.getElementById('sb-weather');
+  try{
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+      + `&current=temperature_2m,relative_humidity_2m,weather_code`
+      + `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1`;
+    const r = await fetch(u, { signal: (typeof AbortSignal!=='undefined' && AbortSignal.timeout) ? AbortSignal.timeout(6000) : undefined });
+    if(!r.ok) throw new Error('http '+r.status);
+    const j = await r.json();
+    const [desc, ico] = _SB_WCODE[j.current.weather_code] || ['—','🌡️'];
+    document.getElementById('sb-wico').textContent = ico;
+    document.getElementById('sb-wtmp').textContent = Math.round(j.current.temperature_2m);
+    document.getElementById('sb-wdesc').textContent = desc;
+    document.getElementById('sb-wrange').innerHTML =
+      `최고 <span style="color:#fbbf24">${Math.round(j.daily.temperature_2m_max[0])}°</span> · 최저 <span style="color:#60a5fa">${Math.round(j.daily.temperature_2m_min[0])}°</span>`;
+    document.getElementById('sb-wextra').textContent =
+      `습도 ${j.current.relative_humidity_2m}% · 강수확률 ${j.daily.precipitation_probability_max[0] ?? '--'}%`;
+    document.getElementById('sb-src').textContent = `${label} · Open-Meteo`;
+    if(box) box.hidden = false;
+  }catch(e){
+    if(box) box.hidden = true;   // 오프라인/실패 — 날씨만 숨김 (시계는 항상)
+    const src = document.getElementById('sb-src'); if(src) src.textContent = '날씨: 오프라인';
+  }
+}
+function _sbInitWeather(){
+  const fallback = () => _sbLoadWeather(35.2281, 128.6811, '창원');
+  try {
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(
+        p => _sbLoadWeather(p.coords.latitude, p.coords.longitude, '현재 위치'),
+        fallback, { timeout: 4000, maximumAge: 600000 });
+    } else fallback();
+  } catch(e){ fallback(); }
+}
+function enterStandby(){
+  if(_sbOn) return;
+  _sbOn = true;
+  // 회사 CI·상호 (설정 › 회사정보 — 로고 없으면 상호만 · 상호 없으면 VELA MES)
+  try {
+    const co = DB.get('settings','company') || {};
+    const ci = document.getElementById('sb-ci');
+    const nm = (co.name || '').trim() || 'VELA MES';
+    ci.innerHTML = `${co.logo ? `<img src="${co.logo}" alt="CI">` : ''}<span class="sb-nm">${_esc(nm)}</span>`;
+  } catch(e){}
+  const ver = document.getElementById('sb-ver');
+  if(ver) ver.textContent = `${APP_VERSION} · MADE BY JUNS`;
+  document.getElementById('standby').classList.add('on');
+  tickClock();
+  _sbInitWeather();
+  _sbWTimer = setInterval(_sbInitWeather, 30*60*1000);
+}
+function wakeStandby(){
+  if(!_sbOn) return;
+  _sbOn = false;
+  document.getElementById('standby').classList.remove('on');
+  if(_sbWTimer){ clearInterval(_sbWTimer); _sbWTimer = null; }
+}
+// 복귀: 아무 키 / 클릭 / 터치 — 마우스 이동 리스너는 의도적으로 없음 (사용자 판정)
+window.addEventListener('keydown', e => { if(_sbOn){ e.preventDefault(); e.stopPropagation(); wakeStandby(); } }, true);
+window.addEventListener('mousedown', () => wakeStandby(), true);
+window.addEventListener('touchstart', () => wakeStandby(), { capture:true, passive:true });
 
 function fmtTime(ts){
   const n=new Date(ts), p=x=>String(x).padStart(2,'0');
@@ -16386,11 +16598,11 @@ VIEWS.masters = () => {
         <span style="margin-left:auto;font-size:11px;color:var(--dim)">${iRows.length}건 / 전체 ${itemsAll.length}건</span>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>식별번호/품번</th><th>품명</th><th>고객사</th><th>재질</th><th>소재규격 <span style="color:var(--dim);font-size:9px">(Ø × 길이)</span></th><th>열처리</th><th>경도</th><th class="num">절단(g)</th><th class="num">제품(g)</th><th class="num">단가(₩)</th><th class="num">Cav</th>${iTopFields.map(f=>`<th class="num">${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
+        <thead><tr><th>식별번호/품번</th><th>품명</th><th>고객사</th><th>재질</th><th>소재규격 <span style="color:var(--dim);font-size:9px">(Ø × 길이)</span></th><th>열처리</th><th>경도</th><th class="num">절단(kg)</th><th class="num">제품(kg)</th><th class="num">단가(₩)</th><th class="num">Cav</th>${iTopFields.map(f=>`<th class="num">${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
         <tbody>${iRows.length ? iRows.map(i => {
           const active = i.active !== false;
           const cName = i.customer_ref ? getCustomerName(i.customer_ref) : (i.cust ? (DB.get('vendors', i.cust)?.name || i.cust) : '');
-          const cutG = +i.weight ? Math.round(+i.weight*1000) : 0;
+          const cutKg = fmtKg(i.weight);   // ★ v0.28.8 — kg 소수 3자리 표시
           const cf = i.custom || {};
           const spec = matSpecStr(i);
           return `<tr class="${active?'':'mst-off'}">
@@ -16401,8 +16613,8 @@ VIEWS.masters = () => {
             <td style="font-family:'JetBrains Mono',monospace">${spec ? _esc(spec) : '<span class="muted">—</span>'}</td>
             <td>${getHtSpec(i) ? _esc(getHtSpec(i)) : '<span class="muted">—</span>'}</td>
             <td>${getHardness(i) ? _esc(getHardness(i)) : '<span class="muted">—</span>'}</td>
-            <td class="num">${cutG? cutG.toLocaleString() :'<span class="muted">—</span>'}</td>
-            <td class="num">${i.product_weight_g? (+i.product_weight_g).toLocaleString() :'<span class="muted">—</span>'}</td>
+            <td class="num">${cutKg || '<span class="muted">—</span>'}</td>
+            <td class="num">${fmtKg((+i.product_weight_g||0)/1000) || '<span class="muted">—</span>'}</td>
             <td class="num">${i.price? '₩'+(+i.price).toLocaleString() : '<span class="muted">—</span>'}</td>
             <td class="num">${(+i.cav>0? +i.cav : 1)}</td>
             ${iTopFields.map(f => `<td class="num">${customCellDisplay(f, cf[f.key])}</td>`).join('')}
@@ -16551,8 +16763,8 @@ VIEWS.masters = () => {
         '소재규격': matSpecStr(i),
         '열처리사양': getHtSpec(i),
         '경도': getHardness(i),
-        '절단중량(g)': i.weight ? Math.round(+i.weight*1000) : '',
-        '제품중량(g)': i.product_weight_g || '',
+        '절단중량(kg)': i.weight ? +(+i.weight).toFixed(3) : '',
+        '제품중량(kg)': i.product_weight_g ? +((+i.product_weight_g)/1000).toFixed(3) : '',
         '단가(원)': i.price || '',
         Cav: (+i.cav>0? +i.cav : 1),
         금형번호: i.mold_no || '',
@@ -16745,11 +16957,12 @@ VIEWS._mstItemEdit = (code) => {
   const prodRate = itemRatePerProductKg({ product_weight_g: it.product_weight_g, price: it.price });
   const forgeEqs = DB.query('equipments', e => e.procCode==='FORGE' && e.active !== false)
     .map(e => e.name).concat(DB.get('processes','FORGE')?.equipment || []).filter((v,i,a)=>a.indexOf(v)===i);
-  const cutG0 = it.weight ? Math.round(+it.weight*1000) : '';
+  const cutKg0 = it.weight ? +(+it.weight).toFixed(3) : '';   // ★ v0.28.8 — kg 소수 3자리 입력
+  const prodKg0 = it.product_weight_g ? +((+it.product_weight_g)/1000).toFixed(3) : '';
   const ident = isItemIdentifier(it.code) ? splitItemIdentifier(it.code) : null;
 
   openModal(`
-    <h2>${isNew ? '품번 등록' : '품번 수정'} <span style="color:var(--dim);font-weight:400;font-size:12px">${ident?` — ${ident.cust}-${String(ident.seq).padStart(3,'0')}-${ident.rev}`:''}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <h2>${isNew ? '품번 등록' : '품번 수정'} <span style="color:var(--dim);font-weight:400;font-size:12px">${ident?` — ${ident.cust}-${String(ident.seq).padStart(3,'0')}${ident.rev!=null?`-${ident.rev}`:''} · rev ${it.rev==null?0:it.rev}`:''}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
       <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--cyan);margin:2px 0 8px;padding-left:8px;border-left:3px solid var(--cyan)">표준 (계산·채번에 쓰이는 필드)</div>
       <div class="grid g2">
@@ -16758,8 +16971,8 @@ VIEWS._mstItemEdit = (code) => {
             <option value="">— 미지정 —</option>
             ${activeCusts.map(c=>`<option value="${_esc(c.code)}" ${it.customer_ref===c.code?'selected':''}>${_esc(c.name)} · ${_esc(c.code)}</option>`).join('')}
           </select></div>
-        <div><label>식별번호 ${isNew?'<span style="color:var(--dim);font-weight:400">— 자동 · {고객코드}-{순번3}-{리비전}</span>':'<span style="color:var(--dim);font-weight:400">— 불변</span>'}</label>
-          <input id="mi-code" value="${_esc(it.code)}" ${isNew?'':'readonly'} placeholder="예: 038-031-0" style="font-family:'JetBrains Mono',monospace"></div>
+        <div><label>식별번호 ${isNew?'<span style="color:var(--dim);font-weight:400">— 자동 채번 · {고객코드}-{순번3} · 중복 방지 (리비전은 별도란)</span>':'<span style="color:var(--dim);font-weight:400">— 불변</span>'}</label>
+          <input id="mi-code" value="${_esc(it.code)}" ${isNew?'':'readonly'} placeholder="예: 038-031" style="font-family:'JetBrains Mono',monospace"></div>
       </div>
       <div class="grid g2">
         <div><label>품번 <span style="color:var(--dim);font-weight:400">— 하위 호환(자유 문자열 · 없으면 식별번호 사용)</span></label>
@@ -16779,8 +16992,8 @@ VIEWS._mstItemEdit = (code) => {
           <input id="mi-rev" type="number" min="0" step="1" value="${it.rev==null?0:it.rev}" ${isNew?'':'readonly'}></div>
       </div>
       <div class="grid g3">
-        <div><label>절단 중량 (g)</label><input id="mi-cutg" type="number" min="0" step="1" value="${cutG0}" placeholder="1553"></div>
-        <div><label>제품 중량 (g)</label><input id="mi-prodg" type="number" min="0" step="1" value="${it.product_weight_g||''}" placeholder="535"></div>
+        <div><label>절단 중량 (kg)</label><input id="mi-cutkg" type="number" min="0" step="0.001" value="${cutKg0}" placeholder="1.553"></div>
+        <div><label>제품 중량 (kg)</label><input id="mi-prodkg" type="number" min="0" step="0.001" value="${prodKg0}" placeholder="0.535"></div>
         <div><label>단가 (원)</label><input id="mi-price" type="number" value="${it.price||''}" placeholder="1740"></div>
       </div>
       <div class="grid g3">
@@ -16846,8 +17059,9 @@ VIEWS._mstItemEdit = (code) => {
           </table></div>`}
       </div>
       <div class="actions">
+        ${!isNew ? `<button class="btn" id="mi-del" style="border-color:rgba(248,113,113,.5);color:var(--red,#f87171)" title="실적·이력이 없는 품번만 완전 삭제 — 번호 즉시 재사용">${ico('x')}삭제</button>` : ''}
         <button class="btn" onclick="closeModal()">취소</button>
-        ${(!isNew && ident) ? `<button class="btn" id="mi-revup" title="새 리비전(rev+1) 로 복제 · 원본 비활성">${ico('plus')}리비전 올리기</button>` : ''}
+        ${!isNew ? `<button class="btn" id="mi-revup" title="식별번호 불변 · rev+1 · 이전 사양 이력 보존">${ico('plus')}리비전 올리기</button>` : ''}
         <button class="btn primary" id="mi-save">${ico('save')}저장</button>
       </div>
     </div>
@@ -16873,10 +17087,10 @@ VIEWS._mstItemEdit = (code) => {
   });
 
   // ★ v0.26.0 — 고객사 선택 시 식별번호 자동 채번 (수정 가능) · 금형번호 제안
+  // ★ v0.28.9 — 리비전 분리: 코드에 rev 미포함 · 순번 = 최소 빈 번호(삭제된 번호 즉시 재사용) · 중복 자동 방지
   const _syncId = () => {
     if(!isNew) return;
     const cref = document.getElementById('mi-cref').value;
-    const rev = +document.getElementById('mi-rev').value || 0;
     if(!cref) return;
     const codeEl = document.getElementById('mi-code');
     const moldEl = document.getElementById('mi-moldno');
@@ -16884,7 +17098,7 @@ VIEWS._mstItemEdit = (code) => {
     const auto = codeEl.value === '' || isItemIdentifier(codeEl.value);
     if(auto){
       const seq = nextItemSeqForCustomer(cref);
-      codeEl.value = makeItemIdentifier(cref, seq, rev);
+      codeEl.value = makeItemIdentifier(cref, seq);
       if(!moldEl.value || /^[A-Za-z0-9]{1,4}-\d{3}$/.test(moldEl.value)){
         moldEl.value = `${cref}-${String(seq).padStart(3,'0')}`;
       }
@@ -16892,21 +17106,19 @@ VIEWS._mstItemEdit = (code) => {
   };
   const crefEl = document.getElementById('mi-cref');
   if(crefEl) crefEl.onchange = _syncId;
-  const revEl = document.getElementById('mi-rev');
-  if(revEl) revEl.oninput = _syncId;
   if(isNew) _syncId();
 
   // ★ v0.26.0 — 계산 필드 자동 (절단대비·제품대비 원/kg · 반올림 정수 · 값 없으면 —)
   const _refreshRates = () => {
     const priceV = +document.getElementById('mi-price').value || 0;
-    const cutG = +document.getElementById('mi-cutg').value || 0;
-    const prodG = +document.getElementById('mi-prodg').value || 0;
-    const cr = (cutG && priceV) ? Math.round(priceV / (cutG/1000)) : null;
-    const pr = (prodG && priceV) ? Math.round(priceV / (prodG/1000)) : null;
+    const cutKg = +document.getElementById('mi-cutkg').value || 0;    // ★ v0.28.8 — kg 직접
+    const prodKg = +document.getElementById('mi-prodkg').value || 0;
+    const cr = (cutKg && priceV) ? Math.round(priceV / cutKg) : null;
+    const pr = (prodKg && priceV) ? Math.round(priceV / prodKg) : null;
     document.getElementById('mi-cutRate').value  = cr==null ? '—' : cr.toLocaleString();
     document.getElementById('mi-prodRate').value = pr==null ? '—' : pr.toLocaleString();
   };
-  ['mi-price','mi-cutg','mi-prodg'].forEach(id => {
+  ['mi-price','mi-cutkg','mi-prodkg'].forEach(id => {
     const el = document.getElementById(id); if(el) el.oninput = _refreshRates;
   });
   // ★ v0.26.1 — 소재규격 자동 병기 (Ø · 길이 입력 시 실시간)
@@ -16925,18 +17137,34 @@ VIEWS._mstItemEdit = (code) => {
     document.getElementById('mi-htspec-other-wrap').style.display = htSel.value==='__other' ? '' : 'none';
   };
 
-  // ★ v0.26.0 — 리비전 올리기: 현 값 복제 + rev+1 · 원본 비활성 (이력 보존)
+  // ★ v0.28.9 — 리비전 올리기: 식별번호 불변 · rev 필드 +1 · 이전 사양은 rev_history 에 증분 보존
+  //   (구 방식 — 새 코드 복제·원본 비활성 — 은 리비전 분리로 폐지. 기존 3분절 코드 문서도 같은 방식 적용.)
   const revUpBtn = document.getElementById('mi-revup');
   if(revUpBtn) revUpBtn.onclick = () => {
-    if(!ident) return;
-    const newRev = ident.rev + 1;
-    const newId  = makeItemIdentifier(ident.cust, ident.seq, newRev);
-    if(DB.get('items', newId)){ toast(`리비전 ${newRev} 이미 존재 — ${newId}`,'err'); return; }
-    const clone = { ...it, code:newId, rev:newRev, active:true, previous_rev: it.code, ts: Date.now() };
-    DB.set('items', newId, clone);
-    DB.set('items', it.code, { active:false });
-    toast(`리비전 복제 — ${newId} (원본 ${it.code} 비활성)`, 'ok', 3000);
+    const curRev = +it.rev || 0;
+    if(!confirm(`리비전을 ${curRev} → ${curRev+1} 로 올립니다.\n식별번호(${it.code})는 그대로, 현재 사양은 이력에 보존됩니다.`)) return;
+    const { rev_history, _logs, ...snap } = it;   // 이력·로그 제외한 현 사양 스냅샷
+    const hist = (it.rev_history || []).concat([{ rev: curRev, snap, ts: Date.now(), by: SESSION.user || 'system' }]).slice(-20);
+    DB.set('items', it.code, { rev: curRev + 1, rev_history: hist });
+    toast(`리비전 ${curRev} → ${curRev+1} — 식별번호 불변 · 이전 사양 이력 보존`, 'ok', 3000);
     closeModal(); router();
+  };
+
+  // ★ v0.28.9 — 물리 삭제 (실적·이력 참조 0 인 품번만 — 번호 즉시 재사용 목적 · 사용자 승인 예외)
+  const delBtn = document.getElementById('mi-del');
+  if(delBtn) delBtn.onclick = () => {
+    const refs = itemHistoryRefs(it.code);
+    if(refs.length){
+      toast(`삭제 불가 — 실적·이력이 있습니다 (${refs.join(' · ')}). 비활성 처리를 사용하세요.`, 'err', 5000);
+      return;
+    }
+    const svrNote = DB._backend === 'firestore'
+      ? '\n\n※ 서버 모드: firestore.rules v2(items/bom delete 허용)가 배포되어 있어야 서버에서도 삭제됩니다. 미배포 시 동기화로 되살아납니다.' : '';
+    if(!confirm(`품번 ${it.code} 를 완전히 삭제합니다.\n실적·이력 참조가 없어 삭제 가능하며, 이 번호는 즉시 재사용됩니다.\nBOM(라우트)도 함께 삭제됩니다. 되돌릴 수 없습니다.${svrNote}`)) return;
+    DB.remove('bom', it.code);
+    const ok = DB.remove('items', it.code);
+    if(ok){ toast(`삭제 완료 — ${it.code} (번호 즉시 재사용 가능)`, 'ok', 3500); closeModal(); router(); }
+    else toast('삭제 실패 — 콘솔 확인', 'err');
   };
 
   document.getElementById('mi-save').onclick = () => {
@@ -16949,8 +17177,9 @@ VIEWS._mstItemEdit = (code) => {
     const dia    = +document.getElementById('mi-dia').value || 0;
     const matLen = Math.round((+document.getElementById('mi-matlen').value || 0) * 10) / 10;  // 소수 1자리
     const rev    = +document.getElementById('mi-rev').value || 0;
-    const cutG   = +document.getElementById('mi-cutg').value || 0;
-    const prodG  = +document.getElementById('mi-prodg').value || 0;
+    const cutKg  = +document.getElementById('mi-cutkg').value || 0;   // ★ v0.28.8 — kg 직접 입력
+    const prodKg = +document.getElementById('mi-prodkg').value || 0;
+    const prodG  = prodKg ? Math.round(prodKg*1000*1000)/1000 : 0;    // 저장은 g 유지 (하위 호환 · 소수 보존)
     const price  = +document.getElementById('mi-price').value || 0;
     const cav    = Math.max(1, +document.getElementById('mi-cav').value || 1);
     const moldNo = document.getElementById('mi-moldno').value.trim();
@@ -16965,8 +17194,13 @@ VIEWS._mstItemEdit = (code) => {
     if(!code){ toast('식별번호 또는 품번 입력','warn'); return; }
     if(!name){ toast('품명 입력','warn'); return; }
     if(isNew && DB.get('items', code)){ toast(`코드 중복 — ${code} 이미 존재`,'err'); return; }
-    // weight(kg) = 절단 중량(g) / 1000  · 단일 필드 원칙(G2 · B5)
-    const weight = cutG ? (cutG/1000) : (+it.weight||0);
+    // ★ v0.29.1 — 품번 문서가 없어도 실적·이력이 남은 번호는 신규 등록 금지 (수기 입력 우회 차단)
+    if(isNew){
+      const histRefs = itemHistoryRefs(code);
+      if(histRefs.length){ toast(`등록 불가 — ${code} 는 과거 실적·이력이 있는 번호입니다 (${histRefs.join(' · ')}). 다른 번호를 사용하세요.`,'err', 5000); return; }
+    }
+    // ★ v0.28.8 — weight(kg) = 절단 중량 kg 직접 · 단일 필드 원칙(G2 · B5)
+    const weight = cutKg ? cutKg : (+it.weight||0);
     // ★ v0.20.4 — 공정별 CT 병합 (라우트에 없는 기존 공정 값 보존 · 빈칸=해당 공정 제거)
     const nextPt = { ...(it.proc_times || {}) };
     document.querySelectorAll('.mi-ct').forEach(el => {
