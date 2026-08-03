@@ -304,7 +304,18 @@ td{color:var(--ink)}
 tr:hover td{background:rgba(94,234,212,.03)}
 td.num,th.num{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700}
 td.muted{color:var(--sub)}
-.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+/* ★ v0.29.2 — 리스트 세로 스크롤 (전 메뉴 공통 · 실사용 지적)
+   긴 표는 화면 안(최대 64vh)에서 휠·우하단 화살표·PageUp/Down 으로 스크롤 · 머리글 고정(sticky)
+   (인라인 max-height 를 가진 표 — 모달 내 180px/300px 등 — 는 인라인 값이 우선 · 인쇄 시 전체 펼침) */
+.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:64vh;border:1px solid var(--line);border-radius:10px;overscroll-behavior:contain}
+.tbl-wrap thead th{position:sticky;top:0;z-index:5}
+@media print{.tbl-wrap{max-height:none !important;overflow:visible !important}}
+/* 스크롤 화살표 (우하단 고정 — 대상: 모달 > 마지막 사용 리스트 > 화면 최대 리스트 > 페이지) */
+.scroll-nav{position:fixed;right:16px;bottom:74px;display:none;flex-direction:column;gap:8px;z-index:1400}
+.scroll-nav.show{display:flex}
+.scroll-nav button{width:42px;height:42px;border-radius:12px;border:1px solid var(--line2);background:var(--panel);color:var(--cyan);font-size:15px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,.45);transition:.15s;user-select:none}
+.scroll-nav button:hover{border-color:var(--cyan-dim);background:rgba(94,234,212,.08)}
+@media print{.scroll-nav{display:none !important}}
 .empty{padding:30px;text-align:center;color:var(--dim);font-size:12.5px}
 
 /* Toast */
@@ -1029,6 +1040,12 @@ tr.mst-off td{opacity:.45}
   <div class="sb-src" id="sb-src"></div>
 </div>
 
+<!-- ★ v0.29.2 — 리스트 스크롤 화살표 (우하단 · 스크롤 가능한 표/모달/페이지가 있을 때만 표시) -->
+<div class="scroll-nav" id="scroll-nav">
+  <button id="sn-up" title="위로 (PageUp) — 꾹 누르면 연속">▲</button>
+  <button id="sn-dn" title="아래로 (PageDown) — 꾹 누르면 연속">▼</button>
+</div>
+
 <script>
 /* =================================================================================================
    VELA MES SYSTEM — MVP 프로토타입
@@ -1037,7 +1054,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.29.1';
+const APP_VERSION = 'v0.29.2';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -4295,6 +4312,73 @@ function wakeStandby(){
 window.addEventListener('keydown', e => { if(_sbOn){ e.preventDefault(); e.stopPropagation(); wakeStandby(); } }, true);
 window.addEventListener('mousedown', () => wakeStandby(), true);
 window.addEventListener('touchstart', () => wakeStandby(), { capture:true, passive:true });
+
+/* ★ v0.29.2 — 리스트 스크롤 내비 (전 메뉴 공통 · 실사용 지적: 긴 리스트가 몇 개만 보임)
+   · 긴 표는 .tbl-wrap(64vh) 안에서 자체 스크롤 (휠 = 브라우저 기본 · 머리글 sticky)
+   · 우하단 ▲▼: 클릭 = 한 화면(80%) 이동 · 꾹 누르면 연속 · 대상 자동 선택
+   · PageUp/PageDown: 입력칸 포커스 중이 아니면 같은 대상 스크롤
+   · 대상 우선순위: 열린 모달 > 마지막 사용(휠·마우스오버) 리스트 > 화면 최대 리스트 > 페이지 */
+let _snLast = null;
+function _scrollTarget(){
+  const mb = document.getElementById('modal-bg');
+  if(mb && mb.classList.contains('show')){
+    const m = document.getElementById('modal');
+    if(m && m.scrollHeight > m.clientHeight + 4) return m;
+  }
+  if(_snLast && document.contains(_snLast) && _snLast.scrollHeight > _snLast.clientHeight + 4) return _snLast;
+  let best = null;
+  document.querySelectorAll('#view .tbl-wrap').forEach(el => {
+    if(el.scrollHeight > el.clientHeight + 4 && (!best || el.clientHeight > best.clientHeight)) best = el;
+  });
+  if(best) return best;
+  if(document.documentElement.scrollHeight > window.innerHeight + 4) return window;
+  return null;
+}
+function _snScroll(dir){
+  const t = _scrollTarget();
+  if(!t) return;
+  const step = (t === window ? window.innerHeight : t.clientHeight) * 0.8 * dir;
+  try {
+    if(t === window) window.scrollBy({ top: step, behavior: 'smooth' });
+    else if(typeof t.scrollBy === 'function') t.scrollBy({ top: step, behavior: 'smooth' });
+    else t.scrollTop += step;
+  } catch(e){ if(t !== window) t.scrollTop += step; }
+}
+function _snUpdate(){
+  const nav = document.getElementById('scroll-nav');
+  if(nav) nav.classList.toggle('show', !_sbOn && !!_scrollTarget());
+}
+// 마지막 사용 리스트 추적 (휠 스크롤은 capture 로, 마우스오버는 위임으로)
+document.addEventListener('scroll', e => {
+  const el = e.target;
+  if(el && el.classList && el.classList.contains('tbl-wrap')) _snLast = el;
+}, true);
+document.addEventListener('mouseover', e => {
+  const w = e.target && e.target.closest ? e.target.closest('.tbl-wrap') : null;
+  if(w) _snLast = w;
+});
+// ▲▼ 버튼 — 클릭 1회 + 꾹 누르면 연속(320ms)
+(function _snBindButtons(){
+  const bind = (id, dir) => {
+    const b = document.getElementById(id);
+    if(!b) return;
+    let rp = null;
+    const stop = () => { if(rp){ clearInterval(rp); rp = null; } };
+    b.addEventListener('pointerdown', e => { e.preventDefault(); _snScroll(dir); rp = setInterval(() => _snScroll(dir), 320); });
+    ['pointerup','pointerleave','pointercancel'].forEach(ev => b.addEventListener(ev, stop));
+  };
+  bind('sn-up', -1); bind('sn-dn', 1);
+})();
+// PageUp / PageDown — 입력 중(input/textarea/select)엔 개입하지 않음 · 페이지 대상이면 브라우저 기본 동작 유지
+window.addEventListener('keydown', e => {
+  if(_sbOn) return;
+  if(e.key !== 'PageUp' && e.key !== 'PageDown') return;
+  const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
+  if(['input','textarea','select'].includes(tag)) return;
+  const t = _scrollTarget();
+  if(t && t !== window){ e.preventDefault(); _snScroll(e.key === 'PageUp' ? -1 : 1); }
+});
+setInterval(_snUpdate, 800); _snUpdate();
 
 function fmtTime(ts){
   const n=new Date(ts), p=x=>String(x).padStart(2,'0');
