@@ -1054,7 +1054,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.29.5';
+const APP_VERSION = 'v0.29.6';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -14926,20 +14926,27 @@ VIEWS.mold = () => {
     // ★ v0.29.3 — 품번 마스터 금형번호 연동 등록 (사용자 제안 2026-08-03)
     //   품번 등록의 금형번호가 품번↔금형 연결의 단일 진실 — 여기서 선택하면
     //   금형번호·적용 품번·이름·ID 가 자동으로 채워지고, 수명 등 나머지만 기록하면 된다.
-    //   (이미 금형으로 등록된 번호는 목록에서 제외 · 품번에 없는 금형은 기존처럼 직접 입력)
+    //   ★ v0.29.6 — BL+FI 2벌 등록 지원: 기등록 번호도 목록에 남기고 등록 현황(구분)을 병기.
+    //     같은 번호를 다시 선택하면 빠진 구분(BL↔FI)을 자동 제안하고, 금형ID 는 {번호}-{구분} 으로 충돌 회피.
     const _byMoldNo = {};
     items.forEach(i => { const mn = (i.mold_no||'').trim(); if(mn) (_byMoldNo[mn] = _byMoldNo[mn] || []).push(i); });
-    const _regMoldNos = new Set(DB.all('molds').flatMap(x => [(x.mold_no||'').trim(), String(x.id||'').trim()]).filter(Boolean));
-    const _mnOpts = Object.keys(_byMoldNo).sort().filter(mn => !_regMoldNos.has(mn));
+    const _regByMoldNo = {};
+    DB.all('molds').forEach(x => { const mn = (x.mold_no||'').trim() || String(x.id||'').trim(); if(mn) (_regByMoldNo[mn] = _regByMoldNo[mn] || []).push(x); });
+    const _mnOpts = Object.keys(_byMoldNo).sort();
+    const _mnFree = _mnOpts.filter(mn => !_regByMoldNo[mn]).length;
     openModal(`
       <h2>${id?'금형 편집':'금형 추가'} — ${_esc(id||'신규')} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
         ${!id ? `
         <div style="border:1px solid var(--cyan-dim);border-radius:11px;padding:12px 14px;margin-bottom:12px;background:rgba(94,234,212,.05)">
-          <label style="color:var(--cyan)">품번 마스터의 금형번호에서 선택 <span style="color:var(--dim);font-weight:400">— 선택 시 금형번호·적용 품번·이름 자동 (미등록 ${_mnOpts.length}건)</span></label>
+          <label style="color:var(--cyan)">품번 마스터의 금형번호에서 선택 <span style="color:var(--dim);font-weight:400">— 선택 시 금형번호·적용 품번·이름 자동 (미등록 ${_mnFree}건 · 블로커/피니셔 2벌은 같은 번호를 두 번 등록)</span></label>
           <select id="m-from-item">
             <option value="">— 직접 입력 (품번에 없는 금형) —</option>
-            ${_mnOpts.map(mn => `<option value="${_esc(mn)}">${_esc(mn)} · ${_esc(_byMoldNo[mn][0].name||'')}${_byMoldNo[mn].length>1?` 외 ${_byMoldNo[mn].length-1}품번`:''}</option>`).join('')}
+            ${_mnOpts.map(mn => {
+              const reg = _regByMoldNo[mn] || [];
+              const regTag = reg.length ? ` — 등록 ${reg.length}벌 (${reg.map(v=>v.variant||'미지정').join('/')})` : '';
+              return `<option value="${_esc(mn)}">${_esc(mn)} · ${_esc(_byMoldNo[mn][0].name||'')}${_byMoldNo[mn].length>1?` 외 ${_byMoldNo[mn].length-1}품번`:''}${_esc(regTag)}</option>`;
+            }).join('')}
           </select>
         </div>` : ''}
         <div class="grid g2">
@@ -14982,18 +14989,39 @@ VIEWS.mold = () => {
       document.getElementById('m-variant-other-wrap').style.display = varSelEl.value === '__other' ? '' : 'none';
     };
     // ★ v0.29.3 — 금형번호 선택 → 자동 채움 (금형번호·ID 제안·적용 품번 전체·이름 제안 — 전부 수정 가능)
+    // ★ v0.29.6 — BL+FI 2벌 지원: 기등록 있으면 빠진 구분(BL↔FI) 자동 제안 · 금형ID {번호}-{구분} 충돌 회피
     const fromSel = document.getElementById('m-from-item');
     if(fromSel) fromSel.onchange = () => {
       const mn = fromSel.value;
       if(!mn) return;
       const linked = _byMoldNo[mn] || [];
+      const reg = _regByMoldNo[mn] || [];
       document.getElementById('m-moldno').value = mn;
       document.getElementById('m-items').value = linked.map(i => i.code).join(',');
+      // 구분 제안: BL 만 등록돼 있으면 FI, FI 만 있으면 BL (그 외엔 손대지 않음)
+      const has = v => reg.some(r => r.variant === v);
+      if(reg.length && varSelEl && !varSelEl.value){
+        if(has('BL') && !has('FI')) varSelEl.value = 'FI';
+        else if(has('FI') && !has('BL')) varSelEl.value = 'BL';
+      }
+      // 금형ID 제안: 번호 그대로 → 사용 중이면 {번호}-{구분} → 그래도 겹치면 {번호}-2,3…
       const idEl = document.getElementById('m-id');
-      if(!idEl.value.trim()) idEl.value = mn;
+      if(!idEl.value.trim()){
+        let sug = mn;
+        if(DB.get('molds', sug)){
+          const v = varSelEl && varSelEl.value && varSelEl.value !== '__other' ? varSelEl.value : '';
+          if(v && !DB.get('molds', `${mn}-${v}`)) sug = `${mn}-${v}`;
+          else { let n = 2; while(DB.get('molds', `${mn}-${n}`)) n++; sug = `${mn}-${n}`; }
+        }
+        idEl.value = sug;
+      }
       const nmEl = document.getElementById('m-name');
-      if(!nmEl.value.trim()) nmEl.value = `${linked[0]?.name || mn} 금형`;
-      toast(`${mn} — 적용 품번 ${linked.length}건 자동 연결`, 'ok', 2200);
+      if(!nmEl.value.trim()){
+        const vLbl = varSelEl && MOLD_VARIANT_LABELS[varSelEl.value] ? ` (${MOLD_VARIANT_LABELS[varSelEl.value].split(' — ')[0]})` : '';
+        nmEl.value = `${linked[0]?.name || mn} 금형${vLbl}`;
+      }
+      const regNote = reg.length ? ` · 기존 ${reg.length}벌(${reg.map(v=>v.variant||'미지정').join('/')})` : '';
+      toast(`${mn} — 적용 품번 ${linked.length}건 자동 연결${regNote}`, 'ok', 2600);
     };
     document.getElementById('m-ok').onclick = ()=>{
       const mid    = document.getElementById('m-id').value.trim();
