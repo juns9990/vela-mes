@@ -1054,7 +1054,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.29.3';
+const APP_VERSION = 'v0.29.4';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -14850,7 +14850,7 @@ VIEWS.mold = () => {
     </div>
 
     <div class="grid g3">
-      <div class="kpi-mini"><div class="lab">${ico('check')}금형 합계</div><div class="val c">${total}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">BL/FI 각 1개</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}금형 합계</div><div class="val c">${total}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">구분(블로커 BL/피니셔 FI) 각 1개</div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}임박 (90%+)</div><div class="val h">${warn}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">amber 게이지</div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}교체 필요 (100%+)</div><div class="val r">${replace}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">red 게이지</div></div>
     </div>
@@ -14945,8 +14945,10 @@ VIEWS.mold = () => {
         <div class="grid g2">
           <div><label>금형번호 <span style="color:var(--dim);font-weight:400">— 식별번호 연동 (예: 038-030)</span></label>
             <input id="m-moldno" value="${_esc(m.mold_no||'')}" placeholder="예: 038-030" style="font-family:'JetBrains Mono',monospace"></div>
-          <div><label>구분 <span style="color:var(--dim);font-weight:400">— BL / FI 등 (선택)</span></label>
-            <input id="m-variant" value="${_esc(m.variant||'')}" placeholder="예: BL / FI" style="font-family:'JetBrains Mono',monospace"></div>
+          <div><label>구분 <span style="color:var(--dim);font-weight:400">— 공정 단계 (선택 · 자유 입력)</span></label>
+            <input id="m-variant" value="${_esc(m.variant||'')}" placeholder="예: BL=블로커(예비성형) / FI=피니셔(정형)" style="font-family:'JetBrains Mono',monospace"
+              title="같은 금형번호라도 단계별로 따로 등록해 수명을 각각 추적 — BL=블로커(예비성형) · FI=피니셔(정형·마무리) · 그 외 1차/2차, 상형/하형, TR(트리머) 등 자유 입력">
+            <div style="font-size:10px;color:var(--sub);margin-top:4px">BL=블로커(예비성형) · FI=피니셔(정형) — 같은 금형번호를 단계별로 따로 등록해 수명 각각 추적. 단일 금형이면 비워두세요.</div></div>
         </div>
         <div><label>금형명</label><input id="m-name" value="${_esc(m.name||'')}"></div>
         <div><label>적용 품번 (콤마 구분 · 식별번호)</label>
