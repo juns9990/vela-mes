@@ -979,7 +979,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.28.5';
+const APP_VERSION = 'v0.28.6';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -20187,6 +20187,13 @@ VIEWS.set = () => {
   document.getElementById('btn-wipe').onclick = () => {
     openModal(`
       <h2>모든 데이터 초기화 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+      ${DB._backend==='firestore' && !isDemoMode() ? `
+      <div style="margin:0 18px;font-size:12px;color:var(--amber);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:9px;padding:10px 13px;line-height:1.7">
+        ⚠ <b>지금은 서버(Firebase) 동기화 모드</b> — 이 버튼은 <b>이 PC의 로컬 사본만</b> 지웁니다.
+        새로고침 시 서버에서 전체 데이터를 다시 내려받아 <b>화면상 아무것도 지워지지 않습니다</b>
+        (서버 데이터는 delete 금지 규칙으로 보호 — 앱에서 삭제 불가).<br>
+        <b>테스트용 초기화가 목적이면</b>: 시스템 카드에서 백엔드를 <b>local</b> 로 전환한 뒤 초기화하세요 — 서버 무영향 샌드박스가 됩니다.
+      </div>` : ''}
       <div class="body">
         <div style="color:var(--red);line-height:1.6">
           <b>주의</b> — 모든 데이터(실적·LOT·수주·출하·기준정보·사용자)가 삭제됩니다.<br>
