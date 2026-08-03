@@ -1054,7 +1054,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.29.4';
+const APP_VERSION = 'v0.29.5';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -3265,6 +3265,9 @@ function itemHistoryRefs(code){
 /* 표시用 계산 — 원/kg (반올림 정수) · 값 없으면 null. weight(kg) = 절단중량. */
 /* ★ v0.28.8 — 중량 표시 1벌: kg · 소수 최대 3자리 (저장은 기존 필드 그대로 — weight(kg)/product_weight_g(g) 무변, 표시·입력만 kg) */
 function fmtKg(v){ const n = +v || 0; return n ? n.toLocaleString(undefined,{maximumFractionDigits:3}) : ''; }
+/* ★ v0.29.5 — 금형 구분 표준 선택지 (사용자 판정 2026-08-03: ONE 채택 — ON/ONLY 는 오해 소지)
+   ONE=일체형(한 번에 성형·수명 1개) · BL=블로커(예비성형) · FI=피니셔(정형) · 그 외 자유 입력 유지 */
+const MOLD_VARIANT_LABELS = { ONE:'일체형 — 한 번에 성형', BL:'블로커 — 예비성형', FI:'피니셔 — 정형·마무리' };
 function itemRatePerCutKg(it){
   const w = +(it?.weight||0);
   const p = +(it?.price||0);
@@ -14866,7 +14869,7 @@ VIEWS.mold = () => {
           const cf = m.custom || {};
           return `<tr>
             <td><b style="font-family:'JetBrains Mono',monospace">${_esc(m.mold_no||m.id)}</b></td>
-            <td>${m.variant?`<span class="pill blue">${_esc(m.variant)}</span>`:'<span class="muted">—</span>'}</td>
+            <td>${m.variant?`<span class="pill blue" title="${_esc(MOLD_VARIANT_LABELS[m.variant]||m.variant)}">${_esc(m.variant)}</span>`:'<span class="muted">—</span>'}</td>
             <td><span class="pill gray">${_esc(m.type||'mold')}</span></td>
             <td class="muted">${(m.itemCodes||[]).join(', ')||'―'}</td>
             <td class="num">${(m.life_limit||0).toLocaleString()}</td>
@@ -14915,6 +14918,7 @@ VIEWS.mold = () => {
     exportXlsx(xrows, 'MOLDS', `금형_${fmtDate(Date.now())}.xlsx`);
   };
 
+  // moldEdit 내 구분 선택지 라벨은 전역 MOLD_VARIANT_LABELS 1벌 사용
   function moldEdit(id){
     const m = id? DB.get('molds', id) : { id:'', name:'', type:'mold', mold_no:'', variant:'',
       itemCodes:[], life_limit:50000, cum_strokes:0, offset:0, shots_source:'derived',
@@ -14945,10 +14949,15 @@ VIEWS.mold = () => {
         <div class="grid g2">
           <div><label>금형번호 <span style="color:var(--dim);font-weight:400">— 식별번호 연동 (예: 038-030)</span></label>
             <input id="m-moldno" value="${_esc(m.mold_no||'')}" placeholder="예: 038-030" style="font-family:'JetBrains Mono',monospace"></div>
-          <div><label>구분 <span style="color:var(--dim);font-weight:400">— 공정 단계 (선택 · 자유 입력)</span></label>
-            <input id="m-variant" value="${_esc(m.variant||'')}" placeholder="예: BL=블로커(예비성형) / FI=피니셔(정형)" style="font-family:'JetBrains Mono',monospace"
-              title="같은 금형번호라도 단계별로 따로 등록해 수명을 각각 추적 — BL=블로커(예비성형) · FI=피니셔(정형·마무리) · 그 외 1차/2차, 상형/하형, TR(트리머) 등 자유 입력">
-            <div style="font-size:10px;color:var(--sub);margin-top:4px">BL=블로커(예비성형) · FI=피니셔(정형) — 같은 금형번호를 단계별로 따로 등록해 수명 각각 추적. 단일 금형이면 비워두세요.</div></div>
+          <div><label>구분 <span style="color:var(--dim);font-weight:400">— 공정 단계 (선택형 · 사용자 판정 2026-08-03)</span></label>
+            <select id="m-variant">
+              <option value="">— 미지정 —</option>
+              ${['ONE','BL','FI'].map(v=>`<option value="${v}" ${m.variant===v?'selected':''}>${MOLD_VARIANT_LABELS[v]} (${v})</option>`).join('')}
+              <option value="__other" ${m.variant && !['ONE','BL','FI'].includes(m.variant)?'selected':''}>기타 (직접 입력)</option>
+            </select>
+            <div id="m-variant-other-wrap" style="margin-top:6px;${m.variant && !['ONE','BL','FI'].includes(m.variant)?'':'display:none'}">
+              <input id="m-variant-other" value="${_esc(m.variant && !['ONE','BL','FI'].includes(m.variant)?m.variant:'')}" placeholder="예: 1차 / 상형 / TR(트리머)" style="font-family:'JetBrains Mono',monospace"></div>
+            <div style="font-size:10px;color:var(--sub);margin-top:4px">일체형(ONE)=한 금형에서 한 번에 성형 · 블로커(BL)/피니셔(FI)=단계별 금형 2벌 — 같은 금형번호를 각각 등록해 수명 따로 추적</div></div>
         </div>
         <div><label>금형명</label><input id="m-name" value="${_esc(m.name||'')}"></div>
         <div><label>적용 품번 (콤마 구분 · 식별번호)</label>
@@ -14967,6 +14976,11 @@ VIEWS.mold = () => {
         </div>
       </div>
     `);
+    // ★ v0.29.5 — 구분 '기타' 선택 시 직접 입력칸 토글 (ht_spec 패턴 재사용)
+    const varSelEl = document.getElementById('m-variant');
+    if(varSelEl) varSelEl.onchange = () => {
+      document.getElementById('m-variant-other-wrap').style.display = varSelEl.value === '__other' ? '' : 'none';
+    };
     // ★ v0.29.3 — 금형번호 선택 → 자동 채움 (금형번호·ID 제안·적용 품번 전체·이름 제안 — 전부 수정 가능)
     const fromSel = document.getElementById('m-from-item');
     if(fromSel) fromSel.onchange = () => {
@@ -14986,7 +15000,9 @@ VIEWS.mold = () => {
       const name   = document.getElementById('m-name').value.trim();
       const type   = document.getElementById('m-type').value;
       const moldNo = document.getElementById('m-moldno').value.trim();
-      const variant= document.getElementById('m-variant').value.trim();
+      // ★ v0.29.5 — 구분 선택형 (ONE/BL/FI + 기타 직접 입력)
+      const varSel = document.getElementById('m-variant').value;
+      const variant= varSel === '__other' ? document.getElementById('m-variant-other').value.trim() : varSel;
       const its    = document.getElementById('m-items').value.split(',').map(s=>s.trim()).filter(Boolean);
       const life   = +document.getElementById('m-life').value||0;
       const offset = +document.getElementById('m-offset').value||0;
