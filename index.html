@@ -979,7 +979,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.28.3';
+const APP_VERSION = 'v0.28.4';
 const APP_DATE    = '2026-07-26';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -3221,6 +3221,48 @@ const _IMPORTER_SPEC = {
     ],
     example: { code:'C999', name:'예시산업', type:'cust', contact:'홍길동', phone:'055-000-0000', memo:'' },
   },
+  // ★ v0.28.4 — 업체 이관용 일괄 임포트 확대 (마스터만 · 원장 무영향 G1 유지)
+  workers: {
+    label: '작업자',
+    columns: [
+      { key:'id',   label:'사번',   required:true },
+      { key:'name', label:'이름',   required:true },
+      { key:'dept', label:'부서' },
+    ],
+    example: { id:'OP-101', name:'홍길동', dept:'단조반' },
+  },
+  equipments: {
+    label: '설비',
+    columns: [
+      { key:'id',        label:'설비코드', required:true },
+      { key:'name',      label:'설비명',   required:true },
+      { key:'procCode',  label:'공정코드', required:true },
+      { key:'work_hours',label:'일가동시간(h)', kind:'number' },
+    ],
+    example: { id:'EQ-PRESS-3', name:'프레스 3호', procCode:'FORGE', work_hours:8 },
+  },
+  molds: {
+    label: '금형',
+    columns: [
+      { key:'id',         label:'금형번호', required:true },
+      { key:'name',       label:'금형명' },
+      { key:'itemCodes',  label:'적용품번(쉼표 구분)' },
+      { key:'life_limit', label:'수명한도(타)', kind:'number' },
+      { key:'offset',     label:'기초 누적 타수', kind:'number' },
+    ],
+    example: { id:'038-031', name:'플랜지 단조 금형', itemCodes:'HF-3301', life_limit:50000, offset:12000 },
+  },
+  drawings: {
+    label: '도면',
+    columns: [
+      { key:'id',       label:'도면번호', required:true },
+      { key:'itemCode', label:'품번' },
+      { key:'rev',      label:'현행Rev' },
+      { key:'rev_date', label:'개정일(YYYY-MM-DD)' },
+      { key:'reason',   label:'사유' },
+    ],
+    example: { id:'038-031-D', itemCode:'HF-3301', rev:'2', rev_date:'2026-07-01', reason:'기존 데이터 이관' },
+  },
 };
 function _importerColumns(master){
   const base = (_IMPORTER_SPEC[master]?.columns || []).slice();
@@ -3280,6 +3322,19 @@ function _importJudgeRow(master, parsed){
     if(!/^[A-Za-z0-9\-_.]+$/.test(d.code)) return { ok:false, reason:`코드 형식 오류 — ${d.code}` };
     if(DB.get('vendors', d.code)) return { ok:false, reason:`중복 코드 — 건너뜀` };
     if(d.type && !['cust','sup','out'].includes(d.type)) return { ok:false, reason:`구분 오류 — ${d.type} (cust/sup/out)` };
+  } else if(master === 'workers'){
+    if(DB.get('workers', d.id)) return { ok:false, reason:'중복 사번 — 건너뜀' };
+  } else if(master === 'equipments'){
+    if(DB.get('equipments', d.id)) return { ok:false, reason:'중복 설비코드 — 건너뜀' };
+    if(!DB.get('processes', d.procCode)) return { ok:false, reason:`공정코드 없음 — ${d.procCode} (공정 템플릿 먼저 등록)` };
+  } else if(master === 'molds'){
+    if(DB.get('molds', d.id)) return { ok:false, reason:'중복 금형번호 — 건너뜀' };
+    const codes = String(d.itemCodes||'').split(/[,;]/).map(x=>x.trim()).filter(Boolean);
+    const miss = codes.filter(c => !DB.get('items', c));
+    if(miss.length) return { ok:false, reason:`품번 없음 — ${miss.join(', ')} (품목 먼저 임포트)` };
+  } else if(master === 'drawings'){
+    if(DB.get('drawings', d.id)) return { ok:false, reason:'중복 도면번호 — 건너뜀' };
+    if(d.itemCode && !DB.get('items', d.itemCode)) return { ok:false, reason:`품번 없음 — ${d.itemCode} (품목 먼저 임포트)` };
   }
   return { ok:true, reason:'등록 가능' };
 }
@@ -3315,6 +3370,25 @@ function _importApplyRow(master, parsed){
       contact: d.contact || '', phone: d.phone || '', memo: d.memo || '',
       custom, ts: Date.now(), by: SESSION.user||'import',
       active: true,
+    });
+  } else if(master === 'workers'){
+    DB.set('workers', d.id, { id:d.id, emp_no:d.id, name:d.name||'', dept:d.dept||'', active:true });
+  } else if(master === 'equipments'){
+    DB.set('equipments', d.id, { id:d.id, name:d.name||'', procCode:d.procCode||'', work_hours:(+d.work_hours>0?+d.work_hours:8), active:true });
+  } else if(master === 'molds'){
+    DB.set('molds', d.id, {
+      id:d.id, name:d.name||d.id, type:'mold',
+      itemCodes: String(d.itemCodes||'').split(/[,;]/).map(x=>x.trim()).filter(Boolean),
+      life_limit:+d.life_limit||0, offset:+d.offset||0,
+      cum_strokes:0, status:'정상', qr:d.id, custom, active:true,
+    });
+  } else if(master === 'drawings'){
+    const rev = String(d.rev ?? '0').trim() || '0';
+    const date = (d.rev_date||'').trim() || fmtDate(Date.now());
+    DB.set('drawings', d.id, {
+      id:d.id, itemCode:d.itemCode||'', current_rev:rev,
+      revs:[{ rev, date, reason:(d.reason||'기존 데이터 이관'), by:SESSION.user, ts:Date.now() }],
+      memo:'', active:true, created:Date.now(), by:SESSION.user,
     });
   }
 }
@@ -12464,6 +12538,7 @@ VIEWS.draw = () => {
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('draw')}</svg>도면 관리 <span class="pill cyan">${APP_VERSION}</span></div>
       <div class="pgtools">
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--bg2)"><input type="checkbox" id="dw-showoff" ${state.showOff?'checked':''} style="width:auto;margin:0"> 비활성 포함</label>
+        <button class="btn" id="dw-import">${ico('excel')}엑셀 임포트</button>
         <button class="btn" id="dw-xlsx">${ico('excel')}엑셀</button>
         <button class="btn primary" id="dw-new">${ico('plus')}도면 등록</button>
       </div>
@@ -12485,6 +12560,7 @@ VIEWS.draw = () => {
   document.getElementById('dw-q').oninput = e => { clearTimeout(_dwDeb); _dwDeb = setTimeout(()=>{ state.q = e.target.value; router(); }, 250); };
   document.getElementById('dw-showoff').onchange = e => { state.showOff = e.target.checked; router(); };
   document.getElementById('dw-new').onclick = () => VIEWS._drawNewModal();
+  document.getElementById('dw-import').onclick = () => VIEWS._mstImport('drawings');   // ★ v0.28.4
   document.querySelectorAll('[data-dw-files]').forEach(b => b.onclick = () => VIEWS._drawFilesModal(b.dataset.dwFiles));
   document.querySelectorAll('[data-dw-hist]').forEach(b => b.onclick = () => VIEWS._drawHistModal(b.dataset.dwHist));
   document.querySelectorAll('[data-dw-rev]').forEach(b => b.onclick = () => VIEWS._drawRevModal(b.dataset.dwRev));
@@ -14229,6 +14305,7 @@ VIEWS.mold = () => {
     <div class="pghead">
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('mold')}</svg>금형·지그 <span class="pill cyan">${APP_VERSION} · 파생 표시</span></div>
       <div class="pgtools">
+        <button class="btn" id="btn-mold-import">${ico('excel')}엑셀 임포트</button>
         <button class="btn" id="btn-mold-fields">${ico('save')}필드 관리</button>
         <button class="btn" id="btn-mold-xlsx">${ico('excel')}엑셀</button>
         <button class="btn primary" id="btn-mold-new">${ico('plus')}금형 추가</button>
@@ -14280,6 +14357,7 @@ VIEWS.mold = () => {
   document.querySelectorAll('[data-edit-mold]').forEach(b=>b.onclick=()=>moldEdit(b.dataset.editMold));
   document.getElementById('btn-mold-new').onclick = ()=>moldEdit(null);
   document.getElementById('btn-mold-fields').onclick = () => VIEWS._mstFieldsEdit('molds');
+  document.getElementById('btn-mold-import').onclick = () => VIEWS._mstImport('molds');   // ★ v0.28.4
   document.getElementById('btn-mold-xlsx').onclick = () => {
     const cfList = getMasterFields('molds');
     const xrows = molds.map(m => {
@@ -16104,6 +16182,7 @@ VIEWS.masters = () => {
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <h3 style="margin:0">설비 <span class="tag">v0.16.7 · 공정 정의 배열(폴백) → 마스터 승격 · 이름 매칭 유지</span></h3>
+        <button class="btn" id="mst-e-import">${ico('excel')}엑셀 임포트</button>
         <button class="btn primary" id="mst-e-new">${ico('plus')}설비 등록</button>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
@@ -16299,6 +16378,9 @@ VIEWS.masters = () => {
   if(ifEl) ifEl.onclick = () => VIEWS._mstFieldsEdit('items');
   const iiEl = document.getElementById('mst-i-import');
   if(iiEl) iiEl.onclick = () => VIEWS._mstImport('items');
+  // ★ v0.28.4 — 설비 엑셀 임포트
+  const eiEl = document.getElementById('mst-e-import');
+  if(eiEl) eiEl.onclick = () => VIEWS._mstImport('equipments');
 };
 
 /* 거래처 등록·수정 모달 */
@@ -19477,7 +19559,7 @@ VIEWS.set = () => {
         <thead><tr><th>사번</th><th>이름</th><th>부서</th><th>활성</th><th></th></tr></thead>
         <tbody id="wk-rows"></tbody>
       </table></div>
-      <div style="margin-top:10px"><button class="btn primary" id="wk-add">${ico('plus')}작업자 추가</button></div>
+      <div style="margin-top:10px;display:flex;gap:8px"><button class="btn" id="wk-import">${ico('excel')}엑셀 임포트</button><button class="btn primary" id="wk-add">${ico('plus')}작업자 추가</button></div>
     </div>
 
     ${SESSION.role === 'vendor' ? `
@@ -20325,6 +20407,8 @@ VIEWS.set = () => {
     };
   }
   document.getElementById('wk-add').onclick = ()=>editWorker(null);
+  const wkImp = document.getElementById('wk-import');
+  if(wkImp) wkImp.onclick = ()=>VIEWS._mstImport('workers');   // ★ v0.28.4
   renderWorkers();
 };
 
