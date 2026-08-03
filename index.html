@@ -1054,7 +1054,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.29.6';
+const APP_VERSION = 'v0.29.7';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -3327,10 +3327,15 @@ function deriveMoldShots(mold){
   });
   return total + (+mold.offset || 0);
 }
+/* ★ v0.29.7 — 금형 보유 수량 (사용자 판정 2026-08-03: 물량 증가 시 같은 금형·지그 여러 벌 교대 사용)
+   누적 타수 = 벌당 평균 = ceil((전체 파생+offset) ÷ 보유 수량) — 수명 판정·게이지·경고 전부 벌당 기준.
+   (교대 사용을 균등 분담으로 근사 — 벌별 정밀 추적이 필요해지면 장착/해제 이력 기능으로 승격) */
+function moldQty(mold){ return Math.max(1, Math.floor(+(mold?.qty) || 1)); }
+function moldShotsPerUnit(mold){ return Math.ceil(deriveMoldShots(mold) / moldQty(mold)); }
 function moldLifePct(mold){
   const lim = +mold?.life_limit || 0;
   if(!lim) return 0;
-  return Math.min(999, deriveMoldShots(mold) / lim * 100);
+  return Math.min(999, moldShotsPerUnit(mold) / lim * 100);
 }
 function getMoldLifeIssues(){
   return DB.all('molds').map(m => ({
@@ -3403,10 +3408,11 @@ const _IMPORTER_SPEC = {
       { key:'id',         label:'금형번호', required:true },
       { key:'name',       label:'금형명' },
       { key:'itemCodes',  label:'적용품번(쉼표 구분)' },
+      { key:'qty',        label:'보유수량(벌)', kind:'number' },   // ★ v0.29.7
       { key:'life_limit', label:'수명한도(타)', kind:'number' },
       { key:'offset',     label:'기초 누적 타수', kind:'number' },
     ],
-    example: { id:'038-031', name:'플랜지 단조 금형', itemCodes:'HF-3301', life_limit:50000, offset:12000 },
+    example: { id:'038-031', name:'플랜지 단조 금형', itemCodes:'HF-3301', qty:1, life_limit:50000, offset:12000 },
   },
   drawings: {
     label: '도면',
@@ -3658,6 +3664,7 @@ function _importApplyRow(master, parsed){
     DB.set('molds', d.id, {
       id:d.id, name:d.name||d.id, type:'mold',
       itemCodes: String(d.itemCodes||'').split(/[,;]/).map(x=>x.trim()).filter(Boolean),
+      qty: Math.max(1, Math.floor(+d.qty||1)),   // ★ v0.29.7 — 보유 수량(벌)
       life_limit:+d.life_limit||0, offset:+d.offset||0,
       cum_strokes:0, status:'정상', qr:d.id, custom, active:true,
     });
@@ -14831,10 +14838,11 @@ VIEWS.mold = () => {
   const items = getItems();
   // 파생 계산 1벌 · 저장 금지 · G1
   const molds = moldsRaw.map(m => {
-    const derived = deriveMoldShots(m);
+    const derivedTotal = deriveMoldShots(m);          // 전체 (보유분 합)
+    const perUnit = moldShotsPerUnit(m);              // ★ v0.29.7 — 벌당 평균 (수명 기준)
     const pct = moldLifePct(m);
     const st  = pct >= 100 ? '교체' : pct >= 90 ? '임박' : '정상';
-    return { ...m, _shots: derived, _pct: pct, _st: st };
+    return { ...m, _shots: perUnit, _total: derivedTotal, _qty: moldQty(m), _pct: pct, _st: st };
   });
   const total = molds.length;
   const warn = molds.filter(m=>m._st==='임박').length;
@@ -14859,9 +14867,9 @@ VIEWS.mold = () => {
     </div>
 
     <div class="card">
-      <h3>금형 마스터 <span class="tag">누적 = (연결 품목 FORGE 실적 ÷ Cav) + offset · 파생 · G1 저장 금지</span></h3>
+      <h3>금형 마스터 <span class="tag">누적/벌 = ((연결 품목 FORGE 실적 ÷ Cav) + offset) ÷ 보유 수량 · 파생 · G1 저장 금지</span></h3>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>금형번호</th><th>구분</th><th>type</th><th>적용 품번</th><th class="num">기준 타수</th><th class="num">누적 (파생)</th><th class="num">offset</th><th style="width:22%">수명</th>${mTopFields.map(f=>`<th>${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
+        <thead><tr><th>금형번호</th><th>구분</th><th>type</th><th class="num">보유</th><th>적용 품번</th><th class="num">기준 타수</th><th class="num">누적/벌 (파생)</th><th class="num">offset</th><th style="width:22%">수명</th>${mTopFields.map(f=>`<th>${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
         <tbody>${molds.length? molds.map(m=>{
           const pct = m._pct;
           const barClr = pct>=100?'var(--red)':pct>=90?'var(--amber)':'var(--cyan)';
@@ -14871,9 +14879,10 @@ VIEWS.mold = () => {
             <td><b style="font-family:'JetBrains Mono',monospace">${_esc(m.mold_no||m.id)}</b></td>
             <td>${m.variant?`<span class="pill blue" title="${_esc(MOLD_VARIANT_LABELS[m.variant]||m.variant)}">${_esc(m.variant)}</span>`:'<span class="muted">—</span>'}</td>
             <td><span class="pill gray">${_esc(m.type||'mold')}</span></td>
+            <td class="num">${m._qty}<span style="color:var(--dim);font-size:10px">벌</span></td>
             <td class="muted">${(m.itemCodes||[]).join(', ')||'―'}</td>
             <td class="num">${(m.life_limit||0).toLocaleString()}</td>
-            <td class="num" style="color:${barClr};font-weight:700">${m._shots.toLocaleString()}</td>
+            <td class="num" style="color:${barClr};font-weight:700" title="전체 ${m._total.toLocaleString()}타 ÷ ${m._qty}벌">${m._shots.toLocaleString()}</td>
             <td class="num">${(+m.offset||0).toLocaleString()}</td>
             <td style="min-width:140px">
               <div style="height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;border:1px solid var(--line)">
@@ -14885,7 +14894,7 @@ VIEWS.mold = () => {
             <td><span class="pill ${stPill}">${m._st}</span></td>
             <td><button class="btn ghost" data-edit-mold="${_esc(m.id)}">${ico('save')}</button></td>
           </tr>`;
-        }).join('') : `<tr><td colspan="${11+mTopFields.length}" class="empty">등록된 금형 없음</td></tr>`}</tbody>
+        }).join('') : `<tr><td colspan="${12+mTopFields.length}" class="empty">등록된 금형 없음</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
         <b style="color:var(--amber)">규칙</b> 90% ≥ amber · 100% ≥ red — 대시보드·AI 보고서 이슈로 자동 수집.
@@ -14905,9 +14914,11 @@ VIEWS.mold = () => {
         금형번호: m.mold_no || m.id,
         구분: m.variant || '',
         type: m.type || 'mold',
+        '보유 수량(벌)': m._qty,
         '적용 품번': (m.itemCodes||[]).join(', '),
         '기준 타수': +m.life_limit||0,
-        '누적 (파생)': m._shots,
+        '누적/벌 (파생)': m._shots,
+        '누적 전체 (파생)': m._total,
         offset: +m.offset||0,
         '수명%': +m._pct.toFixed(1),
         상태: m._st,
@@ -14920,7 +14931,7 @@ VIEWS.mold = () => {
 
   // moldEdit 내 구분 선택지 라벨은 전역 MOLD_VARIANT_LABELS 1벌 사용
   function moldEdit(id){
-    const m = id? DB.get('molds', id) : { id:'', name:'', type:'mold', mold_no:'', variant:'',
+    const m = id? DB.get('molds', id) : { id:'', name:'', type:'mold', mold_no:'', variant:'', qty:1,
       itemCodes:[], life_limit:50000, cum_strokes:0, offset:0, shots_source:'derived',
       status:'정상', qr:'', custom:{} };
     // ★ v0.29.3 — 품번 마스터 금형번호 연동 등록 (사용자 제안 2026-08-03)
@@ -14970,12 +14981,15 @@ VIEWS.mold = () => {
         <div><label>적용 품번 (콤마 구분 · 식별번호)</label>
           <input id="m-items" value="${_esc((m.itemCodes||[]).join(','))}" placeholder="예: 038-031-0, 038-032-0">
           <div style="font-size:10px;color:var(--sub);margin-top:4px">사용 가능(발췌 10): ${items.slice(0,10).map(i=>_esc(i.code)).join(', ')}${items.length>10?' …':''}</div></div>
-        <div class="grid g3">
-          <div><label>기준 타수(수명한도)</label><input id="m-life" type="number" min="0" step="100" value="${+m.life_limit||0}"></div>
-          <div><label>수동 보정 (offset) <span style="color:var(--dim);font-weight:400">— 파생값에 가산</span></label><input id="m-offset" type="number" step="1" value="${+m.offset||0}"></div>
+        <div class="grid g4">
+          <div><label>기준 타수(수명한도) <span style="color:var(--dim);font-weight:400">— 벌당</span></label><input id="m-life" type="number" min="0" step="100" value="${+m.life_limit||0}"></div>
+          <div><label>보유 수량 (벌) <span style="color:var(--dim);font-weight:400">— 물량 증가 시 +</span></label><input id="m-qty" type="number" min="1" step="1" value="${moldQty(m)}"
+            title="같은 금형·지그를 여러 벌 두고 교대 사용하는 경우 — 누적 타수는 벌당 평균(전체 ÷ 보유 수량)으로 계산"></div>
+          <div><label>수동 보정 (offset) <span style="color:var(--dim);font-weight:400">— 전체 파생값에 가산</span></label><input id="m-offset" type="number" step="1" value="${+m.offset||0}"></div>
           <div><label>shots_source <span style="color:var(--dim);font-weight:400">— 자리 예약</span></label>
             <input value="${_esc(m.shots_source||'derived')}" disabled style="border-style:dashed;color:var(--dim);font-family:'JetBrains Mono',monospace"></div>
         </div>
+        <div style="font-size:10px;color:var(--sub);margin-top:-4px">보유 수량을 늘리면 누적/벌이 자동으로 나눠집니다 (교대 사용 균등 근사). 벌별 정밀 추적이 필요하면 장착/해제 이력 기능을 요청하세요.</div>
         ${renderCustomFields('molds', m.custom, 'form')}
         <div class="actions">
           <button class="btn" onclick="closeModal()">취소</button>
@@ -15033,14 +15047,15 @@ VIEWS.mold = () => {
       const variant= varSel === '__other' ? document.getElementById('m-variant-other').value.trim() : varSel;
       const its    = document.getElementById('m-items').value.split(',').map(s=>s.trim()).filter(Boolean);
       const life   = +document.getElementById('m-life').value||0;
+      const qty    = Math.max(1, Math.floor(+document.getElementById('m-qty').value||1));   // ★ v0.29.7
       const offset = +document.getElementById('m-offset').value||0;
       if(!mid || !name){ toast('금형ID/이름 입력','warn'); return; }
       if(!id && DB.get('molds', mid)){ toast(`금형ID 중복 — ${mid}`,'err'); return; }
       const custom = readCustomFieldsInputs('molds');
       const doc = id
-        ? { name, type, mold_no:moldNo, variant, itemCodes:its, life_limit:life, offset,
+        ? { name, type, mold_no:moldNo, variant, qty, itemCodes:its, life_limit:life, offset,
             shots_source:'derived', custom }
-        : { id:mid, name, type, mold_no:moldNo, variant, itemCodes:its, life_limit:life, offset,
+        : { id:mid, name, type, mold_no:moldNo, variant, qty, itemCodes:its, life_limit:life, offset,
             cum_strokes:0, shots_source:'derived', status:'정상', qr:mid, custom, active:true };
       DB.set('molds', mid, doc);
       toast('저장','ok'); closeModal(); router();
