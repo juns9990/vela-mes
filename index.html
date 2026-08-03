@@ -307,8 +307,18 @@ td.muted{color:var(--sub)}
 /* ★ v0.29.2 — 리스트 세로 스크롤 (전 메뉴 공통 · 실사용 지적)
    긴 표는 화면 안(최대 64vh)에서 휠·우하단 화살표·PageUp/Down 으로 스크롤 · 머리글 고정(sticky)
    (인라인 max-height 를 가진 표 — 모달 내 180px/300px 등 — 는 인라인 값이 우선 · 인쇄 시 전체 펼침) */
-/* ★ v0.29.9 — overscroll 격리 제거 (실사용 지적: 표 끝에서 휠이 페이지로 이어져 다음 단락으로 넘어가야 함) */
-.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:64vh;border:1px solid var(--line);border-radius:10px}
+/* ★ v0.29.9 — overscroll 격리 제거 (실사용 지적: 표 끝에서 휠이 페이지로 이어져 다음 단락으로 넘어가야 함)
+   ★ v0.30.1 — 단락 상한 = 화면 절반(50vh) 통일 (사용자 판정: 적당히 커지면 그 다음부터는 무조건 단락 안 스크롤) */
+.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:50vh;border:1px solid var(--line);border-radius:10px}
+/* ★ v0.30.0 — 단락 스크롤 일반화: 표 아닌 목록(설비현황 행·계획 카드 묶음 등)도 동일 상한 자체 스크롤 */
+.sec-scroll{max-height:50vh;overflow-y:auto}
+@media print{.sec-scroll{max-height:none !important;overflow:visible !important}}
+/* ★ v0.30.1 — 스크롤 표시 상시 노출 (전 단락 공통 — 스크롤 가능함이 눈에 보이게) */
+.tbl-wrap, .sec-scroll{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.tbl-wrap::-webkit-scrollbar, .sec-scroll::-webkit-scrollbar{width:11px;height:11px}
+.tbl-wrap::-webkit-scrollbar-track, .sec-scroll::-webkit-scrollbar-track{background:var(--bg2);border-radius:6px}
+.tbl-wrap::-webkit-scrollbar-thumb, .sec-scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px;border:2px solid var(--bg2)}
+.tbl-wrap::-webkit-scrollbar-thumb:hover, .sec-scroll::-webkit-scrollbar-thumb:hover{background:var(--cyan-dim)}
 .tbl-wrap thead th{position:sticky;top:0;z-index:5}
 @media print{.tbl-wrap{max-height:none !important;overflow:visible !important}}
 /* 스크롤 화살표 (우하단 고정 — 대상: 모달 > 마지막 사용 리스트 > 화면 최대 리스트 > 페이지) */
@@ -1055,7 +1065,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.29.9';
+const APP_VERSION = 'v0.30.1';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -4338,7 +4348,7 @@ function _scrollTarget(){
   }
   if(_snLast && document.contains(_snLast) && _snLast.scrollHeight > _snLast.clientHeight + 4) return _snLast;
   let best = null;
-  document.querySelectorAll('#view .tbl-wrap').forEach(el => {
+  document.querySelectorAll('#view .tbl-wrap, #view .sec-scroll').forEach(el => {   // ★ v0.30.0 — 일반화 단락 포함
     if(el.scrollHeight > el.clientHeight + 4 && (!best || el.clientHeight > best.clientHeight)) best = el;
   });
   if(best) return best;
@@ -4370,10 +4380,10 @@ function _snUpdate(){
 // 마지막 사용 리스트 추적 (휠 스크롤은 capture 로, 마우스오버는 위임으로)
 document.addEventListener('scroll', e => {
   const el = e.target;
-  if(el && el.classList && el.classList.contains('tbl-wrap')) _snLast = el;
+  if(el && el.classList && (el.classList.contains('tbl-wrap') || el.classList.contains('sec-scroll'))) _snLast = el;   // ★ v0.30.0
 }, true);
 document.addEventListener('mouseover', e => {
-  const w = e.target && e.target.closest ? e.target.closest('.tbl-wrap') : null;
+  const w = e.target && e.target.closest ? e.target.closest('.tbl-wrap, .sec-scroll') : null;   // ★ v0.30.0
   if(w) _snLast = w;
 });
 // ▲▼ 버튼 — 클릭 1회 + 꾹 누르면 연속(320ms)
@@ -4952,6 +4962,20 @@ function router(){
     document.getElementById('view').insertAdjacentHTML('afterbegin',
       `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--amber);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:9px;padding:8px 13px;margin-bottom:14px">👁 <b>보기 전용</b> — 이 메뉴에서는 조회만 가능합니다 (등록·수정 권한: 관리책임자 문의)</div>`);
   }
+  // ★ v0.30.0 — 단락 스크롤 일반화 (실사용 지적: 표 아닌 목록 단락도 설비처럼 자체 스크롤)
+  try { _secScrollEnhance(); } catch(e){ /* 레이아웃 미지원 환경(테스트) 무해 */ }
+}
+/* ★ v0.30.0 — 카드(단락) 안의 어떤 목록이든 — 표(.tbl-wrap)가 아니어도 — 자체 스크롤로 전환.
+   ★ v0.30.1 — 기준 = 단락 상한(50vh) 그 자체 (사용자 판정: 한 칸이라도 넘으면 스크롤 — 2/3 실측 기준 폐지).
+   렌더 후 실측이라 화면·데이터 무관 전 메뉴 공통 (수주~기준정보). */
+function _secScrollEnhance(){
+  const cap = (window.innerHeight || 800) * 0.50;   // 단락 상한 = 화면 절반 (.tbl-wrap/.sec-scroll 의 50vh 와 동일)
+  document.querySelectorAll('#view .card > div, #view .eqtable').forEach(el => {
+    if(el.classList.contains('tbl-wrap') || el.classList.contains('sec-scroll')) return;
+    if(el.querySelector('.tbl-wrap')) return;   // 안에 이미 스크롤 표가 있으면 이중 스크롤 방지
+    const h = el.getBoundingClientRect ? el.getBoundingClientRect().height : 0;
+    if(h > cap + 1) el.classList.add('sec-scroll');   // 한 칸이라도 넘으면 즉시 단락 스크롤
+  });
 }
 window.addEventListener('hashchange', router);
 
