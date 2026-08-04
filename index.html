@@ -1065,7 +1065,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.30.4';
+const APP_VERSION = 'v0.30.5';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -9137,7 +9137,10 @@ VIEWS.so = () => {
             <td class="num" style="color:${r.remain>0?'var(--amber)':'var(--dim)'}">${r.remain.toLocaleString()}</td>
             <td class="muted">${_esc(r.o.due||'—')}</td>
             <td><span class="pill ${r.status.cls}">${r.status.label}</span></td>
-            <td>${r.remain>0 && getFlags().plan ? `<button class="btn ghost" data-so-plan="${_esc(r.o.id)}" style="font-size:10.5px;color:var(--cyan)">${ico('plus')}계획</button>` : ''}</td>
+            <td><div style="display:flex;gap:5px;justify-content:flex-end">
+              ${r.remain>0 && getFlags().plan ? `<button class="btn ghost" data-so-plan="${_esc(r.o.id)}" style="font-size:10.5px;color:var(--cyan)">${ico('plus')}계획</button>` : ''}
+              <button class="btn ghost" data-so-edit="${_esc(r.o.id)}" style="font-size:10.5px" title="수량·단가·납기 수정">수정</button>
+            </div></td>
           </tr>`).join('')}
         `).join('') : '<tr><td colspan="7" class="empty">수주 없음 — [새 수주]로 등록하세요</td></tr>'}
         </tbody>
@@ -9148,7 +9151,7 @@ VIEWS.so = () => {
     <div class="card">
       <h3>수주 목록 <span class="tag">SO 번호 · 단가 · 금액</span></h3>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>SO 번호</th><th>고객사</th><th>품번</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th><th>납기</th><th>잔량</th></tr></thead>
+        <thead><tr><th>SO 번호</th><th>고객사</th><th>품번</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th><th>납기</th><th>잔량</th><th></th></tr></thead>
         <tbody>${sos.length? sos.map(o=>{
           const shipped = DB.query('shipments', s=>s.so_id===o.id).reduce((s,r)=>s+(r.qty||0),0);
           const remain = (o.qty||0)-shipped;
@@ -9161,8 +9164,9 @@ VIEWS.so = () => {
             <td class="num">₩${((o.qty||0)*(o.price||0)).toLocaleString()}</td>
             <td class="muted">${o.due||'―'}</td>
             <td>${remain<=0?'<span class="pill green">출하완료</span>':`<span class="pill heat">${remain.toLocaleString()}ea</span>`}</td>
+            <td><button class="btn ghost" data-so-edit="${_esc(o.id)}" title="수량·단가·납기 수정">수정</button></td>
           </tr>`;
-        }).join('') : '<tr><td colspan="8" class="empty">수주 없음</td></tr>'}</tbody>
+        }).join('') : '<tr><td colspan="9" class="empty">수주 없음</td></tr>'}</tbody>
       </table></div>
     </div>
   `;
@@ -9173,6 +9177,46 @@ VIEWS.so = () => {
     const shipped = DB.query('shipments', s => s.so_id===soId).reduce((s,r)=>s+(r.qty||0),0);
     const remain = Math.max(0, (o.qty||0) - shipped);
     VIEWS._planNew({ so_id: soId, itemCode: o.itemCode, qty: remain });
+  });
+  // ★ v0.30.5 — 수주 수정 (실사용 지적: 생성 후 수정 버튼 없음)
+  //   수량·단가·납기만 수정 (고객사·품번은 불변 — 잘못 등록이면 새로 등록 권장).
+  //   저장 = DB.correct 보정 레코드(원본 보존·increment-only) · 수량은 이미 출하된 양 미만으로 못 줄임.
+  document.querySelectorAll('[data-so-edit]').forEach(b => b.onclick = () => {
+    const o = DB.get('orders', b.dataset.soEdit);
+    if(!o){ toast('수주를 찾을 수 없음','err'); return; }
+    const shipped = DB.query('shipments', s => s.so_id===o.id).reduce((s,r)=>s+(r.qty||0),0);
+    openModal(`
+      <h2>수주 수정 — ${_esc(o.id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+      <div class="body">
+        <div class="grid g2">
+          <div><label>고객사 <span style="color:var(--dim);font-weight:400">— 불변</span></label>
+            <input value="${_esc(DB.get('vendors',o.cust)?.name||o.cust)}" disabled style="border-style:dashed;color:var(--dim)"></div>
+          <div><label>품번 <span style="color:var(--dim);font-weight:400">— 불변</span></label>
+            <input value="${_esc(itemLabel(o.itemCode))}" disabled style="border-style:dashed;color:var(--dim);font-family:'JetBrains Mono',monospace"></div>
+        </div>
+        <div class="grid g2">
+          <div><label>수량 (ea) ${shipped>0?`<span style="color:var(--amber);font-weight:400">— 이미 출하 ${shipped.toLocaleString()}ea (그 미만 불가)</span>`:''}</label>
+            <input id="soe-qty" type="number" min="${Math.max(1,shipped)}" value="${o.qty||0}"></div>
+          <div><label>단가 (원)</label><input id="soe-price" type="number" min="0" value="${o.price||0}"></div>
+        </div>
+        <div><label>납기</label><input id="soe-due" type="date" value="${_esc(o.due||'')}"></div>
+        <div style="font-size:10.5px;color:var(--sub);margin-top:4px">수정은 보정 기록으로 남습니다 (원본 보존 · 누가·언제 자동 기록)</div>
+        <div class="actions">
+          <button class="btn" onclick="closeModal()">취소</button>
+          <button class="btn primary" id="soe-ok">${ico('save')}수정 저장</button>
+        </div>
+      </div>
+    `);
+    document.getElementById('soe-ok').onclick = () => {
+      const qty   = +document.getElementById('soe-qty').value || 0;
+      const price = +document.getElementById('soe-price').value || 0;
+      const due   = document.getElementById('soe-due').value.trim();
+      if(qty <= 0){ toast('수량 입력','warn'); return; }
+      if(qty < shipped){ toast(`수량은 이미 출하된 ${shipped.toLocaleString()}ea 미만으로 줄일 수 없습니다`,'err',4000); return; }
+      if(qty === (o.qty||0) && price === (o.price||0) && due === (o.due||'')){ toast('변경 사항 없음','warn'); return; }
+      DB.correct('orders', o.id, { qty, price, due }, '수주 수정 (화면)');
+      toast(`수주 수정 — ${o.id}`,'ok'); closeModal(); router();
+    };
   });
   document.getElementById('btn-so-new').onclick = () => {
     openModal(`
