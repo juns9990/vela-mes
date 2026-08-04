@@ -1065,7 +1065,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.30.3';
+const APP_VERSION = 'v0.30.4';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -4124,6 +4124,8 @@ function openModal(html, opts={}){
   md.style.maxWidth = opts.width ? opts.width : '';
   md.innerHTML = html;
   bg.classList.add('show');
+  // ★ v0.30.4 — 모달 내 날짜 입력 전부 클릭 달력 연결 (납기·반출일·수주일 등)
+  try { if(typeof _calEnhance === 'function') _calEnhance(md); } catch(e){}
   // ★ v0.16.8 — 바깥 클릭 닫힘 기본 차단 (입력 소실 방지). 명시적으로 closeOnBg:true 준 곳만 유지.
   bg.onclick = e => { if(e.target===bg && opts.closeOnBg===true) closeModal(); };
 }
@@ -4238,6 +4240,21 @@ function _openCal(inputEl){
     document.addEventListener('mousedown', _calOutside, true);
     document.addEventListener('touchstart', _calOutside, true);
   }, 0);
+}
+/* ★ v0.30.4 — 달력 전면 적용 (실사용 지적: 납기·반출일 등 날짜 입력은 전부 클릭 달력)
+   · type="date"(브라우저 기본) → text 통일 후 공용 달력(attachCalendar) 연결 — 전 브라우저·단말 동일 UI
+   · placeholder YYYY-MM-DD 텍스트 입력도 자동 연결 · 수기 입력 병행(readonly 없음)
+   · 호출: router 렌더 후(#view) + openModal 직후(모달) — 새 화면·새 모달에 자동 적용 */
+function _calEnhance(root){
+  const scope = root || document;
+  scope.querySelectorAll('input[type="date"]').forEach(el => {
+    try { el.type = 'text'; } catch(e){}
+    if(!el.placeholder) el.placeholder = 'YYYY-MM-DD';
+    el.setAttribute('inputmode','numeric');
+    if(!el.style.fontFamily) el.style.fontFamily = "'JetBrains Mono',monospace";
+    attachCalendar(el);
+  });
+  scope.querySelectorAll('input[placeholder="YYYY-MM-DD"]').forEach(el => attachCalendar(el));
 }
 function attachCalendar(inputEl){
   if(!inputEl || inputEl._velaCalBound) return;
@@ -4981,6 +4998,8 @@ function router(){
   }
   // ★ v0.30.0 — 단락 스크롤 일반화 (실사용 지적: 표 아닌 목록 단락도 설비처럼 자체 스크롤)
   try { _secScrollEnhance(); } catch(e){ /* 레이아웃 미지원 환경(테스트) 무해 */ }
+  // ★ v0.30.4 — 화면 내 날짜 입력 전부 클릭 달력 연결
+  try { _calEnhance(document.getElementById('view')); } catch(e){}
 }
 /* ★ v0.30.0 — 카드(단락) 안의 어떤 목록이든 — 표(.tbl-wrap)가 아니어도 — 자체 스크롤로 전환.
    ★ v0.30.1 — 기준 = 단락 상한(50vh) 그 자체 (사용자 판정: 한 칸이라도 넘으면 스크롤 — 2/3 실측 기준 폐지).
