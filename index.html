@@ -1065,7 +1065,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.30.1';
+const APP_VERSION = 'v0.30.2';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -3257,6 +3257,15 @@ function nextItemIdentifier(custCode){
   if(!custCode) return '';
   return makeItemIdentifier(custCode, nextItemSeqForCustomer(custCode));
 }
+/* ★ v0.30.2 — 품번 표시 1벌 (식별번호와 별도 관리 — 사용자 판정 2026-08-03)
+   · part_no 표준 필드 (고객 도면 품번 · 자유 문자열 · 선택)
+   · 폴백: 구 데이터에서 코드가 식별번호 양식이 아니면 코드 자체가 품번 (하위 호환 — 마이그레이션 없음) */
+function getPartNo(it){
+  if(!it) return '';
+  const v = (it.part_no != null && String(it.part_no).trim() !== '') ? String(it.part_no).trim() : '';
+  if(v) return v;
+  return isItemIdentifier(it.code) ? '' : String(it.code || '');
+}
 /* ★ v0.28.9 — 품번 실적·이력 참조 검사 (물리 삭제 가드 — 하나라도 있으면 삭제 불가·비활성만)
    void 포함(Raw) 검사: 취소된 이력도 이력이다. */
 function itemHistoryRefs(code){
@@ -3360,6 +3369,7 @@ const _IMPORTER_SPEC = {
     label: '품목',
     columns: [
       { key:'code',         label:'식별번호',   required:true },
+      { key:'part_no',      label:'품번' },     // ★ v0.30.2 — 고객 도면 품번 (식별번호와 별도)
       { key:'name',         label:'품명',       required:true },
       { key:'customer_ref', label:'고객코드' },
       { key:'mat',          label:'재질' },
@@ -3376,7 +3386,7 @@ const _IMPORTER_SPEC = {
       { key:'pack_qty',     label:'포장단위',   kind:'number' },
     ],
     example: {
-      code:'999-001-0', name:'예시부품', customer_ref:'999',
+      code:'999-001-0', part_no:'SKT271', name:'예시부품', customer_ref:'999',
       mat:'S45C', dia:38, mat_len_mm:246.1, ht_spec:'Q.T', hardness:'HB 269~331', weight_kg:1.553, product_weight_kg:0.535, price:1740,
       cav:1, mold_no:'999-001', default_forge_eq:'프레스 1호', pack_qty:200,
     },
@@ -3641,6 +3651,7 @@ function _importApplyRow(master, parsed){
     const p = splitItemIdentifier(d.code);
     const doc = {
       code: d.code, name: d.name || '',
+      part_no: (d.part_no || '').trim(),   // ★ v0.30.2 — 품번 (식별번호와 별도)
       customer_ref: d.customer_ref || (p ? p.cust : ''),
       rev: (p && p.rev!=null) ? p.rev : 0,   // ★ v0.28.9 — 2분절 코드(리비전 분리)는 rev 0
 
@@ -16700,7 +16711,7 @@ VIEWS.masters = () => {
     if(state.i_q){
       const q = state.i_q.toLowerCase();
       const custName = i.cust ? (DB.get('vendors', i.cust)?.name || i.cust) : '';
-      const hay = `${i.code||''} ${i.name||''} ${custName} ${i.mat||''}`.toLowerCase();
+      const hay = `${i.code||''} ${getPartNo(i)} ${i.name||''} ${custName} ${i.mat||''}`.toLowerCase();   // ★ v0.30.2 — 품번 검색 포함
       if(!hay.includes(q)) return false;
     }
     if(state.i_cust && i.cust !== state.i_cust) return false;
@@ -16815,7 +16826,7 @@ VIEWS.masters = () => {
         <span style="margin-left:auto;font-size:11px;color:var(--dim)">${iRows.length}건 / 전체 ${itemsAll.length}건</span>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>식별번호/품번</th><th>품명</th><th>고객사</th><th>재질</th><th>소재규격 <span style="color:var(--dim);font-size:9px">(Ø × 길이)</span></th><th>열처리</th><th>경도</th><th class="num">절단(kg)</th><th class="num">제품(kg)</th><th class="num">단가(₩)</th><th class="num">Cav</th>${iTopFields.map(f=>`<th class="num">${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
+        <thead><tr><th>식별번호</th><th>품번</th><th>품명</th><th>고객사</th><th>재질</th><th>소재규격 <span style="color:var(--dim);font-size:9px">(Ø × 길이)</span></th><th>열처리</th><th>경도</th><th class="num">절단(kg)</th><th class="num">제품(kg)</th><th class="num">단가(₩)</th><th class="num">Cav</th>${iTopFields.map(f=>`<th class="num">${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
         <tbody>${iRows.length ? iRows.map(i => {
           const active = i.active !== false;
           const cName = i.customer_ref ? getCustomerName(i.customer_ref) : (i.cust ? (DB.get('vendors', i.cust)?.name || i.cust) : '');
@@ -16824,6 +16835,7 @@ VIEWS.masters = () => {
           const spec = matSpecStr(i);
           return `<tr class="${active?'':'mst-off'}">
             <td><b style="font-family:'JetBrains Mono',monospace">${_esc(i.code)}</b></td>
+            <td style="font-family:'JetBrains Mono',monospace">${getPartNo(i) ? _esc(getPartNo(i)) : '<span class="muted">—</span>'}</td>
             <td>${_esc(i.name||'')}</td>
             <td class="muted">${_esc(cName||'—')}</td>
             <td>${_esc(i.mat||'—')}</td>
@@ -16841,7 +16853,7 @@ VIEWS.masters = () => {
               <button class="btn ghost" data-itoggle="${_esc(i.code)}">${active?'비활성':'재활성'}</button>
             </div></td>
           </tr>`;
-        }).join('') : `<tr><td colspan="${13+iTopFields.length}" class="empty">품번 없음 — [품번 등록] 또는 [엑셀 임포트]</td></tr>`}</tbody>
+        }).join('') : `<tr><td colspan="${14+iTopFields.length}" class="empty">품번 없음 — [품번 등록] 또는 [엑셀 임포트]</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
         <b style="color:var(--amber)">가드</b> 물리 삭제 없음 — 비활성만(increment-only). 비활성 마스터는 신규 수주·출하·외주 선택 목록에서 제외되지만, 과거 이력·재고·LOT 추적에는 그대로 표시(이력 보존). 사용중 코드 중복 등록 차단.
@@ -16973,7 +16985,7 @@ VIEWS.masters = () => {
     const xrows = iRows.map(i => {
       const cName = i.customer_ref ? getCustomerName(i.customer_ref) : (i.cust ? (DB.get('vendors', i.cust)?.name || i.cust) : '');
       const base = {
-        식별번호: i.code, 품명: i.name || '',
+        식별번호: i.code, 품번: getPartNo(i), 품명: i.name || '',   // ★ v0.30.2 — 품번 별도 컬럼
         고객코드: i.customer_ref || '', 고객사: cName,
         재질: i.mat || '', Ø: i.dia || '',
         '소재길이(mm)': i.mat_len_mm || '',
@@ -17192,8 +17204,8 @@ VIEWS._mstItemEdit = (code) => {
           <input id="mi-code" value="${_esc(it.code)}" ${isNew?'':'readonly'} placeholder="예: 038-031" style="font-family:'JetBrains Mono',monospace"></div>
       </div>
       <div class="grid g2">
-        <div><label>품번 <span style="color:var(--dim);font-weight:400">— 하위 호환(자유 문자열 · 없으면 식별번호 사용)</span></label>
-          <input id="mi-legacy" value="${_esc(ident?it.code:it.code)}" placeholder="예: SKT271" style="font-family:'JetBrains Mono',monospace"></div>
+        <div><label>품번 <span style="color:var(--dim);font-weight:400">— 고객 도면 품번 · 식별번호와 별도 관리 (식별번호 없으면 품번이 코드가 됨)</span></label>
+          <input id="mi-partno" value="${_esc(getPartNo(it))}" placeholder="예: SKT271" style="font-family:'JetBrains Mono',monospace"></div>
         <div><label>품명</label><input id="mi-name" value="${_esc(it.name||'')}" placeholder="예: LOWER-BALL JOINT SOCKET"></div>
       </div>
       <div class="grid g3">
@@ -17386,8 +17398,8 @@ VIEWS._mstItemEdit = (code) => {
 
   document.getElementById('mi-save').onclick = () => {
     const codeInput = document.getElementById('mi-code').value.trim();
-    const legacy = document.getElementById('mi-legacy').value.trim();
-    const code   = codeInput || legacy;
+    const partNo = document.getElementById('mi-partno').value.trim();   // ★ v0.30.2 — 품번 별도 저장
+    const code   = codeInput || partNo;   // 식별번호 없으면 품번이 코드 (식별번호 미사용 업체 하위 호환)
     const name   = document.getElementById('mi-name').value.trim();
     const cref   = document.getElementById('mi-cref').value;
     const mat    = document.getElementById('mi-mat').value.trim();
@@ -17430,11 +17442,11 @@ VIEWS._mstItemEdit = (code) => {
     // ★ v0.26.2 — customer_ref = vendor.code (단일 진실). cust 도 동일 값으로 유지 (하위 호환).
     const custVendor = cref || (it.cust||'');
     const doc = isNew
-      ? { code, name, cust: custVendor, customer_ref: cref, rev,
+      ? { code, part_no: partNo, name, cust: custVendor, customer_ref: cref, rev,
           mat, dia, mat_len_mm: matLen, weight, product_weight_g: prodG, price, cav, cav_source:'manual',
           mold_no: moldNo, default_forge_eq: forgeEq, ht_spec, hardness,
           pack_qty, proc_times: nextPt, custom, active:true }
-      : { name, cust: custVendor, customer_ref: cref, rev,
+      : { part_no: partNo, name, cust: custVendor, customer_ref: cref, rev,
           mat, dia, mat_len_mm: matLen, weight, product_weight_g: prodG, price, cav, cav_source:'manual',
           mold_no: moldNo, default_forge_eq: forgeEq, ht_spec, hardness,
           pack_qty, proc_times: nextPt, custom };
