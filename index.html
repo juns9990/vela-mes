@@ -1065,7 +1065,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.31.1';
+const APP_VERSION = 'v0.31.2';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -8002,9 +8002,11 @@ VIEWS._poNew = () => {
   // ★ v0.16.10 — 품목 카드 (1줄=품명 전폭 크게 · 2줄=규격/단위/수량/단가 4칸 · 우상단 ✕)
   const renderCards = () => draft.items.map((it, i) => `
     <div class="po-item-card" data-row="${i}" style="position:relative;border:1px solid var(--line);background:var(--bg2);border-radius:10px;padding:14px 14px 12px;margin-bottom:10px">
-      <button class="poi-del" data-i="${i}" title="품목 삭제" style="position:absolute;top:8px;right:8px;background:transparent;border:none;color:var(--red);cursor:pointer;padding:4px 8px;border-radius:6px;font-size:14px">${ico('x')}</button>
+      <button class="poi-del" data-i="${i}" title="이 품목 삭제" style="position:absolute;top:8px;right:8px;background:transparent;border:none;color:var(--red);cursor:pointer;padding:4px 8px;border-radius:6px;font-size:14px">${ico('x')}</button>
       <div style="margin-bottom:10px">
-        <label style="font-size:10px;color:var(--sub);letter-spacing:.3px;margin-bottom:4px;display:block">품명 <span style="color:var(--dim);font-weight:400">#${i+1}</span></label>
+        <label style="font-size:10px;color:var(--sub);letter-spacing:.3px;margin-bottom:4px;display:flex;align-items:center;gap:7px">
+          <input type="checkbox" class="poi-chk" data-i="${i}" ${it._chk?'checked':''} title="삭제할 품목 체크" style="width:15px;height:15px;cursor:pointer">
+          품명 <span style="color:var(--dim);font-weight:400">#${i+1}</span></label>
         <input class="poi-name" data-i="${i}" list="poi-name-list"
                placeholder="예: SCM440 환봉 열간압연 흑피 · 절삭유 · 안전장갑"
                value="${_esc(it.name||'')}"
@@ -8053,9 +8055,16 @@ VIEWS._poNew = () => {
     document.querySelectorAll('.poi-qty' ).forEach(el => el.oninput = e => { draft.items[+el.dataset.i].qty  = e.target.value; });
     document.querySelectorAll('.poi-price').forEach(el => el.oninput = e => { draft.items[+el.dataset.i].price = e.target.value; });
     document.querySelectorAll('.poi-del').forEach(b => b.onclick = () => {
-      if(draft.items.length<=1){ toast('최소 1행 필요','warn'); return; }
+      // ★ v0.31.2 — 마지막 1행도 삭제 허용: 빈 행으로 교체 (기존 '최소 1행' 차단이 삭제 안 되는 걸로 보였던 지적)
       draft.items.splice(+b.dataset.i, 1);
+      if(!draft.items.length) draft.items.push({kind:'gen', name:'', spec:'', unit:'ea', qty:'', price:''});
       rerender();
+    });
+    // ★ v0.31.2 — 체크 품목 일괄 삭제
+    document.querySelectorAll('.poi-chk').forEach(cb => cb.onchange = () => {
+      draft.items[+cb.dataset.i]._chk = cb.checked;
+      const delBtn = document.getElementById('po-row-del');
+      if(delBtn) delBtn.disabled = !draft.items.some(r => r._chk);
     });
   };
   const rerender = () => {
@@ -8079,7 +8088,10 @@ VIEWS._poNew = () => {
       <div style="font-size:11px;color:var(--sub);margin:6px 0 6px">품목 카드 — <b>구분: 소재</b>(환봉 등 — 소재 입고·heat 등록 경로) / <b>일반</b>(소모품·부자재·공구 등 — 구매품 입고 경로) · 한 발주에 혼합 가능 · [+ 품목 추가]</div>
       <div id="po-grid-body">${renderCards()}</div>
       <datalist id="poi-name-list">${poNameOpts.map(n=>`<option value="${_esc(n)}">`).join('')}</datalist>
-      <button class="btn" id="po-row-add" style="font-size:11.5px;padding:6px 12px">${ico('plus')}품목 추가</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn" id="po-row-add" style="font-size:11.5px;padding:6px 12px">${ico('plus')}품목 추가</button>
+        <button class="btn" id="po-row-del" disabled style="font-size:11.5px;padding:6px 12px;border-color:rgba(248,113,113,.5);color:var(--red)" title="체크한 품목을 한 번에 삭제">${ico('x')}체크 품목 삭제</button>
+      </div>
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn primary" id="po-ok">${ico('save')}발주 등록</button>
@@ -8123,6 +8135,16 @@ VIEWS._poNew = () => {
   document.getElementById('po-row-add').onclick = () => {
     draft.items.push({kind:'gen', name:'', spec:'', unit:'ea', qty:'', price:''});
     rerender();
+  };
+  // ★ v0.31.2 — 체크 품목 일괄 삭제 (전부 지우면 빈 행 1개 자동)
+  document.getElementById('po-row-del').onclick = () => {
+    const n = draft.items.filter(r => r._chk).length;
+    if(!n) return;
+    draft.items = draft.items.filter(r => !r._chk);
+    if(!draft.items.length) draft.items.push({kind:'gen', name:'', spec:'', unit:'ea', qty:'', price:''});
+    rerender();
+    const delBtn = document.getElementById('po-row-del'); if(delBtn) delBtn.disabled = true;
+    toast(`품목 ${n}건 삭제`,'ok');
   };
   document.getElementById('po-ok').onclick = () => {
     const vendor = draft.vendor;
