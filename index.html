@@ -1065,8 +1065,11 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.31.4';
-const APP_DATE    = '2026-08-03';
+const APP_VERSION = 'v0.31.5';
+/* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
+   원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
+const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
+const APP_DATE    = '2026-08-05';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1298,7 +1301,7 @@ const _FIRESTORE_ADAPTER = {
     }
   },
   // ★ v0.28.9 — 물리 삭제 (마스터 한정 — DB.remove 가드 경유 전용).
-  //   서버 rules 가 items/bom delete 를 허용해야 실제 삭제됨 (firestore.rules v2 배포 필요 —
+  //   서버 rules 가 해당 마스터 delete 를 허용해야 실제 삭제됨 (firestore.rules v4 게시 필요 —
   //   미배포 시 서버가 거부 → onSnapshot 재동기화로 문서가 되살아나는 게 정직한 동작).
   remove(col, id){
     if(!this._ready){ this._pending.push({ col, id, doc: null, _op: 'delete' }); return; }
@@ -1375,10 +1378,11 @@ const DB = (() => {
       return corr;
     },
     // ★ v0.28.9 — 마스터 한정 물리 삭제 (사용자 승인 예외 · 2026-08-03)
-    //   허용: items·bom 만. 전제: 실적·이력 참조 0 (호출부 itemHistoryRefs 가드 필수 — 원장은 여전히 void 만).
-    //   목적: 오등록 품번을 지우고 그 번호를 즉시 재사용. 서버 모드는 rules v2(items/bom delete 허용) 배포 필요.
+    //   전제: 실적·이력 참조 0 (호출부 itemHistoryRefs / masterDelete 가드 필수 — 원장은 여전히 void 만).
+    //   목적: 오등록 마스터를 지우고 그 번호를 즉시 재사용. 서버 모드는 firestore.rules v4(마스터 delete 허용) 게시 필요.
+    //   ★ v0.31.5 — 전 마스터 확대 (사용자 요청 2026-08-05: "삭제버튼 없는곳 전부 — 이력 있으면 차단, 없으면 삭제")
     remove(col,id){
-      if(!['items','bom','materials'].includes(col)){ console.warn('[VELA] DB.remove 불허 컬렉션 —', col); return false; }   // ★ v0.31.1 — materials 추가 (사용자 승인)
+      if(!MASTER_DEL_COLS.includes(col)){ console.warn('[VELA] DB.remove 불허 컬렉션 —', col); return false; }   // ★ v0.31.5 — 마스터 전체 (원장은 여전히 불허)
       if(typeof _permBlockWrite === 'function' && _permBlockWrite(col)) return false;
       ensure(col);
       if(!state[col][id]) return false;
@@ -3393,6 +3397,125 @@ function getMoldLifeIssues(){
   return DB.all('molds').map(m => ({
     mold: m, shots: deriveMoldShots(m), limit: +m.life_limit||0, pct: moldLifePct(m),
   })).filter(x => x.pct >= 90).sort((a,b) => b.pct - a.pct);
+}
+
+/* ★ v0.31.5 — 전 마스터 공용 삭제 체계 (사용자 요청 2026-08-05)
+   원칙: 이력(실적·원장 참조) 있으면 삭제 차단 → 비활성 안내 · 이력 0 이면 완전 삭제(번호 즉시 재사용).
+   구조: _MASTER_DEL 레지스트리(컬렉션별 라벨·이름·참조 검사) + masterDelete() 제네릭 1벌.
+   items/materials 는 기존 전용 가드(itemHistoryRefs/mtHistoryRefs) 유지 — 여기 목록은 나머지 8종.
+   원장 컬렉션은 레지스트리에 없음 = 삭제 불가 (DB.remove 가드와 이중 방어). */
+const _MASTER_DEL = {
+  workers: { label:'작업자', name: d => d.name || d.id,
+    refs(d){
+      const refs = []; const add = (l,n)=>{ if(n>0) refs.push(`${l} ${n}건`); };
+      const ids = [d.id, d.emp_no].filter(Boolean);
+      add('생산 실적', DB.queryRaw('records', r => r.worker && (ids.includes(r.worker.id) || ids.includes(r.worker.emp_no))).length);
+      return refs;
+    } },
+  vendors: { label:'거래처', name: d => d.name || d.code,
+    refs(d){
+      const refs = []; const add = (l,n)=>{ if(n>0) refs.push(`${l} ${n}건`); };
+      const c = d.code || d.id;
+      add('품번',            DB.queryRaw('items',            i => i.cust === c).length);
+      add('수주',            DB.queryRaw('orders',           o => o.cust === c).length);
+      add('견적',            DB.queryRaw('quotes',           q => q.cust === c).length);
+      add('발주',            DB.queryRaw('purchase_orders',  p => p.vendor === c).length);
+      add('소재 입고',       DB.queryRaw('material_receipts',r => r.vendor === c).length);
+      add('구매 입고',       DB.queryRaw('purchase_receipts',r => r.vendor === c).length);
+      add('외주 출고',       DB.queryRaw('os_dispatches',    o => o.vendor === c).length);
+      add('생산 실적(외주)', DB.queryRaw('records',          r => r.vendor === c).length);
+      add('단가합의서',      DB.queryRaw('price_agreements', a => a.customer_ref === c || a.customer === c).length);
+      add('수금',            DB.queryRaw('acct_receipts',    r => r.vendor === c).length);
+      add('지급',            DB.queryRaw('acct_payments',    p => p.vendor === c).length);
+      add('계산서',          DB.queryRaw('acct_invoices',    i => i.vendor === c).length);
+      add('소재·구매품',     DB.queryRaw('materials',        m => m.vendor === c).length);
+      return refs;
+    } },
+  equipments: { label:'설비', name: d => d.name || d.id,
+    refs(d){
+      const refs = []; const add = (l,n)=>{ if(n>0) refs.push(`${l} ${n}건`); };
+      const nm = (d.name||'').trim();
+      if(!nm) return refs;
+      add('생산 실적',   DB.queryRaw('records', r => (typeof r.equipment === 'string' ? r.equipment.trim() : (r.equipment?.name||'').trim()) === nm).length);
+      add('생산계획',    DB.queryRaw('production_plans', p => (p.equipment||'').trim() === nm).length);
+      add('품번 기본설비', DB.queryRaw('items', i => (i.default_forge_eq||'').trim() === nm).length);
+      return refs;
+    } },
+  molds: { label:'금형·지그', name: d => d.name || d.id,
+    refs(d){
+      const refs = [];
+      const derived = deriveMoldShots(d) - (+d.offset||0);   // 실적 파생분만 (수동 보정 제외)
+      if(derived > 0) refs.push(`파생 타수 ${derived.toLocaleString()}타`);
+      return refs;
+    } },
+  defect_types: { label:'불량 유형', name: d => d.name || d.code,
+    refs(d){
+      const refs = []; const add = (l,n)=>{ if(n>0) refs.push(`${l} ${n}건`); };
+      const c = d.code || d.id;
+      add('부적합', DB.queryRaw('nc_records', n => n.defect_type === c).length);
+      return refs;
+    } },
+  processes: { label:'공정', name: d => d.name || d.code,
+    refs(d){
+      const refs = []; const add = (l,n)=>{ if(n>0) refs.push(`${l} ${n}건`); };
+      const c = d.code || d.id;
+      add('BOM 라우트',   DB.queryRaw('bom', b => (b.route||[]).some(r => r.proc === c)).length);
+      add('생산 실적',    DB.queryRaw('records', r => r.proc === c).length);
+      add('외주 출고',    DB.queryRaw('os_dispatches', o => o.proc === c).length);
+      add('설비 담당공정', DB.queryRaw('equipments', e => e.procCode === c).length);
+      add('품번 공정시간', DB.queryRaw('items', i => i.proc_times && i.proc_times[c] != null).length);
+      return refs;
+    } },
+  drawings: { label:'도면', name: d => d.id,
+    refs(d){
+      const refs = [];
+      const revN = (d.revs||[]).length;
+      if(revN > 1) refs.push(`개정 이력 ${revN}건`);   // 최초 등록 1건만이면 무이력 취급
+      const attN = (d.attachments||[]).filter(a => !a.removed).length;
+      if(attN > 0) refs.push(`첨부 ${attN}건`);
+      return refs;
+    } },
+  expense_categories: { label:'계정과목', name: d => d.name || d.id,
+    guard(d){
+      // 표준 22과목(EC-STD-*)은 부팅 시 멱등 보강(migrateExpenseCategories)이 다시 추가 → 삭제해도 되살아남.
+      if(String(d.id||'').startsWith('EC-STD-')) return '표준 계정과목은 삭제 대신 비활성을 사용하세요 (재접속 시 자동 복원되는 기본 시드입니다)';
+      return null;
+    },
+    refs(d){
+      const refs = []; const add = (l,n)=>{ if(n>0) refs.push(`${l} ${n}건`); };
+      add('경비 기록', DB.queryRaw('acct_expenses', e => e.category === d.name || e.category === d.id).length);
+      return refs;
+    } },
+};
+function masterHistoryRefs(col, doc){
+  const spec = _MASTER_DEL[col];
+  return (spec && doc) ? spec.refs(doc) : [];
+}
+/* 제네릭 삭제 1벌 — 참조 검사 → 차단 토스트 or 확인창(rules v4 안내) → DB.remove → 후처리 */
+function masterDelete(col, id, opts){
+  const spec = _MASTER_DEL[col];
+  if(!spec){ toast('삭제 미지원 컬렉션','err'); return false; }
+  const doc = DB.get(col, id);
+  if(!doc){ toast('항목을 찾을 수 없음','err'); return false; }
+  const g = spec.guard ? spec.guard(doc) : null;
+  if(g){ toast(`삭제 불가 — ${g}`,'err',5000); return false; }
+  const refs = spec.refs(doc);
+  if(refs.length){
+    toast(`삭제 불가 — 사용 이력이 있습니다 (${refs.join(' · ')}). 비활성 처리를 사용하세요.`,'err',5500);
+    return false;
+  }
+  const nm = spec.name(doc) || id;
+  const svrNote = DB._backend === 'firestore'
+    ? '\n\n※ 서버 모드: firestore.rules v4(전 마스터 delete 허용)가 게시되어 있어야 서버에서도 삭제됩니다.' : '';
+  if(!confirm(`${spec.label} ${nm} (${id}) 를 완전히 삭제합니다.\n사용 이력이 없어 삭제 가능합니다. 되돌릴 수 없습니다.${svrNote}`)) return false;
+  const ok = DB.remove(col, id);
+  if(ok){ toast(`삭제 완료 — ${nm}`,'ok'); if(opts && opts.after) opts.after(); }
+  else toast('삭제 실패 — 콘솔 확인','err');
+  return ok;
+}
+/* 공용 삭제 버튼 마크업 1벌 (모달 actions 안에서 사용) */
+function masterDelBtn(elId){
+  return `<button class="btn" id="${elId}" style="border-color:rgba(248,113,113,.5);color:var(--red)" title="사용 이력이 없는 항목만 완전 삭제 — 이력 있으면 비활성 사용">${ico('x')}삭제</button>`;
 }
 
 /* ── 엑셀 임포트 (공용 1벌 · 마스터만 · 원장 문서 생성 금지) ─────────── */
@@ -7867,7 +7990,7 @@ VIEWS._mstMaterialEdit = (id) => {
       return;
     }
     const svrNote = DB._backend === 'firestore'
-      ? '\n\n※ 서버 모드: firestore.rules v3(materials delete 허용)가 배포되어 있어야 서버에서도 삭제됩니다.' : '';
+      ? '\n\n※ 서버 모드: firestore.rules v4(전 마스터 delete 허용)가 게시되어 있어야 서버에서도 삭제됩니다.' : '';
     if(!confirm(`${m.name} (${id}) 를 완전히 삭제합니다.\n사용 이력이 없어 삭제 가능합니다. 되돌릴 수 없습니다.${svrNote}`)) return;
     const ok = DB.remove('materials', id);
     if(ok){ toast(`삭제 완료 — ${id}`,'ok'); closeModal(); router(); }
@@ -13447,7 +13570,7 @@ VIEWS._acctExpModal = (month, cats) => {
     toast(`경비 등록 — ₩${fmtN(amt)}`,'ok'); closeModal(); router();
   };
 };
-/* 경비 분류 관리 모달 (추가·비활성 — 물리 삭제 없음) */
+/* 경비 분류 관리 모달 (추가·비활성 · ★ v0.31.5 — 사용자 추가 과목은 경비 기록 없으면 삭제 가능 · 표준 과목은 비활성만) */
 VIEWS._acctCatModal = () => {
   const cats = DB.all('expense_categories').sort((a,b)=>(a.order||0)-(b.order||0));
   openModal(`
@@ -13458,7 +13581,10 @@ VIEWS._acctCatModal = () => {
         <tbody>${cats.map(c=>`<tr>
           <td><b>${_esc(c.name)}</b></td>
           <td>${c.active!==false?'<span class="pill cyan">사용중</span>':'<span class="pill gray">비활성</span>'}</td>
-          <td><button class="btn ghost" data-ec-toggle="${_esc(c.id)}">${c.active!==false?'비활성':'재활성'}</button></td>
+          <td><div style="display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn ghost" data-ec-toggle="${_esc(c.id)}">${c.active!==false?'비활성':'재활성'}</button>
+            ${String(c.id||'').startsWith('EC-STD-') ? '' : `<button class="btn ghost" data-ec-del="${_esc(c.id)}" style="color:var(--red)" title="경비 기록이 없는 계정과목만 완전 삭제 (표준 과목은 비활성만)">${ico('x')}</button>`}
+          </div></td>
         </tr>`).join('')}</tbody>
       </table></div>
       <div style="display:flex;gap:8px;margin-top:10px">
@@ -13472,6 +13598,9 @@ VIEWS._acctCatModal = () => {
     DB.set('expense_categories', c.id, { active: c.active===false });
     closeModal(); VIEWS._acctCatModal();
   });
+  // ★ v0.31.5 — 계정과목 삭제 (공용 마스터 삭제 — 경비 기록 참조·표준 과목(EC-STD-*) 차단)
+  document.querySelectorAll('[data-ec-del]').forEach(b => b.onclick = () =>
+    masterDelete('expense_categories', b.dataset.ecDel, { after: ()=>{ closeModal(); VIEWS._acctCatModal(); } }));
   document.getElementById('ec-add').onclick = () => {
     const name = document.getElementById('ec-new-name').value.trim();
     if(!name){ toast('계정과목명 입력','warn'); return; }
@@ -13547,7 +13676,7 @@ VIEWS._acctPnl = () => {
    ★ v0.27.3 — 도면·리비전 관리 (제품 데이터 · p_drawing 플래그 · drawings 컬렉션 재사용)
    원칙:
    · 도면 파일 자체는 저장하지 않는다 (단일 HTML·Firestore 문서 한계) — 번호·현행 Rev·개정 이력의 단일 진실만 관리.
-   · Rev 변경은 [리비전 업] 경로만 — revs[] 에 증분 누적 (원본 이력 보존 · 물리 삭제 없음 · 비활성만).
+   · Rev 변경은 [리비전 업] 경로만 — revs[] 에 증분 누적 (원본 이력 보존 · 개정 이력·첨부 있으면 비활성만 · ★ v0.31.5 무이력 오등록은 삭제 가능).
    · 품번 연결은 참조만 (품번 마스터 무변 — 원장 무변 원칙).
    ================================================================================================= */
 function _drawNextRev(cur){
@@ -13581,6 +13710,7 @@ VIEWS.draw = () => {
         <button class="btn ghost" data-dw-hist="${_esc(d.id)}">이력</button>
         ${active?`<button class="btn ghost" data-dw-rev="${_esc(d.id)}" style="color:var(--cyan)">리비전 업</button>`:''}
         <button class="btn ghost" data-dw-toggle="${_esc(d.id)}">${active?'비활성':'재활성'}</button>
+        <button class="btn ghost" data-dw-del="${_esc(d.id)}" style="color:var(--red)" title="개정 이력·첨부가 없는 도면만 완전 삭제">${ico('x')}</button>
       </div></td>
     </tr>`;
   }).join('') : `<tr><td colspan="7" class="empty">${q?'검색 결과 없음':'등록된 도면 없음 — [도면 등록]'}</td></tr>`;
@@ -13621,6 +13751,8 @@ VIEWS.draw = () => {
     DB.set('drawings', d.id, { active: d.active === false });
     toast(d.active===false ? `${d.id} 재활성` : `${d.id} 비활성`, d.active===false?'ok':'warn'); router();
   });
+  // ★ v0.31.5 — 도면 삭제 (공용 마스터 삭제 — 개정 이력 2건 이상·첨부 존재 시 차단)
+  document.querySelectorAll('[data-dw-del]').forEach(b => b.onclick = () => masterDelete('drawings', b.dataset.dwDel, { after: router }));
   document.getElementById('dw-xlsx').onclick = () => {
     exportXlsx(rows.map(d => {
       const it = items.find(i=>i.code===d.itemCode);
@@ -14027,7 +14159,7 @@ VIEWS.proc = () => {
       <h3>표준 공정 흐름 <span class="tag">${procs.length}개 · seq 정렬 · 마스터(전역)</span></h3>
       <div style="font-size:11px;color:var(--sub);margin-bottom:8px">※ v0.6.0 — 품번별 공정 포함 여부/순서는 아래 <b>BOM 라우팅</b>에서 정의합니다.</div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>seq</th><th>코드</th><th>공정명</th><th>단위</th><th>유형</th><th>설비</th><th>검사</th></tr></thead>
+        <thead><tr><th>seq</th><th>코드</th><th>공정명</th><th>단위</th><th>유형</th><th>설비</th><th>검사</th><th></th></tr></thead>
         <tbody>${procs.map(p=>`<tr>
           <td class="num">${p.seq}</td>
           <td><b>${p.code}</b></td>
@@ -14036,6 +14168,7 @@ VIEWS.proc = () => {
           <td><span class="pill ${p.type==='in'?'cyan':p.type==='out'?'heat':'blue'}">${p.type==='in'?'사내':p.type==='out'?'외주':'양쪽'}</span></td>
           <td class="muted">${(p.equipment||[]).join(', ')||'―'}</td>
           <td class="muted">${(p.inspect||[]).join(', ')||'―'}</td>
+          <td><button class="btn ghost" data-proc-del="${p.code}" style="color:var(--red)" title="사용 이력이 없는 공정만 완전 삭제 (BOM 라우트·실적·설비 참조 시 차단)">${ico('x')}</button></td>
         </tr>`).join('')}</tbody>
       </table></div>
     </div>
@@ -14084,6 +14217,10 @@ VIEWS.proc = () => {
   // BOM 편집 모달
   document.querySelectorAll('[data-edit-bom]').forEach(b=>{
     b.onclick = ()=> VIEWS._editBOM(b.dataset.editBom);
+  });
+  // ★ v0.31.5 — 공정 삭제 (공용 마스터 삭제 — BOM 라우트·실적·외주·설비·공정시간 참조 시 차단)
+  document.querySelectorAll('[data-proc-del]').forEach(b=>{
+    b.onclick = ()=> masterDelete('processes', b.dataset.procDel, { after: router });
   });
   document.getElementById('btn-add-proc').onclick = () => {
     openModal(`
@@ -15506,11 +15643,15 @@ VIEWS.mold = () => {
         <div style="font-size:10px;color:var(--sub);margin-top:-4px">보유 수량을 늘리면 누적/벌이 자동으로 나눠집니다 (교대 사용 균등 근사). 벌별 정밀 추적이 필요하면 장착/해제 이력 기능을 요청하세요.</div>
         ${renderCustomFields('molds', m.custom, 'form')}
         <div class="actions">
+          ${id ? masterDelBtn('m-del') : ''}
           <button class="btn" onclick="closeModal()">취소</button>
           <button class="btn primary" id="m-ok">${ico('save')}저장</button>
         </div>
       </div>
     `);
+    // ★ v0.31.5 — 공용 마스터 삭제 (실적 파생 타수 있으면 차단)
+    const mDel = document.getElementById('m-del');
+    if(mDel) mDel.onclick = ()=> masterDelete('molds', id, { after: ()=>{ closeModal(); router(); } });
     // ★ v0.29.5 — 구분 '기타' 선택 시 직접 입력칸 토글 (ht_spec 패턴 재사용)
     const varSelEl = document.getElementById('m-variant');
     if(varSelEl) varSelEl.onchange = () => {
@@ -17174,7 +17315,7 @@ VIEWS._planReject = (id) => {
 };
 
 /* -------------------- 기준정보 (v0.15.0) — 거래처 · 품번 마스터 CRUD --------------------
-   원칙: 물리 삭제 없음(비활성만). 사용중 코드 중복 등록 차단. 코드 불변(수정 = 병합).
+   원칙: 이력 있으면 삭제 불가(비활성만) · 무이력은 masterDelete 로 완전 삭제(v0.31.5). 사용중 코드 중복 등록 차단. 코드 불변(수정 = 병합).
    활성 판정: (x.active !== false) — 시드 호환(active 필드 없는 기존 문서는 사용중).
    신규 select 소스는 활성만 노출(getActiveItems/getActiveVendors), 과거 이력 표시는 그대로. */
 VIEWS.masters = () => {
@@ -17247,7 +17388,7 @@ VIEWS.masters = () => {
     </div>
     <div style="font-size:11.5px;color:var(--sub);margin-bottom:14px;line-height:1.6">
       거래처(고객사·외주처)와 품번 마스터 등록·관리 — 수주·외주·출하·실적이 여기를 참조.
-      <span style="color:var(--amber)">물리 삭제 없음(비활성만)</span> · 사용중 코드 중복 차단 · 코드 불변.
+      <span style="color:var(--amber)">이력 있으면 삭제 불가(비활성만) · 이력 없으면 수정 화면에서 삭제 가능</span> · 사용중 코드 중복 차단 · 코드 불변.
     </div>
 
     <!-- 거래처 (v0.26.2 — 고객사 카드 통합 · 정의 필드·엑셀 임포트 이식) -->
@@ -17364,7 +17505,7 @@ VIEWS.masters = () => {
         }).join('') : `<tr><td colspan="${14+iTopFields.length}" class="empty">품번 없음 — [품번 등록] 또는 [엑셀 임포트]</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
-        <b style="color:var(--amber)">가드</b> 물리 삭제 없음 — 비활성만(increment-only). 비활성 마스터는 신규 수주·출하·외주 선택 목록에서 제외되지만, 과거 이력·재고·LOT 추적에는 그대로 표시(이력 보존). 사용중 코드 중복 등록 차단.
+        <b style="color:var(--amber)">가드</b> 사용 이력 있으면 삭제 불가 — 비활성만(increment-only). 이력 없는 오등록은 수정 화면 [삭제]로 완전 삭제(v0.31.5). 비활성 마스터는 신규 수주·출하·외주 선택 목록에서 제외되지만, 과거 이력·재고·LOT 추적에는 그대로 표시(이력 보존). 사용중 코드 중복 등록 차단.
       </div>
     </div>
 
@@ -17485,7 +17626,7 @@ VIEWS.masters = () => {
         }).join('') : '<tr><td colspan="4" class="empty">불량 유형 없음 — [유형 등록]으로 추가 (예: 치수 불량 · 외관 흠 · 경도 미달 · 크랙)</td></tr>'}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
-        <b style="color:var(--amber)">가드</b> 물리 삭제 없음 — 비활성만(increment-only). 비활성 유형은 부적합 신규 등록 목록에서 제외되지만, 과거 NC·파레토 이력에는 그대로 표시(이력 보존). 코드 중복 등록 차단·코드 불변.
+        <b style="color:var(--amber)">가드</b> 부적합 기록 있으면 삭제 불가 — 비활성만(increment-only). 기록 없는 오등록은 수정 화면 [삭제]로 완전 삭제(v0.31.5). 비활성 유형은 부적합 신규 등록 목록에서 제외되지만, 과거 NC·파레토 이력에는 그대로 표시(이력 보존). 코드 중복 등록 차단·코드 불변.
       </div>
     </div>
     ` : ''}
@@ -17692,11 +17833,16 @@ VIEWS._mstVendorEdit = (code) => {
       <div><label>메모 (선택)</label><input id="mv-memo" value="${_esc(v.memo||'')}"></div>
       ${renderCustomFields('vendors', v.custom, 'form')}
       <div class="actions">
+        ${isNew ? '' : masterDelBtn('mv-del')}
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn primary" id="mv-save">${ico('save')}저장</button>
       </div>
     </div>
   `);
+
+  // ★ v0.31.5 — 공용 마스터 삭제 (수주·발주·회계 등 참조 시 차단)
+  const mvDel = document.getElementById('mv-del');
+  if(mvDel) mvDel.onclick = ()=> masterDelete('vendors', code, { after: ()=>{ closeModal(); router(); } });
 
   if(isNew){
     const codeEl = document.getElementById('mv-code');
@@ -17735,7 +17881,7 @@ VIEWS._mstVendorEdit = (code) => {
   };
 };
 
-/* 거래처 비활성/재활성 (물리 삭제 금지) */
+/* 거래처 비활성/재활성 (이력 있으면 삭제 금지 — 무이력 삭제는 수정 모달 masterDelete 경유) */
 VIEWS._mstVendorToggle = (code) => {
   const v = DB.get('vendors', code); if(!v) return;
   const wasActive = v.active !== false;
@@ -17968,7 +18114,7 @@ VIEWS._mstItemEdit = (code) => {
       return;
     }
     const svrNote = DB._backend === 'firestore'
-      ? '\n\n※ 서버 모드: firestore.rules v2(items/bom delete 허용)가 배포되어 있어야 서버에서도 삭제됩니다. 미배포 시 동기화로 되살아납니다.' : '';
+      ? '\n\n※ 서버 모드: firestore.rules v4(전 마스터 delete 허용)가 게시되어 있어야 서버에서도 삭제됩니다. 미배포 시 동기화로 되살아납니다.' : '';
     if(!confirm(`품번 ${it.code} 를 완전히 삭제합니다.\n실적·이력 참조가 없어 삭제 가능하며, 이 번호는 즉시 재사용됩니다.\nBOM(라우트)도 함께 삭제됩니다. 되돌릴 수 없습니다.${svrNote}`)) return;
     DB.remove('bom', it.code);
     const ok = DB.remove('items', it.code);
@@ -18292,11 +18438,15 @@ VIEWS._mstEquipmentEdit = (id) => {
       <div><label>일일 가동시간(h, 선택) <span style="color:var(--dim);font-weight:400">— 비우면 표준값 사용 (현재 ${getStdWorkHours()}h)</span></label>
         <input id="me-workh" type="number" min="0.5" step="0.5" value="${e.work_hours!=null?e.work_hours:''}" placeholder="예: 16 (2교대)" style="font-family:'JetBrains Mono',monospace;text-align:right"></div>
       <div class="actions">
+        ${isNew ? '' : masterDelBtn('me-del')}
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn primary" id="me-save">${ico('save')}저장</button>
       </div>
     </div>
   `);
+  // ★ v0.31.5 — 공용 마스터 삭제 (실적·계획·품번 기본설비 참조 시 차단)
+  const meDel = document.getElementById('me-del');
+  if(meDel) meDel.onclick = ()=> masterDelete('equipments', id, { after: ()=>{ closeModal(); router(); } });
   document.getElementById('me-save').onclick = () => {
     const name     = document.getElementById('me-name').value.trim();
     const procCode = document.getElementById('me-proc').value;
@@ -18352,11 +18502,15 @@ VIEWS._mstDefectTypeEdit = (code) => {
         <div><label>이름</label><input id="md-name" value="${_esc(d.name||'')}" placeholder="예: 치수 불량"></div>
       </div>
       <div class="actions">
+        ${isNew ? '' : masterDelBtn('md-del')}
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn primary" id="md-save">${ico('save')}저장</button>
       </div>
     </div>
   `);
+  // ★ v0.31.5 — 공용 마스터 삭제 (부적합 기록 참조 시 차단)
+  const mdDel = document.getElementById('md-del');
+  if(mdDel) mdDel.onclick = ()=> masterDelete('defect_types', code, { after: ()=>{ closeModal(); router(); } });
   document.getElementById('md-save').onclick = () => {
     const codeIn = document.getElementById('md-code').value.trim();
     const name   = document.getElementById('md-name').value.trim();
@@ -21718,11 +21872,15 @@ VIEWS.set = () => {
             <select id="wk-act"><option value="1"${w.active!==false?' selected':''}>활성</option><option value="0"${w.active===false?' selected':''}>비활성</option></select></div>
         </div>
         <div class="actions">
+          ${id ? masterDelBtn('wk-del') : ''}
           <button class="btn" onclick="closeModal()">취소</button>
           <button class="btn primary" id="wk-ok">${ico('save')}저장</button>
         </div>
       </div>
     `);
+    // ★ v0.31.5 — 공용 마스터 삭제 (이력 0 만 · 실적 참조 시 차단)
+    const wkDel = document.getElementById('wk-del');
+    if(wkDel) wkDel.onclick = ()=> masterDelete('workers', id, { after: ()=>{ closeModal(); renderWorkers(); } });
     document.getElementById('wk-ok').onclick = ()=>{
       const emp = document.getElementById('wk-emp').value.trim();
       const name= document.getElementById('wk-name').value.trim();
