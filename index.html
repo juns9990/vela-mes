@@ -1065,7 +1065,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.30.8';
+const APP_VERSION = 'v0.31.0';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -1591,6 +1591,7 @@ const _PREFIX_TO_COL = {
   PL: 'production_lots',
   RP: 'reports',   // ★ v0.24.0 — AI 보고서 스냅샷
   NC: 'nc_records',// ★ v0.25.0 — 부적합 (Nonconformance)
+  MT: 'materials', // ★ v0.31.0 — 소재·구매품 마스터 (사 오는 물건 관점 — 품번 마스터와 분리)
 };
 /* ★ v0.21.1 — 단말 코드는 로컬 전용 키 (firestore 동기 대상 아님 · 단말 간 덮어씀 방지)
    ★ v0.21.3 — zero-touch 자동 발급: 로컬 키 없고 구버전 폴백도 없으면 2자 랜덤 코드 생성·저장.
@@ -3447,6 +3448,22 @@ const _IMPORTER_SPEC = {
     ],
     example: { id:'038-031', name:'플랜지 단조 금형', itemCodes:'HF-3301', qty:1, life_limit:50000, offset:12000 },
   },
+  // ★ v0.31.0 — 소재·구매품 마스터 (사 오는 물건 관점 · 코드 자동 채번)
+  materials: {
+    label: '소재·구매품',
+    columns: [
+      { key:'kind',   label:'구분(소재/일반)', required:true },
+      { key:'name',   label:'품명',            required:true },
+      { key:'mat',    label:'재질' },
+      { key:'dia',    label:'Ø',               kind:'number' },
+      { key:'spec',   label:'규격(일반)' },
+      { key:'unit',   label:'단위' },
+      { key:'price',  label:'단가',            kind:'number' },
+      { key:'vendor', label:'주구매처코드' },
+      { key:'memo',   label:'비고' },
+    ],
+    example: { kind:'소재', name:'S45C 환봉', mat:'S45C', dia:40, spec:'', unit:'kg', price:2800, vendor:'V002', memo:'' },
+  },
   drawings: {
     label: '도면',
     columns: [
@@ -3616,6 +3633,14 @@ function _importJudgeRow(master, parsed){
     const codes = String(d.itemCodes||'').split(/[,;]/).map(x=>x.trim()).filter(Boolean);
     const miss = codes.filter(c => !DB.get('items', c));
     if(miss.length) return { ok:false, reason:`품번 없음 — ${miss.join(', ')} (품목 먼저 임포트)` };
+  } else if(master === 'materials'){
+    // ★ v0.31.0 — 같은 구분+품명(소재는 재질·Ø까지) 이미 있으면 건너뜀
+    const kind = /일반|gen/i.test(String(d.kind||'')) ? 'gen' : 'mat';
+    if(kind==='mat' && !(d.mat||'').trim()) return { ok:false, reason:'소재는 재질 필수' };
+    const dup = DB.query('materials', m => (m.kind||'mat')===kind && (m.name||'')===(d.name||'').trim()
+      && (kind==='gen' || ((m.mat||'').trim()===(d.mat||'').trim() && (+m.dia||0)===(+d.dia||0))));
+    if(dup.length) return { ok:false, reason:'중복 — 건너뜀 (같은 구분·품명·규격)' };
+    if((d.vendor||'').trim() && !DB.get('vendors', (d.vendor||'').trim())) return { ok:false, reason:`구매처 코드 없음 — ${d.vendor}` };
   } else if(master === 'drawings'){
     if(DB.get('drawings', d.id)) return { ok:false, reason:'중복 도면번호 — 건너뜀' };
     if(d.itemCode && !DB.get('items', d.itemCode)) return { ok:false, reason:`품번 없음 — ${d.itemCode} (품목 먼저 임포트)` };
@@ -3701,6 +3726,18 @@ function _importApplyRow(master, parsed){
       qty: Math.max(1, Math.floor(+d.qty||1)),   // ★ v0.29.7 — 보유 수량(벌)
       life_limit:+d.life_limit||0, offset:+d.offset||0,
       cum_strokes:0, status:'정상', qr:d.id, custom, active:true,
+    });
+  } else if(master === 'materials'){
+    // ★ v0.31.0 — 코드 자동 채번 (MT-) · 소재/일반 구분
+    const kind = /일반|gen/i.test(String(d.kind||'')) ? 'gen' : 'mat';
+    const mid = nextDocNo('MT');
+    DB.set('materials', mid, {
+      id: mid, kind, name:(d.name||'').trim(),
+      mat: kind==='mat' ? (d.mat||'').trim() : '',
+      dia: kind==='mat' ? (+d.dia||0) : 0,
+      spec: kind==='gen' ? (d.spec||'').trim() : '',
+      unit: (d.unit||'').trim() || (kind==='mat'?'kg':'ea'),
+      price:+d.price||0, vendor:(d.vendor||'').trim(), memo:(d.memo||'').trim(), active:true,
     });
   } else if(master === 'drawings'){
     const rev = String(d.rev ?? '0').trim() || '0';
@@ -7743,6 +7780,75 @@ VIEWS.po = () => {
   document.getElementById('po-add').onclick = () => VIEWS._poNew();
 };
 
+/* ★ v0.31.0 — 소재·구매품 등록/수정 모달 (기준정보 · 사 오는 물건 관점 마스터) */
+VIEWS._mstMaterialEdit = (id) => {
+  const m = id ? DB.get('materials', id)
+    : { id:'', kind:'mat', name:'', mat:'', dia:'', spec:'', unit:'kg', price:'', vendor:'', memo:'', active:true };
+  if(id && !m){ toast('항목을 찾을 수 없음','err'); return; }
+  const sups = DB.query('vendors', v => (v.type==='sup'||v.type==='out') && v.active!==false)
+                 .sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  openModal(`
+    <h2>${id?'소재·구매품 수정':'소재·구매품 등록'} — ${_esc(id||'신규')} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div class="grid g2">
+        <div><label>구분</label>
+          <select id="mt-kind">
+            <option value="mat" ${m.kind!=='gen'?'selected':''}>소재 (환봉 등 — 재질·Ø 규격별 단가)</option>
+            <option value="gen" ${m.kind==='gen'?'selected':''}>일반 구매품 (소모품·부자재·공구)</option>
+          </select></div>
+        <div><label>품명</label><input id="mt-name" value="${_esc(m.name||'')}" placeholder="예: S45C 환봉 · 절삭유 20L"></div>
+      </div>
+      <div class="grid g3" id="mt-mat-row" style="${m.kind==='gen'?'display:none':''}">
+        <div><label>재질</label><input id="mt-mat" value="${_esc(m.mat||'')}" placeholder="예: S45C" style="font-family:'JetBrains Mono',monospace"></div>
+        <div><label>Ø (mm)</label><input id="mt-dia" type="number" step="0.1" min="0" value="${m.dia||''}" placeholder="40"></div>
+        <div><label>단가 (₩/kg)</label><input id="mt-price-mat" type="number" min="0" value="${m.kind!=='gen'?(+m.price||''):''}" placeholder="합의 단가"></div>
+      </div>
+      <div class="grid g3" id="mt-gen-row" style="${m.kind==='gen'?'':'display:none'}">
+        <div><label>규격 (자유)</label><input id="mt-spec" value="${_esc(m.spec||'')}" placeholder="예: 20L · 대형"></div>
+        <div><label>단위</label><input id="mt-unit" value="${_esc(m.unit||'ea')}" placeholder="ea · 통 · box"></div>
+        <div><label>단가 (₩/단위)</label><input id="mt-price-gen" type="number" min="0" value="${m.kind==='gen'?(+m.price||''):''}" placeholder="합의 단가"></div>
+      </div>
+      <div class="grid g2">
+        <div><label>주 구매처 (선택)</label>
+          <select id="mt-vendor"><option value="">— 미지정 —</option>
+            ${sups.map(v=>`<option value="${_esc(v.code)}" ${m.vendor===v.code?'selected':''}>${_esc(v.name)}</option>`).join('')}
+          </select></div>
+        <div><label>비고 (선택)</label><input id="mt-memo" value="${_esc(m.memo||'')}"></div>
+      </div>
+      ${id?`<div style="margin-top:6px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="mt-active" ${m.active!==false?'checked':''}> 사용중 (해제 = 비활성 — 발주 선택 목록에서 제외 · 이력 보존)</label></div>`:''}
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="mt-ok">${ico('save')}저장</button>
+      </div>
+    </div>
+  `);
+  const kindSel = document.getElementById('mt-kind');
+  kindSel.onchange = () => {
+    document.getElementById('mt-mat-row').style.display = kindSel.value==='gen' ? 'none' : '';
+    document.getElementById('mt-gen-row').style.display = kindSel.value==='gen' ? '' : 'none';
+  };
+  document.getElementById('mt-ok').onclick = () => {
+    const kind = kindSel.value==='gen' ? 'gen' : 'mat';
+    const name = document.getElementById('mt-name').value.trim();
+    if(!name){ toast('품명 입력','warn'); return; }
+    const doc = {
+      kind, name,
+      mat:  kind==='mat' ? document.getElementById('mt-mat').value.trim() : '',
+      dia:  kind==='mat' ? (+document.getElementById('mt-dia').value||0) : 0,
+      spec: kind==='gen' ? document.getElementById('mt-spec').value.trim() : '',
+      unit: kind==='gen' ? (document.getElementById('mt-unit').value.trim()||'ea') : 'kg',
+      price:+document.getElementById(kind==='mat'?'mt-price-mat':'mt-price-gen').value || 0,
+      vendor: document.getElementById('mt-vendor').value,
+      memo: document.getElementById('mt-memo').value.trim(),
+      active: id ? document.getElementById('mt-active').checked : true,
+    };
+    if(kind==='mat' && !doc.mat){ toast('소재는 재질 입력 필수','warn'); return; }
+    const mid = id || nextDocNo('MT');
+    DB.set('materials', mid, { id: mid, ...doc });
+    toast(`저장 — ${mid}`,'ok'); closeModal(); router();
+  };
+};
+
 /* ★ v0.30.8 — 수주 소재 소요 1벌 (새 발주 연동 — 사용자 판정 2026-08-05)
    · 대상: 잔량 있는 수주 중 아직 소재 발주에 연결 안 된 것 (po.items[].so_ids 로 추적)
    · 예상 무게 = 수주 잔량(미출하) × 절단중량(kg) · 규격 = 재질+Ø (같은 규격 여러 수주 묶음 발주)
@@ -7762,6 +7868,15 @@ function soMaterialNeeds(){
 function matStockKg(mat, dia){
   return DB.all('material_lots').reduce((s,l) =>
     s + (((l.mat||'').trim() === mat && (+l.dia||0) === (+dia||0)) ? (+l.remain_kg||0) : 0), 0);
+}
+/* ★ v0.31.0 — 소재 단가 1벌 (우선순위: 소재 마스터(재질+Ø 규격별) → 원가 단가표 material_rates(재질별))
+   원가 계산(calcCost 등)은 기존 material_rates 그대로 — 발주·소요 표시만 규격별 정밀 단가 사용 (원장 무변). */
+function matPriceKg(mat, dia){
+  const m = DB.query('materials', x => x.kind !== 'gen' && x.active !== false
+    && (x.mat||'').trim() === (mat||'').trim() && (+x.dia||0) === (+dia||0))[0];
+  if(m && +m.price > 0) return +m.price;
+  const rates = (DB.get('settings','cost_rates') || {}).material_rates || {};
+  return +rates[(mat||'').trim()] || 0;
 }
 /* 새 발주 모달 — 품목 여러 줄 그리드 (v0.16.6 · v0.16.8 sup+out 통합) */
 VIEWS._poNew = () => {
@@ -7792,6 +7907,8 @@ VIEWS._poNew = () => {
   };
   // ★ v0.16.8 — 품명 자동완성 (기존 live 발주 items + 구매입고 이름) — 소재 전용 인상 제거
   const _poNamesSet = new Set();
+  // ★ v0.31.0 — 소재·구매품 마스터 이름 우선 포함 (선택 시 규격·단위·단가 자동)
+  DB.all('materials').filter(m => m.active !== false).forEach(m => { if(m.name) _poNamesSet.add(m.name); });
   DB.all('purchase_orders').forEach(p => (p.items||[]).forEach(it => { if(it.name) _poNamesSet.add(it.name); }));
   DB.all('purchase_receipts').forEach(r => { if(r.name) _poNamesSet.add(r.name); });
   const poNameOpts = [..._poNamesSet].sort();
@@ -7811,7 +7928,7 @@ VIEWS._poNew = () => {
       const arr = groups[k];
       const { mat, dia } = arr[0];
       const stock = matStockKg(mat, dia);
-      const rate = +_rates[mat] || 0;
+      const rate = matPriceKg(mat, dia);   // ★ v0.31.0 — 소재 마스터(규격별) 우선 · 원가 단가표 폴백
       const checkedArr = arr.filter(x => soChecked.has(x.o.id));
       const selKg = checkedArr.reduce((s,x)=>s+x.needKg, 0);
       if(selKg > 0){ totalKg += selKg; totalWon += selKg * rate; }
@@ -7886,7 +8003,19 @@ VIEWS._poNew = () => {
       row.kind = e.target.value;
       if(!row._unitTouched){ row.unit = row.kind==='mat' ? 'kg' : 'ea'; rerender(); }
     });
-    document.querySelectorAll('.poi-name').forEach(el => el.oninput = e => { draft.items[+el.dataset.i].name = e.target.value; });
+    document.querySelectorAll('.poi-name').forEach(el => el.oninput = e => {
+      const row = draft.items[+el.dataset.i];
+      row.name = e.target.value;
+      // ★ v0.31.0 — 마스터 품명과 정확히 일치하면 구분·규격·단위·단가 자동 채움 (빈 칸만 · 수기값 보존)
+      const mm = DB.query('materials', x => x.active !== false && x.name === row.name)[0];
+      if(mm){
+        row.kind = mm.kind==='gen' ? 'gen' : 'mat';
+        if(!(row.spec||'').trim()) row.spec = mm.kind==='gen' ? (mm.spec||'') : (mm.dia?`Ø${mm.dia}`:'');
+        if(!row._unitTouched && mm.unit) row.unit = mm.unit;
+        if(row.price==='' || row.price==null) row.price = +mm.price || '';
+        rerender();
+      }
+    });
     document.querySelectorAll('.poi-spec').forEach(el => el.oninput = e => { draft.items[+el.dataset.i].spec = e.target.value; });
     document.querySelectorAll('.poi-unit').forEach(el => el.onchange = e => { const r=draft.items[+el.dataset.i]; r.unit = e.target.value; r._unitTouched = true; });
     document.querySelectorAll('.poi-qty' ).forEach(el => el.oninput = e => { draft.items[+el.dataset.i].qty  = e.target.value; });
@@ -7942,7 +8071,7 @@ VIEWS._poNew = () => {
       Object.values(groups).forEach(arr => {
         const { mat, dia } = arr[0];
         const kg = Math.ceil(arr.reduce((s,x)=>s+x.needKg,0));
-        const rate = +_rates[mat] || '';
+        const rate = matPriceKg(mat, dia) || '';   // ★ v0.31.0
         draft.items.push({ kind:'mat', name:`${mat} 환봉`, spec: dia?`Ø${dia}`:'', unit:'kg',
           qty: kg, price: rate, so_ids: arr.map(x=>x.o.id), _fromSo: true });
       });
@@ -17096,6 +17225,44 @@ VIEWS.masters = () => {
       </div>
     </div>
 
+    <!-- ★ v0.31.0 — 소재·구매품 마스터 (사 오는 물건 관점 — 품번(파는 물건)과 분리 · 발주 연동) -->
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <h3 style="margin:0">소재·구매품 <span class="tag">발주 연동 — 소재=재질·Ø 규격별 단가(발주 소요 우선 적용) · 일반=구매품(품명 선택·단가 자동)</span></h3>
+        <span style="flex:1"></span>
+        <button class="btn" id="mst-mt-sync" title="품번 마스터의 재질·Ø 조합 중 미등록 소재를 일괄 생성 (단가는 원가 단가표에서 프리필)">${ico('refresh')}품번에서 소재 불러오기</button>
+        <button class="btn" id="mst-mt-import">${ico('excel')}임포트</button>
+        <button class="btn" id="mst-mt-xlsx">${ico('excel')}엑셀</button>
+        <button class="btn primary" id="mst-mt-new">${ico('plus')}등록</button>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>코드</th><th>구분</th><th>품명</th><th>재질/규격</th><th>단위</th><th class="num">단가</th><th>주 구매처</th><th>비고</th><th>상태</th><th></th></tr></thead>
+        <tbody>${(() => {
+          const mts = DB.all('materials').slice().sort((a,b) => (a.kind||'mat').localeCompare(b.kind||'mat') || (a.name||'').localeCompare(b.name||''));
+          return mts.length ? mts.map(m => {
+            const active = m.active !== false;
+            const specTxt = m.kind==='gen' ? (m.spec||'—') : `${_esc(m.mat||'')}${m.dia?` Ø${m.dia}`:''}`;
+            return `<tr class="${active?'':'mst-off'}">
+              <td style="font-family:'JetBrains Mono',monospace">${_esc(m.id)}</td>
+              <td>${m.kind==='gen'?'<span class="pill gray">일반</span>':'<span class="pill cyan">소재</span>'}</td>
+              <td><b>${_esc(m.name||'')}</b></td>
+              <td style="font-family:'JetBrains Mono',monospace">${specTxt}</td>
+              <td>${_esc(m.unit||'')}</td>
+              <td class="num">${+m.price>0?`₩${(+m.price).toLocaleString()}${m.kind==='gen'?'':'/kg'}`:'<span class="muted">—</span>'}</td>
+              <td class="muted">${_esc(DB.get('vendors', m.vendor)?.name || m.vendor || '—')}</td>
+              <td class="muted" style="font-size:11px">${_esc(m.memo||'')}</td>
+              <td>${active?'<span class="pill cyan">사용중</span>':'<span class="pill gray">비활성</span>'}</td>
+              <td><button class="btn ghost" data-mt-edit="${_esc(m.id)}">수정</button></td>
+            </tr>`;
+          }).join('') : '<tr><td colspan="10" class="empty">등록된 소재·구매품 없음 — [품번에서 소재 불러오기] 또는 [등록]</td></tr>';
+        })()}</tbody>
+      </table></div>
+      <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
+        <b style="color:var(--cyan)">역할</b> 품번 마스터 = 파는 물건(고객사·제품) · 이 마스터 = 사 오는 물건(소재·구매품).
+        소재 단가 우선순위: <b>이 마스터(재질+Ø 규격별)</b> → 원가 단가표(재질별 폴백). 새 발주에서 품명 선택 시 규격·단위·단가 자동.
+      </div>
+    </div>
+
     <!-- ★ v0.16.7 — 설비 마스터 (기준정보 승격 · equipments 컬렉션) -->
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
@@ -17278,6 +17445,40 @@ VIEWS.masters = () => {
   document.getElementById('mst-v-new').onclick = () => VIEWS._mstVendorEdit(null);
   document.getElementById('mst-i-new').onclick = () => VIEWS._mstItemEdit(null);
   document.getElementById('mst-e-new').onclick = () => VIEWS._mstEquipmentEdit(null);
+  // ★ v0.31.0 — 소재·구매품 마스터 핸들러
+  const mtNew = document.getElementById('mst-mt-new');
+  if(mtNew) mtNew.onclick = () => VIEWS._mstMaterialEdit(null);
+  document.querySelectorAll('[data-mt-edit]').forEach(b => b.onclick = () => VIEWS._mstMaterialEdit(b.dataset.mtEdit));
+  const mtImp = document.getElementById('mst-mt-import');
+  if(mtImp) mtImp.onclick = () => VIEWS._mstImport('materials');
+  const mtSync = document.getElementById('mst-mt-sync');
+  if(mtSync) mtSync.onclick = () => {
+    // 품번 마스터의 (재질, Ø) 조합 중 소재 마스터에 없는 것 일괄 생성 — 단가는 원가 단가표 프리필
+    const have = new Set(DB.all('materials').filter(m=>m.kind!=='gen').map(m => `${(m.mat||'').trim()}|${+m.dia||0}`));
+    const rates = (DB.get('settings','cost_rates') || {}).material_rates || {};
+    const combos = new Map();
+    getItems().forEach(i => {
+      const mat = (i.mat||'').trim(); if(!mat) return;
+      const key = `${mat}|${+i.dia||0}`;
+      if(!have.has(key) && !combos.has(key)) combos.set(key, { mat, dia:+i.dia||0 });
+    });
+    if(!combos.size){ toast('추가할 소재 없음 — 품번의 재질·Ø 조합이 모두 등록돼 있습니다','ok'); return; }
+    combos.forEach(({mat, dia}) => {
+      const id = nextDocNo('MT');
+      DB.set('materials', id, { id, kind:'mat', name:`${mat} 환봉`, mat, dia, spec:'', unit:'kg',
+        price:+rates[mat]||0, vendor:'', memo:'품번에서 자동 생성', active:true });
+    });
+    toast(`소재 ${combos.size}건 생성 — 단가·구매처를 확인하세요`,'ok',3500); router();
+  };
+  const mtXlsx = document.getElementById('mst-mt-xlsx');
+  if(mtXlsx) mtXlsx.onclick = () => {
+    const rows = DB.all('materials').map(m => ({
+      코드:m.id, 구분:m.kind==='gen'?'일반':'소재', 품명:m.name||'', 재질:m.mat||'', 'Ø':m.dia||'',
+      규격:m.spec||'', 단위:m.unit||'', 단가:+m.price||0, 주구매처:DB.get('vendors',m.vendor)?.name||m.vendor||'', 비고:m.memo||'',
+      상태:m.active===false?'비활성':'사용중',
+    }));
+    exportXlsx(rows, '소재구매품', `소재구매품_${fmtDate(Date.now())}.xlsx`);
+  };
   document.querySelectorAll('[data-vedit]').forEach(b => b.onclick = () => VIEWS._mstVendorEdit(b.dataset.vedit));
   document.querySelectorAll('[data-vtoggle]').forEach(b => b.onclick = () => VIEWS._mstVendorToggle(b.dataset.vtoggle));
   document.querySelectorAll('[data-iedit]').forEach(b => b.onclick = () => VIEWS._mstItemEdit(b.dataset.iedit));
