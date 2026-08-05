@@ -1065,7 +1065,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.30.7';
+const APP_VERSION = 'v0.30.8';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -7743,6 +7743,26 @@ VIEWS.po = () => {
   document.getElementById('po-add').onclick = () => VIEWS._poNew();
 };
 
+/* ★ v0.30.8 — 수주 소재 소요 1벌 (새 발주 연동 — 사용자 판정 2026-08-05)
+   · 대상: 잔량 있는 수주 중 아직 소재 발주에 연결 안 된 것 (po.items[].so_ids 로 추적)
+   · 예상 무게 = 수주 잔량(미출하) × 절단중량(kg) · 규격 = 재질+Ø (같은 규격 여러 수주 묶음 발주)
+   · 단가 = 원가 단가표 material_rates(원/kg — 구매처와 합의된 소재 단가 마스터) */
+function soMaterialNeeds(){
+  const poLinked = new Set();
+  DB.all('purchase_orders').forEach(p => (p.items||[]).forEach(it => (it.so_ids||[]).forEach(sid => poLinked.add(sid))));
+  return DB.all('orders').map(o => {
+    const shipped = DB.query('shipments', s => s.so_id===o.id).reduce((s,r)=>s+(r.qty||0),0);
+    const remain = Math.max(0, (o.qty||0) - shipped);
+    const it = DB.get('items', o.itemCode);
+    const w = +(it?.weight||0);
+    return { o, it, remain, mat:(it?.mat||'').trim(), dia:+(it?.dia||0), needKg: remain * w, poLinked: poLinked.has(o.id) };
+  }).filter(x => x.remain > 0 && x.mat && x.needKg > 0)
+    .sort((a,b) => `${a.mat}|${a.dia}`.localeCompare(`${b.mat}|${b.dia}`) || (a.o.due||'').localeCompare(b.o.due||''));
+}
+function matStockKg(mat, dia){
+  return DB.all('material_lots').reduce((s,l) =>
+    s + (((l.mat||'').trim() === mat && (+l.dia||0) === (+dia||0)) ? (+l.remain_kg||0) : 0), 0);
+}
 /* 새 발주 모달 — 품목 여러 줄 그리드 (v0.16.6 · v0.16.8 sup+out 통합) */
 VIEWS._poNew = () => {
   // ★ v0.16.8 — 발주 거래처: 구매처(sup) + 외주처(out) 통합 (고객사 제외 · 자재/부자재 발주는 외주처도 가능)
@@ -7775,6 +7795,60 @@ VIEWS._poNew = () => {
   DB.all('purchase_orders').forEach(p => (p.items||[]).forEach(it => { if(it.name) _poNamesSet.add(it.name); }));
   DB.all('purchase_receipts').forEach(r => { if(r.name) _poNamesSet.add(r.name); });
   const poNameOpts = [..._poNamesSet].sort();
+
+  // ★ v0.30.8 — 수주 소재 소요 (미발주 수주 → 규격별 묶음 체크 → 예상 무게·재고·단가 집계 → 품목 반영)
+  const soNeeds = soMaterialNeeds().filter(x => !x.poLinked);
+  const _rates = (DB.get('settings','cost_rates') || {}).material_rates || {};
+  const soChecked = new Set();
+  const _specKey = x => `${x.mat}|${x.dia}`;
+  const _specLabel = x => `${x.mat}${x.dia?` Ø${x.dia}`:''}`;
+  const renderSoNeeds = () => {
+    if(!soNeeds.length) return '';
+    const groups = {};
+    soNeeds.forEach(x => { (groups[_specKey(x)] = groups[_specKey(x)] || []).push(x); });
+    let totalKg = 0, totalWon = 0;
+    const body = Object.keys(groups).map(k => {
+      const arr = groups[k];
+      const { mat, dia } = arr[0];
+      const stock = matStockKg(mat, dia);
+      const rate = +_rates[mat] || 0;
+      const checkedArr = arr.filter(x => soChecked.has(x.o.id));
+      const selKg = checkedArr.reduce((s,x)=>s+x.needKg, 0);
+      if(selKg > 0){ totalKg += selKg; totalWon += selKg * rate; }
+      const short = Math.max(0, arr.reduce((s,x)=>s+x.needKg,0) - stock);
+      return `
+        <tr style="background:var(--bg2)"><td colspan="5" style="padding:7px 10px;font-size:11px">
+          <b style="color:var(--cyan)">${_esc(_specLabel(arr[0]))}</b>
+          <span style="color:var(--sub);margin-left:8px">재고 ${Math.round(stock).toLocaleString()}kg${short>0?` · <span style="color:var(--amber)">전체 소요 대비 부족 ≈${Math.ceil(short).toLocaleString()}kg</span>`:' · <span style="color:var(--green)">재고 충분</span>'}
+          · 단가 ${rate?`₩${rate.toLocaleString()}/kg`:'<span style="color:var(--dim)">미등록(원가 단가표)</span>'}</span>
+          ${selKg>0?`<span style="float:right;color:var(--cyan);font-weight:700">선택 ${Math.ceil(selKg).toLocaleString()}kg${rate?` · ₩${Math.round(selKg*rate).toLocaleString()}`:''}</span>`:''}
+        </td></tr>
+        ${arr.map(x => `
+        <tr>
+          <td style="padding:5px 8px"><input type="checkbox" class="po-so-chk" data-so="${_esc(x.o.id)}" ${soChecked.has(x.o.id)?'checked':''}></td>
+          <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${_esc(x.o.id)}</td>
+          <td style="font-size:11px">${_esc(itemLabel(x.o.itemCode))} <span class="muted">${_esc(x.it?.name||'')}</span></td>
+          <td class="num" style="font-size:11px">${x.remain.toLocaleString()}ea · <b>${Math.ceil(x.needKg).toLocaleString()}kg</b></td>
+          <td style="font-size:10.5px;color:var(--sub)">${_esc(x.o.due||'—')}</td>
+        </tr>`).join('')}`;
+    }).join('');
+    return `
+    <div style="border:1px solid var(--cyan-dim);border-radius:11px;padding:12px 14px;margin-bottom:12px;background:rgba(94,234,212,.04)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <b style="color:var(--cyan);font-size:12.5px">수주 소재 소요 (미발주 ${soNeeds.length}건)</b>
+        <span style="font-size:10.5px;color:var(--sub)">— 같은 규격은 묶어서 한 번에 발주 · 예상 = 수주 잔량 × 절단중량</span>
+      </div>
+      <div class="tbl-wrap" style="max-height:200px;overflow-y:auto"><table style="font-size:11.5px">
+        <thead><tr><th style="width:28px"></th><th>수주</th><th>품번 · 품명</th><th class="num">잔량 · 예상무게</th><th>납기</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+        <span id="po-so-total" style="font-size:11.5px;color:var(--sub)">${totalKg>0?`총 예상 <b style="color:var(--cyan)">${Math.ceil(totalKg).toLocaleString()}kg</b>${totalWon>0?` · 예상 금액 <b>₩${Math.round(totalWon).toLocaleString()}</b>`:''}`:'체크하면 규격별 예상 무게·금액이 집계됩니다'}</span>
+        <button class="btn" id="po-so-apply" style="margin-left:auto;font-size:11px;padding:6px 12px" ${totalKg>0?'':'disabled'}>${ico('plus')}체크한 소요를 품목에 반영</button>
+      </div>
+      <div style="font-size:10px;color:var(--dim);margin-top:5px">반영하면 규격별 소재 품목이 아래에 생깁니다 — <b>실주문 수량(kg)</b>은 품목 카드에서 조정(여유분 가감) · 단가 = 원가 단가표(합의 단가) 자동, 수정 가능</div>
+    </div>`;
+  };
 
   // ★ v0.16.10 — 품목 카드 (1줄=품명 전폭 크게 · 2줄=규격/단위/수량/단가 4칸 · 우상단 ✕)
   const renderCards = () => draft.items.map((it, i) => `
@@ -7840,6 +7914,7 @@ VIEWS._poNew = () => {
         </div>
         <div><label>납기</label><input id="po-due" type="date" value="${draft.due}"></div>
       </div>
+      <div id="po-so-needs">${renderSoNeeds()}</div>
       <div style="font-size:11px;color:var(--sub);margin:6px 0 6px">품목 카드 — <b>구분: 소재</b>(환봉 등 — 소재 입고·heat 등록 경로) / <b>일반</b>(소모품·부자재·공구 등 — 구매품 입고 경로) · 한 발주에 혼합 가능 · [+ 품목 추가]</div>
       <div id="po-grid-body">${renderCards()}</div>
       <datalist id="poi-name-list">${poNameOpts.map(n=>`<option value="${_esc(n)}">`).join('')}</datalist>
@@ -7851,6 +7926,37 @@ VIEWS._poNew = () => {
     </div>
   `, { width: '640px' });
   bindGrid();
+  // ★ v0.30.8 — 수주 소재 소요: 체크 → 집계 재렌더 · [반영] → 규격별 소재 품목 생성 (so_ids 연결)
+  const bindSoNeeds = () => {
+    document.querySelectorAll('.po-so-chk').forEach(cb => cb.onchange = () => {
+      if(cb.checked) soChecked.add(cb.dataset.so); else soChecked.delete(cb.dataset.so);
+      rerenderSoNeeds();
+    });
+    const applyBtn = document.getElementById('po-so-apply');
+    if(applyBtn) applyBtn.onclick = () => {
+      if(!soChecked.size) return;
+      // 이전 자동 반영분 제거 후 규격별로 재생성 (체크 변경 반복 반영 가능 · 수기 행은 보존)
+      draft.items = draft.items.filter(r => !r._fromSo);
+      const groups = {};
+      soNeeds.filter(x => soChecked.has(x.o.id)).forEach(x => { (groups[_specKey(x)] = groups[_specKey(x)] || []).push(x); });
+      Object.values(groups).forEach(arr => {
+        const { mat, dia } = arr[0];
+        const kg = Math.ceil(arr.reduce((s,x)=>s+x.needKg,0));
+        const rate = +_rates[mat] || '';
+        draft.items.push({ kind:'mat', name:`${mat} 환봉`, spec: dia?`Ø${dia}`:'', unit:'kg',
+          qty: kg, price: rate, so_ids: arr.map(x=>x.o.id), _fromSo: true });
+      });
+      // 남아있는 빈 수기 행(품명 없음) 정리 — 최소 1행 규칙은 반영분이 채움
+      if(draft.items.length > 1) draft.items = draft.items.filter(r => r._fromSo || (r.name||'').trim() || (''+(r.qty??'')).trim());
+      rerender();
+      toast(`소재 소요 반영 — ${Object.keys(groups).length}개 규격 · 수주 ${soChecked.size}건 연결 (수량은 카드에서 조정)`, 'ok', 3500);
+    };
+  };
+  const rerenderSoNeeds = () => {
+    const host = document.getElementById('po-so-needs');
+    if(host){ host.innerHTML = renderSoNeeds(); bindSoNeeds(); }
+  };
+  bindSoNeeds();
   document.getElementById('po-vendor').onchange = e => { draft.vendor = e.target.value; };
   document.getElementById('po-due').onchange = e => { draft.due = e.target.value; };
   document.getElementById('po-row-add').onclick = () => {
@@ -7870,6 +7976,7 @@ VIEWS._poNew = () => {
         unit: it.unit||'ea',
         qty: +it.qty||0,
         price: (it.price===''||it.price==null) ? null : (+it.price||0),
+        ...(Array.isArray(it.so_ids) && it.so_ids.length ? { so_ids: it.so_ids } : {}),   // ★ v0.30.8 — 수주 연결 추적
       }))
       .filter(it => it.qty>0);
     if(!items.length){ toast('품명·수량(>0) 입력 (1행 이상)','warn'); return; }
