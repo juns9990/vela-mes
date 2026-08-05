@@ -1065,7 +1065,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.31.2';
+const APP_VERSION = 'v0.31.3';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -11599,6 +11599,65 @@ function _openPrintWindow(title, bodyHTML, extraCSS, orient){
   win.document.close();
 }
 
+/* ★ v0.31.3 — 문서 PDF 저장 1벌 (발주서·반출증 등 전 양식 공통 — 사용자 요청: 출력+메일 첨부용 파일)
+   · 한글 지원: 인쇄용 HTML 을 숨은 iframe 에 렌더 → html2canvas 캡처 → jsPDF A4 분할 저장 (폰트 임베드 불필요)
+   · 라이브러리: cdnjs 버전 고정 · 지연 로드 (규칙 8 준수 — PDF 버튼 누를 때만 로드)
+   · 파일은 다운로드 폴더에 저장 — 메일에 첨부해 보내면 됨 */
+let _pdfLibsP = null;
+function _loadPdfLibs(){
+  if(window.html2canvas && window.jspdf) return Promise.resolve();
+  if(_pdfLibsP) return _pdfLibsP;
+  const load = src => new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = () => rej(new Error('로드 실패 ' + src));
+    document.head.appendChild(s);
+  });
+  _pdfLibsP = load('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+    .then(() => load('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'))
+    .catch(e => { _pdfLibsP = null; throw e; });
+  return _pdfLibsP;
+}
+async function _openPdf(title, bodyHTML, extraCSS, orient){
+  toast('PDF 생성 중…', 'ok', 2500);
+  try { await _loadPdfLibs(); }
+  catch(e){ toast('PDF 라이브러리 로드 실패 — 인터넷 연결 확인', 'err', 4500); return; }
+  const landscape = orient === 'landscape';
+  const pageW = landscape ? 1123 : 794;   // A4 @96dpi
+  const ifr = document.createElement('iframe');
+  ifr.style.cssText = `position:fixed;left:-12000px;top:0;width:${pageW}px;height:1400px;border:0`;
+  document.body.appendChild(ifr);
+  try {
+    const idoc = ifr.contentDocument;
+    idoc.open();
+    idoc.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+      <style>${PRINT_BASE_CSS}${extraCSS||''} body{background:#fff !important;margin:0;width:${pageW}px}</style>
+      </head><body>${bodyHTML}</body></html>`);
+    idoc.close();
+    await new Promise(r => setTimeout(r, 450));   // 렌더·폰트 안착
+    const canvas = await html2canvas(idoc.body, { scale: 2, backgroundColor:'#ffffff', windowWidth: pageW });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: landscape ? 'l' : 'p', unit:'mm', format:'a4' });
+    const pdfW = landscape ? 297 : 210, pdfH = landscape ? 210 : 297;
+    const pageHpx = Math.floor(canvas.width * (pdfH / pdfW));
+    let y = 0, first = true;
+    while(y < canvas.height){
+      const sliceH = Math.min(pageHpx, canvas.height - y);
+      const c2 = document.createElement('canvas');
+      c2.width = canvas.width; c2.height = sliceH;
+      c2.getContext('2d').drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+      if(!first) pdf.addPage();
+      pdf.addImage(c2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, sliceH * pdfW / canvas.width);
+      first = false; y += sliceH;
+    }
+    const fname = `${String(title).replace(/[\\/:*?"<>|\s]+/g,'_')}_${fmtDate(Date.now())}.pdf`;
+    pdf.save(fname);
+    toast(`PDF 저장 — ${fname} · 다운로드 폴더 (메일 첨부용)`, 'ok', 4000);
+  } catch(e){
+    console.error('[VELA] PDF 생성 실패', e);
+    toast('PDF 생성 실패 — 콘솔 확인', 'err');
+  } finally { ifr.remove(); }
+}
+
 // opts.formKey 있으면 방향 선택 모달 표시 → 저장 → 주입 후 인쇄. 없으면 이전 동작(브라우저 방향).
 function _openPrint(title, bodyHTML, extraCSS, opts){
   const formKey = opts && opts.formKey;
@@ -11621,15 +11680,24 @@ function _openPrint(title, bodyHTML, extraCSS, opts){
       </div>
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn" id="prt-pdf" title="PDF 파일로 저장 — 다운로드 폴더에 저장되어 메일 첨부 등에 사용">${ico('save')}PDF 저장</button>
         <button class="btn primary" id="prt-ok">${ico('print')}인쇄</button>
       </div>
     </div>
   `);
+  const _orientSel = () => document.querySelector('input[name="prt-orient"]:checked')?.value || 'portrait';
   document.getElementById('prt-ok').onclick = () => {
-    const orient = document.querySelector('input[name="prt-orient"]:checked')?.value || 'portrait';
+    const orient = _orientSel();
     if(orient !== cur) setFormOrient(formKey, orient);
     closeModal();
     _openPrintWindow(title, bodyHTML, extraCSS, orient);
+  };
+  // ★ v0.31.3 — PDF 저장 (같은 양식·같은 방향 설정 재사용 · 전 양식 공통)
+  document.getElementById('prt-pdf').onclick = () => {
+    const orient = _orientSel();
+    if(orient !== cur) setFormOrient(formKey, orient);
+    closeModal();
+    _openPdf(title, bodyHTML, extraCSS, orient);
   };
 }
 
