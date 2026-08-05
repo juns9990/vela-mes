@@ -1065,7 +1065,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.30.5';
+const APP_VERSION = 'v0.30.7';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -3265,6 +3265,12 @@ function getPartNo(it){
   const v = (it.part_no != null && String(it.part_no).trim() !== '') ? String(it.part_no).trim() : '';
   if(v) return v;
   return isItemIdentifier(it.code) ? '' : String(it.code || '');
+}
+/* ★ v0.30.7 — 수주별 기계획 수량 1벌 (수량 기준 중복 판정 — 사용자 판정 2026-08-05)
+   계획 합계 < 수주 수량 → 추가(분할) 계획 허용 · 충족(≥) 시에만 차단. void 계획은 제외. */
+function soPlannedQty(soId){
+  if(!soId) return 0;
+  return DB.query('production_plans', p => p.so_id === soId).reduce((s,p) => s + (+p.qty||0), 0);
 }
 /* ★ v0.30.3 — 식별번호·품번 병기 라벨 1벌 (수주 등 조회·선택 화면용 — "038-031 · SKT271") */
 function itemLabel(code){
@@ -9137,8 +9143,15 @@ VIEWS.so = () => {
             <td class="num" style="color:${r.remain>0?'var(--amber)':'var(--dim)'}">${r.remain.toLocaleString()}</td>
             <td class="muted">${_esc(r.o.due||'—')}</td>
             <td><span class="pill ${r.status.cls}">${r.status.label}</span></td>
-            <td><div style="display:flex;gap:5px;justify-content:flex-end">
-              ${r.remain>0 && getFlags().plan ? `<button class="btn ghost" data-so-plan="${_esc(r.o.id)}" style="font-size:10.5px;color:var(--cyan)">${ico('plus')}계획</button>` : ''}
+            <td><div style="display:flex;gap:5px;justify-content:flex-end;align-items:center">
+              ${(() => {   // ★ v0.30.7 — 수량 기준: 계획 합계가 수주 수량 충족 시 '계획완료' · 미충족이면 [계획] 유지 (분할 계획)
+                const plannedQty = soPlannedQty(r.o.id);
+                const planRemain = Math.max(0, (r.o.qty||0) - plannedQty);
+                if(plannedQty > 0 && planRemain <= 0) return '<span class="pill gray" style="font-size:10px" title="계획 수량이 수주 수량을 충족했습니다 — 계획 취소 시 재계획 가능">계획완료</span>';
+                if(!(r.remain>0 && getFlags().plan)) return '';
+                const partTag = plannedQty > 0 ? ` <span style="color:var(--dim);font-size:9px">잔${planRemain.toLocaleString()}</span>` : '';
+                return `<button class="btn ghost" data-so-plan="${_esc(r.o.id)}" style="font-size:10.5px;color:var(--cyan)">${ico('plus')}계획${partTag}</button>`;
+              })()}
               <button class="btn ghost" data-so-edit="${_esc(r.o.id)}" style="font-size:10.5px" title="수량·단가·납기 수정">수정</button>
             </div></td>
           </tr>`).join('')}
@@ -9176,7 +9189,9 @@ VIEWS.so = () => {
     const o = DB.get('orders', soId); if(!o) return;
     const shipped = DB.query('shipments', s => s.so_id===soId).reduce((s,r)=>s+(r.qty||0),0);
     const remain = Math.max(0, (o.qty||0) - shipped);
-    VIEWS._planNew({ so_id: soId, itemCode: o.itemCode, qty: remain });
+    // ★ v0.30.7 — 프리필 수량 = min(미출하 잔량, 미계획 수량) — 분할 계획 시 남은 계획분만 제안
+    const planRemain = Math.max(0, (o.qty||0) - soPlannedQty(soId));
+    VIEWS._planNew({ so_id: soId, itemCode: o.itemCode, qty: Math.min(remain, planRemain) || remain });
   });
   // ★ v0.30.5 — 수주 수정 (실사용 지적: 생성 후 수정 버튼 없음)
   //   수량·단가·납기만 수정 (고객사·품번은 불변 — 잘못 등록이면 새로 등록 권장).
@@ -16029,26 +16044,35 @@ VIEWS._planNew = (prefill) => {
   const equipmentList = buildEquipmentList();
   const today = fmtDate(Date.now());
   // 잔량 있는 live 수주
-  const soLive = DB.all('orders').map(o => {
+  // ★ v0.30.6→v0.30.7 — 수량 기준 중복 판정 (사용자 판정 2026-08-05):
+  //   계획 합계 < 수주 수량 → 같은 수주로 추가(분할) 계획 허용 · 충족(≥) 시에만 목록 제외+저장 차단.
+  //   재고생산(so_id 없음)은 중복 무제한. 계획 취소(void) 시 그만큼 계획잔량 복원.
+  const soAll = DB.all('orders').map(o => {
     const shipped = DB.query('shipments', s=>s.so_id===o.id).reduce((s,r)=>s+(r.qty||0),0);
     const remain  = Math.max(0, (o.qty||0) - shipped);
-    return {o, remain, shipped};
+    const planned = soPlannedQty(o.id);
+    const planRemain = Math.max(0, (o.qty||0) - planned);   // 아직 계획 안 잡힌 수량
+    return {o, remain, shipped, planned, planRemain};
   }).filter(x => x.remain>0).sort((a,b) => (a.o.due||'').localeCompare(b.o.due||''));
+  const soLive = soAll.filter(x => x.planRemain > 0);
+  const _soExcluded = soAll.length - soLive.length;
+  // ★ v0.30.6 — 고객사 필터 (수주 많아질 때 대비 — 사용자 요청)
+  const soCusts = [...new Map(soLive.map(({o}) => [o.cust, DB.get('vendors', o.cust)?.name || o.cust || '미지정'])).entries()]
+    .sort((a,b) => a[1].localeCompare(b[1]));
 
   openModal(`
     <h2>계획 수립 <span style="color:var(--dim);font-size:12px;font-weight:400;margin-left:8px">수주 연결 → 일정 · 수량 · 설비</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
-      <div><label>수주 연결 (잔량 있음)</label>
-        <select id="pln-so">
-          <option value="">재고생산 — 수주 연결 없음</option>
-          ${soLive.map(({o, remain, shipped}) => {
-            const it = DB.get('items', o.itemCode);
-            const cust = DB.get('vendors', o.cust)?.name || o.cust || '미지정';
-            return `<option value="${_esc(o.id)}" data-item="${_esc(o.itemCode)}" data-remain="${remain}" data-due="${_esc(o.due||'')}">${_esc(o.id)} · ${_esc(cust)} · ${_esc(o.itemCode)} ${_esc(it?.name||'')} · 잔량 ${remain.toLocaleString()}ea · 납기 ${_esc(o.due||'—')}</option>`;
-          }).join('')}
-        </select>
-        <div id="pln-so-hint" style="font-size:11px;color:var(--sub);margin-top:6px">재고생산 선택 — 수주 없이 계획</div>
+      <div class="grid g2">
+        <div><label>고객사 필터 <span style="color:var(--dim);font-weight:400">— 수주 목록 좁히기</span></label>
+          <select id="pln-so-cust">
+            <option value="">— 전체 고객사 (${soLive.length}건) —</option>
+            ${soCusts.map(([code,name]) => `<option value="${_esc(code)}">${_esc(name)} (${soLive.filter(x=>x.o.cust===code).length}건)</option>`).join('')}
+          </select></div>
+        <div><label>수주 연결 (잔량 있음)${_soExcluded?` <span style="color:var(--dim);font-weight:400">— 계획 수량 충족 ${_soExcluded}건 제외</span>`:''}</label>
+          <select id="pln-so"></select></div>
       </div>
+      <div id="pln-so-hint" style="font-size:11px;color:var(--sub);margin-top:6px">재고생산 선택 — 수주 없이 계획 (재고생산은 중복 계획 가능)</div>
       <div class="grid g2" style="margin-top:10px">
         <div><label>품번</label>
           <select id="pln-item">${items.map(i => `<option value="${_esc(i.code)}">${_esc(i.code)} · ${_esc(i.name)}</option>`).join('')}</select></div>
@@ -16084,8 +16108,27 @@ VIEWS._planNew = (prefill) => {
   const soHint = document.getElementById('pln-so-hint');
   const matHint = document.getElementById('pln-mat-hint');
   const loadHint = document.getElementById('pln-load-hint');
+  const soCustSel = document.getElementById('pln-so-cust');
   // ★ v0.20.2 — 공용 달력 팝업 (수기 입력 병행 · 모달 바깥클릭 보호와 독립)
   attachCalendar(dateEl);
+
+  // ★ v0.30.6 — 수주 옵션 렌더 (고객사 필터 적용 · 1벌)
+  // ★ v0.30.7 — 계획잔량(미계획 수량) 표기·프리필 기준 = planRemain (분할 계획 지원)
+  const renderSoOpts = (custCode) => {
+    const list = custCode ? soLive.filter(x => x.o.cust === custCode) : soLive;
+    soSel.innerHTML = `<option value="">재고생산 — 수주 연결 없음 (중복 계획 가능)</option>` +
+      list.map(({o, remain, planned, planRemain}) => {
+        const it = DB.get('items', o.itemCode);
+        const cust = DB.get('vendors', o.cust)?.name || o.cust || '미지정';
+        const planTag = planned > 0 ? ` · 기계획 ${planned.toLocaleString()}ea` : '';
+        return `<option value="${_esc(o.id)}" data-item="${_esc(o.itemCode)}" data-remain="${remain}" data-planned="${planned}" data-planremain="${planRemain}" data-due="${_esc(o.due||'')}">${_esc(o.id)} · ${_esc(cust)} · ${_esc(itemLabel(o.itemCode))} ${_esc(it?.name||'')} · 계획잔 ${planRemain.toLocaleString()}ea${planTag} · 납기 ${_esc(o.due||'—')}</option>`;
+      }).join('');
+  };
+  renderSoOpts('');
+  if(soCustSel) soCustSel.onchange = () => {
+    renderSoOpts(soCustSel.value);
+    soSel.dispatchEvent(new Event('change'));   // 필터 변경 시 힌트·프리필 초기화
+  };
 
   const updMatHint = () => {
     const p = { itemCode: itemSel.value, qty: +qtyEl.value||0, date: dateEl.value };
@@ -16137,13 +16180,14 @@ VIEWS._planNew = (prefill) => {
     const opt = soSel.selectedOptions[0];
     if(soSel.value && opt){
       const item = opt.dataset.item;
-      const remain = +opt.dataset.remain || 0;
+      const planned = +opt.dataset.planned || 0;
+      const planRemain = +opt.dataset.planremain || 0;
       const due = opt.dataset.due;
       if([...itemSel.options].some(o => o.value===item)) itemSel.value = item;
-      qtyEl.value = remain;
-      soHint.innerHTML = `수주 잔량 <b style="color:var(--cyan)">${remain.toLocaleString()}ea</b>${due?` · 납기 ${_esc(due)}`:''} — 수량 초과 시 경고만 표시 (등록은 진행)`;
+      qtyEl.value = planRemain;   // ★ v0.30.7 — 프리필 = 아직 계획 안 잡힌 수량 (분할 계획)
+      soHint.innerHTML = `계획 가능 <b style="color:var(--cyan)">${planRemain.toLocaleString()}ea</b>${planned?` (수주 중 기계획 ${planned.toLocaleString()}ea)`:''}${due?` · 납기 ${_esc(due)}`:''} — 초과 시 경고만 표시 (등록은 진행)`;
     } else {
-      soHint.innerHTML = '재고생산 선택 — 수주 없이 계획';
+      soHint.innerHTML = '재고생산 선택 — 수주 없이 계획 (재고생산은 중복 계획 가능)';
     }
     updMatHint(); updLoadHint();
   };
@@ -16154,12 +16198,12 @@ VIEWS._planNew = (prefill) => {
   qtyEl.oninput = () => {
     const opt = soSel.selectedOptions[0];
     if(soSel.value && opt){
-      const remain = +opt.dataset.remain || 0;
+      const planRemain = +opt.dataset.planremain || 0;
       const q = +qtyEl.value || 0;
-      if(q > remain){
-        soHint.innerHTML = `<span style="color:var(--amber)">⚠ 초과: 수주 잔량 ${remain.toLocaleString()}ea 보다 큼 (경고만 · 등록 허용)</span>`;
+      if(q > planRemain){
+        soHint.innerHTML = `<span style="color:var(--amber)">⚠ 초과: 계획 가능 ${planRemain.toLocaleString()}ea 보다 큼 (경고만 · 등록 허용)</span>`;
       } else {
-        soHint.innerHTML = `수주 잔량 <b style="color:var(--cyan)">${remain.toLocaleString()}ea</b>`;
+        soHint.innerHTML = `계획 가능 <b style="color:var(--cyan)">${planRemain.toLocaleString()}ea</b>`;
       }
     }
     updMatHint(); updLoadHint();
@@ -16168,8 +16212,14 @@ VIEWS._planNew = (prefill) => {
   // 프리필
   if(prefill){
     if(prefill.so_id){
-      soSel.value = prefill.so_id;
-      soSel.dispatchEvent(new Event('change'));
+      // ★ v0.30.7 — 계획 수량이 이미 수주 수량을 충족한 수주만 프리필 거부 (분할 계획은 허용)
+      const _pf = soAll.find(x => x.o.id === prefill.so_id);
+      if(_pf && _pf.planRemain <= 0){
+        toast(`${prefill.so_id} 는 계획 수량이 수주 수량을 이미 충족했습니다 — 기존 계획을 취소하면 다시 계획할 수 있습니다`, 'warn', 4500);
+      } else {
+        soSel.value = prefill.so_id;
+        soSel.dispatchEvent(new Event('change'));
+      }
     }
     if(prefill.itemCode) itemSel.value = prefill.itemCode;
     if(prefill.qty) qtyEl.value = prefill.qty;
@@ -16187,6 +16237,16 @@ VIEWS._planNew = (prefill) => {
     if(!itemCode){ toast('품번 선택','warn'); return; }
     if(!date){ toast('계획일 입력','warn'); return; }
     if(qty <= 0){ toast('수량은 0 초과','warn'); return; }
+    // ★ v0.30.7 — 수량 기준 재검증 (다중 단말 대비): 계획 합계가 수주 수량을 충족(≥)한 수주만 차단.
+    //   미충족이면 분할 계획 허용 · 재고생산(so_id 없음)은 무제한.
+    if(so_id){
+      const _o = DB.get('orders', so_id);
+      const _planned = soPlannedQty(so_id);
+      if(_o && _planned >= (+_o.qty||0)){
+        toast(`계획 수량 충족 — ${so_id} (수주 ${(+_o.qty||0).toLocaleString()}ea · 기계획 ${_planned.toLocaleString()}ea) · 기존 계획 취소 시 재계획 가능`, 'err', 5000);
+        return;
+      }
+    }
     const id = nextDocNo('PP');
     if(DB.get('production_plans', id)){ toast(`계획번호 중복 — ${id}`,'err'); return; }
     DB.set('production_plans', id, {
