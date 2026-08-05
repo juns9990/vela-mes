@@ -1065,7 +1065,7 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.31.3';
+const APP_VERSION = 'v0.31.4';
 const APP_DATE    = '2026-08-03';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
@@ -3266,6 +3266,25 @@ function getPartNo(it){
   const v = (it.part_no != null && String(it.part_no).trim() !== '') ? String(it.part_no).trim() : '';
   if(v) return v;
   return isItemIdentifier(it.code) ? '' : String(it.code || '');
+}
+/* ★ v0.31.4 — 마스터 자동순번 1벌 (사용자 지적: 작업자 등 번호 등록 시 자동순번·중복 방지)
+   기존 id 들의 최빈 형식(접두·구분자·자릿수)을 승계해 다음 번호 제안 — 업체별 사번 체계 하드코딩 없이 데이터에서 학습.
+   예: OP-014 들 → OP-015 · W01 들 → W02. 기존 없으면 fallbackPrefix-001. 저장 시 중복 차단은 호출부 책임. */
+function suggestNextId(col, fallbackPrefix, pad){
+  const stats = {};
+  DB.allRaw(col).forEach(d => {
+    const m = String(d.id||'').match(/^([A-Za-z가-힣]+)(-?)(\d+)$/);
+    if(!m) return;
+    const key = m[1] + m[2];
+    const st = stats[key] = stats[key] || { n:0, mx:0, w:0 };
+    st.n++; st.mx = Math.max(st.mx, +m[3]); st.w = Math.max(st.w, m[3].length);
+  });
+  const best = Object.entries(stats).sort((a,b) => b[1].n - a[1].n)[0];
+  if(best){
+    const [key, st] = best;
+    return `${key}${String(st.mx + 1).padStart(st.w, '0')}`;
+  }
+  return `${fallbackPrefix}-${String(1).padStart(pad || 3, '0')}`;
 }
 /* ★ v0.30.7 — 수주별 기계획 수량 1벌 (수량 기준 중복 판정 — 사용자 판정 2026-08-05)
    계획 합계 < 수주 수량 → 추가(분할) 계획 허용 · 충족(≥) 시에만 차단. void 계획은 제외. */
@@ -15544,16 +15563,18 @@ VIEWS.mold = () => {
       const life   = +document.getElementById('m-life').value||0;
       const qty    = Math.max(1, Math.floor(+document.getElementById('m-qty').value||1));   // ★ v0.29.7
       const offset = +document.getElementById('m-offset').value||0;
-      if(!mid || !name){ toast('금형ID/이름 입력','warn'); return; }
-      if(!id && DB.get('molds', mid)){ toast(`금형ID 중복 — ${mid}`,'err'); return; }
+      // ★ v0.31.4 — 금형ID 빈칸이면 자동순번 (직접 입력 등록도 번호 걱정 없이 · 연동 제안과 병행)
+      const mid2 = mid || suggestNextId('molds','M');
+      if(!name){ toast('이름 입력','warn'); return; }
+      if(!id && DB.get('molds', mid2)){ toast(`금형ID 중복 — ${mid2}`,'err'); return; }
       const custom = readCustomFieldsInputs('molds');
       const doc = id
         ? { name, type, mold_no:moldNo, variant, qty, itemCodes:its, life_limit:life, offset,
             shots_source:'derived', custom }
-        : { id:mid, name, type, mold_no:moldNo, variant, qty, itemCodes:its, life_limit:life, offset,
-            cum_strokes:0, shots_source:'derived', status:'정상', qr:mid, custom, active:true };
-      DB.set('molds', mid, doc);
-      toast('저장','ok'); closeModal(); router();
+        : { id:mid2, name, type, mold_no:moldNo, variant, qty, itemCodes:its, life_limit:life, offset,
+            cum_strokes:0, shots_source:'derived', status:'정상', qr:mid2, custom, active:true };
+      DB.set('molds', id ? mid : mid2, doc);   // ★ v0.31.4 — 신규는 자동순번 반영
+      toast(`저장 — ${id ? mid : mid2}`,'ok'); closeModal(); router();
     };
   }
 };
@@ -21682,12 +21703,13 @@ VIEWS.set = () => {
     document.querySelectorAll('[data-edit-wk]').forEach(b=>b.onclick=()=>editWorker(b.dataset.editWk));
   }
   function editWorker(id){
-    const w = id? DB.get('workers', id) : {id:'', emp_no:'', name:'', dept:'', active:true};
+    // ★ v0.31.4 — 신규 사번 자동순번 제안 (기존 형식 승계 · 수정 가능) + 저장 시 중복 차단
+    const w = id? DB.get('workers', id) : {id:'', emp_no: suggestNextId('workers','OP'), name:'', dept:'', active:true};
     openModal(`
       <h2>${id?'작업자 편집':'작업자 추가'} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
         <div class="grid g2">
-          <div><label>사번</label><input id="wk-emp" value="${w.emp_no||''}" ${id?'readonly':''} placeholder="예: OP-099"></div>
+          <div><label>사번 ${id?'':'<span style="color:var(--dim);font-weight:400">— 자동순번 (수정 가능 · 중복 차단)</span>'}</label><input id="wk-emp" value="${w.emp_no||''}" ${id?'readonly':''} placeholder="예: OP-099" style="font-family:'JetBrains Mono',monospace"></div>
           <div><label>이름</label><input id="wk-name" value="${w.name||''}"></div>
         </div>
         <div class="grid g2">
@@ -21707,6 +21729,8 @@ VIEWS.set = () => {
       const dept= document.getElementById('wk-dept').value.trim();
       const act = document.getElementById('wk-act').value==='1';
       if(!emp || !name){ toast('사번/이름 입력','warn'); return; }
+      // ★ v0.31.4 — 신규 사번 중복 차단 (기존엔 같은 사번 입력 시 기존 작업자를 덮어쓰던 위험)
+      if(!id && DB.get('workers', emp)){ toast(`사번 중복 — ${emp} 이미 존재 (${DB.get('workers',emp).name||''})`,'err',4000); return; }
       DB.set('workers', emp, {id:emp, emp_no:emp, name, dept, active:act});
       toast('저장','ok'); closeModal(); renderWorkers();
     };
