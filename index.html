@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <!-- ★ v0.21.4 — 테마 (다크/라이트) · 기기별 취향(로컬 전용 키 vela_theme) · 폰 상태바 theme-color 동기.
      head 초기 스크립트로 CSS 적용 전 data-theme 세팅 → FOUC 방지. -->
-<meta name="theme-color" id="meta-theme-color" content="#08090b">
+<meta name="theme-color" id="meta-theme-color" content="#f6f7f9">
 <script>
 (function(){
   try {
     var t = localStorage.getItem('vela_theme');
-    if(t !== 'light' && t !== 'dark') t = 'dark';
+    if(t !== 'light' && t !== 'dark') t = 'light';   /* ★ v0.32.0 — 기본 라이트 (사용자 판정 2026-08-16 · 저장된 취향은 그대로) */
     document.documentElement.setAttribute('data-theme', t);
     var m = document.getElementById('meta-theme-color');
-    if(m) m.setAttribute('content', t === 'light' ? '#f5f7fa' : '#08090b');
-  } catch(e){ document.documentElement.setAttribute('data-theme','dark'); }
+    if(m) m.setAttribute('content', t === 'light' ? '#f6f7f9' : '#08090b');
+  } catch(e){ document.documentElement.setAttribute('data-theme','light'); }
 })();
 </script>
 <title>VELA SYSTEM</title>
@@ -42,23 +42,26 @@
   --line:#23262f;--line2:#2c3038;--ink:#eef0f4;--sub:#8b909c;--dim:#5a5f6b;
   --cyan:#5eead4;--cyan-dim:#2dd4bf;--heat:#ff7a45;--heat2:#ffab40;
   --green:#4ade80;--red:#f87171;--amber:#fbbf24;--blue:#7dd3fc;
+  /* ★ v0.32.0 — 디자인 리뉴얼 토큰: 그림자·주버튼 (다크=그림자 없음·밝은 주버튼) */
+  --sh:none;--sh2:none;--prim:#eceff3;--prim-ink:#12161d;
 }
 /* ★ v0.21.5 — 라이트 테마 (표면/텍스트 계열만 재정의)
    ★ v0.21.6 — --cyan 만 짙은 틸(#0d9488, 흰 배경 대비 4.52:1) 로 재정의 (라이트 전용 · 다크 불변)
    · 나머지 포인트 색(--amber/--red/--green/--blue/--heat/--cyan-dim)은 두 테마 공통 = 정체성 유지
    · 다크 :root 는 v0.21.3 픽셀 동일 (건드리지 않음) */
 html[data-theme="light"]{
-  --bg:#f4f6fa;--bg2:#ffffff;--panel:#ffffff;--panel2:#f7f9fc;
-  --line:#e2e6ec;--line2:#cfd4dd;--ink:#14181f;
-  /* ★ v0.22.2 — --sub / --dim 어둡게 (라이트 메뉴·힌트 대비 확보 · 4.5:1+ 목표)
-     이전: --sub #4a5262(7.75:1), --dim #8a91a0(3.4:1 · WCAG 미달) → 현재: sub 8.5:1+, dim 4.8:1+ */
-  --sub:#3d4451; --dim:#6b7280;
-  --cyan:#0d9488;
-  /* ★ v0.26.6 — 상태 포인트색 라이트 대비 보정 (실사용 지적: LOT추적·재고 초록/파랑/노랑 판독 불가)
-     CSS 변수 경유 원칙(§1-9) → 변수 재정의 한 번으로 전 메뉴 일괄 적용 · 다크 :root 불변.
-     흰 배경 대비: green #15803d 5.0:1 · blue #0369a1 5.9:1 · amber #b45309 5.2:1 · red #dc2626 4.5:1
-     (배경 용도 10곳은 전부 점·바·칩 — 어두워져도 무해 · --heat 계열은 텍스트 미사용이라 유지) */
+  /* ★ v0.32.0 — 라이트 = 기본 테마 · 프리미엄 팔레트 (흰 카드·옅은 그림자·차콜 주버튼)
+     사용자 판정 2026-08-16: 라이트 기본 + 다크 부가 · 심플·고급 방향 (2차 시안 확정) */
+  --bg:#f6f7f9;--bg2:#ffffff;--panel:#ffffff;--panel2:#f9fafb;
+  --line:#e7eaf0;--line2:#d5dae2;--ink:#101828;
+  /* ★ v0.22.2 — --sub / --dim 대비 확보 (4.5:1+ 유지 — v0.32.0 미세 조정) */
+  --sub:#475467; --dim:#6b7280;
+  --cyan:#0f766e; --cyan-dim:#0d9488;
+  /* ★ v0.26.6 — 상태 포인트색 라이트 대비 보정 (흰 배경 4.5:1+ · 다크 :root 불변) */
   --green:#15803d; --blue:#0369a1; --amber:#b45309; --red:#dc2626;
+  /* ★ v0.32.0 — 그림자·주버튼 (라이트: 옅은 그림자 · 차콜 주버튼) */
+  --sh:0 1px 2px rgba(16,24,40,.05);--sh2:0 4px 12px rgba(16,24,40,.06);
+  --prim:#1a212e;--prim-ink:#ffffff;
 }
 /* ★ v0.21.5 — 라이트 국소 보정 (다크 하드코딩 색이 밝은 배경에서 깨지는 최소 지점만)
    원칙: 로직 무변화 · 배경/텍스트 반전 필요한 스팟만 · 변수 안 쓰는 인라인은 그대로 둠(불가피). */
@@ -928,6 +931,33 @@ tr.mst-off td{opacity:.45}
 @keyframes sb-blink{0%,100%{opacity:.35}50%{opacity:.9}}
 .sb-src{position:absolute;bottom:12px;right:16px;font-size:9.5px;color:#5c6879;opacity:.6}
 @media print{.standby{display:none !important}}
+
+/* ============================================================
+   ★ v0.32.0 — 디자인 리뉴얼 레이어 (2차 시안 확정 · 2026-08-16)
+   원칙: 로직 무접촉 — 스타일 캐스케이드 말단에서 컴포넌트 겉만 재정의.
+   방향: 심플·고급 — 흰 표면+옅은 그림자(라이트) · 차콜 주버튼 · 조용한 강조 ·
+   상태색은 역할로만. 색·그림자는 전부 CSS 변수(--sh/--prim) 경유 = 두 테마 자동.
+   ============================================================ */
+/* 카드·KPI — 그라데이션 제거(단색 면) + 옅은 그림자 */
+.card{background:var(--panel);box-shadow:var(--sh);border-radius:14px}
+.kpi-mini{background:var(--panel);box-shadow:var(--sh)}
+.card h3{font-size:13.5px;letter-spacing:-.1px}
+/* 페이지 제목 — 반 단계 크게·타이트하게 */
+.pgtitle{font-size:19px;letter-spacing:-.35px}
+/* 버튼 — 기본은 중립(호버 시 청록 물들지 않게), 주버튼은 차콜 */
+.btn:hover{border-color:var(--line2);color:var(--ink);background:var(--panel2)}
+.btn.primary{background:var(--prim);border-color:var(--prim);color:var(--prim-ink)}
+.btn.primary:hover{background:var(--prim);border-color:var(--prim);color:var(--prim-ink);opacity:.9}
+/* 표 — 머리글 소문자 간격 축소·행 호버는 잉크 3% (두 테마 공통 · 청록 틴트 제거) */
+th{letter-spacing:.5px}
+tr:hover td{background:color-mix(in srgb,var(--ink) 4%, transparent)}
+/* pill — 도장 느낌 줄이기: 소폭 크게·굵기 한 단계 다운 */
+.pill{font-size:11px;font-weight:600;letter-spacing:.2px;padding:3px 10px}
+/* 라이트 전용 마감 — 배경 평면화(그리드·라디얼 제거) = 시안의 정돈된 흰 바탕 */
+html[data-theme="light"] body{background:var(--bg)}
+html[data-theme="light"] body::before{display:none}
+html[data-theme="light"] .scroll-nav button{box-shadow:var(--sh2)}
+html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 </style>
 </head>
 <body>
@@ -1065,13 +1095,13 @@ tr.mst-off td{opacity:.45}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.31.5';
+const APP_VERSION = 'v0.32.0';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-08-05';
+const APP_DATE    = '2026-08-16';
 
-/* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · 기본 dark
+/* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
    applyTheme(theme) 1벌 — 속성·로컬 키·meta theme-color·헤더 아이콘 갱신. */
 const _THEME_KEY = 'vela_theme';
@@ -1084,7 +1114,7 @@ function applyTheme(theme){
   document.documentElement.setAttribute('data-theme', t);
   try { localStorage.setItem(_THEME_KEY, t); } catch {}
   const m = document.getElementById('meta-theme-color');
-  if(m) m.setAttribute('content', t === 'light' ? '#f5f7fa' : '#08090b');
+  if(m) m.setAttribute('content', t === 'light' ? '#f6f7f9' : '#08090b');
   const ic = document.getElementById('theme-icon');
   if(ic) ic.textContent = (t === 'light') ? '☀' : '🌙';
   // 설정 화면 라디오가 열려 있으면 반영
