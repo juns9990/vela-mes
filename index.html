@@ -1169,7 +1169,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.32.4';
+const APP_VERSION = 'v0.32.5';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2951,6 +2951,212 @@ function seedDemoData(){
   // 데모 vendors 에 customer_ref 병합 (기존 v0.26.0 흐름 유지: orders/shipments/closings 참조 채움)
   try { runCustomersMigration(true); } catch(e){ /* legacy · no-op OK */ }
   try { runVendorsUnificationMigration(true); } catch(e){ /* idempotent */ }
+
+  // ═══════════════ 18. ★ v0.32.5 — 데모 대량 데이터 (사용자 요청 2026-08-16: 전 메뉴 스크롤 확인용) ═══════════════
+  //   원칙: 고정 id 멱등 · 원장은 검증 경로(LOT.create/registerRecord)만 · 파생값 저장 금지 · 데모 키 안에서만.
+  //   목표: 메뉴별 목록 12행 이상 → 50vh 스크롤 발동. 수치는 전부 결정적(난수 없음 — 재시드 동일).
+  (function _seedDemoBulk(){
+    const R4 = ['SCM440','SCM435','S45C','SCM420'];
+    const DIA = { 'SCM440':55, 'SCM435':38, 'S45C':48, 'SCM420':65 };
+    // 18-1. 거래처 +9 (고객 5 · 소재 2 · 외주 2)
+    [
+      ['C004','세아오토모티브','cust','A'], ['C005','일진정밀','cust','B'], ['C006','태성기공','cust','B'],
+      ['C007','광진테크','cust','A'], ['C008','서한산업','cust','B'],
+      ['S003','포스코특수강','sup','A'], ['S004','세아베스틸','sup','A'],
+      ['V003','대한도금','out','B'], ['V004','신일열처리','out','A'],
+    ].forEach(([code,name,type,grade]) => DB.set('vendors', code, { code, name, type, grade, active:true, processes: type==='out'?['HEAT']:[] }));
+    // 18-2. 작업자 +12
+    ['강민준','서지우','한도윤','임서준','오하준','신은우','권지호','황시우','안유준','송건우','양현우','조우진'].forEach((nm,i) => {
+      const id = `OP-${String(50+i).padStart(3,'0')}`;
+      DB.set('workers', id, { id, emp_no:id, name:nm, dept:['단조반','절단반','후처리반','검사반'][i%4], active: i<10 });
+    });
+    // 18-3. 설비 +4 (신·구 컬렉션 동시)
+    [
+      ['EQ-CUT-2','절단기 2호','CUT',80], ['EQ-FORGE-3','프레스 3호','FORGE',60],
+      ['EQ-SHOT-2','쇼트기 2호','SHOT',120], ['EQ-COIN-2','코이닝 2호','COIN',90],
+    ].forEach(([id,name,proc,capa]) => {
+      DB.set('equipment', id, { id, name, proc, hourly_capa:capa, working_hours:8, qr:id, status:'idle' });
+      DB.set('equipments', id, { id, name, procCode:proc, work_hours:8, active:true });
+    });
+    // 18-4. 품번 +20 (HF-3401~3420 · 고객·재질·라우트 분산)
+    const NAMES = ['플랜지 요크','스플라인 샤프트','허브','슬리브','피니언 기어','컴패니언 플랜지','아이들 기어','캠 블랭크','볼 스터드','튤립 하우징','스파이더','인풋 샤프트','아웃풋 샤프트','링기어 블랭크','새들','요크 샤프트','더블 기어','베벨 기어','칼라','스템'];
+    const ROUTES = [
+      [['CUT','in'],['FORGE','in'],['HEAT','out'],['SHOT','in'],['SHIP','in']],
+      [['CUT','in'],['FORGE','in'],['HEAT','out'],['SHIP','in']],
+      [['CUT','in'],['FORGE','in'],['HEAT','out'],['SHOT','in'],['COIN','in'],['SHIP','in']],
+      [['CUT','in'],['FORGE','in'],['SHIP','in']],
+    ];
+    const CUSTS = ['C001','C002','C003','C004','C005','C006','C007','C008'];
+    const bulkItems = [];
+    for(let i=0;i<20;i++){
+      const code = `HF-34${String(i+1).padStart(2,'0')}`;
+      const mat = R4[i%4], dia = DIA[mat];
+      const weight = +(0.2 + ((i*7)%60)/100).toFixed(2);
+      const price = Math.round((weight*7000+500)/50)*50;
+      const cust = CUSTS[i%8];
+      const route = ROUTES[i%4];
+      const mold_no = (i%2===0) ? `034-0${String(i+1).padStart(2,'0')}` : '';
+      const hasHeat = route.some(([p]) => p==='HEAT');
+      DB.set('items', code, { code, name:NAMES[i], mat, dia, weight, price, cust, box:50, safety:100, pack_qty:200, active:true, mold_no,
+        ht_spec: hasHeat?'Q.T':'', hardness: hasHeat?'HB 269~331':'',
+        proc_times:{ CUT:{ct:8}, FORGE:{ct: weight>0.6?18:12}, SHOT:{ct:6}, COIN:{ct:10} } });
+      DB.set('bom', code, { code, name:NAMES[i], rev:'A', material:{ type:mat, dia, weight },
+        route: route.map(([proc,mode]) => ({ seq:SEQ[proc], proc, mode })) });
+      bulkItems.push({ code, cust, price, weight, mat, dia, mold_no, hasHeat });
+    }
+    // 18-5. 금형 +12 (ONE 단독 6 · BL+FI 2쌍 · 지그 2)
+    for(let i=0;i<6;i++){
+      const it = bulkItems[i*2];
+      DB.set('molds', `M-34${String(i*2+1).padStart(2,'0')}`, { id:`M-34${String(i*2+1).padStart(2,'0')}`, name:`${NAMES[i*2]} 금형`, type:'mold', mold_no:it.mold_no, variant:'ONE', qty:1+(i%2), itemCodes:[it.code], life_limit:50000, offset:4000+i*3000, cum_strokes:0, shots_source:'derived', status:'정상', qr:`M-34${String(i*2+1).padStart(2,'0')}`, active:true });
+    }
+    [['M-3413-BL','BL'],['M-3413-FI','FI'],['M-3415-BL','BL'],['M-3415-FI','FI']].forEach(([id,v],k) => {
+      const it = bulkItems[12+(k>>1)*2];
+      DB.set('molds', id, { id, name:`${it.code} ${v} 금형`, type:'mold', mold_no:it.mold_no||`034-0${13+(k>>1)*2}`, variant:v, qty:1, itemCodes:[it.code], life_limit: v==='BL'?50000:30000, offset:8000+k*2500, cum_strokes:0, shots_source:'derived', status:'정상', qr:id, active:true });
+    });
+    [['JG-3401','절단 지그 1호'],['JG-3402','검사 지그 1호']].forEach(([id,name],k) => {
+      DB.set('molds', id, { id, name, type:'jig', mold_no:'', variant:'', qty:1, itemCodes:[bulkItems[k].code], life_limit:100000, offset:1500*(k+1), cum_strokes:0, shots_source:'derived', status:'정상', qr:id, active:true });
+    });
+    // 18-6. 도면 +12 (HF-3401~3412 · 일부 2리비전)
+    for(let i=0;i<12;i++){
+      const it = bulkItems[i];
+      const revs = [{ rev:'0', date:fmt(daysBack(90-i*5)), reason:'신규 제정', by:'데모', ts:daysBack(90-i*5) }];
+      if(i%3===0) revs.push({ rev:'1', date:fmt(daysBack(30-i)), reason:'고객 ECN — 치수 공차 변경', by:'데모', ts:daysBack(30-i) });
+      DB.set('drawings', `D-34${String(i+1).padStart(2,'0')}`, { id:`D-34${String(i+1).padStart(2,'0')}`, itemCode:it.code, current_rev:String(revs.length-1), memo:'', revs, active:true, created:revs[0].ts, by:'데모' });
+    }
+    // 18-7. 소재 heat +12
+    const bulkHeats = [];
+    for(let i=0;i<12;i++){
+      const mat = R4[i%4], dia = DIA[mat];
+      const heat = `H2607-3${String(i+1).padStart(2,'0')}`;
+      const kg = 400 + (i%6)*120;
+      const ts = daysBack(70 - i*5);
+      DB.set('material_receipts', `MR-DEMO-${heat}`, { id:`MR-DEMO-${heat}`, heat, mat, dia, kg, vendor:['S001','S002','S003','S004'][i%4], date:fmt(ts), ts, by:'데모' });
+      DB.set('material_lots', heat, { heat, mat, dia, qty_in_kg:kg, remain_kg:kg, ts });
+      bulkHeats.push({ heat, mat, dia });
+    }
+    // 18-8. 생산 LOT +14 (진행 단계 분산 · 검증 경로 경유) + 작업지시 동반
+    const STAGES = ['SHIP','FORGE','HEAT','SHOT',null,'FORGE','SHIP','HEAT','SHOT','FORGE',null,'SHIP','FORGE','HEAT'];
+    const bulkLots = [];
+    for(let i=0;i<14;i++){
+      const it = bulkItems[i];
+      const heat = bulkHeats.find(h => h.mat===it.mat) || bulkHeats[0];
+      const plot = `PL-2026-D1${String(i+1).padStart(2,'0')}`;
+      const qty = 150 + (i%8)*50;
+      try {
+        if(!DB.get('production_lots', plot)){
+          LOT.create({ plot_no:plot, itemCode:it.code, materialLots:[heat.heat], qty_initial:qty });
+          const ml = DB.get('material_lots', heat.heat);
+          if(ml) DB.set('material_lots', heat.heat, { remain_kg: Math.max(0, (ml.remain_kg||0) - qty*it.weight) });
+          const upTo = STAGES[i];
+          if(upTo){ advanceLot(plot, upTo, qty, 55 - i*3); }
+          else {
+            advanceLot(plot, 'FORGE', qty, 55 - i*3);
+            try {
+              const rec = LOT.registerRecord({ plot_no:plot, proc:'FORGE', equipment:'프레스 3호', good:Math.floor(qty*0.5), type:'in', shift: i%2? 'night':'day', worker:{emp_no:'OP-050', name:'강민준'} });
+              DB.set('records', rec.id, { ts: daysBack(50 - i*3) });
+            } catch(e){}
+          }
+        }
+        DB.set('work_orders', `WO-2026-D1${String(i+1).padStart(2,'0')}`, { id:`WO-2026-D1${String(i+1).padStart(2,'0')}`, itemCode:it.code, plot_no:plot, qty, so_id:null, plan_eq:{ FORGE: i%2? '프레스 2호':'프레스 1호' }, created: daysBack(56 - i*3), by:'데모' });
+        bulkLots.push({ plot, code:it.code });
+      } catch(e){ console.warn('[demo bulk] LOT', plot, e.message); }
+    }
+    // 기존 데모 LOT 6건에도 작업지시 동반 (작업지시 화면 스크롤)
+    ['PL-2026-D001','PL-2026-D002','PL-2026-D003','PL-2026-D004','PL-2026-D005','PL-2026-D006'].forEach((plot,k) => {
+      const lot = DB.get('production_lots', plot);
+      if(lot) DB.set('work_orders', `WO-2026-D0${k+1}`, { id:`WO-2026-D0${k+1}`, itemCode:lot.itemCode, plot_no:plot, qty:lot.qty_initial||0, so_id:null, plan_eq:{ FORGE:'프레스 1호' }, created: daysBack(70-k*8), by:'데모' });
+    });
+    // 18-9. 외주 반출 +4 (HEAT 대기 LOT 대상 · 표시용)
+    [['OD-DEMO-101','PL-2026-D103','V001',120,6],['OD-DEMO-102','PL-2026-D108','V003',100,4],['OD-DEMO-103','PL-2026-D114','V004',150,2],['OD-DEMO-104','PL-2026-D103','V004',60,1]].forEach(([id,plot,vendor,qty,dAgo]) => {
+      if(DB.get('production_lots', plot)) DB.set('os_dispatches', id, { id, plot_no:plot, proc:'HEAT', vendor, qty, ts:daysBack(dAgo), by:'데모' });
+    });
+    // 18-10. 수주 +24 (납기·상태 스펙트럼) + 출하 분산
+    const DUE_SPREAD = [-15,-6,-2,0,3,5,8,12,18,25,32,40];
+    let shSeq = 100;
+    for(let i=0;i<24;i++){
+      const it = bulkItems[i%20];
+      const soId = `SO-2026-D1${String(i+1).padStart(2,'0')}`;
+      const qty = 200 + (i%10)*100;
+      const dueAhead = DUE_SPREAD[i%12];
+      DB.set('orders', soId, { id:soId, cust:it.cust, itemCode:it.code, qty, price:it.price, due:fmt(now + dueAhead*DAY), created: daysBack(30 - Math.min(dueAhead,25)) });
+      const lot = bulkLots.find(b => b.code === it.code);
+      if(i%4===0){        // 완납 — 2회 분할 출하
+        const q1 = Math.floor(qty*0.6), q2 = qty - q1;
+        [[q1, 40 + (i%5)*8],[q2, 12 + (i%5)*4]].forEach(([q,dAgo]) => {
+          shSeq++;
+          DB.set('shipments', `SH-DEMO-${shSeq}`, { id:`SH-DEMO-${shSeq}`, so_id:soId, itemCode:it.code, plot_no: lot?lot.plot:'', qty:q, pallets:Math.ceil(q/200), pack_qty_actual:200, ts:daysBack(dAgo), by:'데모' });
+        });
+      } else if(i%4===1){ // 부분 출하 40%
+        shSeq++;
+        const q = Math.floor(qty*0.4);
+        DB.set('shipments', `SH-DEMO-${shSeq}`, { id:`SH-DEMO-${shSeq}`, so_id:soId, itemCode:it.code, plot_no: lot?lot.plot:'', qty:q, pallets:Math.ceil(q/200), pack_qty_actual:200, ts:daysBack(6 + (i%7)*3), by:'데모' });
+      }
+    }
+    // 18-11. 견적 +10
+    for(let i=0;i<10;i++){
+      const it = bulkItems[(i*2)%20];
+      DB.set('quotes', `Q-2026-D1${String(i+1).padStart(2,'0')}`, { id:`Q-2026-D1${String(i+1).padStart(2,'0')}`, cust:it.cust, itemCode:it.code, qty:500+(i%5)*300, price:it.price+100, due:fmt(now + (20+i*7)*DAY),
+        material_cost:Math.round(it.price*0.4), process_cost:Math.round(it.price*0.25), outsource_cost: it.hasHeat?800:0, overhead:Math.round(it.price*0.08), margin_pct:12+(i%4)*2, unit_price:it.price+100, total:(500+(i%5)*300)*(it.price+100), status:'active', ts:daysBack(25-i*2), by:'데모' });
+    }
+    // 18-12. 생산계획 +10 (이번 주 보드 추가 행 — 기존 D001~D010 뒤)
+    for(let i=0;i<10;i++){
+      const it = bulkItems[(i*3)%20];
+      DB.set('production_plans', `PP-2026-D1${String(i+1).padStart(2,'0')}`, { id:`PP-2026-D1${String(i+1).padStart(2,'0')}`, plan_type:'board', so_id: i%3===0? `SO-2026-D1${String(i+1).padStart(2,'0')}`:null, itemCode:it.code, qty:200+(i%6)*80, date:wkDate(i%7), equipment:['프레스 1호','프레스 2호','프레스 3호','절단기 1호','쇼트기','코이닝프레스',null][i%7], note:'', wo_id:null, ts:now, by:'데모' });
+    }
+    // 18-13. 구매 발주 +10 (완료·대기·지연 순환)
+    for(let i=0;i<10;i++){
+      const mat = R4[i%4], dia = DIA[mat];
+      const poId = `PO-2026-D1${String(i+1).padStart(2,'0')}`;
+      const kg = 500 + (i%5)*200;
+      const state = i%3;   // 0=완료 1=대기 2=지연
+      const due = state===1 ? fmt(now + (5+i)*DAY) : fmt(daysBack(state===2 ? 4+i : 20+i));
+      const isGen = (i===9);   // 마지막 1건은 일반 구매품
+      const items = isGen
+        ? [{ name:'초경 인서트 CNMG', spec:'12개입', unit:'box', qty:10, price:85000 }]
+        : [{ name:`환봉 ${mat}`, spec:`Ø${dia}×3000`, unit:'kg', qty:kg, price:3000+(i%4)*250 }];
+      DB.set('purchase_orders', poId, { id:poId, vendor:['S001','S002','S003','S004'][i%4], due, items, ts:daysBack(30+i*2), by:'데모' });
+      if(state===0 && !isGen){
+        const heat = `H2607-4${String(i+1).padStart(2,'0')}`;
+        DB.set('material_receipts', `MR-DEMO-${poId}`, { id:`MR-DEMO-${poId}`, heat, mat, dia, kg, vendor:['S001','S002','S003','S004'][i%4], po_id:poId, po_item_key:_poItemKey(`환봉 ${mat}`,`Ø${dia}×3000`), date:fmt(daysBack(14+i)), ts:daysBack(14+i), by:'데모' });
+        DB.set('material_lots', heat, { heat, mat, dia, qty_in_kg:kg, remain_kg:kg, ts:daysBack(14+i) });
+      }
+    }
+    // 18-14. 부적합 +8 (유형·상태 순환 · record_id null — 원장 무변)
+    const NC_ST = [['접수',null],['재작업',{kind:'rework'}],['특채',{kind:'deviation',approver:'품질팀장'}],['폐기',{kind:'scrap',reason:'재처리 불가'}],['완료',{kind:'rework'}],['반품',{kind:'return'}]];
+    for(let i=0;i<8;i++){
+      const it = bulkItems[(i*2+1)%20];
+      const lot = bulkLots[i%bulkLots.length];
+      const [status, h] = NC_ST[i%6];
+      const dAgo = 3 + i*4;
+      DB.set('nc_records', `NC-2026-DB${String(i+1).padStart(2,'0')}`, { id:`NC-2026-DB${String(i+1).padStart(2,'0')}`, date:fmt(daysBack(dAgo)), item_code:it.code, lot_id: lot?lot.plot:'', record_id:null,
+        process:['CUT','FORGE','HEAT','SHOT'][i%4], equipment:['절단기 1호','프레스 1호','한국열처리(외주)','쇼트기'][i%4], worker:{name:['홍길동','강민준','서지우'][i%3]},
+        defect_type:`DT-00${(i%4)+1}`, qty:4+i*3, memo:'데모 대량 시드 — 시연용', status, handle: h? { ...h, date:fmt(daysBack(dAgo)), by_name:'데모', ts:daysBack(dAgo)+3600000, by:'데모', memo:h.memo||'' } : null, rework_record_id:null, ts:daysBack(dAgo), by:'데모', void:null });
+    }
+    // 18-15. 회계 대량 (수금 +8 · 지급 +6 · 경비 +10 · 계산서 +3)
+    for(let i=0;i<8;i++){
+      DB.set('acct_receipts', `AR-DEMO-1${String(i+1).padStart(2,'0')}`, { id:`AR-DEMO-1${String(i+1).padStart(2,'0')}`, vendor:CUSTS[i%8], amount:(4+(i%6))*250000, method:['계좌이체','현금','어음'][i%3], bill_due: i%3===2? fmt(now+(20+i*5)*DAY):'', date:fmt(daysBack(5+i*9)), memo:'', ts:daysBack(5+i*9), by:'데모' });
+    }
+    for(let i=0;i<6;i++){
+      DB.set('acct_payments', `AP-DEMO-1${String(i+1).padStart(2,'0')}`, { id:`AP-DEMO-1${String(i+1).padStart(2,'0')}`, vendor:['S001','S002','S003','V001','V003','V004'][i], amount:(3+i)*180000, method:'계좌이체', bill_due:'', date:fmt(daysBack(8+i*11)), memo:['소재대','소재대','소재대','열처리비','도금비','열처리비'][i], ts:daysBack(8+i*11), by:'데모' });
+    }
+    const EXP = [['급여','생산직 급여',12000000,true],['지급임차료','공장 임차료',2000000,true],['수도광열비','전기 요금',1450000,true],['차량유지비','지게차 유류',280000,false],['소모품비','절삭유·연마재',420000,false],['통신비','인터넷·전화',110000,true],['보험료','화재보험',350000,false],['운반비','납품 운송비',520000,false],['지급수수료','세무 기장료',150000,true],['잡비(기타)','기타 잡비',90000,false]];
+    for(let i=0;i<10;i++){
+      const m = _tsMonth(daysBack(i%3*30 + 2));
+      const [cat,name,amt,rep] = EXP[i];
+      DB.set('acct_expenses', `EX-DEMO-1${String(i+1).padStart(2,'0')}`, { id:`EX-DEMO-1${String(i+1).padStart(2,'0')}`, category:cat, name, amount:amt, date:`${m}-${String(3+i*2).padStart(2,'0')}`, cl_month:m, repeat_monthly:rep, memo:'', ts:daysBack(i%3*30+2), by:'데모' });
+    }
+    // 계산서 — 발행 금액은 반드시 마감 산식(calcClosing)과 일치 (금액 상이 0 원칙 · 대량 출하 반영 후 재계산)
+    for(let i=0;i<3;i++){
+      const m = _tsMonth(daysBack((i+1)*30));
+      const amt = Math.round(calcClosing('sales', m).byParty[CUSTS[i]]?.amount || 0);
+      if(amt > 0) DB.set('acct_invoices', `TI-DEMO-1${String(i+1).padStart(2,'0')}`, { id:`TI-DEMO-1${String(i+1).padStart(2,'0')}`, vendor:CUSTS[i], month:m, amount:amt, issue_date:`${m}-28`, memo:'전자발행', ts:daysBack((i+1)*30-2), by:'데모' });
+    }
+    // 기존 TI-DEMO-001 도 대량 출하 반영값으로 재계산 (발행액 = 마감 대상액 불변식 유지)
+    { const lm = _tsMonth(daysBack(32));
+      const amt001 = Math.round(calcClosing('sales', lm).byParty['C001']?.amount || 0);
+      if(DB.get('acct_invoices','TI-DEMO-001')) DB.set('acct_invoices','TI-DEMO-001', { amount: amt001 }); }
+    console.log('[VELA] seedDemoBulk complete — 전 메뉴 스크롤 확인용 대량 데이터');
+  })();
 
   console.log('[VELA] seedDemoData complete');
 }
