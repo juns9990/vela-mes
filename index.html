@@ -978,6 +978,60 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 /* 활성 메뉴 — 솔리드 시안 → 은은한 브랜드 틴트 (두 테마 공통 · 아이콘도 동색) */
 .tabnav button.on{background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan);font-weight:700}
 .tabnav button.on svg{stroke:currentColor}
+
+/* ★ v0.32.2 — 홈 '오늘 챙길 일' (대시보드 최상단 카드 — 클릭 시 해당 메뉴 이동) */
+.todo-row{display:flex;align-items:center;gap:12px;padding:10px 6px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:8px;transition:background .1s}
+.todo-row:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.todo-row:last-of-type{border-bottom:none}
+.todo-row .pill{flex:none;min-width:86px;text-align:center}
+.todo-row .todo-main{flex:1;min-width:0;font-size:12.5px}
+.todo-row .todo-main b{font-weight:650}
+.todo-row .todo-sub{font-size:11px;color:var(--sub);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.todo-empty{padding:12px 6px;color:var(--dim);font-size:12.5px}
+
+/* ★ v0.32.3 — LOT 공정 스텝 패널 (LOT 추적 — 행 클릭 → 스텝 → 공정 클릭 → 실적 상세) */
+.lot-no-link{cursor:pointer}
+.lot-no-link:hover{color:var(--cyan)}
+.lot-chev{font-size:9px;color:var(--dim)}
+.lsteps-wrap{padding:16px 18px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.lsteps-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.lsteps-badge{display:inline-flex;align-items:center;gap:8px;background:color-mix(in srgb,var(--cyan) 12%,transparent);border-radius:8px;padding:4px 11px}
+.lsteps-badge span{font-size:9.5px;font-weight:800;color:var(--cyan);letter-spacing:.6px}
+.lsteps-badge b{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink)}
+.lsteps{display:flex;align-items:flex-start;overflow-x:auto;padding-bottom:4px}
+.lstp{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:62px;position:relative;cursor:pointer;padding:2px 4px;border-radius:8px}
+.lstp .lsdot{width:22px;height:22px;border-radius:50%;background:var(--bg2);border:1.6px solid var(--line2);display:flex;align-items:center;justify-content:center;z-index:1}
+.lstp .lsdot svg{width:11px;height:11px;color:#fff}
+.lstp span{font-size:10.3px;color:var(--dim);font-weight:600;white-space:nowrap}
+.lstp.done .lsdot{background:var(--cyan);border-color:var(--cyan)}
+.lstp.done .lsdot svg{color:#04211d}
+.lstp.done span{color:var(--sub)}
+.lstp.cur .lsdot{background:var(--panel);border-color:var(--cyan);box-shadow:0 0 0 3px color-mix(in srgb,var(--cyan) 15%,transparent)}
+.lstp.cur .lsdot i{width:8px;height:8px;border-radius:50%;background:var(--cyan)}
+.lstp.cur span{color:var(--cyan)}
+.lstp.hasdef .lsdot{box-shadow:0 0 0 2px color-mix(in srgb,var(--red) 45%,transparent)}
+.lstp.sel span{font-weight:800;text-decoration:underline;text-underline-offset:3px}
+.lstp:hover span{color:var(--ink)}
+.lstp:not(:first-child)::before{content:'';position:absolute;top:12px;right:50%;width:100%;height:1.6px;background:var(--line2)}
+.lstp.done:not(:first-child)::before,.lstp.cur:not(:first-child)::before{background:var(--cyan)}
+.lsdetail{display:none;margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.lsdetail.on{display:block}
+.lsd-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px;font-weight:700}
+.lsd-tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.lsd-tbl th{font-size:10px;color:var(--dim);font-weight:700;text-align:left;padding:6px 14px;border-bottom:1px solid var(--line);letter-spacing:.4px;background:transparent}
+.lsd-tbl td{padding:7px 14px;border-bottom:1px solid var(--line)}
+.lsd-tbl tr:last-child td{border-bottom:none}
+.lsd-tbl .num{text-align:right;font-family:'JetBrains Mono',monospace}
+.lsd-tbl th.num{font-family:inherit}
+.lsd-empty{padding:14px;font-size:11.5px;color:var(--dim)}
+@media print{.lot-steps-row{display:none}}
+
+/* ★ v0.32.4 — 규칙·가드 안내 접기 (기본 1줄 · 클릭 펼침 · 인쇄 전체 펼침) */
+.rule-note{max-height:40px;overflow:hidden;cursor:pointer;position:relative;padding-right:70px !important;transition:max-height .18s ease}
+.rule-note::after{content:'펼치기 ▾';position:absolute;top:9px;right:12px;font-size:10px;color:var(--cyan);font-weight:700;background:inherit;padding-left:6px}
+.rule-note.open{max-height:400px}
+.rule-note.open::after{content:'접기 ▴'}
+@media print{.rule-note{max-height:none !important}.rule-note::after{display:none}}
 </style>
 </head>
 <body>
@@ -1115,7 +1169,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.32.1';
+const APP_VERSION = 'v0.32.4';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -4361,6 +4415,8 @@ function openModal(html, opts={}){
   bg.classList.add('show');
   // ★ v0.30.4 — 모달 내 날짜 입력 전부 클릭 달력 연결 (납기·반출일·수주일 등)
   try { if(typeof _calEnhance === 'function') _calEnhance(md); } catch(e){}
+  // ★ v0.32.4 — 모달 내 규칙·가드 안내 접기
+  try { if(typeof _ruleNoteEnhance === 'function') _ruleNoteEnhance(); } catch(e){}
   // ★ v0.16.8 — 바깥 클릭 닫힘 기본 차단 (입력 소실 방지). 명시적으로 closeOnBg:true 준 곳만 유지.
   bg.onclick = e => { if(e.target===bg && opts.closeOnBg===true) closeModal(); };
 }
@@ -5256,6 +5312,22 @@ function router(){
   try { _secScrollEnhance(); } catch(e){ /* 레이아웃 미지원 환경(테스트) 무해 */ }
   // ★ v0.30.4 — 화면 내 날짜 입력 전부 클릭 달력 연결
   try { _calEnhance(document.getElementById('view')); } catch(e){}
+  // ★ v0.32.4 — 규칙·가드 상주 안내문 접기 (디자인 리뉴얼 — 텍스트 보존 · 기본 1줄 · 클릭 펼침)
+  try { _ruleNoteEnhance(); } catch(e){}
+}
+/* ★ v0.32.4 — 규칙·가드 안내 접기 1벌 (사용자 판정: 상주 안내문 정리 — 시안 확정 방향)
+   마크업 무수정: 렌더 후 '규칙'/'가드' 표머리 박스를 찾아 접힘 클래스만 부여 → 전 화면 자동 적용.
+   내용 전문은 DOM 에 그대로 보존 (클릭 펼침 · 인쇄 시 전체 펼침 · 검증 계약 불변). */
+function _ruleNoteEnhance(){
+  document.querySelectorAll('#view div, .modal div, #modal div').forEach(d => {
+    if(d._ruleNote) return;
+    const h = (d.innerHTML || '').trimStart();
+    if(!(h.startsWith('<b style="color:var(--amber)">규칙</b>') || h.startsWith('<b style="color:var(--amber)">가드</b>'))) return;
+    d._ruleNote = true;
+    d.classList.add('rule-note');
+    d.title = '클릭하면 전체 안내를 펼치거나 접습니다';
+    d.addEventListener('click', () => d.classList.toggle('open'));
+  });
 }
 /* ★ v0.30.0 — 카드(단락) 안의 어떤 목록이든 — 표(.tbl-wrap)가 아니어도 — 자체 스크롤로 전환.
    ★ v0.30.1 — 기준 = 단락 상한(50vh) 그 자체 (사용자 판정: 한 칸이라도 넘으면 스크롤 — 2/3 실측 기준 폐지).
@@ -6119,8 +6191,65 @@ VIEWS.dash = () => {
   const progLabels = { day:'일간 · 오늘', week:'주간 · 이번주', month:`월간 · ${now.getMonth()+1}월`, year:`년간 · ${now.getFullYear()}` };
 
   // === HTML 렌더 (★ v0.11.0 — 매출 최상단 A안) ===
+  // ★ v0.32.2 — 오늘 챙길 일 (홈 요약 · 2차 시안 확정 구조) — 원장 읽기 전용 · 표시 1벌
+  //   납기 임박(7일)·지연 수주(잔량>0) + 발주 입고 지연·입고 예정(3일). 클릭 → 해당 메뉴.
+  const _todoDAY = 86400000;
+  const todos = [];
+  if(flags.so !== false){
+    DB.all('orders').forEach(o => {
+      if(!o.due) return;
+      const shipped = DB.query('shipments', s => s.so_id === o.id).reduce((s,r) => s+(r.qty||0), 0);
+      const remain = Math.max(0, (o.qty||0) - shipped);
+      if(remain <= 0) return;
+      const due = new Date(String(o.due).slice(0,10) + 'T00:00:00').getTime();
+      if(isNaN(due)) return;
+      const days = Math.round((due - todayMs)/_todoDAY);
+      if(days > 7) return;
+      const cust = DB.get('vendors', o.cust)?.name || o.cust || '';
+      todos.push({
+        pri: days < 0 ? 0 : 1,
+        cls: days < 0 ? 'red' : 'amber',
+        tag: days < 0 ? `지연 ${-days}일` : (days === 0 ? '납기 오늘' : `납기 D-${days}`),
+        main: `${o.id} · ${cust}`,
+        sub: `${itemLabel(o.itemCode)} — 잔량 ${remain.toLocaleString()}ea · 납기 ${String(o.due).slice(0,10)}`,
+        hash: '#so',
+      });
+    });
+  }
+  if(flags.purchase !== false){
+    DB.all('purchase_orders').forEach(p => {
+      const st = calcPoStatus(p);
+      if(st.state === '입고완료') return;
+      const vName = DB.get('vendors', p.vendor)?.name || p.vendor || '';
+      const itemsTxt = (p.items||[]).map(i => i.name).filter(Boolean).slice(0,2).join(', ') + ((p.items||[]).length > 2 ? ' 외' : '');
+      if(st.state === '지연'){
+        todos.push({ pri:0, cls:'red', tag:'입고 지연', main:`${p.id} · ${vName}`, sub:`${itemsTxt} — 납기 ${p.due||'미지정'} 경과 · 미입고 잔량 있음`, hash:'#po' });
+      } else if(p.due){
+        const due = new Date(String(p.due).slice(0,10) + 'T00:00:00').getTime();
+        if(!isNaN(due)){
+          const days = Math.round((due - todayMs)/_todoDAY);
+          if(days >= 0 && days <= 3) todos.push({ pri:2, cls:'cyan', tag: days === 0 ? '입고 예정 오늘' : `입고 예정 D-${days}`, main:`${p.id} · ${vName}`, sub:`${itemsTxt} — 납기 ${String(p.due).slice(0,10)}`, hash:'#matin' });
+        }
+      }
+    });
+  }
+  todos.sort((a,b) => a.pri - b.pri);
+  const TODO_CAP = 8;
+  const todoRows = todos.slice(0, TODO_CAP).map(t => `
+    <div class="todo-row" onclick="location.hash='${t.hash}'">
+      <span class="pill ${t.cls}">${_esc(t.tag)}</span>
+      <div class="todo-main"><b>${_esc(t.main)}</b><div class="todo-sub">${_esc(t.sub)}</div></div>
+      <span class="goarrow" style="position:static">↗</span>
+    </div>`).join('') + (todos.length > TODO_CAP ? `<div class="todo-empty">외 ${todos.length - TODO_CAP}건 — 수주·구매 화면에서 확인</div>` : '');
+
   document.getElementById('view').innerHTML = `
     <div class="dash-hint">↗ 카드를 클릭하면 해당 메뉴로 이동합니다 — 상세 검색·조회는 그 화면에서</div>
+
+    <!-- ★ v0.32.2 — 0. 오늘 챙길 일 (최상단 — 로그인 직후 가장 먼저 보이는 카드) -->
+    <div class="card" id="dash-todo">
+      <h3>오늘 챙길 일 <span class="tag">${todos.length ? `${todos.length}건` : '없음'} · ${fmtDate(Date.now())}</span></h3>
+      ${todos.length ? todoRows : `<div class="todo-empty">오늘 챙길 일이 없습니다 — 납기·입고 모두 순조롭습니다.</div>`}
+    </div>
 
     <!-- ★ v0.11.0 — 1. 매출 현황 (최상단) -->
     <div class="secttl">매출 현황 · SALES</div>
@@ -7397,6 +7526,79 @@ VIEWS._woNew = (pre) => {
 VIEWS._printWO = (id)=>{ printForm.wo([id]); };  // ★ v0.12.0 — 새 양식 위임
 
 /* -------------------- LOT 추적 -------------------- */
+/* ★ v0.32.3 — LOT 공정 스텝 패널 (사용자 판정 2026-08-16 · 시안 확정)
+   LOT 행 클릭 → 공정 스텝 스트립(절단→단조→…) → 공정 클릭 → 실적 상세(일자·설비·작업자·양품/불량/재작업).
+   외주 공정은 반출(os_dispatches) 행으로 표시. 전부 원장 읽기 전용 — LOT.balance/totalGood 재사용(신규 계산 금지). */
+function lotStepPanelHTML(plot_no){
+  const l = DB.get('production_lots', plot_no);
+  if(!l) return '<div class="empty">LOT 없음</div>';
+  const route = getRoute(l.itemCode);
+  if(!route.length) return '<div class="empty">라우트 없음 — BOM 라우팅을 먼저 정의하세요</div>';
+  const recs = DB.query('records', r => r.plot_no === plot_no);
+  const custName = (()=>{ const it = DB.get('items', l.itemCode); return it?.cust ? (DB.get('vendors', it.cust)?.name || it.cust) : ''; })();
+  const fmtT = ts => `${fmtDate(ts)} ${new Date(ts).toTimeString().slice(0,5)}`;
+  const steps = route.map((r, idx) => {
+    const p = DB.get('processes', r.proc);
+    const good = LOT.totalGood(plot_no, r.proc);
+    const bal  = LOT.balance(plot_no, r.proc);
+    const isOut = r.mode === 'out';
+    const inFlight = isOut ? osInFlight(plot_no, r.proc) : 0;
+    const state = (good > 0 && bal <= 0 && inFlight <= 0) ? 'done' : (good > 0 || inFlight > 0) ? 'cur' : 'todo';
+    const pr = recs.filter(x => x.proc === r.proc);
+    const defect = pr.reduce((s,x)=>s+(+x.defect||0),0);
+    // 상세 행: 사내 = 실적(일자·설비·작업자·양품/불량/재작업) · 외주 = 반출 + 입고 실적
+    const osRows = isOut ? DB.query('os_dispatches', d => d.plot_no === plot_no && d.proc === r.proc) : [];
+    const detRows = pr.map(x => `<tr>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${fmtT(x.ts)}</td>
+        <td>${_esc(typeof x.equipment === 'string' ? x.equipment : (x.equipment?.name||''))}</td>
+        <td>${_esc(x.worker?.name || '')}${x.worker?.emp_no ? ` <span style="color:var(--dim);font-size:10px">${_esc(x.worker.emp_no)}</span>` : ''}</td>
+        <td class="num">${(+x.good||0).toLocaleString()}</td>
+        <td class="num" style="color:${(+x.defect||0)>0?'var(--red)':'var(--dim)'}">${(+x.defect||0).toLocaleString()}</td>
+        <td class="num" style="color:${(+x.rework||0)>0?'var(--amber)':'var(--dim)'}">${(+x.rework||0).toLocaleString()}</td>
+        <td class="muted" style="font-size:10.5px">${_esc(x.defect_reason||'')}</td>
+      </tr>`).join('');
+    const osRowsHtml = osRows.map(d => `<tr>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${fmtT(d.ts)}</td>
+        <td colspan="2"><span class="pill blue" style="font-size:10px">반출</span> ${_esc(DB.get('vendors', d.vendor)?.name || d.vendor || '')}</td>
+        <td class="num">${(+d.qty||0).toLocaleString()}</td>
+        <td colspan="3" class="muted" style="font-size:10.5px">${_esc(d.id||'')}${d.pallets?` · ${d.pallets}팔레트`:''}</td>
+      </tr>`).join('');
+    const totalRow = (pr.length || osRows.length) ? `<tr style="font-weight:700;background:var(--bg2)">
+        <td colspan="3">합계${isOut && inFlight>0 ? ` <span style="color:var(--blue);font-weight:600;font-size:10.5px">· 반출 중 ${inFlight.toLocaleString()} (입고 전)</span>` : ''}</td>
+        <td class="num">${good.toLocaleString()}</td>
+        <td class="num" style="color:${defect>0?'var(--red)':'var(--dim)'}">${defect.toLocaleString()}</td>
+        <td class="num">${pr.reduce((s,x)=>s+(+x.rework||0),0).toLocaleString()}</td>
+        <td class="muted" style="font-size:10.5px">잔량 ${bal.toLocaleString()}</td>
+      </tr>` : '';
+    const detail = (pr.length || osRows.length)
+      ? `<table class="lsd-tbl"><thead><tr><th>일시</th><th>설비${isOut?' · 외주처':''}</th><th>작업자</th><th class="num">양품</th><th class="num">불량</th><th class="num">재작업</th><th>비고</th></tr></thead><tbody>${osRowsHtml}${detRows}${totalRow}</tbody></table>`
+      : `<div class="lsd-empty">아직 실적이 없습니다${idx>0?` — 직전 공정 잔량 ${LOT.balance(plot_no, r.proc).toLocaleString()}ea 투입 가능`:''}</div>`;
+    return { r, p, state, good, defect, isOut, inFlight, detail };
+  });
+  const strip = steps.map((s,i) => `
+    <div class="lstp ${s.state}${s.defect>0?' hasdef':''}" data-lstp="${_esc(plot_no)}|${i}" title="${_esc(s.p?.name||s.r.proc)} — 클릭하면 실적 상세">
+      <div class="lsdot">${s.state==='done'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>':s.state==='cur'?'<i></i>':''}</div>
+      <span>${_esc(s.p?.name||s.r.proc)}${s.isOut?' (외주)':''}</span>
+    </div>`).join('');
+  const details = steps.map((s,i) => `
+    <div class="lsdetail" id="lsd-${_esc(plot_no)}-${i}">
+      <div class="lsd-head">${_esc(s.p?.name||s.r.proc)}${s.isOut?' (외주)':''} — 실적 상세
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--cyan);font-size:11px;font-weight:700">LOT ${_esc(plot_no)}</span>
+        <span style="color:var(--dim);font-weight:500;font-size:10.5px;margin-left:auto">양품 ${s.good.toLocaleString()}${s.defect>0?` · 불량 ${s.defect.toLocaleString()}`:''}</span>
+      </div>
+      ${s.detail}
+    </div>`).join('');
+  return `
+    <div class="lsteps-wrap">
+      <div class="lsteps-head">
+        <span class="lsteps-badge"><span>생산 LOT</span><b>${_esc(plot_no)}</b></span>
+        <span style="font-size:12px;color:var(--sub)"><b style="font-family:'JetBrains Mono',monospace">${_esc(itemLabel(l.itemCode))}</b> · ${(l.qty_initial||0).toLocaleString()}ea${custName?` · ${_esc(custName)}`:''}</span>
+        <span style="margin-left:auto;font-size:10.5px;color:var(--dim)">heat ${_esc((l.heat_nos||[]).join(', ')||'―')} · 공정을 클릭하면 상세가 열립니다</span>
+      </div>
+      <div class="lsteps">${strip}</div>
+      ${details}
+    </div>`;
+}
 /* ★ v0.13.3 — 통합 검색(품번·품명·고객사·LOT·heat) + 고객사 드롭다운 (재고 검색 패턴 복제) */
 let lotSearch = { q:'', cust:'' };
 VIEWS.lot = () => {
@@ -7508,8 +7710,8 @@ VIEWS.lot = () => {
           const actionBtns = isVoid
             ? `<button class="btn ghost" data-lot-unvoid="${_esc(l.plot_no)}" style="color:var(--cyan)">${ico('save')}복원</button>`
             : `<button class="btn ghost" onclick="VIEWS._lotHistory('${l.plot_no}')">${ico('eye')}</button> <button class="btn ghost" data-lot-void="${_esc(l.plot_no)}" style="color:var(--red)">${ico('x')}취소</button>`;
-          return `<tr style="${rowStyle}">
-            <td><b>${l.plot_no}</b>${voidBadge}${forkBadge}</td>
+          return `<tr style="${rowStyle}" data-lot-row="${_esc(l.plot_no)}">
+            <td><b class="lot-no-link" data-lot-steps="${_esc(l.plot_no)}" title="클릭 → 공정 스텝·실적 상세">${l.plot_no} <span class="lot-chev">▾</span></b>${voidBadge}${forkBadge}</td>
             <td>${l.itemCode}</td>
             <td><span class="pill ${l.type==='merged'?'heat':l.type==='split'?'blue':l.type==='forked'?'heat':'gray'}">${l.type}</span></td>
             <td class="muted">${(l.heat_nos||[]).join(',')||'―'}</td>
@@ -7521,6 +7723,33 @@ VIEWS.lot = () => {
       </table></div>
     </div>
   `;
+
+  // ★ v0.32.3 — LOT 번호 클릭 → 공정 스텝 패널 토글 (행 아래 colspan 삽입 · 표시 전용)
+  const _lotColspan = 4 + procs.length + 2;
+  document.querySelectorAll('[data-lot-steps]').forEach(el => el.onclick = (ev) => {
+    ev.stopPropagation();
+    const plot = el.dataset.lotSteps;
+    // CSS.escape 미사용 — 구형 브라우저·특수문자 LOT 번호 안전 (dataset 비교로 행 탐색)
+    const row = [...document.querySelectorAll('tr[data-lot-row]')].find(r => r.dataset.lotRow === plot);
+    if(!row) return;
+    const next = row.nextElementSibling;
+    if(next && next.classList.contains('lot-steps-row')){ next.remove(); return; }   // 토글 닫기
+    document.querySelectorAll('.lot-steps-row').forEach(x => x.remove());            // 한 번에 하나만
+    const tr = document.createElement('tr');
+    tr.className = 'lot-steps-row';
+    tr.innerHTML = `<td colspan="${_lotColspan}" style="padding:0;background:var(--bg2)">${lotStepPanelHTML(plot)}</td>`;
+    row.after(tr);
+    // 공정 스텝 클릭 → 해당 상세 토글 (한 공정만 · 인덱스 매칭)
+    tr.querySelectorAll('[data-lstp]').forEach(s => s.onclick = () => {
+      const i = +s.dataset.lstp.split('|').pop();
+      const panel = tr.querySelectorAll('.lsdetail')[i];
+      if(!panel) return;
+      const wasOpen = panel.classList.contains('on');
+      tr.querySelectorAll('.lsdetail').forEach(d => d.classList.remove('on'));
+      tr.querySelectorAll('.lstp').forEach(x => x.classList.remove('sel'));
+      if(!wasOpen){ panel.classList.add('on'); s.classList.add('sel'); }
+    });
+  });
 
   // 검색·필터 이벤트
   let lotQTimer;
