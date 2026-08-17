@@ -1169,7 +1169,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.32.5';
+const APP_VERSION = 'v0.32.6';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -3145,6 +3145,85 @@ function seedDemoData(){
       const [cat,name,amt,rep] = EXP[i];
       DB.set('acct_expenses', `EX-DEMO-1${String(i+1).padStart(2,'0')}`, { id:`EX-DEMO-1${String(i+1).padStart(2,'0')}`, category:cat, name, amount:amt, date:`${m}-${String(3+i*2).padStart(2,'0')}`, cl_month:m, repeat_monthly:rep, memo:'', ts:daysBack(i%3*30+2), by:'데모' });
     }
+    // ═══ 18-16. ★ v0.32.6 — 과거 6개월 완료 생산·매출 이력 12 LOT (시뮬레이션 결과 채움) ═══
+    //   전 공정 완주(advanceLot SHIP) → 실적현황·수율·원가·월별 매출 차트·마감·손익이 6개월치로 채워짐.
+    //   수주=출하 90%(완납) · LOT 잔여 10% = 완제품 재고 표시. 전부 고정 id·검증 경로.
+    for(let i=0;i<12;i++){
+      const it = bulkItems[(i*5)%20];
+      const heat = bulkHeats[i%12];
+      const plot = `PL-2026-H${String(i+1).padStart(2,'0')}`;
+      const soId = `SO-2026-H${String(i+1).padStart(2,'0')}`;
+      const qty = 300 + (i%6)*100;
+      const startAgo = 170 - i*13;   // 약 170일 전 → 27일 전 분산
+      try {
+        if(!DB.get('production_lots', plot)){
+          LOT.create({ plot_no:plot, itemCode:it.code, materialLots:[heat.heat], qty_initial:qty });
+          advanceLot(plot, 'SHIP', qty, startAgo);
+        }
+        DB.set('work_orders', `WO-2026-H${String(i+1).padStart(2,'0')}`, { id:`WO-2026-H${String(i+1).padStart(2,'0')}`, itemCode:it.code, plot_no:plot, qty, so_id:soId, plan_eq:{ FORGE: i%3? '프레스 2호':'프레스 1호' }, created: daysBack(startAgo+2), by:'데모' });
+        const shipQ = Math.floor(qty*0.9);
+        DB.set('orders', soId, { id:soId, cust:it.cust, itemCode:it.code, qty:shipQ, price:it.price, due: fmt(daysBack(Math.max(startAgo-14,3))), created: daysBack(startAgo+4) });
+        const q1 = Math.floor(shipQ*0.6), q2 = shipQ - q1;
+        [[q1, startAgo-8],[q2, startAgo-13]].forEach(([q,dAgo],k) => {
+          const sid = `SH-DEMO-H${String(i+1).padStart(2,'0')}${k}`;
+          DB.set('shipments', sid, { id:sid, so_id:soId, itemCode:it.code, plot_no:plot, qty:q, pallets:Math.ceil(q/200), pack_qty_actual:200, ts:daysBack(Math.max(dAgo,2)), by:'데모' });
+        });
+      } catch(e){ console.warn('[demo bulk] H lot', plot, e.message); }
+    }
+    // ═══ 18-17. 파렛트 이동 (외주 반출·회수 + 고객사 출고 — 파렛트 화면 채움) ═══
+    [
+      ['PM-DEMO-01','V001','out',12,40],['PM-DEMO-02','V001','in', 9,30],
+      ['PM-DEMO-03','V003','out', 8,18],['PM-DEMO-04','V003','in', 5,10],
+      ['PM-DEMO-05','V004','out', 6, 7],
+      ['PM-DEMO-06','C001','out',20,25],['PM-DEMO-07','C002','out',14,15],
+      ['PM-DEMO-08','C003','out',10, 8],['PM-DEMO-09','C004','out', 6, 4],
+    ].forEach(([id,vendor,type,qty,dAgo]) => DB.set('pallet_moves', id, { id, vendor, type, qty, ref:{kind:'manual'}, ts:daysBack(dAgo), by:'데모' }));
+    // ═══ 18-18. 회계 6개월 확장 (손익 추이·미수 흐름 — C001 수금·S001 지급은 불변 유지) ═══
+    const REP6 = [['급여','생산직 급여',12500000],['지급임차료','공장 임차료',2000000],['수도광열비','전기 요금',1380000],['통신비','인터넷·전화',110000]];
+    for(let m=1;m<=6;m++){   // 이번 달(m=0)은 제외 — 반복 경비 '제안' 시연 흐름 보존
+      const mm = _tsMonth(daysBack(m*30+3));
+      REP6.forEach(([cat,name,amt],k) => {
+        const id = `EX-DEMO-2${m}${k}`;
+        DB.set('acct_expenses', id, { id, category:cat, name, amount:amt, date:`${mm}-${String(k+3).padStart(2,'0')}`, cl_month:mm, repeat_monthly:true, memo:'', ts:daysBack(m*30+3), by:'데모' });
+      });
+    }
+    const CUST7 = ['C002','C003','C004','C005','C006','C007','C008'];   // C001 제외 — 기존 수금 수치 보존
+    for(let i=0;i<8;i++){
+      const id = `AR-DEMO-2${String(i+1).padStart(2,'0')}`;
+      DB.set('acct_receipts', id, { id, vendor:CUST7[i%7], amount:(3+(i%5))*300000, method:['계좌이체','현금','어음'][i%3], bill_due: i%3===2? fmt(now+(15+i*4)*DAY):'', date:fmt(daysBack(20+i*18)), memo:'', ts:daysBack(20+i*18), by:'데모' });
+    }
+    const PAY6 = ['S002','S003','S004','V001','V003','V004'];   // S001 제외 — 기존 지급 수치 보존
+    for(let i=0;i<6;i++){
+      const id = `AP-DEMO-2${String(i+1).padStart(2,'0')}`;
+      DB.set('acct_payments', id, { id, vendor:PAY6[i], amount:(2+i)*220000, method:'계좌이체', bill_due:'', date:fmt(daysBack(25+i*20)), memo:['소재대','소재대','소재대','열처리비','도금비','열처리비'][i], ts:daysBack(25+i*20), by:'데모' });
+    }
+    // ═══ 18-19. 마감 3개월 재계산 (대량 출하 반영 · 이월 규칙 동일 — 마감 화면 숫자 = 산식 일치) ═══
+    {
+      let _prevCarry = {};
+      [_tsMonth(daysBack(90)), _tsMonth(daysBack(60)), _tsMonth(daysBack(30))].forEach((m, idx) => {
+        const { byParty } = calcClosing('sales', m);
+        const rows = [];
+        Object.keys(byParty).forEach(party => {
+          const amount = Math.round(byParty[party]?.amount || 0);
+          const pv = _prevCarry[party] || 0;
+          const carryPct = [0.4, 0.3, 0.2][idx] || 0.2;
+          const paid = Math.round((pv + amount) * (1 - carryPct));
+          const carry = Math.round(pv + amount - paid);
+          if(amount > 0 || pv > 0) rows.push({ party, prev:pv, amount, paid, carry });
+          _prevCarry[party] = carry;
+        });
+        const totals = rows.reduce((t,r) => ({ prev:t.prev+r.prev, amount:t.amount+r.amount, paid:t.paid+r.paid, carry:t.carry+r.carry }), {prev:0,amount:0,paid:0,carry:0});
+        const id = _closingId('sales', m);
+        DB.set('closings', id, { id, type:'sales', month:m, rows, totals, missingCount:0, closed_at: now - (90-idx*30)*DAY, by:'데모', void:null });
+      });
+    }
+    // 견적 +5 (총 16)
+    for(let i=10;i<15;i++){
+      const it = bulkItems[(i*2)%20];
+      DB.set('quotes', `Q-2026-D1${String(i+1).padStart(2,'0')}`, { id:`Q-2026-D1${String(i+1).padStart(2,'0')}`, cust:it.cust, itemCode:it.code, qty:400+(i%4)*250, price:it.price+150, due:fmt(now + (15+i*6)*DAY),
+        material_cost:Math.round(it.price*0.4), process_cost:Math.round(it.price*0.25), outsource_cost: it.hasHeat?800:0, overhead:Math.round(it.price*0.08), margin_pct:10+(i%5)*2, unit_price:it.price+150, total:(400+(i%4)*250)*(it.price+150), status:'active', ts:daysBack(20-i), by:'데모' });
+    }
+
     // 계산서 — 발행 금액은 반드시 마감 산식(calcClosing)과 일치 (금액 상이 0 원칙 · 대량 출하 반영 후 재계산)
     for(let i=0;i<3;i++){
       const m = _tsMonth(daysBack((i+1)*30));
@@ -5382,6 +5461,9 @@ function resetDemoData(){
   location.reload();
 }
 // 데모 자동 로그인 — 데모 사용자('데모' manager) 진입. 없으면 seedDemoData() 가 만든다.
+/* ★ v0.32.6 — 데모 시드 버전 (시드 확장 시 +1 → 기존 데모 저장소도 자동 보강 — 수동 초기화 불필요)
+   seedDemoData 는 고정 id 멱등이라 재실행해도 중복·유실 없음 (LOT 는 존재 가드 · DB.set 동일값 덮어씀). */
+const DEMO_SEED_VER = 6;
 function autoLoginDemo(){
   let u = DB.query('users', x => x.name === '데모')[0];
   if(!u){
@@ -5389,8 +5471,14 @@ function autoLoginDemo(){
     // ★ v0.28.7 — 빈 상태 데모(시연·테스트)는 샘플 시드 없이 시작: seedDemoData 스킵
     //   (아래 폴백이 U-DEMO 사용자를 만들고, seedIfEmpty 가 뼈대 — 공정·계정과목·설정 — 만 시드)
     if(!isEmptyDemo()){
-      try { seedDemoData(); } catch(e){ console.error('[VELA] seedDemoData failed', e); }
+      try { seedDemoData(); DB.set('settings','demo_seed_ver', { ver: DEMO_SEED_VER }); } catch(e){ console.error('[VELA] seedDemoData failed', e); }
       u = DB.query('users', x => x.name === '데모')[0];
+    }
+  } else if(!isEmptyDemo()){
+    // ★ v0.32.6 — 구버전 데모 저장소 자동 보강 (재진입 시 1회 — 시드 버전 불일치면 멱등 재시드)
+    const sv = DB.get('settings','demo_seed_ver');
+    if(!sv || sv.ver !== DEMO_SEED_VER){
+      try { seedDemoData(); DB.set('settings','demo_seed_ver', { ver: DEMO_SEED_VER }); toast('데모 샘플 데이터가 최신으로 보강되었습니다','ok',3500); } catch(e){ console.warn('[VELA] demo seed sync failed', e); }
     }
   }
   // ★ v0.27.3 — 데모 = 풀옵션 시연 원칙: 재진입 시에도 기능 플래그를 현재 MODULE_DEFS 전체 ON 으로 동기화.
