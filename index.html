@@ -1169,11 +1169,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.32.6';
+const APP_VERSION = 'v0.33.0';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-08-16';
+const APP_DATE    = '2026-08-17';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -4396,6 +4396,8 @@ const LOT = {
   //  rework_returned는 '복구분' — 잔량 검증에서는 제외 (새 투입이 아님).
   //  단, 누적 복귀 ≤ 누적 재작업 한도 검증.
   registerRecord({plot_no, proc, equipment, good=0, defect=0, rework=0, scrap=0, rework_returned=0, defect_reason='', vendor=null, type='in', shift='day', source='manual', worker=null}){
+    // ★ v0.33.0 — 품질 Hold Gate: 미처리('접수') 부적합 LOT 은 판정 전 실적 등록 차단 (원장 단일 경로)
+    if(typeof assertLotNotHeld === 'function') assertLotNotHeld(plot_no, '실적 등록');
     const bal = LOT.balance(plot_no, proc);
     const newInput = good+defect+rework+scrap;
     if(newInput<=0 && rework_returned<=0) throw new Error('수량을 입력하세요.');
@@ -4483,6 +4485,19 @@ const LOT = {
       child.heat_nos = parent.heat_nos;
       DB.set('production_lots', p.plot_no, child);
     });
+    // ★ v0.32.7 — 분할 수량 보존 수정 (검증절차서 v2.1 I6 실측 FAIL → 즉시 수정)
+    //   기존: 자식 생성만 하고 부모 잔량 미차감 → 분할 시 수량 복제(200 분할 80 → 총 280) 발생.
+    //   수정: 병합과 동일 메커니즘 — 부모 첫 공정에 이관(transferred) 레코드를 남겨 잔량 소진.
+    //   totalInput 이 transferred 를 포함하므로 잔량·J1 불변식(이관 항 포함)이 자동 정합.
+    {
+      const id = `R-SPLIT-${parentPlotNo}-${Date.now()}`;
+      DB.set('records', id, {
+        id, plot_no:parentPlotNo, proc:cutCode,
+        good:0, defect:0, rework:0, scrap:0, rework_returned:0,
+        transferred:sum, transferred_to: parts.map(p=>p.plot_no).join(','),
+        ts:Date.now(), by:SESSION.user,
+      });
+    }
     return true;
   },
   // ★ v0.7.0 — 분기(fork): 같은 단조품에서 후공정이 갈라져 여러 완성품으로 나뉘는 패턴
@@ -7820,6 +7835,25 @@ VIEWS._woNew = (pre) => {
 VIEWS._printWO = (id)=>{ printForm.wo([id]); };  // ★ v0.12.0 — 새 양식 위임
 
 /* -------------------- LOT 추적 -------------------- */
+/* ★ v0.33.0 — 품질 Hold Gate (Q2-1 · v2.1 검증 K2 GAP 확정 → 구현)
+   원칙: "HOLD 표시"가 아니라 원장 쓰기 경로 차단 (GPT·개발 합의 설계).
+   판정: LOT 에 미처리('접수') 부적합이 있으면 HOLD — 실적 등록·외주 반출·출하 차단.
+   해제: 품질 판정(재작업/특채/폐기/완료/반품 처리)으로 상태가 '접수'를 벗어나면 자동 해제.
+   차단 지점: ①LOT.registerRecord (원장 단일 경로 — QR·수기·이관 임포트 전부 통과 지점)
+             ②출하 등록 핸들러 ③외주 반출 핸들러. 헬퍼 1벌 — 화면 표시도 동일 판정 재사용. */
+function lotHoldInfo(plot_no){
+  if(!plot_no) return { held:false, ncs:[] };
+  const ncs = DB.query('nc_records', n => n.lot_id === plot_no && n.status === '접수');
+  return { held: ncs.length > 0, ncs };
+}
+function assertLotNotHeld(plot_no, action){
+  const h = lotHoldInfo(plot_no);
+  if(h.held) throw new Error(`품질 HOLD — ${plot_no} 미처리 부적합 ${h.ncs.length}건 (${h.ncs.map(n => n.id).join(', ')}) · 품질 관리에서 판정(재작업/특채/폐기) 후 ${action || '진행'} 가능`);
+}
+/* 목록 렌더用 일괄 판정 (행마다 개별 query 금지 — v0.16.9 원칙) */
+function heldPlotSet(){
+  return new Set(DB.query('nc_records', n => n.status === '접수').map(n => n.lot_id).filter(Boolean));
+}
 /* ★ v0.32.3 — LOT 공정 스텝 패널 (사용자 판정 2026-08-16 · 시안 확정)
    LOT 행 클릭 → 공정 스텝 스트립(절단→단조→…) → 공정 클릭 → 실적 상세(일자·설비·작업자·양품/불량/재작업).
    외주 공정은 반출(os_dispatches) 행으로 표시. 전부 원장 읽기 전용 — LOT.balance/totalGood 재사용(신규 계산 금지). */
@@ -7886,6 +7920,7 @@ function lotStepPanelHTML(plot_no){
     <div class="lsteps-wrap">
       <div class="lsteps-head">
         <span class="lsteps-badge"><span>생산 LOT</span><b>${_esc(plot_no)}</b></span>
+        ${lotHoldInfo(plot_no).held ? `<span class="pill red" title="미처리 부적합 — 판정 전 실적·반출·출하 차단">품질 HOLD</span>` : ''}
         <span style="font-size:12px;color:var(--sub)"><b style="font-family:'JetBrains Mono',monospace">${_esc(itemLabel(l.itemCode))}</b> · ${(l.qty_initial||0).toLocaleString()}ea${custName?` · ${_esc(custName)}`:''}</span>
         <span style="margin-left:auto;font-size:10.5px;color:var(--dim)">heat ${_esc((l.heat_nos||[]).join(', ')||'―')} · 공정을 클릭하면 상세가 열립니다</span>
       </div>
@@ -7911,6 +7946,7 @@ VIEWS.lot = () => {
     return { l, name, custName, heatStr };
   });
 
+  const _heldSet = heldPlotSet();   // ★ v0.33.0 — 품질 HOLD 일괄 판정 (렌더 1회)
   const q = lotSearch.q.trim().toLowerCase();
   const filtered = enriched.filter(({ l, name, custName, heatStr }) => {
     if(q){
@@ -8000,12 +8036,15 @@ VIEWS.lot = () => {
           // ★ v0.16.0 — void 표시 · 취소/복원 버튼
           const isVoid = !!l.void;
           const rowStyle = isVoid ? 'opacity:.5;background:rgba(248,113,113,.04)' : '';
+          // ★ v0.33.0 — 품질 HOLD 배지 (미처리 부적합 — 실적·반출·출하 차단 중)
+          const holdBadge = _heldSet.has(l.plot_no)
+            ? ` <span class="pill red" style="font-size:9px;margin-left:4px" title="미처리 부적합 있음 — 품질 판정 전 실적 등록·외주 반출·출하 차단">HOLD</span>` : '';
           const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(l.void.reason||'')} · ${fmtDate(l.void.ts)}">「취소」</span>` : '';
           const actionBtns = isVoid
             ? `<button class="btn ghost" data-lot-unvoid="${_esc(l.plot_no)}" style="color:var(--cyan)">${ico('save')}복원</button>`
             : `<button class="btn ghost" onclick="VIEWS._lotHistory('${l.plot_no}')">${ico('eye')}</button> <button class="btn ghost" data-lot-void="${_esc(l.plot_no)}" style="color:var(--red)">${ico('x')}취소</button>`;
           return `<tr style="${rowStyle}" data-lot-row="${_esc(l.plot_no)}">
-            <td><b class="lot-no-link" data-lot-steps="${_esc(l.plot_no)}" title="클릭 → 공정 스텝·실적 상세">${l.plot_no} <span class="lot-chev">▾</span></b>${voidBadge}${forkBadge}</td>
+            <td><b class="lot-no-link" data-lot-steps="${_esc(l.plot_no)}" title="클릭 → 공정 스텝·실적 상세">${l.plot_no} <span class="lot-chev">▾</span></b>${holdBadge}${voidBadge}${forkBadge}</td>
             <td>${l.itemCode}</td>
             <td><span class="pill ${l.type==='merged'?'heat':l.type==='split'?'blue':l.type==='forked'?'heat':'gray'}">${l.type}</span></td>
             <td class="muted">${(l.heat_nos||[]).join(',')||'―'}</td>
@@ -10427,7 +10466,7 @@ VIEWS.ship = () => {
           <div class="fl-strip" id="sh-strip"><span class="fl-empty">수주(품번)을 선택하세요</span></div>
         </div>
         <div><label>생산LOT (출하 직전공정 양품 보유)</label>
-          <select id="sh-lot">${lots.map(l=>`<option value="${l.plot_no}">${l.plot_no} (${l.itemCode})</option>`).join('')}</select></div>
+          <select id="sh-lot">${(()=>{ const _hs = heldPlotSet(); return lots.map(l=>`<option value="${l.plot_no}">${l.plot_no} (${l.itemCode})${_hs.has(l.plot_no)?' — 품질 HOLD (출하 불가)':''}</option>`).join(''); })()}</select></div>
         <div class="grid g2">
           <div>
             <label>수량 (ea)</label>
@@ -10539,6 +10578,7 @@ VIEWS.ship = () => {
       try {
         const lotObj = DB.get('production_lots', plot);
         if(!lotObj) throw new Error('LOT 없음');
+        assertLotNotHeld(plot, '출하');   // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 출하 차단
         const route = getRoute(lotObj.itemCode);
         const lastProd = route.length>1 ? route[route.length-2] : route[0];
         const bal = LOT.totalGood(plot, lastProd.proc);
@@ -11006,6 +11046,8 @@ VIEWS.os = () => {
       const qty    = +document.getElementById('od-q').value;
       const plt    = +document.getElementById('od-plt').value || 0;
       if(!qty){ toast('수량 입력','warn'); return; }
+      // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 외주 반출 차단
+      try { assertLotNotHeld(plot, '외주 반출'); } catch(e){ toast(e.message, 'err', 5000); return; }
       // ★ v0.16.9 — 반출 가능량 초과 차단 (osAvailable 공용 · 이중 반출 방지 · 환산값도 동일 경로)
       const info = osAvailable(plot, proc);
       if(qty > info.avail){ toast(`반출 가능 수량 초과 — 가능 ${info.avail.toLocaleString()} ea`, 'err'); return; }
