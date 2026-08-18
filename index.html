@@ -1169,11 +1169,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.33.1';
+const APP_VERSION = 'v0.33.2';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-08-17';
+const APP_DATE    = '2026-08-18';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1345,6 +1345,7 @@ const _FS_COLLECTIONS = [
   'customers','master_fields','import_logs',   // ★ v0.26.0 — 고객사 마스터·정의 필드·임포트 이력
   'acct_receipts','acct_payments','acct_expenses','acct_invoices','expense_categories',   // ★ v0.27.0 — 회계 (특급)
   'price_agreements',   // ★ v0.28.1 — 단가합의서
+  'concurrency_incidents',   // ★ v0.33.2 — 동시성 사고 방어·복구 Gate (Q2-3) — 충돌 Incident 사건 기록
 ];
 /* ★ v0.21.2 — config 해석: 로컬 오버라이드 우선 → 없으면 내장 DEFAULT_FIREBASE_CONFIG.
    반환 { cfg, source } — source 는 pill/설정 표시용. cfg 없음(둘 다 없음) 시 null. */
@@ -4413,6 +4414,8 @@ const LOT = {
   registerRecord({plot_no, proc, equipment, good=0, defect=0, rework=0, scrap=0, rework_returned=0, defect_reason='', vendor=null, type='in', shift='day', source='manual', worker=null}){
     // ★ v0.33.0 — 품질 Hold Gate: 미처리('접수') 부적합 LOT 은 판정 전 실적 등록 차단 (원장 단일 경로)
     if(typeof assertLotNotHeld === 'function') assertLotNotHeld(plot_no, '실적 등록');
+    // ★ v0.33.2 — 동시성 사고 잠금: 미해결 충돌 Incident LOT 은 정정·재검증 전 신규 실적 차단 (Q2-3)
+    if(typeof assertLotNotLocked === 'function') assertLotNotLocked(plot_no, '실적 등록');
     const bal = LOT.balance(plot_no, proc);
     const newInput = good+defect+rework+scrap;
     if(newInput<=0 && rework_returned<=0) throw new Error('수량을 입력하세요.');
@@ -7870,6 +7873,90 @@ function heldPlotSet(){
   return new Set(DB.query('nc_records', n => n.status === '접수').map(n => n.lot_id).filter(Boolean));
 }
 
+/* ★ v0.33.2 — 동시성 사고 방어·복구 Gate (Q2-3 · G-2 완화 — GPT·개발 합의 설계)
+   시나리오: 두 단말이 각자 잔량 검증을 통과한 실적을 등록 → 동기화 병합 후 잔량 음수 (사전 차단 불가 — 오프라인 큐 허용 구조).
+   대응: 탐지 → 추적 → 잠금 → 정정 → 재검증 → 해제 전체 사이클을 원장 쓰기 경로 통제로 구현 (품질 Hold Gate 와 동일 구조).
+   ① 탐지: 잔량 음수 (plot,proc) 발견 시 충돌 Incident 자동 생성 — LOT·공정·직전 가용·첫 실적·충돌 실적·작업자·시각 자동 연결
+   ② 잠금: 미해결(open) Incident LOT 은 신규 실적·외주 반출·출하 차단 (registerRecord/출하/반출 — Hold Gate 와 같은 3중 배선)
+   ③ 정정: 관리자 보정(DB.correct — 기존 검증된 경로, 잠금과 무관하게 동작)
+   ④ 재검증: J1 불변식 자동 재계산 (전 공정 오차 0 + 잔량 음수 없음)
+   ⑤ 해제: 재검증 통과한 경우에만 관리책임자가 해제 — 통과 못 하면 잠금 유지.
+   Incident 는 사건 기록(부적합 기록과 같은 성격) — 원장 아님. 잔량 자체는 여전히 파생값(저장 안 함). */
+function detectConcurrencyIncidents(){
+  const created = [];
+  DB.all('production_lots').forEach(l => {
+    const route = getRoute(l.itemCode);
+    route.forEach(r => {
+      const bal = LOT.balance(l.plot_no, r.proc);
+      if(bal >= 0) return;
+      if(DB.query('concurrency_incidents', c => c.plot_no === l.plot_no && c.proc === r.proc && c.status === 'open').length) return;   // 멱등 — 이미 열린 사고 있으면 중복 생성 금지
+      const recs = DB.query('records', x => x.plot_no === l.plot_no && x.proc === r.proc).sort((a,b) => a.ts - b.ts);
+      const input = LOT.totalInput(l.plot_no, r.proc);
+      const avail = input + bal;   // 직전 공정 가용수량 (잔량 = 가용 − 투입 ⇒ 가용 = 투입 + 잔량)
+      const rq = x => (+x.good||0)+(+x.defect||0)+(+x.rework||0)+(+x.scrap||0)+(+x.transferred||0);
+      const snap = x => ({ id:x.id, ts:x.ts, by:(x.worker?.name)||x.by||'', qty:rq(x) });
+      let cum = 0; const conflict = [];
+      recs.forEach(x => { cum += rq(x); if(cum > avail) conflict.push(x); });   // 가용 한도를 넘어선 시점 이후의 실적 = 충돌 실적
+      const n = DB.queryRaw('concurrency_incidents', c => c.plot_no === l.plot_no && c.proc === r.proc).length + 1;
+      const id = `CI-${l.plot_no}-${r.proc}-${n}`;
+      const doc = {
+        id, plot_no:l.plot_no, proc:r.proc, item_code:l.itemCode,
+        avail, input, balance:bal,
+        first_record: recs.length ? snap(recs[0]) : null,
+        conflict_records: conflict.map(snap),
+        workers: [...new Set(recs.map(x => (x.worker?.name)||x.by||'').filter(Boolean))],
+        ts: Date.now(), detected_by: (typeof SESSION !== 'undefined' && SESSION.user) || 'system',
+        status: 'open',
+      };
+      DB.set('concurrency_incidents', id, doc);
+      created.push(doc);
+      try { toast(`⚠ 동시성 사고 감지 — ${l.plot_no} ${r.proc} 잔량 ${bal}ea · LOT 쓰기 잠금 (변경 이력 → 동시성 사고에서 정정·해제)`, 'err', 7000); } catch(e){}
+    });
+  });
+  return created;
+}
+function lotLockInfo(plot_no){
+  if(!plot_no) return { locked:false, incidents:[] };
+  const incidents = DB.query('concurrency_incidents', c => c.plot_no === plot_no && c.status === 'open');
+  return { locked: incidents.length > 0, incidents };
+}
+function assertLotNotLocked(plot_no, action){
+  const k = lotLockInfo(plot_no);
+  if(k.locked) throw new Error(`동시성 잠금 — ${plot_no} 미해결 충돌 사고 ${k.incidents.length}건 (${k.incidents.map(c => c.id).join(', ')}) · 관리자 정정 후 J1 재검증 통과 시 ${action || '진행'} 가능 (변경 이력 → 동시성 사고)`);
+}
+/* 목록 렌더用 일괄 판정 (행마다 개별 query 금지 — v0.16.9 원칙) */
+function lockedPlotSet(){
+  return new Set(DB.query('concurrency_incidents', c => c.status === 'open').map(c => c.plot_no).filter(Boolean));
+}
+/* J1 불변식 자동 재검증 — 라우트 전 공정: 가용 − 투입 − 잔량 = 0 (오차) + 잔량 ≥ 0 (초과 투입 없음).
+   잔량은 파생값(LOT.balance 1벌)이므로 항등식은 구조상 성립 — 재검증의 실질 = 음수 잔량(사고 상태) 소멸 확인. */
+function verifyLotInvariant(plot_no){
+  const lot = DB.get('production_lots', plot_no);
+  if(!lot) return { ok:false, checks:[] };
+  const route = getRoute(lot.itemCode);
+  const checks = route.map(r => {
+    const bal = LOT.balance(plot_no, r.proc);
+    const input = LOT.totalInput(plot_no, r.proc);
+    const avail = input + bal;
+    const err = avail - input - bal;   // J1 오차 (항상 0 이어야 함)
+    return { proc:r.proc, avail, input, bal, err, ok: bal >= 0 && err === 0 };
+  });
+  return { ok: checks.length > 0 && checks.every(c => c.ok), checks };
+}
+/* 해제 — 정합성이 회복된 경우에만 (관리책임자 전용 · J1 재검증 자동 수행 · 결과 스냅샷 보존) */
+function resolveIncident(ci_id){
+  if(typeof SESSION === 'undefined' || SESSION.role !== 'manager') throw new Error('관리책임자만 동시성 잠금을 해제할 수 있습니다');
+  const ci = DB.get('concurrency_incidents', ci_id);
+  if(!ci) throw new Error(`사고 없음 — ${ci_id}`);
+  if(ci.status !== 'open') throw new Error(`이미 해제된 사고 — ${ci_id}`);
+  const v = verifyLotInvariant(ci.plot_no);
+  if(!v.ok){
+    const bad = v.checks.filter(c => !c.ok).map(c => `${c.proc} 잔량 ${c.bal}`).join(' · ');
+    throw new Error(`J1 재검증 실패 — 정합성 미회복 (${bad}) · 실적현황에서 관리자 보정으로 수량 정정 후 다시 해제하세요`);
+  }
+  return DB.set('concurrency_incidents', ci_id, { status:'resolved', resolved:{ ts:Date.now(), by:SESSION.user||'system', verify:{ ok:true, checks:v.checks } } });
+}
+
 /* ★ v0.33.1 — Audit Viewer (Q2-2 · G-3b 해소) — 새 저장소 없이 기존 _logs·void 를 통합 조회
    원칙: 표시 전용(원장 읽기만) · "누가·언제·무엇을·왜·전→후" 한 화면 · 원장 연결 = LOT 생애주기 */
 const AUDIT_COLS = ['records','orders','production_lots','work_orders','shipments','production_plans','quotes','purchase_orders','material_receipts','purchase_receipts','os_dispatches','nc_records','acct_receipts','acct_payments','acct_expenses','acct_invoices','closings','items'];
@@ -7917,6 +8004,11 @@ function lotTimeline(plot_no){
   DB.allRaw('nc_records').filter(n => n.lot_id === plot_no).forEach(n => {
     ev.push({ ts:+n.ts||0, kind:'품질', text:`부적합 ${n.id} 접수 — ${n.defect_type} ${(+n.qty||0).toLocaleString()}ea (품질 HOLD)`, by:(n.worker?.name)||n.by||'' });
     if(n.handle?.ts) ev.push({ ts:+n.handle.ts||0, kind:'품질', text:`부적합 ${n.id} 판정 — ${n.status} (HOLD 해제)`, by:n.handle.by_name||n.handle.by||'' });
+  });
+  // ★ v0.33.2 — 동시성 사고 (감지 → 잠금 → 해제) 도 생애주기에 연결 (Q2-3)
+  DB.allRaw('concurrency_incidents').filter(c => c.plot_no === plot_no).forEach(c => {
+    ev.push({ ts:+c.ts||0, kind:'사고', text:`동시성 사고 ${c.id} 감지 — ${c.proc} 잔량 ${c.balance}ea (충돌 실적 ${(c.conflict_records||[]).length}건 · LOT 쓰기 잠금)`, by:c.detected_by||'' });
+    if(c.resolved?.ts) ev.push({ ts:+c.resolved.ts, kind:'사고', text:`동시성 사고 ${c.id} 해제 — J1 재검증 통과 (오차 0 · 잠금 해제)`, by:c.resolved.by||'' });
   });
   DB.allRaw('os_dispatches').filter(o => o.plot_no === plot_no).forEach(o => ev.push({ ts:+o.ts||0, kind:'외주', text:`반출 ${o.id} — ${o.proc} ${(+o.qty||0).toLocaleString()}ea → ${DB.get('vendors',o.vendor)?.name||o.vendor||''}`, by:o.by||'' }));
   DB.allRaw('shipments').filter(s => s.plot_no === plot_no).forEach(s => ev.push({ ts:+s.ts||0, kind:'출하', text:`출하 ${s.id} — ${(+s.qty||0).toLocaleString()}ea${s.so_id?` · ${s.so_id}`:''}${s.void?' (취소됨)':''}`, by:s.by||'' }));
@@ -7990,6 +8082,7 @@ function lotStepPanelHTML(plot_no){
       <div class="lsteps-head">
         <span class="lsteps-badge"><span>생산 LOT</span><b>${_esc(plot_no)}</b></span>
         ${lotHoldInfo(plot_no).held ? `<span class="pill red" title="미처리 부적합 — 판정 전 실적·반출·출하 차단">품질 HOLD</span>` : ''}
+        ${lotLockInfo(plot_no).locked ? `<span class="pill red" title="동시성 충돌 사고 — 관리자 정정·J1 재검증 통과 전 실적·반출·출하 차단">동시성 잠금</span>` : ''}
         <span style="font-size:12px;color:var(--sub)"><b style="font-family:'JetBrains Mono',monospace">${_esc(itemLabel(l.itemCode))}</b> · ${(l.qty_initial||0).toLocaleString()}ea${custName?` · ${_esc(custName)}`:''}</span>
         <span style="margin-left:auto;font-size:10.5px;color:var(--dim)">heat ${_esc((l.heat_nos||[]).join(', ')||'―')} · 공정을 클릭하면 상세가 열립니다</span>
       </div>
@@ -8015,7 +8108,9 @@ VIEWS.lot = () => {
     return { l, name, custName, heatStr };
   });
 
+  try { detectConcurrencyIncidents(); } catch(e){ console.warn('[VELA] 동시성 사고 탐지 실패', e); }   // ★ v0.33.2 — 렌더 시 자동 탐지 (Q2-3)
   const _heldSet = heldPlotSet();   // ★ v0.33.0 — 품질 HOLD 일괄 판정 (렌더 1회)
+  const _lockedSet = lockedPlotSet();   // ★ v0.33.2 — 동시성 잠금 일괄 판정 (렌더 1회)
   const q = lotSearch.q.trim().toLowerCase();
   const filtered = enriched.filter(({ l, name, custName, heatStr }) => {
     if(q){
@@ -8108,12 +8203,15 @@ VIEWS.lot = () => {
           // ★ v0.33.0 — 품질 HOLD 배지 (미처리 부적합 — 실적·반출·출하 차단 중)
           const holdBadge = _heldSet.has(l.plot_no)
             ? ` <span class="pill red" style="font-size:9px;margin-left:4px" title="미처리 부적합 있음 — 품질 판정 전 실적 등록·외주 반출·출하 차단">HOLD</span>` : '';
+          // ★ v0.33.2 — 동시성 잠금 배지 (미해결 충돌 사고 — 정정·재검증 전 쓰기 차단 중)
+          const lockBadge = _lockedSet.has(l.plot_no)
+            ? ` <span class="pill red" style="font-size:9px;margin-left:4px" title="동시성 충돌 사고 있음 — 관리자 정정·J1 재검증 통과 전 실적 등록·외주 반출·출하 차단 (변경 이력 → 동시성 사고)">잠금</span>` : '';
           const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(l.void.reason||'')} · ${fmtDate(l.void.ts)}">「취소」</span>` : '';
           const actionBtns = isVoid
             ? `<button class="btn ghost" data-lot-unvoid="${_esc(l.plot_no)}" style="color:var(--cyan)">${ico('save')}복원</button>`
             : `<button class="btn ghost" onclick="VIEWS._lotHistory('${l.plot_no}')">${ico('eye')}</button> <button class="btn ghost" data-lot-void="${_esc(l.plot_no)}" style="color:var(--red)">${ico('x')}취소</button>`;
           return `<tr style="${rowStyle}" data-lot-row="${_esc(l.plot_no)}">
-            <td><b class="lot-no-link" data-lot-steps="${_esc(l.plot_no)}" title="클릭 → 공정 스텝·실적 상세">${l.plot_no} <span class="lot-chev">▾</span></b>${holdBadge}${voidBadge}${forkBadge}</td>
+            <td><b class="lot-no-link" data-lot-steps="${_esc(l.plot_no)}" title="클릭 → 공정 스텝·실적 상세">${l.plot_no} <span class="lot-chev">▾</span></b>${holdBadge}${lockBadge}${voidBadge}${forkBadge}</td>
             <td>${l.itemCode}</td>
             <td><span class="pill ${l.type==='merged'?'heat':l.type==='split'?'blue':l.type==='forked'?'heat':'gray'}">${l.type}</span></td>
             <td class="muted">${(l.heat_nos||[]).join(',')||'―'}</td>
@@ -10535,7 +10633,7 @@ VIEWS.ship = () => {
           <div class="fl-strip" id="sh-strip"><span class="fl-empty">수주(품번)을 선택하세요</span></div>
         </div>
         <div><label>생산LOT (출하 직전공정 양품 보유)</label>
-          <select id="sh-lot">${(()=>{ const _hs = heldPlotSet(); return lots.map(l=>`<option value="${l.plot_no}">${l.plot_no} (${l.itemCode})${_hs.has(l.plot_no)?' — 품질 HOLD (출하 불가)':''}</option>`).join(''); })()}</select></div>
+          <select id="sh-lot">${(()=>{ const _hs = heldPlotSet(); const _ls = lockedPlotSet(); return lots.map(l=>`<option value="${l.plot_no}">${l.plot_no} (${l.itemCode})${_hs.has(l.plot_no)?' — 품질 HOLD (출하 불가)':''}${_ls.has(l.plot_no)?' — 동시성 잠금 (출하 불가)':''}</option>`).join(''); })()}</select></div>
         <div class="grid g2">
           <div>
             <label>수량 (ea)</label>
@@ -10648,6 +10746,7 @@ VIEWS.ship = () => {
         const lotObj = DB.get('production_lots', plot);
         if(!lotObj) throw new Error('LOT 없음');
         assertLotNotHeld(plot, '출하');   // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 출하 차단
+        assertLotNotLocked(plot, '출하');   // ★ v0.33.2 — 동시성 잠금: 정정·재검증 전 출하 차단
         const route = getRoute(lotObj.itemCode);
         const lastProd = route.length>1 ? route[route.length-2] : route[0];
         const bal = LOT.totalGood(plot, lastProd.proc);
@@ -11116,7 +11215,7 @@ VIEWS.os = () => {
       const plt    = +document.getElementById('od-plt').value || 0;
       if(!qty){ toast('수량 입력','warn'); return; }
       // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 외주 반출 차단
-      try { assertLotNotHeld(plot, '외주 반출'); } catch(e){ toast(e.message, 'err', 5000); return; }
+      try { assertLotNotHeld(plot, '외주 반출'); assertLotNotLocked(plot, '외주 반출'); } catch(e){ toast(e.message, 'err', 5000); return; }   // ★ v0.33.2 — 동시성 잠금 포함
       // ★ v0.16.9 — 반출 가능량 초과 차단 (osAvailable 공용 · 이중 반출 방지 · 환산값도 동일 경로)
       const info = osAvailable(plot, proc);
       if(qty > info.avail){ toast(`반출 가능 수량 초과 — 가능 ${info.avail.toLocaleString()} ea`, 'err'); return; }
@@ -16431,6 +16530,7 @@ VIEWS.mold = () => {
 let _auditState = { q:'', lot:'', cap: 100 };
 VIEWS.audit = () => {
   const st = _auditState;
+  try { detectConcurrencyIncidents(); } catch(e){ console.warn('[VELA] 동시성 사고 탐지 실패', e); }   // ★ v0.33.2 — 진입 시 자동 탐지 (Q2-3)
   const all = auditEntries();
   const q = st.q.trim().toLowerCase();
   const rows = q ? all.filter(e => [e.id, e.by, e.reason, AUDIT_COL_LABELS[e.col]||e.col, AUDIT_OP_LABELS[e.op]||e.op].join(' ').toLowerCase().includes(q)) : all;
@@ -16438,6 +16538,9 @@ VIEWS.audit = () => {
   const fmtT = ts => ts ? `${fmtDate(ts)} ${new Date(ts).toTimeString().slice(0,5)}` : '—';
   const lotOpts = DB.allRaw('production_lots').map(l => l.plot_no).sort();
   const tl = st.lot ? lotTimeline(st.lot) : null;
+  // ★ v0.33.2 — 동시성 사고 목록 (open 우선 · 최신순)
+  const incidents = DB.allRaw('concurrency_incidents').sort((a,b) => (a.status===b.status ? (b.ts-a.ts) : (a.status==='open' ? -1 : 1)));
+  const openN = incidents.filter(c => c.status === 'open').length;
 
   document.getElementById('view').innerHTML = `
     <div class="pghead">
@@ -16466,7 +16569,33 @@ VIEWS.audit = () => {
     </div>
 
     <div class="card">
-      <h3>LOT 생애주기 <span class="tag">원장 연결 — 생성 → 실적 → 보정 → 품질 HOLD/해제 → 반출 → 출하</span></h3>
+      <h3>동시성 사고 <span class="pill ${openN ? 'red' : 'green'}" style="font-size:10px">${openN ? `미해결 ${openN}건 — LOT 쓰기 잠금 중` : '미해결 0건'}</span>
+        <span class="tag">탐지 → 추적 → 잠금 → 정정 → J1 재검증 → 해제 (동시성 사고 방어·복구 Gate)</span></h3>
+      ${incidents.length ? `<div class="tbl-wrap"><table>
+        <thead><tr><th>사고번호</th><th>LOT / 공정</th><th>직전 가용</th><th>투입 누계</th><th>잔량</th><th>첫 실적</th><th>충돌 실적</th><th>감지 시각</th><th>상태</th><th></th></tr></thead>
+        <tbody>${incidents.map(c => {
+          const fT = ts => ts ? `${fmtDate(ts)} ${new Date(ts).toTimeString().slice(0,5)}` : '—';
+          const fr = c.first_record ? `${_esc(c.first_record.by||'—')} · ${(+c.first_record.qty||0).toLocaleString()}ea<br><span style="color:var(--dim);font-size:10px">${fT(c.first_record.ts)}</span>` : '—';
+          const cf = (c.conflict_records||[]).map(x => `${_esc(x.by||'—')} · ${(+x.qty||0).toLocaleString()}ea <span style="color:var(--dim);font-size:10px">${fT(x.ts)}</span>`).join('<br>') || '—';
+          return `<tr style="${c.status==='resolved'?'opacity:.55':''}">
+            <td class="mono" style="font-size:11px">${_esc(c.id)}</td>
+            <td><b style="font-family:'JetBrains Mono',monospace;font-size:11.5px">${_esc(c.plot_no)}</b> <span class="pill gray" style="font-size:9.5px">${_esc(c.proc)}</span></td>
+            <td class="num">${(+c.avail||0).toLocaleString()}</td>
+            <td class="num">${(+c.input||0).toLocaleString()}</td>
+            <td class="num" style="color:var(--red);font-weight:700">${(+c.balance||0).toLocaleString()}</td>
+            <td style="font-size:11px">${fr}</td>
+            <td style="font-size:11px">${cf}</td>
+            <td class="mono" style="font-size:11px;white-space:nowrap">${fT(c.ts)}</td>
+            <td>${c.status==='open' ? `<span class="pill red" style="font-size:10px">잠금 중</span>` : `<span class="pill green" style="font-size:10px">해제됨</span>${c.resolved?.ts?`<br><span style="color:var(--dim);font-size:10px">${fT(c.resolved.ts)} · ${_esc(c.resolved.by||'')}</span>`:''}`}</td>
+            <td>${c.status==='open' ? `<button class="btn ghost" data-ci-resolve="${_esc(c.id)}" style="color:var(--cyan);white-space:nowrap" title="J1 불변식 자동 재검증 — 오차 0 이면 잠금 해제, 아니면 유지">J1 재검증·해제</button>` : ''}</td>
+          </tr>`; }).join('')}</tbody>
+      </table></div>
+      <div style="font-size:11px;color:var(--sub);margin-top:7px">정정 경로: 실적현황 → 해당 실적 <b>관리자 보정</b>으로 수량 정정 → 여기서 [J1 재검증·해제]. 정합성이 회복된 경우에만 잠금이 풀립니다.</div>`
+      : `<div class="empty" style="padding:14px">감지된 동시성 사고 없음 — 두 단말이 동시에 등록해 잔량이 음수가 되면 여기 자동 기록되고 해당 LOT 이 잠깁니다</div>`}
+    </div>
+
+    <div class="card">
+      <h3>LOT 생애주기 <span class="tag">원장 연결 — 생성 → 실적 → 보정 → 품질 HOLD/해제 → 사고 잠금/해제 → 반출 → 출하</span></h3>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
         <input id="au-lot" list="au-lots" placeholder="LOT 번호 입력 또는 선택 — 예: PL-2026-H01" value="${_esc(st.lot)}" style="max-width:320px;font-family:'JetBrains Mono',monospace">
         <datalist id="au-lots">${lotOpts.map(p => `<option value="${_esc(p)}">`).join('')}</datalist>
@@ -16478,7 +16607,7 @@ VIEWS.audit = () => {
             <thead><tr><th>일시</th><th>구분</th><th>내용</th><th>사용자</th></tr></thead>
             <tbody>${tl.map(e => `<tr>
               <td class="mono" style="font-size:11px;white-space:nowrap">${fmtT(e.ts)}</td>
-              <td><span class="pill ${e.kind==='품질'?'red':e.kind==='출하'?'green':e.kind==='보정'?'amber':e.kind==='취소'?'red':e.kind==='생성'?'cyan':'blue'}" style="font-size:10px">${_esc(e.kind)}</span></td>
+              <td><span class="pill ${e.kind==='품질'?'red':e.kind==='사고'?'red':e.kind==='출하'?'green':e.kind==='보정'?'amber':e.kind==='취소'?'red':e.kind==='생성'?'cyan':'blue'}" style="font-size:10px">${_esc(e.kind)}</span></td>
               <td style="font-size:12px">${_esc(e.text)}</td>
               <td class="muted" style="font-size:11px">${_esc(e.by||'')}</td>
             </tr>`).join('')}</tbody>
@@ -16491,6 +16620,14 @@ VIEWS.audit = () => {
   if(more) more.onclick = () => { st.cap += 100; router(); };
   document.getElementById('au-lot-go').onclick = () => { st.lot = document.getElementById('au-lot').value.trim(); router(); };
   document.getElementById('au-lot').addEventListener('keydown', e => { if(e.key === 'Enter'){ st.lot = e.target.value.trim(); router(); } });
+  // ★ v0.33.2 — 동시성 사고 해제 버튼 (J1 재검증 통과 시에만 — 실패 시 잠금 유지·사유 안내)
+  document.querySelectorAll('[data-ci-resolve]').forEach(b => b.onclick = () => {
+    try {
+      resolveIncident(b.dataset.ciResolve);
+      toast('동시성 잠금 해제 — J1 재검증 통과 (오차 0)', 'ok');
+      router();
+    } catch(e){ toast(e.message, 'err', 7000); }
+  });
 };
 
 /* -------------------- 설비현황 (v0.10.0, 구 CAPA 흡수) --------------------
