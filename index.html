@@ -1169,7 +1169,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.33.0';
+const APP_VERSION = 'v0.33.1';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -1465,7 +1465,15 @@ const DB = (() => {
       const prev = state[col][id]||null;
       const next = {...(prev||{}), ...doc, id, _updated: Date.now()};
       // increment-only 로그 트레일
-      next._logs = (prev?._logs||[]).concat([{ts:Date.now(), op: prev?'update':'create', by: SESSION.user||'system'}]).slice(-50);
+      // ★ v0.33.1 — 취소/복원을 단일 쓰기 경로에서 감지해 op 세분화 (Audit Viewer 소스 · 복원 흔적 보존)
+      let _op = prev ? 'update' : 'create', _lreason;
+      if(doc && Object.prototype.hasOwnProperty.call(doc, 'void')){
+        if(doc.void){ _op = 'void'; _lreason = doc.void.reason || ''; }
+        else if(prev && prev.void){ _op = 'unvoid'; }
+      }
+      const _lentry = {ts:Date.now(), op:_op, by: SESSION.user||'system'};
+      if(_lreason) _lentry.reason = _lreason;
+      next._logs = (prev?._logs||[]).concat([_lentry]).slice(-50);
       state[col][id] = next;
       persist(col, id, next);
       return next;
@@ -1476,7 +1484,11 @@ const DB = (() => {
       const prev = state[col][id];
       if(!prev) return null;
       const corr = {...prev, ...fields, _corrected: true, _correction_reason: reason||'', _updated: Date.now()};
-      corr._logs = (prev._logs||[]).concat([{ts:Date.now(),op:'correct',by:SESSION.user||'system',reason}]).slice(-50);
+      // ★ v0.33.1 — 변경 전 값 스냅샷 보존 (G-3a 해소 · Q2-2): 바뀐 필드의 전/후를 로그에 함께 기록
+      //   (undefined 는 Firestore 비허용 → null 로 정규화 · 원본 문서는 여전히 무변 원칙 밖 — 보정 결과만 반영)
+      const _prevVals = {}, _nextVals = {};
+      Object.keys(fields || {}).forEach(k => { _prevVals[k] = (prev[k] === undefined ? null : prev[k]); _nextVals[k] = (fields[k] === undefined ? null : fields[k]); });
+      corr._logs = (prev._logs||[]).concat([{ts:Date.now(),op:'correct',by:SESSION.user||'system',reason,prev:_prevVals,next:_nextVals}]).slice(-50);
       state[col][id] = corr;
       persist(col, id, corr);
       return corr;
@@ -1667,6 +1679,7 @@ const SESSION = { userId:null, user:'OP-001', role:null, loggedIn:false };
    voidDoc: void 마킹 → DB.all/query 에서 자동 제외 → 집계 자동 복원.
    unvoidDoc: DB.set 얕은 병합 특성으로 void:null 세팅해 해제. */
 function voidDoc(col,id,reason){
+  // ★ v0.33.1 — 취소/복원 로깅은 DB.set 단일 쓰기 경로가 op 세분화로 담당 (헬퍼 1벌 원칙)
   return DB.set(col,id,{void:{ts:Date.now(), by:SESSION.user||'system', reason:reason||'오입력'}});
 }
 function unvoidDoc(col,id){
@@ -2248,6 +2261,8 @@ const PAGES = [
   { id:'docs',  flag:'doc_wo',title:'문서 출력',  icon:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>' },
   { id:'proc',  flag:'proc',  title:'공정 템플릿',icon:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>' },
   { id:'masters', flag:'masters', title:'기준정보', icon:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>' },
+  // ★ v0.33.1 — 변경 이력 (Audit Viewer · Q2-2 — G-3b 해소 · 관리자 전용)
+  { id:'audit', flag:'setting', title:'변경 이력', icon:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M3.5 12H1l2.5 3L6 12H3.5"/>' },
   { id:'set',   flag:'setting',title:'설정',      icon:'<circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.2 4.2l4.3 4.3M15.5 15.5l4.3 4.3M1 12h6M17 12h6M4.2 19.8l4.3-4.3M15.5 8.5l4.3-4.3"/>' },
 ];
 // v0.10.0 — 설비현황 진입 시 기간 전달 (전역 1회용)
@@ -5516,7 +5531,7 @@ function autoLoginDemo(){
    v0.15.2 — MANAGER_ONLY 페이지 게이팅 + 사용자 pill·로그아웃
    ------------------------------------------------------------------------------------------------- */
 // ★ v0.15.2 — 관리책임자 전용 페이지 (nav 숨김 + 직접 hash 접근 차단)
-const MANAGER_ONLY = ['set','masters'];
+const MANAGER_ONLY = ['set','masters','audit'];   // ★ v0.33.1 — 변경 이력(Audit Viewer)은 관리자 전용
 
 /* ★ v0.28.0 — 담당자별 메뉴 권한 (없음 none / 보기 view / 등록 edit) · 코어 1벌
    · 관리책임자·개발자 = 전권 고정. 일반 사용자 = users/{id}.perms[pageId] — 미설정 시 'edit' (기존 동작 호환).
@@ -5560,7 +5575,7 @@ const NAV_GROUPS = [
   { label:'품질·기술', ids:['qc','mold','draw','proc'] },
   { label:'구매·재고', ids:['po','matin','os','inv'] },
   { label:'경영',      ids:['closing','acct','cost','report'] },
-  { label:'기준정보',  ids:['masters','docs','set'] },
+  { label:'기준정보',  ids:['masters','docs','audit','set'] },
 ];
 function renderNav(){
   const flags = getFlags();
@@ -7853,6 +7868,60 @@ function assertLotNotHeld(plot_no, action){
 /* 목록 렌더用 일괄 판정 (행마다 개별 query 금지 — v0.16.9 원칙) */
 function heldPlotSet(){
   return new Set(DB.query('nc_records', n => n.status === '접수').map(n => n.lot_id).filter(Boolean));
+}
+
+/* ★ v0.33.1 — Audit Viewer (Q2-2 · G-3b 해소) — 새 저장소 없이 기존 _logs·void 를 통합 조회
+   원칙: 표시 전용(원장 읽기만) · "누가·언제·무엇을·왜·전→후" 한 화면 · 원장 연결 = LOT 생애주기 */
+const AUDIT_COLS = ['records','orders','production_lots','work_orders','shipments','production_plans','quotes','purchase_orders','material_receipts','purchase_receipts','os_dispatches','nc_records','acct_receipts','acct_payments','acct_expenses','acct_invoices','closings','items'];
+const AUDIT_COL_LABELS = { records:'생산실적', orders:'수주', production_lots:'생산LOT', work_orders:'작업지시', shipments:'출하', production_plans:'생산계획', quotes:'견적', purchase_orders:'발주', material_receipts:'소재입고', purchase_receipts:'구매입고', os_dispatches:'외주반출', nc_records:'부적합', acct_receipts:'수금', acct_payments:'지급', acct_expenses:'경비', acct_invoices:'계산서', closings:'마감', items:'품번' };
+const AUDIT_OP_LABELS = { correct:'보정', void:'취소', unvoid:'복원' };
+function _auditDocId(d){ return d.id || d.code || d.plot_no || d.heat || '?'; }
+const AUDIT_OPS = ['correct','void','unvoid'];   // 의미 있는 변경만 (일반 update/create 소음 제외)
+function auditEntries(){
+  const out = [];
+  AUDIT_COLS.forEach(col => DB.allRaw(col).forEach(d => {
+    const id = _auditDocId(d);
+    (d._logs || []).filter(l => AUDIT_OPS.includes(l.op)).forEach(l => out.push({ ts:+l.ts||0, by:l.by||'', op:l.op||'', reason:l.reason||'', prev:l.prev||null, next:l.next||null, col, id }));
+    // 구버전 void (로그 도입 전 취소분) — void 로그가 없으면 void 필드 자체를 이력으로 승격
+    if(d.void && !(d._logs||[]).some(l => l.op === 'void')) out.push({ ts:+d.void.ts||0, by:d.void.by||'', op:'void', reason:d.void.reason||'', prev:null, next:null, col, id });
+  }));
+  return out.sort((a,b) => b.ts - a.ts);
+}
+function _auditFmtVal(v){
+  if(v === null || v === undefined || v === '') return '—';
+  if(typeof v === 'object') return '…';
+  return String(v);
+}
+function auditDiffText(e){
+  if(e.op !== 'correct' || !e.next) return '';
+  const keys = Object.keys(e.next);
+  if(!keys.length) return '';
+  return keys.map(k => `${k}: ${_auditFmtVal(e.prev?.[k])} → ${_auditFmtVal(e.next[k])}`).join(' · ');
+}
+/* LOT 생애주기 — 한 LOT 의 생성→실적→보정→품질→반출→출하→취소를 시간순 통합 (표시 전용) */
+function lotTimeline(plot_no){
+  const lot = DB.get('production_lots', plot_no);
+  if(!lot) return [];
+  const ev = [];
+  ev.push({ ts:+lot.created||0, kind:'생성', text:`LOT 생성 — ${lot.itemCode} · 초기 ${(lot.qty_initial||0).toLocaleString()}ea${lot.type && lot.type!=='normal' ? ` · ${lot.type}` : ''}${(lot.heat_nos||[]).length?` · heat ${(lot.heat_nos||[]).join(',')}`:''}`, by:lot.by||'' });
+  DB.allRaw('records').filter(r => r.plot_no === plot_no).forEach(r => {
+    const parts = [];
+    if(+r.good) parts.push(`양품 ${(+r.good).toLocaleString()}`);
+    if(+r.defect) parts.push(`불량 ${(+r.defect).toLocaleString()}`);
+    if(+r.rework) parts.push(`재작업 ${(+r.rework).toLocaleString()}`);
+    if(+r.rework_returned) parts.push(`복귀 ${(+r.rework_returned).toLocaleString()}`);
+    if(+r.transferred) parts.push(`이관 ${(+r.transferred).toLocaleString()}${r.transferred_to?` → ${r.transferred_to}`:''}`);
+    ev.push({ ts:+r.ts||0, kind:'실적', text:`${r.proc} ${parts.join(' · ')||'0'}${r.equipment?` · ${typeof r.equipment==='string'?r.equipment:(r.equipment?.name||'')}`:''}`, by:(r.worker?.name)||r.by||'' });
+    (r._logs||[]).filter(l => AUDIT_OPS.includes(l.op)).forEach(l => ev.push({ ts:+l.ts||0, kind:AUDIT_OP_LABELS[l.op]||l.op, text:`실적 ${AUDIT_OP_LABELS[l.op]||l.op} (${r.proc})${l.op==='correct'?` — ${auditDiffText({op:'correct',prev:l.prev,next:l.next})}`:''}${l.reason?` · 사유: ${l.reason}`:''}`, by:l.by||'' }));
+  });
+  DB.allRaw('nc_records').filter(n => n.lot_id === plot_no).forEach(n => {
+    ev.push({ ts:+n.ts||0, kind:'품질', text:`부적합 ${n.id} 접수 — ${n.defect_type} ${(+n.qty||0).toLocaleString()}ea (품질 HOLD)`, by:(n.worker?.name)||n.by||'' });
+    if(n.handle?.ts) ev.push({ ts:+n.handle.ts||0, kind:'품질', text:`부적합 ${n.id} 판정 — ${n.status} (HOLD 해제)`, by:n.handle.by_name||n.handle.by||'' });
+  });
+  DB.allRaw('os_dispatches').filter(o => o.plot_no === plot_no).forEach(o => ev.push({ ts:+o.ts||0, kind:'외주', text:`반출 ${o.id} — ${o.proc} ${(+o.qty||0).toLocaleString()}ea → ${DB.get('vendors',o.vendor)?.name||o.vendor||''}`, by:o.by||'' }));
+  DB.allRaw('shipments').filter(s => s.plot_no === plot_no).forEach(s => ev.push({ ts:+s.ts||0, kind:'출하', text:`출하 ${s.id} — ${(+s.qty||0).toLocaleString()}ea${s.so_id?` · ${s.so_id}`:''}${s.void?' (취소됨)':''}`, by:s.by||'' }));
+  (lot._logs||[]).filter(l => AUDIT_OPS.includes(l.op)).forEach(l => ev.push({ ts:+l.ts||0, kind:AUDIT_OP_LABELS[l.op]||l.op, text:`LOT ${AUDIT_OP_LABELS[l.op]||l.op}${l.reason?` · 사유: ${l.reason}`:''}`, by:l.by||'' }));
+  return ev.sort((a,b) => a.ts - b.ts);
 }
 /* ★ v0.32.3 — LOT 공정 스텝 패널 (사용자 판정 2026-08-16 · 시안 확정)
    LOT 행 클릭 → 공정 스텝 스트립(절단→단조→…) → 공정 클릭 → 실적 상세(일자·설비·작업자·양품/불량/재작업).
@@ -16354,6 +16423,74 @@ VIEWS.mold = () => {
       toast(`저장 — ${id ? mid : mid2}`,'ok'); closeModal(); router();
     };
   }
+};
+
+/* -------------------- ★ v0.33.1 — 변경 이력 (Audit Viewer · Q2-2) --------------------
+   누가·언제·무엇을·왜·전→후 통합 + LOT 생애주기 (원장 연결 — GPT 합의 조건).
+   표시 전용 — 새 저장소 없음 · _logs/void 파생. 관리자 전용(MANAGER_ONLY). */
+let _auditState = { q:'', lot:'', cap: 100 };
+VIEWS.audit = () => {
+  const st = _auditState;
+  const all = auditEntries();
+  const q = st.q.trim().toLowerCase();
+  const rows = q ? all.filter(e => [e.id, e.by, e.reason, AUDIT_COL_LABELS[e.col]||e.col, AUDIT_OP_LABELS[e.op]||e.op].join(' ').toLowerCase().includes(q)) : all;
+  const shown = rows.slice(0, st.cap);
+  const fmtT = ts => ts ? `${fmtDate(ts)} ${new Date(ts).toTimeString().slice(0,5)}` : '—';
+  const lotOpts = DB.allRaw('production_lots').map(l => l.plot_no).sort();
+  const tl = st.lot ? lotTimeline(st.lot) : null;
+
+  document.getElementById('view').innerHTML = `
+    <div class="pghead">
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('audit')}</svg>변경 이력 <span class="pill cyan">Audit</span></div>
+      <div class="pgtools"><span class="tag" style="font-size:11px;color:var(--sub)">표시 전용 — 보정·취소·복원 기록의 통합 조회 (원본 무변)</span></div>
+    </div>
+
+    <div class="card">
+      <h3>통합 변경 이력 <span class="tag">${rows.length.toLocaleString()}건${rows.length>st.cap?` · 최근 ${st.cap}건 표시`:''} · 누가/언제/무엇을/왜/전→후</span></h3>
+      <div style="display:flex;gap:9px;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:9px 13px;margin-bottom:10px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sub)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input id="au-q" placeholder="검색 — 문서번호 · 사용자 · 사유 · 대상 · 작업" value="${_esc(st.q)}" style="flex:1;background:none;border:none;outline:none;color:var(--ink);font-size:13px;padding:0">
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>일시</th><th>사용자</th><th>대상</th><th>작업</th><th>변경 내용 (전 → 후)</th><th>사유</th></tr></thead>
+        <tbody>${shown.length ? shown.map(e => `<tr>
+          <td class="mono" style="font-size:11px;white-space:nowrap">${fmtT(e.ts)}</td>
+          <td>${_esc(e.by||'—')}</td>
+          <td><span class="pill gray" style="font-size:9.5px">${_esc(AUDIT_COL_LABELS[e.col]||e.col)}</span> <b style="font-family:'JetBrains Mono',monospace;font-size:11.5px">${_esc(e.id)}</b></td>
+          <td><span class="pill ${e.op==='void'?'red':e.op==='unvoid'?'cyan':'amber'}" style="font-size:10px">${_esc(AUDIT_OP_LABELS[e.op]||e.op)}</span></td>
+          <td style="font-size:11.5px;font-family:'JetBrains Mono',monospace">${e.op==='correct' ? _esc(auditDiffText(e)) : '<span style="color:var(--dim)">—</span>'}</td>
+          <td class="muted" style="font-size:11px">${_esc(e.reason||'')}</td>
+        </tr>`).join('') : `<tr><td colspan="6" class="empty">${q?'검색 결과 없음':'변경 이력 없음 — 보정·취소가 발생하면 여기에 쌓입니다'}</td></tr>`}</tbody>
+      </table></div>
+      ${rows.length>st.cap ? `<div style="margin-top:8px"><button class="btn" id="au-more">더 보기 (+100)</button></div>` : ''}
+    </div>
+
+    <div class="card">
+      <h3>LOT 생애주기 <span class="tag">원장 연결 — 생성 → 실적 → 보정 → 품질 HOLD/해제 → 반출 → 출하</span></h3>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <input id="au-lot" list="au-lots" placeholder="LOT 번호 입력 또는 선택 — 예: PL-2026-H01" value="${_esc(st.lot)}" style="max-width:320px;font-family:'JetBrains Mono',monospace">
+        <datalist id="au-lots">${lotOpts.map(p => `<option value="${_esc(p)}">`).join('')}</datalist>
+        <button class="btn primary" id="au-lot-go">조회</button>
+      </div>
+      ${tl === null ? `<div class="empty" style="padding:18px">LOT 번호를 입력하면 그 LOT 의 전체 생애가 시간순으로 표시됩니다 — "이 숫자가 왜 이렇게 됐는가"를 한 화면에서 설명</div>`
+        : !tl.length ? `<div class="empty" style="padding:18px">LOT 없음 — ${_esc(st.lot)}</div>`
+        : `<div class="tbl-wrap"><table>
+            <thead><tr><th>일시</th><th>구분</th><th>내용</th><th>사용자</th></tr></thead>
+            <tbody>${tl.map(e => `<tr>
+              <td class="mono" style="font-size:11px;white-space:nowrap">${fmtT(e.ts)}</td>
+              <td><span class="pill ${e.kind==='품질'?'red':e.kind==='출하'?'green':e.kind==='보정'?'amber':e.kind==='취소'?'red':e.kind==='생성'?'cyan':'blue'}" style="font-size:10px">${_esc(e.kind)}</span></td>
+              <td style="font-size:12px">${_esc(e.text)}</td>
+              <td class="muted" style="font-size:11px">${_esc(e.by||'')}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>`}
+    </div>
+  `;
+  let _auDeb = null;
+  document.getElementById('au-q').oninput = e => { clearTimeout(_auDeb); _auDeb = setTimeout(() => { st.q = e.target.value; st.cap = 100; router(); }, 250); };
+  const more = document.getElementById('au-more');
+  if(more) more.onclick = () => { st.cap += 100; router(); };
+  document.getElementById('au-lot-go').onclick = () => { st.lot = document.getElementById('au-lot').value.trim(); router(); };
+  document.getElementById('au-lot').addEventListener('keydown', e => { if(e.key === 'Enter'){ st.lot = e.target.value.trim(); router(); } });
 };
 
 /* -------------------- 설비현황 (v0.10.0, 구 CAPA 흡수) --------------------
