@@ -644,7 +644,9 @@ tr.mst-off td{opacity:.45}
 .order-total .amt{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:28px;color:var(--ink)}
 .order-total .amt small{font-size:13px;color:var(--sub);font-weight:600;margin-left:6px}
 .stage3{height:28px;border-radius:9px;overflow:hidden;display:flex;border:1px solid var(--line);background:var(--bg)}
-.stage3 .s{height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace;color:#06201c;overflow:hidden;white-space:nowrap;padding:0 4px}
+/* ★ v0.33.4 — margin:0·flex-direction:row 명시: 전역 .prog(구 '오늘의 생산' 목록 · margin-top:16px·column)와의
+   클래스 충돌 차단 — '생산중'(class="s prog") 세그먼트가 아래로 밀려 반만 칠해지던 실사용 버그 수정 */
+.stage3 .s{height:100%;margin:0;display:flex;flex-direction:row;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace;color:#06201c;overflow:hidden;white-space:nowrap;padding:0 4px}
 /* ★ v0.33.3 — 띠그래프 단색 (사용자 지적: 그라데이션이 두 색으로 갈라져 보임 → 세그먼트별 한 색) */
 .stage3 .s.done{background:var(--cyan-dim)}
 html[data-theme="light"] .stage3 .s.done{color:#eafffb}
@@ -1183,7 +1185,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.33.3';
+const APP_VERSION = 'v0.33.4';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
