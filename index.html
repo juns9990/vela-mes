@@ -504,6 +504,16 @@ tr.mst-off td{opacity:.45}
 .goarrow{position:absolute;top:13px;right:13px;font-size:11px;color:var(--cyan);opacity:0;transform:translateX(-4px);transition:.18s;font-weight:700;pointer-events:none}
 
 .hero{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+/* ★ v0.33.3 — KPI 통합 스트립 (매출 2 + 생산 2 + 진행/가동 + 품질 — 한 줄 6개 · B안) */
+.hero.hero6{grid-template-columns:repeat(6,1fr);gap:12px}
+.hero6 .dkpi{padding:15px 16px}
+.hero6 .dkpi .val{font-size:19px;letter-spacing:-.5px}
+.hero6 .dkpi .lab{margin-bottom:9px}
+.hero6 .dkpi .sub{margin-top:8px;font-size:11px}
+@media(max-width:1500px){.hero.hero6{grid-template-columns:repeat(3,1fr)}}
+.salesgrid.sg2{grid-template-columns:1fr 1fr}
+.cust5y{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;align-items:end}
+@media(max-width:900px){.cust5y{grid-template-columns:1fr}}
 .dkpi{position:relative;background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:18px;overflow:hidden}
 .dkpi .lab{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--sub);font-weight:600;margin-bottom:12px}
 .dkpi .lab svg{width:15px;height:15px;stroke-width:2;fill:none}
@@ -582,17 +592,19 @@ tr.mst-off td{opacity:.45}
 .mbar-sum b{font-family:'JetBrains Mono',monospace;color:var(--ink);font-weight:800;font-size:13px;margin-left:3px}
 .mbar-peak b{color:var(--amber)}
 .mbar .bamt{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:var(--sub);margin-bottom:3px}
-.mbar .bamt.cur{color:var(--amber)}
+.mbar .bamt.cur{color:var(--cyan)}
 .mbar{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
-.mbar .b{width:100%;border-radius:5px 5px 0 0;background:linear-gradient(180deg,var(--cyan),var(--cyan-dim));min-height:3px;opacity:.85}
-.mbar .b.cur{opacity:1;box-shadow:0 0 12px rgba(94,234,212,.45)}
+/* ★ v0.33.3 — 대시보드 심플화 (사용자 판정 B안): 차트 단색 틸 — 당월만 진하게 (무지개 제거 · IR 톤) */
+.mbar .b{width:100%;border-radius:5px 5px 0 0;background:var(--cyan-dim);min-height:3px;opacity:.45}
+.mbar .b.cur{opacity:1}
 .mbar .b.future{background:var(--line2);opacity:.4}
 .mbar .ml{font-size:9.5px;color:var(--dim);font-family:'JetBrains Mono',monospace}
 .ybars{display:flex;align-items:flex-end;gap:14px;height:130px;margin-top:18px;padding:0 6px}
 .ybar{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
-.ybar .yb{width:100%;border-radius:6px 6px 0 0;min-height:4px}
+.ybar .yb{width:100%;border-radius:6px 6px 0 0;min-height:4px;background:var(--cyan-dim);opacity:.45}
+.ybar .yb.cur{opacity:1}
 .ybar .yamt{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;color:var(--ink)}
-.ybar .yamt.cur{color:var(--amber)}
+.ybar .yamt.cur{color:var(--cyan)}
 .ybar .yl{font-size:10px;color:var(--dim);font-family:'JetBrains Mono',monospace}
 .ybar .yl small{font-size:8px;color:var(--dim);vertical-align:super}
 .ynote{font-size:10px;color:var(--dim);margin-top:12px;text-align:center}
@@ -633,8 +645,10 @@ tr.mst-off td{opacity:.45}
 .order-total .amt small{font-size:13px;color:var(--sub);font-weight:600;margin-left:6px}
 .stage3{height:28px;border-radius:9px;overflow:hidden;display:flex;border:1px solid var(--line);background:var(--bg)}
 .stage3 .s{height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace;color:#06201c;overflow:hidden;white-space:nowrap;padding:0 4px}
-.stage3 .s.done{background:linear-gradient(90deg,var(--cyan-dim),var(--cyan))}
-.stage3 .s.prog{background:linear-gradient(90deg,#d97706,var(--amber));color:#3a2800}
+/* ★ v0.33.3 — 띠그래프 단색 (사용자 지적: 그라데이션이 두 색으로 갈라져 보임 → 세그먼트별 한 색) */
+.stage3 .s.done{background:var(--cyan-dim)}
+html[data-theme="light"] .stage3 .s.done{color:#eafffb}
+.stage3 .s.prog{background:#f59e0b;color:#3a2800}
 .stage3 .s.wait{background:var(--line2);color:var(--sub)}
 .stage-legend{display:flex;gap:18px;margin-top:14px;flex-wrap:wrap}
 .sl{flex:1;min-width:130px}
@@ -1169,7 +1183,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.33.2';
+const APP_VERSION = 'v0.33.3';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -6382,32 +6396,8 @@ VIEWS.dash = () => {
     }
   }
 
-  // === 2. 오늘의 생산 (설비별) — v0.14.3: 품번별 → 설비별 개편
-  //    설비 목록 = getEquipment(공정) 유니크 (외주 공정 제외 · 하드코딩 금지)
-  //    ★ v0.16.7 — 소스만 equipments 컬렉션 우선(폴백 유지) · 집계 로직 불변
-  const eqSet  = new Set();
-  const eqInfo = [];
-  procs.forEach(p => {
-    if(p.type === 'out') return;
-    getEquipment(p.code).forEach(name => {
-      if(!eqSet.has(name)){
-        eqSet.add(name);
-        eqInfo.push({ name, procCode: p.code, procName: p.name });
-      }
-    });
-  });
-  const eqRows = eqInfo.map(eq => {
-    const todayRecs = records.filter(r => r.equipment === eq.name && r.ts >= todayMs);
-    if(!todayRecs.length) return { ...eq, active: false };
-    const latest = todayRecs.slice().sort((a,b) => b.ts - a.ts)[0];
-    const lot    = DB.get('production_lots', latest.plot_no);
-    const item   = lot ? DB.get('items', lot.itemCode) : null;
-    const proc   = DB.get('processes', latest.proc);
-    const plan   = lot?.qty_initial || 0;
-    const actual = lot ? lotCompletedQty(latest.plot_no, lot.itemCode) : 0;
-    const pct    = plan > 0 ? Math.min(100, actual/plan*100) : 0;
-    return { ...eq, active:true, plot_no:latest.plot_no, item, procName: proc?.name||latest.proc, plan, actual, pct };
-  });
+  // === 2. (구 '오늘의 생산' 설비별 카드) — ★ v0.33.3 사용자 판정 B안으로 대시보드에서 제거.
+  //     설비별 오늘 실적 상세는 설비현황(#eqstatus) 화면이 담당 (데이터·집계 로직은 그쪽 1벌 그대로).
 
   // === 3. 추세 (초기: 주) ===
   const trendInit = computeTrend(7, 'd');
@@ -6479,30 +6469,21 @@ VIEWS.dash = () => {
     yearSales,  lastYearSales,  yearSalesChg,
     monthlySales, yearly, byCustomer
   } = sales;
-  // 렌더 파생값 (사이즈·피크·색상) — 표시 로직만
+  // 렌더 파생값 (사이즈만) — ★ v0.33.3 심플화(B안): 무지개 색 배열·반기 누적·피크 표기 제거 (상세는 AI 보고서)
   const curMonth  = now.getMonth();
   const monthMax  = Math.max(1, ...monthlySales);
-  // ★ v0.16.20 — 반기 누적 동적: 1~6월 = 상반기 / 7~12월 = 하반기 (표시만 · 배열 계산 불변)
-  const isFirstHalf = curMonth < 6;
-  const halfSum   = (isFirstHalf ? monthlySales.slice(0,6) : monthlySales.slice(6,12)).reduce((s,v)=>s+v,0);
-  const halfLabel = isFirstHalf ? '상반기 누적(1~6월)' : '하반기 누적(7~12월)';
-  let peakMonth=0, peakVal=0;
-  monthlySales.forEach((v,m)=>{ if(v>peakVal){peakVal=v; peakMonth=m+1;} });
   const yearsArr  = yearly;
   const yearsMax  = Math.max(1, ...yearsArr.map(y=>y.sales));
   const custRows  = byCustomer;
   const custMax   = Math.max(1, ...custRows.map(r=>r.amount));
-  const m_colors = [
-    'linear-gradient(180deg,#5eead4,#2dd4bf)','linear-gradient(180deg,#7dd3fc,#38bdf8)',
-    'linear-gradient(180deg,#a5b4fc,#818cf8)','linear-gradient(180deg,#f0abfc,#e879f9)',
-    'linear-gradient(180deg,#86efac,#4ade80)','linear-gradient(180deg,#fbbf24,#f59e0b)'
-  ];
-  const y_colors = [
-    'linear-gradient(180deg,#5eead4,#2dd4bf)','linear-gradient(180deg,#7dd3fc,#38bdf8)',
-    'linear-gradient(180deg,#a5b4fc,#818cf8)','linear-gradient(180deg,#f0abfc,#e879f9)',
-    'linear-gradient(180deg,#fbbf24,#f59e0b)'
-  ];
-  const c_colors = ['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)'];
+  // ★ v0.33.3 — 품질 KPI(부적합) 당월 집계를 상단 KPI·하단 카드가 공유 (계산 1벌)
+  const _qcMs  = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const _qcMe  = new Date(now.getFullYear(), now.getMonth()+1, 1).getTime();
+  const _ncM   = flags.qc ? DB.query('nc_records', n => n.ts >= _qcMs && n.ts < _qcMe) : [];
+  const _ncWait= _ncM.filter(n => n.status === '접수').length;
+  const _recsM = flags.qc ? DB.query('records', r => r.ts >= _qcMs && r.ts < _qcMe) : [];
+  const _qcTin = _recsM.reduce((s,r)=>s+(+r.good||0)+(+r.defect||0)+(+r.scrap||0)+(+r.rework||0), 0);
+  const _qcRate= _qcTin > 0 ? (_recsM.reduce((s,r)=>s+(+r.defect||0)+(+r.scrap||0), 0)/_qcTin*100) : 0;
 
   // === v0.10.0 — 핵심존 데이터 (v0.14.3: 3단 계산은 calcSoFulfillment 헬퍼로 이관) ===
   const stages = calcSoFulfillment();
@@ -6517,99 +6498,74 @@ VIEWS.dash = () => {
   };
   const progLabels = { day:'일간 · 오늘', week:'주간 · 이번주', month:`월간 · ${now.getMonth()+1}월`, year:`년간 · ${now.getFullYear()}` };
 
-  // === HTML 렌더 (★ v0.11.0 — 매출 최상단 A안) ===
-  // ★ v0.32.2 — 오늘 챙길 일 (홈 요약 · 2차 시안 확정 구조) — 원장 읽기 전용 · 표시 1벌
-  //   납기 임박(7일)·지연 수주(잔량>0) + 발주 입고 지연·입고 예정(3일). 클릭 → 해당 메뉴.
-  const _todoDAY = 86400000;
-  const todos = [];
-  if(flags.so !== false){
-    DB.all('orders').forEach(o => {
-      if(!o.due) return;
-      const shipped = DB.query('shipments', s => s.so_id === o.id).reduce((s,r) => s+(r.qty||0), 0);
-      const remain = Math.max(0, (o.qty||0) - shipped);
-      if(remain <= 0) return;
-      const due = new Date(String(o.due).slice(0,10) + 'T00:00:00').getTime();
-      if(isNaN(due)) return;
-      const days = Math.round((due - todayMs)/_todoDAY);
-      if(days > 7) return;
-      const cust = DB.get('vendors', o.cust)?.name || o.cust || '';
-      todos.push({
-        pri: days < 0 ? 0 : 1,
-        cls: days < 0 ? 'red' : 'amber',
-        tag: days < 0 ? `지연 ${-days}일` : (days === 0 ? '납기 오늘' : `납기 D-${days}`),
-        main: `${o.id} · ${cust}`,
-        sub: `${itemLabel(o.itemCode)} — 잔량 ${remain.toLocaleString()}ea · 납기 ${String(o.due).slice(0,10)}`,
-        hash: '#so',
-      });
-    });
-  }
-  if(flags.purchase !== false){
-    DB.all('purchase_orders').forEach(p => {
-      const st = calcPoStatus(p);
-      if(st.state === '입고완료') return;
-      const vName = DB.get('vendors', p.vendor)?.name || p.vendor || '';
-      const itemsTxt = (p.items||[]).map(i => i.name).filter(Boolean).slice(0,2).join(', ') + ((p.items||[]).length > 2 ? ' 외' : '');
-      if(st.state === '지연'){
-        todos.push({ pri:0, cls:'red', tag:'입고 지연', main:`${p.id} · ${vName}`, sub:`${itemsTxt} — 납기 ${p.due||'미지정'} 경과 · 미입고 잔량 있음`, hash:'#po' });
-      } else if(p.due){
-        const due = new Date(String(p.due).slice(0,10) + 'T00:00:00').getTime();
-        if(!isNaN(due)){
-          const days = Math.round((due - todayMs)/_todoDAY);
-          if(days >= 0 && days <= 3) todos.push({ pri:2, cls:'cyan', tag: days === 0 ? '입고 예정 오늘' : `입고 예정 D-${days}`, main:`${p.id} · ${vName}`, sub:`${itemsTxt} — 납기 ${String(p.due).slice(0,10)}`, hash:'#matin' });
-        }
-      }
-    });
-  }
-  todos.sort((a,b) => a.pri - b.pri);
-  const TODO_CAP = 8;
-  const todoRows = todos.slice(0, TODO_CAP).map(t => `
-    <div class="todo-row" onclick="location.hash='${t.hash}'">
-      <span class="pill ${t.cls}">${_esc(t.tag)}</span>
-      <div class="todo-main"><b>${_esc(t.main)}</b><div class="todo-sub">${_esc(t.sub)}</div></div>
-      <span class="goarrow" style="position:static">↗</span>
-    </div>`).join('') + (todos.length > TODO_CAP ? `<div class="todo-empty">외 ${todos.length - TODO_CAP}건 — 수주·구매 화면에서 확인</div>` : '');
+  // === HTML 렌더 — ★ v0.33.3 대시보드 심플화 (사용자 판정 B안 · 2026-08-18)
+  //   제거: '오늘 챙길 일' 카드(납기·입고 경고는 수주/구매 화면·AI 보고서가 담당) · '오늘의 생산'(설비현황 담당) ·
+  //         안내줄·섹션 라벨(SALES 등)·범례 설명문·반기 누적/피크 표기.
+  //   구성: KPI 6 스트립 → 매출 2카드(월별 / 고객사+5년) → 수주대비 띠(단색) → 진도 4칸 → 추세+공정흐름 → 품질 KPI.
 
   document.getElementById('view').innerHTML = `
-    <div class="dash-hint">↗ 카드를 클릭하면 해당 메뉴로 이동합니다 — 상세 검색·조회는 그 화면에서</div>
-
-    <!-- ★ v0.32.2 — 0. 오늘 챙길 일 (최상단 — 로그인 직후 가장 먼저 보이는 카드) -->
-    <div class="card" id="dash-todo">
-      <h3>오늘 챙길 일 <span class="tag">${todos.length ? `${todos.length}건` : '없음'} · ${fmtDate(Date.now())}</span></h3>
-      ${todos.length ? todoRows : `<div class="todo-empty">오늘 챙길 일이 없습니다 — 납기·입고 모두 순조롭습니다.</div>`}
-    </div>
-
-    <!-- ★ v0.11.0 — 1. 매출 현황 (최상단) -->
-    <div class="secttl">매출 현황 · SALES</div>
-    <div class="sales-hero">
-      <div class="dkpi clk" onclick="location.hash='#ship'"><span class="goarrow">출하·매출 ↗</span>
+    <!-- ★ v0.33.3 — KPI 통합 스트립 (매출 2 + 생산 2 + 진행/가동 + 품질 · 한 줄) -->
+    <div class="hero hero6">
+      <div class="dkpi clk" onclick="location.hash='#ship'"><span class="goarrow">출하 ↗</span>
         <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M5 4l3.5 8M19 4l-3.5 8M8.5 12h7M5 16h14M12 12v8"/></svg>당월 매출</div>
-        <div class="val c">${monthSales>0? '₩'+Math.round(monthSales).toLocaleString() : '<span style="color:var(--dim);font-size:18px">수집중</span>'}</div>
-        <div class="sub">${monthSalesChg===null? '<span class="nodata">전월 데이터 없음</span>' : `전월 대비 <span class="chg ${monthSalesChg>=0?'up':'down'}">${monthSalesChg>=0?'▲':'▼'} ${Math.abs(monthSalesChg).toFixed(1)}%</span>`}</div>
+        <div class="val c">${monthSales>0? '₩'+Math.round(monthSales).toLocaleString() : '<span style="color:var(--dim);font-size:15px">수집중</span>'}</div>
+        <div class="sub">${monthSalesChg===null? '<span class="nodata">전월 데이터 없음</span>' : `<span class="chg ${monthSalesChg>=0?'up':'down'}">${monthSalesChg>=0?'▲':'▼'} ${Math.abs(monthSalesChg).toFixed(1)}%</span> 전월`}</div>
       </div>
-      <div class="dkpi clk" onclick="location.hash='#ship'"><span class="goarrow">출하·매출 ↗</span>
+      <div class="dkpi clk" onclick="location.hash='#ship'"><span class="goarrow">출하 ↗</span>
         <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>연 누적 매출</div>
-        <div class="val w">${yearSales>0? '₩'+Math.round(yearSales).toLocaleString() : '<span style="color:var(--dim);font-size:18px">수집중</span>'}</div>
-        <div class="sub">${yearSalesChg===null? '<span class="nodata">전년 데이터 없음 · 다음 해부터 비교</span>' : `전년 대비 <span class="chg ${yearSalesChg>=0?'up':'down'}">${yearSalesChg>=0?'▲':'▼'} ${Math.abs(yearSalesChg).toFixed(1)}%</span>`}</div>
+        <div class="val w">${yearSales>0? '₩'+Math.round(yearSales).toLocaleString() : '<span style="color:var(--dim);font-size:15px">수집중</span>'}</div>
+        <div class="sub">${yearSalesChg===null? '<span class="nodata">전년 데이터 없음</span>' : `<span class="chg ${yearSalesChg>=0?'up':'down'}">${yearSalesChg>=0?'▲':'▼'} ${Math.abs(yearSalesChg).toFixed(1)}%</span> 전년`}</div>
       </div>
+      <div class="dkpi clk" onclick="location.hash='#perf'"><span class="goarrow">실적 ↗</span>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>일 생산</div>
+        <div class="val c">${dayGood.toLocaleString()}<span class="unit">ea</span></div>
+        <div class="sub">${dayChg===null? '<span class="nodata">어제 데이터 없음</span>' : `<span class="chg ${dayChg>=0?'up':'down'}">${dayChg>=0?'▲':'▼'} ${Math.abs(dayChg).toFixed(1)}%</span> 어제`}</div>
+      </div>
+      <div class="dkpi clk" onclick="location.hash='#perf'"><span class="goarrow">실적 ↗</span>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>월 생산</div>
+        <div class="val w">${monthGood.toLocaleString()}<span class="unit">ea</span></div>
+        <div class="sub">${monthPct===null? `${now.getMonth()+1}월 <span class="nodata">· 목표 미설정</span>` : `목표 대비 <span class="up" style="font-weight:700">${monthPct.toFixed(0)}%</span>`}</div>
+      </div>
+      ${capaOn? `
+        <div class="dkpi clk" onclick="navEqStatus('day')"><span class="goarrow">설비 ↗</span>
+          <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>평균 가동률</div>
+          <div class="val">${capaAvg===null? '—' : capaAvg.toFixed(0)+'<span class="unit">%</span>'}</div>
+          <div class="sub">${capaAvg===null? '<span class="nodata">설비 마스터 없음</span>' : `<span style="color:var(--red);font-weight:700">${capaOver}</span> 초과 · <span style="color:var(--green);font-weight:700">${capaEasy}</span> 여유`}</div>
+        </div>
+      ` : `
+        <div class="dkpi clk" onclick="location.hash='#lot'"><span class="goarrow">LOT ↗</span>
+          <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="M7 10v4M17 14v-4"/></svg>진행 LOT</div>
+          <div class="val">${DB.all('production_lots').filter(l=>LOT.nextProcess(l.plot_no)).length}<span class="unit">건</span></div>
+          <div class="sub">미완 공정 보유</div>
+        </div>
+      `}
+      ${flags.qc? `
+        <div class="dkpi clk" onclick="location.hash='#qc'"><span class="goarrow">품질 ↗</span>
+          <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M20 6L9 17l-5-5"/></svg>부적합 대기</div>
+          <div class="val" style="color:${_ncWait>0?'var(--amber)':'var(--ink)'}">${_ncWait}<span class="unit">건</span></div>
+          <div class="sub">당월 ${_ncM.length}건 · 불량률 ${_qcRate.toFixed(1)}%</div>
+        </div>
+      ` : `
+        <div class="dkpi clk" onclick="location.hash='#perf'"><span class="goarrow">실적 ↗</span>
+          <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--heat2)"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>연 생산</div>
+          <div class="val h">${yearGood.toLocaleString()}<span class="unit">ea</span></div>
+          <div class="sub">${yearChg===null? '<span class="nodata">전년 데이터 없음</span>' : `<span class="chg ${yearChg>=0?'up':'down'}">${yearChg>=0?'▲':'▼'} ${Math.abs(yearChg).toFixed(1)}%</span> 전년`}</div>
+        </div>
+      `}
     </div>
 
-    <div class="salesgrid">
+    <div class="salesgrid sg2">
       <div class="card">
-        <h3>월별 매출실적 <span class="tag">${now.getFullYear()} · 단위: 백만원 (막대)</span></h3>
+        <h3>월별 매출 <span class="tag">${now.getFullYear()} · 백만원</span></h3>
         ${monthlySales.some(v=>v>0)? `
-          <div class="mbar-sum">
-            <span>${halfLabel} <b>₩${Math.round(halfSum).toLocaleString()}</b></span>
-            <span class="mbar-peak">최고 ${peakMonth}월 <b>₩${Math.round(peakVal).toLocaleString()}</b></span>
-          </div>
           <div class="mbars">
             ${monthlySales.map((v,m)=>{
               const isFuture = m>curMonth;
               const isCur = m===curMonth;
               const h = isFuture? 2 : Math.max(3, v/monthMax*92);
-              const clr = m_colors[m%6];
               return `<div class="mbar">
                 ${!isFuture && v>0? `<div class="bamt${isCur?' cur':''}">${Math.round(v/1e6)}</div>`:''}
-                <div class="b ${isCur?'cur':''} ${isFuture?'future':''}" style="height:${h}%;${!isFuture && v>0?`background:${clr}`:''}"></div>
+                <div class="b ${isCur?'cur':''} ${isFuture?'future':''}" style="height:${h}%"></div>
                 <div class="ml">${m+1}</div>
               </div>`;
             }).join('')}
@@ -6617,57 +6573,54 @@ VIEWS.dash = () => {
         ` : '<div class="chart-empty" style="padding:50px 0"><div class="big">수집중</div><div class="sm">출하 데이터가 쌓이면 표시됩니다</div></div>'}
       </div>
       <div class="card">
-        <h3>5년 매출 추이 <span class="tag">연도별 · 억원</span></h3>
+        <h3>고객사별 매출 · 5년 추이 <span class="tag">연 누적 · 억원</span></h3>
+        <div class="cust5y">
+        <div>
+        ${custRows.length? custRows.slice(0,5).map((r,i)=>`
+          <div class="crow"><div class="ch"><div class="cn">${r.name}</div><div class="cv">₩${Math.round(r.amount).toLocaleString()}</div></div>
+          <div class="ctrack"><i style="width:${Math.max(8,r.amount/custMax*100).toFixed(0)}%;background:var(--cyan-dim);opacity:${(1 - i*0.17).toFixed(2)}"></i></div></div>
+        `).join('') : '<div class="chart-empty" style="padding:40px 0"><div class="big">수집중</div><div class="sm">출하 데이터가 쌓이면 표시됩니다</div></div>'}
+        </div>
+        <div>
         ${yearsArr.some(y=>y.sales>0)? `
-          <div class="ybars">
-            ${yearsArr.map((y,i)=>{
+          <div class="ybars" style="height:110px;margin-top:10px">
+            ${yearsArr.map((y)=>{
               const h = Math.max(4, y.sales/yearsMax*100);
               const isCur = y.year===now.getFullYear();
-              const clr = y_colors[i%5];
               return `<div class="ybar">
                 <div class="yamt${isCur?' cur':''}">${y.sales>0? (y.sales/1e8).toFixed(0) : 0}</div>
-                <div class="yb" style="height:${h}%;background:${clr}"></div>
+                <div class="yb${isCur?' cur':''}" style="height:${h}%"></div>
                 <div class="yl">${y.year}${isCur?'<small>E</small>':''}</div>
               </div>`;
             }).join('')}
           </div>
-          <div class="ynote">${yearsArr.length===1? '내년부터 추이 누적 — 해마다 막대가 채워집니다' : '첫 도입연도부터 누적'}</div>
-        ` : '<div class="chart-empty" style="padding:50px 0"><div class="big">수집중</div><div class="sm">출하 데이터가 쌓이면 표시됩니다</div></div>'}
-      </div>
-      <div class="card clk" onclick="location.hash='#so'"><span class="goarrow">수주 ↗</span>
-        <h3>고객사별 매출 <span class="tag">연 누적 비중</span></h3>
-        ${custRows.length? custRows.slice(0,5).map((r,i)=>`
-          <div class="crow"><div class="ch"><div class="cn">${r.name}</div><div class="cv" style="color:${c_colors[i%5]}">₩${Math.round(r.amount).toLocaleString()}</div></div>
-          <div class="ctrack"><i style="width:${Math.max(8,r.amount/custMax*100).toFixed(0)}%;background:${c_colors[i%5]}"></i></div></div>
-        `).join('') : '<div class="chart-empty" style="padding:50px 0"><div class="big">수집중</div><div class="sm">출하 데이터가 쌓이면 표시됩니다</div></div>'}
+        ` : '<div class="chart-empty" style="padding:40px 0"><div class="big">수집중</div><div class="sm">출하 데이터가 쌓이면 표시됩니다</div></div>'}
+        </div>
+        </div>
       </div>
     </div>
 
-    <!-- ★ v0.10.0 핵심존 — 수주 3단계 -->
-    <div class="secttl">수주 · 생산 핵심</div>
+    <!-- 수주 3단계 (★ v0.33.3 — 단색 띠 · 총 수주잔은 범례 우측 한 줄) -->
     <div class="card clk core-card" onclick="location.hash='#so'"><span class="goarrow">수주 ↗</span>
       <h3>수주 대비 생산실적 <span class="tag">금액 · 출하 기준</span></h3>
       ${stages.hasData? `
-        <div class="order-total">
-          <span class="lab">총 수주잔 (진행 중 주문 합계)</span>
-          <span class="amt">₩${stages.total.toLocaleString()}<small>100%</small></span>
-        </div>
         <div class="stage3">
           ${stageDonePct>0? `<div class="s done" style="width:${stageDonePct.toFixed(2)}%">${stageDonePct>=8?`출하완료 ${stageDonePct.toFixed(0)}%`:''}</div>`:''}
           ${stageProgPct>0? `<div class="s prog" style="width:${stageProgPct.toFixed(2)}%">${stageProgPct>=8?`생산중 ${stageProgPct.toFixed(0)}%`:''}</div>`:''}
           ${stageWaitPct>0? `<div class="s wait" style="width:${stageWaitPct.toFixed(2)}%">${stageWaitPct>=8?`미착수 ${stageWaitPct.toFixed(0)}%`:''}</div>`:''}
         </div>
         <div class="stage-legend">
-          <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--cyan)"></span>출하완료</div><div class="slv" style="color:var(--cyan)">₩${Math.round(stages.done).toLocaleString()}</div><div class="sls">납품·매출 확정분</div></div>
-          <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--amber)"></span>생산중</div><div class="slv" style="color:var(--amber)">₩${Math.round(stages.prog).toLocaleString()}</div><div class="sls">공정 진행 중 (재공)</div></div>
-          <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--line2)"></span>미착수</div><div class="slv" style="color:var(--sub)">₩${Math.round(stages.wait).toLocaleString()}</div><div class="sls">작업 시작 전</div></div>
+          <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--cyan-dim)"></span>출하완료</div><div class="slv" style="color:var(--cyan)">₩${Math.round(stages.done).toLocaleString()}</div></div>
+          <div class="sl"><div class="slh"><span class="dot-sq" style="background:#f59e0b"></span>생산중</div><div class="slv" style="color:var(--amber)">₩${Math.round(stages.prog).toLocaleString()}</div></div>
+          <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--line2)"></span>미착수</div><div class="slv" style="color:var(--sub)">₩${Math.round(stages.wait).toLocaleString()}</div></div>
+          <div class="sl" style="margin-left:auto;text-align:right"><div class="slh" style="justify-content:flex-end">총 수주잔</div><div class="slv">₩${stages.total.toLocaleString()}</div></div>
         </div>
       ` : '<div class="chart-empty" style="padding:40px 0"><div class="big">수집중</div><div class="sm">수주가 등록되면 출하완료·생산중·미착수 3단계로 분해됩니다</div></div>'}
     </div>
 
-    <!-- ★ v0.14.3 — 생산 진도 현황 (일/주/월/년) : 칸 클릭 → 실적현황(#perf) -->
+    <!-- 생산 진도 (일/주/월/년) : 칸 클릭 → 실적현황(#perf) -->
     <div class="card core-card">
-      <h3>생산 진도 현황 <span class="tag">작업지시 대비 · 칸 클릭 → 실적현황</span></h3>
+      <h3>생산 진도 <span class="tag">작업지시 대비</span></h3>
       ${(prog4.day.count + prog4.week.count + prog4.month.count + prog4.year.count) > 0 ? `
         <div class="prog4">
           ${['day','week','month','year'].map(k=>{
@@ -6677,7 +6630,7 @@ VIEWS.dash = () => {
               <span class="parrow">↗</span>
               <div class="pper">${progLabels[k]}</div>
               <div class="ppct">${has? p.pct.toFixed(0)+'%' : '<span style="font-size:14px;color:var(--dim)">—</span>'}</div>
-              <div class="pqty">${has? `실적 <b>${p.good.toLocaleString()}</b> / 지시 <b>${p.target.toLocaleString()}</b>` : '<span style="color:var(--dim)">지시 없음</span>'}</div>
+              <div class="pqty">${has? `<b>${p.good.toLocaleString()}</b> / ${p.target.toLocaleString()}` : '<span style="color:var(--dim)">지시 없음</span>'}</div>
               <div class="ptrack"><i style="width:${has? p.pct.toFixed(1):'2'}%"></i></div>
             </div>`;
           }).join('')}
@@ -6685,70 +6638,8 @@ VIEWS.dash = () => {
       ` : '<div class="chart-empty" style="padding:40px 0"><div class="big">수집중</div><div class="sm">작업지시(WO)가 생성되면 일/주/월/년 진도가 표시됩니다</div></div>'}
     </div>
 
-    <!-- 1. 생산 KPI -->
-    <div class="hero">
-      <div class="dkpi clk" onclick="location.hash='#perf'"><span class="goarrow">실적 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>일 생산량</div>
-        <div class="val c">${dayGood.toLocaleString()}<span class="unit">ea</span></div>
-        <div class="sub">${dayChg===null? '<span class="nodata">어제 데이터 없음</span>' : `<span class="chg ${dayChg>=0?'up':'down'}">${dayChg>=0?'▲':'▼'} ${Math.abs(dayChg).toFixed(1)}%</span> 어제 대비`}</div>
-      </div>
-      <div class="dkpi clk" onclick="location.hash='#perf'"><span class="goarrow">실적 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>월 생산량</div>
-        <div class="val w">${monthGood.toLocaleString()}<span class="unit">ea</span></div>
-        <div class="sub">${now.getMonth()+1}월 ${monthPct===null? '<span class="nodata">· 목표 미설정</span>' : `· 목표 <b style="color:var(--ink);font-family:'JetBrains Mono'">${monthTarget.toLocaleString()}</b> 대비 <span class="up" style="font-weight:700">${monthPct.toFixed(0)}%</span>`}</div>
-      </div>
-      <div class="dkpi clk" onclick="location.hash='#perf'"><span class="goarrow">실적 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="#ffab40"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>연 생산량</div>
-        <div class="val h">${yearGood.toLocaleString()}<span class="unit">ea</span></div>
-        <div class="sub">${yearChg===null? '<span class="nodata">전년 데이터 없음 · 다음 해부터 비교</span>' : `<span class="chg ${yearChg>=0?'up':'down'}">${yearChg>=0?'▲':'▼'} ${Math.abs(yearChg).toFixed(1)}%</span> 전년 대비`}</div>
-      </div>
-      ${capaOn? `
-        <div class="dkpi clk" onclick="navEqStatus('day')"><span class="goarrow">설비부하 ↗</span>
-          <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>설비 평균 가동률</div>
-          <div class="val">${capaAvg===null? '—' : capaAvg.toFixed(0)+'<span class="unit">%</span>'}</div>
-          <div class="sub">${capaAvg===null? '<span class="nodata">설비 마스터 없음</span>' : `<span style="color:var(--red);font-weight:700">${capaOver}대</span> 초과 · <span style="color:var(--green);font-weight:700">${capaEasy}대</span> 여유`}</div>
-        </div>
-      ` : `
-        <div class="dkpi clk" onclick="location.hash='#lot'"><span class="goarrow">LOT ↗</span>
-          <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="M7 10v4M17 14v-4"/></svg>진행 LOT</div>
-          <div class="val">${DB.all('production_lots').filter(l=>LOT.nextProcess(l.plot_no)).length}<span class="unit">건</span></div>
-          <div class="sub">미완 공정 보유</div>
-        </div>
-      `}
-    </div>
-
-    <!-- 2. 오늘의 생산(설비별) + 추세 — v0.14.3: 품번별 → 설비별 개편, 행 클릭 = 설비 상세 -->
+    <!-- 생산 추세 + 공정 흐름 (★ v0.33.3 — 한 행 · 설비별 당일 상세는 설비현황 화면 담당) -->
     <div class="dgrid2">
-      <div class="card">
-        <h3>오늘의 생산 <span class="tag">오늘 · 설비별</span></h3>
-        ${eqRows.length? `
-          <div class="prog">
-            ${eqRows.map(eq => {
-              if(!eq.active) return `<div class="prow" onclick="navEqStatus('day')" style="cursor:pointer;opacity:.55">
-                <div class="ph">
-                  <div class="pn">${_esc(eq.name)} <span>${_esc(eq.procName)}</span></div>
-                  <div class="pf"><span class="pill gray" style="font-size:10px">미가동</span></div>
-                </div>
-                <div style="font-size:11px;color:var(--dim);margin-bottom:6px">— · —</div>
-                <div class="track"><i style="width:2%;background:var(--line2)"></i></div>
-              </div>`;
-              const cls = eq.pct>=100?'':(eq.pct>=50?'a':'h');
-              return `<div class="prow" onclick="navEqStatus('day')" style="cursor:pointer">
-                <div class="ph">
-                  <div class="pn">${_esc(eq.name)} <span>${_esc(eq.procName)}</span></div>
-                  <div class="pf"><b>${eq.actual.toLocaleString()}</b> / ${eq.plan.toLocaleString()}</div>
-                </div>
-                <div style="font-size:11px;color:var(--sub);margin-bottom:6px">
-                  <b style="color:var(--ink)">${_esc(eq.item?.code||'—')}</b>
-                  <span style="color:var(--dim);margin-left:4px">${_esc(eq.item?.name||'')}</span>
-                  · <span class="pill cyan" style="font-size:10px">${_esc(eq.plot_no)}</span>
-                </div>
-                <div class="track"><i class="${cls}" style="width:${Math.max(2,eq.pct).toFixed(1)}%"><span class="pct-end">${eq.pct.toFixed(0)}%</span></i></div>
-              </div>`;
-            }).join('')}
-          </div>
-        ` : `<div class="chart-empty" style="padding:50px 0"><div class="big">설비 없음</div><div class="sm">공정 설정에서 설비를 등록하세요</div></div>`}
-      </div>
       <div class="card">
         <h3>생산 추세 <span class="seg" id="trend-seg"><button class="on" data-r="w">주</button><button data-r="m">월</button><button data-r="y">년</button></span></h3>
         <div class="chartbox" id="trend-chart" onclick="event.stopPropagation()">
@@ -6760,25 +6651,21 @@ VIEWS.dash = () => {
           `}
         </div>
       </div>
+      <div class="flow" style="margin-bottom:0;flex-wrap:wrap">
+        ${flowQty.map(f=>{
+          const pct = (f.qty/maxFlow*100).toFixed(0);
+          const isOut = f.mode==='out';
+          return `<div class="step ${isOut?'out':''}" onclick="location.hash='#lot'">
+            <div class="sn">${f.name}</div>
+            <div class="sv">${f.qty.toLocaleString()}</div>
+            <div class="su">${isOut?'외주':'ea'}</div>
+            <div class="bar"><i style="width:${pct}%"></i></div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>
 
-    <!-- 4. 공정 흐름 -->
-    <div class="flow">
-      ${flowQty.map(f=>{
-        const pct = (f.qty/maxFlow*100).toFixed(0);
-        const isOut = f.mode==='out';
-        return `<div class="step ${isOut?'out':''}" onclick="location.hash='#lot'">
-          <div class="sn">${f.name}</div>
-          <div class="sv">${f.qty.toLocaleString()}</div>
-          <div class="su">${isOut?'외주':'ea'}</div>
-          <div class="bar"><i style="width:${pct}%"></i></div>
-        </div>`;
-      }).join('')}
-    </div>
-
-    <!-- 5. 설비별 부하 — v0.10.0에서 '설비현황' 화면(#eqstatus)으로 흡수/통합 -->
-
-    <!-- 6. 품질 KPI 5종 -->
+    <!-- 품질 KPI -->
     <div class="kgrid">
       <div class="kc clk" onclick="location.hash='#perf'"><span class="goarrow">↗</span>
         <div class="kl"><svg width="13" height="13" viewBox="0 0 24 24" stroke="#4ade80"><path d="M20 6L9 17l-5-5"/></svg>종합 수율</div>
@@ -6805,25 +6692,11 @@ VIEWS.dash = () => {
         <div class="kv">${stockSum.toLocaleString()}<span style="font-size:13px">ea</span></div>
         <div class="ks">재고금액 <b style="color:var(--ink)">${stockValue>0? '₩'+fmtKRWShort(stockValue) : '—'}</b></div>
       </div>
-      ${flags.qc ? (() => {
-        // ★ v0.25.0 — 부적합 KPI (당월 · qc ON 시만 · OFF 시 카드 자체 미노출)
-        const _now = new Date();
-        const _ms  = new Date(_now.getFullYear(), _now.getMonth(), 1).getTime();
-        const _me  = new Date(_now.getFullYear(), _now.getMonth()+1, 1).getTime();
-        const _ncM = DB.query('nc_records', n => n.ts >= _ms && n.ts < _me);
-        const _wait= _ncM.filter(n => n.status === '접수').length;
-        const _cnt = _ncM.length;
-        // 당월 불량률 (records 기간 합 재사용 로직 · 소수 1자리)
-        const _recsM = DB.query('records', r => r.ts >= _ms && r.ts < _me);
-        const _tin = _recsM.reduce((s,r)=>s+(+r.good||0)+(+r.defect||0)+(+r.scrap||0)+(+r.rework||0), 0);
-        const _dq  = _recsM.reduce((s,r)=>s+(+r.defect||0)+(+r.scrap||0), 0);
-        const _rate= _tin > 0 ? (_dq/_tin*100) : 0;
-        return `<div class="kc clk" onclick="location.hash='#qc'"><span class="goarrow">품질 ↗</span>
+      ${flags.qc ? `<div class="kc clk" onclick="location.hash='#qc'"><span class="goarrow">품질 ↗</span>
           <div class="kl"><svg width="13" height="13" viewBox="0 0 24 24" stroke="#5eead4"><path d="M20 6L9 17l-5-5"/></svg>부적합</div>
-          <div class="kv" style="color:${_wait>0?'var(--amber)':'var(--sub)'}">${_cnt}<span style="font-size:13px">건</span></div>
-          <div class="ks">${_wait>0?`<b class="down" style="color:var(--amber)">대기 ${_wait}</b>`:'<span class="nodata">대기 없음</span>'} · 당월 불량률 <b style="color:var(--ink)">${_rate.toFixed(1)}%</b></div>
-        </div>`;
-      })() : ''}
+          <div class="kv" style="color:${_ncWait>0?'var(--amber)':'var(--sub)'}">${_ncM.length}<span style="font-size:13px">건</span></div>
+          <div class="ks">${_ncWait>0?`<b class="down" style="color:var(--amber)">대기 ${_ncWait}</b>`:'<span class="nodata">대기 없음</span>'} · 당월 불량률 <b style="color:var(--ink)">${_qcRate.toFixed(1)}%</b></div>
+        </div>` : ''}
     </div>
 
   `;
