@@ -1185,11 +1185,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.33.4';
+const APP_VERSION = 'v0.34.0';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-08-18';
+const APP_DATE    = '2026-08-22';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -2367,7 +2367,7 @@ function seedIfEmpty(){
     // ★ v0.6.0 — skippable/cond 제거. 공정 포함은 BOM route가 결정.
     [
       {code:'CUT',  name:'절단',   seq:10, unit:'ea', type:'in',   equipment:['절단기'],                inspect:['길이']},
-      {code:'FORGE',name:'단조',   seq:20, unit:'ea', type:'both', equipment:['프레스1호','프레스2호'], inspect:['외관','치수']},
+      {code:'FORGE',name:'단조',   seq:20, unit:'ea', type:'both', mold_linked:true, equipment:['프레스1호','프레스2호'], inspect:['외관','치수']},
       {code:'HEAT', name:'열처리', seq:30, unit:'ea', type:'out',  equipment:[],                        inspect:['경도']},
       {code:'SHOT', name:'쇼트',   seq:40, unit:'ea', type:'in',   equipment:['쇼트기'],                inspect:['표면']},
       {code:'COIN', name:'코이닝', seq:50, unit:'ea', type:'in',   equipment:['코이닝프레스'],          inspect:['치수']},
@@ -2487,8 +2487,90 @@ function seedIfEmpty(){
   try { migrateHtSpecField(); } catch(e){ console.warn('[VELA] ht_spec migration failed', e); }
   // ★ v0.27.2 — 계정과목 표준 세트 보강 (기존 DB · 멱등)
   try { migrateExpenseCategories(); } catch(e){ console.warn('[VELA] expense categories migration failed', e); }
+  // ★ v0.34.0 — 레거시 시드 보정 (멱등): 구버전 FORGE 공정 문서에 mold_linked 부여 — Forging Pack 추출로
+  //   금형 연동 판정이 공정 속성 기반으로 바뀌었으므로, 기존 인스턴스의 기본 단조 공정만 1회 승격.
+  //   (분류: 시드/데이터 보정 — 런타임 로직 아님 · 사용자가 만든 공정은 건드리지 않음)
+  try { migrateMoldLinked(); } catch(e){ console.warn('[VELA] mold_linked migration failed', e); }
+}
+function migrateMoldLinked(){
+  const p = DB.get('processes','FORGE');
+  if(p && p.mold_linked === undefined) DB.set('processes','FORGE',{ mold_linked:true });
 }
 seedIfEmpty();
+
+/* ★ v0.34.0 — 산업 팩 프리셋 설치 엔진 (Forging Pack v1.1 §10 · GPT 승인 조건 ④⑤⑥⑦)
+   원칙: ①additive — 이미 존재하는 문서는 절대 덮어쓰지 않음 (설치 ≠ 업데이트 · 고객 데이터 보존)
+        ②멱등 — 재적용 시 기존 마스터 무변 ③설치 이력 = settings/pack_installs 누적 (pack·버전·시각·설치자)
+        ④플래그는 해당 팩 "최초 설치" 때만 적용 (재설치가 사용자 설정을 되돌리지 않음)
+        ⑤팩 정의는 데이터 상수 — 업종 차이는 여기(INDUSTRY_PACKS)와 마스터에만 존재, 런타임 로직은 공통 1벌. */
+const INDUSTRY_PACKS = {
+  forging: {
+    version: 'forging-1.1', label: '단조팩',
+    processes: [
+      {code:'CUT',  name:'절단',   seq:10, unit:'ea', type:'in',   equipment:[], inspect:['길이']},
+      {code:'FORGE',name:'단조',   seq:20, unit:'ea', type:'both', mold_linked:true, equipment:[], inspect:['외관','치수']},
+      {code:'HEAT', name:'열처리', seq:30, unit:'ea', type:'out',  equipment:[], inspect:['경도']},
+      {code:'SHOT', name:'쇼트',   seq:40, unit:'ea', type:'in',   equipment:[], inspect:['표면']},
+      {code:'COIN', name:'코이닝', seq:50, unit:'ea', type:'in',   equipment:[], inspect:['치수']},
+      {code:'SHIP', name:'출하',   seq:99, unit:'ea', type:'in',   equipment:[], inspect:[]},
+    ],
+    defect_types: [['DT-001','치수 불량'],['DT-002','외관 흠'],['DT-003','경도 미달'],['DT-004','크랙']],
+    master_fields: [
+      { id:'MF-ITEM-001', master:'items', key:'차종',     label:'차종',     type:'text',   unit:'',  order:1 },
+      { id:'MF-ITEM-002', master:'items', key:'단조온도', label:'단조온도', type:'number', unit:'℃', order:2 },
+      { id:'MF-ITEM-005', master:'items', key:'자분탐상', label:'자분탐상', type:'select', unit:'',  order:5, options:['적용','미적용'] },
+      { id:'MF-ITEM-006', master:'items', key:'표면처리', label:'표면처리', type:'text',   unit:'',  order:6 },
+    ],
+    flags: { scan:true, matin:true, a_mold:true, os_dispatch:true, os_receipt:true },
+  },
+  machining: {
+    version: 'machining-2.1', label: '가공팩',
+    processes: [
+      {code:'SAW',  name:'절단',     seq:10, unit:'ea', type:'in',  equipment:[], inspect:['길이']},
+      {code:'LATHE',name:'CNC선반',  seq:20, unit:'ea', type:'in',  equipment:[], inspect:['외경','내경','길이']},
+      {code:'MILL', name:'밀링',     seq:30, unit:'ea', type:'in',  equipment:[], inspect:['치수','위치도']},
+      {code:'GRIND',name:'연삭',     seq:40, unit:'ea', type:'in',  equipment:[], inspect:['치수','조도']},
+      {code:'HT',   name:'열처리',   seq:50, unit:'ea', type:'out', equipment:[], inspect:['경도']},
+      {code:'PLATE',name:'표면처리', seq:60, unit:'ea', type:'out', equipment:[], inspect:['외관']},
+      {code:'WASH', name:'세척',     seq:70, unit:'ea', type:'in',  equipment:[], inspect:['외관']},
+      {code:'INSP', name:'최종검사', seq:80, unit:'ea', type:'in',  equipment:[], inspect:['전수/샘플링']},
+      {code:'PACK', name:'포장',     seq:90, unit:'ea', type:'in',  equipment:[], inspect:['수량','라벨']},
+      {code:'SHIP', name:'출하',     seq:99, unit:'ea', type:'in',  equipment:[], inspect:[]},
+    ],
+    defect_types: [['DT-M01','치수 불량'],['DT-M02','조도 불량'],['DT-M03','흠집/찍힘'],['DT-M04','소재 결함'],['DT-M05','공구마모 불량'],['DT-M06','열처리 경도불량'],['DT-M07','표면처리 불량'],['DT-M08','세팅/프로그램 오류']],
+    master_fields: [
+      { id:'MF-MACH-001', master:'items', key:'표면처리',     label:'표면처리',     type:'text', unit:'',  order:1 },
+      { id:'MF-MACH-002', master:'items', key:'조도',         label:'조도',         type:'text', unit:'',  order:2 },
+      { id:'MF-MACH-003', master:'items', key:'공차등급',     label:'공차등급',     type:'text', unit:'',  order:3 },
+      { id:'MF-MACH-004', master:'items', key:'고객지정번호', label:'고객지정번호', type:'text', unit:'',  order:4 },
+    ],
+    flags: { scan:true, matin:true, a_mold:false, os_dispatch:true, os_receipt:true },
+  },
+};
+function applyIndustryPack(pack){
+  const def = INDUSTRY_PACKS[pack];
+  if(!def) throw new Error(`알 수 없는 산업 팩: ${pack}`);
+  let added = 0, skipped = 0;
+  def.processes.forEach(p => {
+    if(DB.get('processes', p.code)){ skipped++; return; }
+    DB.set('processes', p.code, p); added++;
+  });
+  def.defect_types.forEach(([code, name]) => {
+    if(DB.get('defect_types', code)){ skipped++; return; }
+    DB.set('defect_types', code, { code, name, active:true }); added++;
+  });
+  def.master_fields.forEach(f => {
+    if(DB.get('master_fields', f.id)){ skipped++; return; }
+    DB.set('master_fields', f.id, { id:f.id, master:f.master, key:f.key, label:f.label, type:f.type, unit:f.unit||'', options:f.options||[], allow_other:!!f.allow_other, order:f.order, active:true }); added++;
+  });
+  const hist = DB.get('settings','pack_installs') || { id:'pack_installs', installs:[] };
+  const first = !(hist.installs||[]).some(x => x.pack === pack);
+  if(first) Object.entries(def.flags||{}).forEach(([k,v]) => setFlag(k, v));
+  const co = getCompany();
+  if(co.preset !== pack) DB.set('settings','company', { ...co, preset: pack });
+  DB.set('settings','pack_installs', { installs: [...(hist.installs||[]), { pack, packVersion: def.version, installedAt: Date.now(), installedBy: (typeof SESSION!=='undefined' && SESSION.user) || 'system' }] });
+  return { added, skipped, first, version: def.version };
+}
 
 /* ★ v0.22.0 — 데모 체험 시드 (전 모듈 풀옵션 · 등록 API 경유 · 날짜 분산 backdating)
    호출 조건: 데모 모드 부팅 시 사용자 '데모' 미존재 → autoLoginDemo 가 1회 실행.
@@ -2534,7 +2616,7 @@ function seedDemoData(){
   if(DB.all('processes').length === 0){
     [
       {code:'CUT',  name:'절단',   seq:10, unit:'ea', type:'in',   equipment:['절단기 1호'],                inspect:['길이']},
-      {code:'FORGE',name:'단조',   seq:20, unit:'ea', type:'both', equipment:['프레스 1호','프레스 2호'],   inspect:['외관','치수']},
+      {code:'FORGE',name:'단조',   seq:20, unit:'ea', type:'both', mold_linked:true, equipment:['프레스 1호','프레스 2호'],   inspect:['외관','치수']},
       {code:'HEAT', name:'열처리', seq:30, unit:'ea', type:'out',  equipment:[],                              inspect:['경도']},
       {code:'SHOT', name:'쇼트',   seq:40, unit:'ea', type:'in',   equipment:['쇼트기'],                     inspect:['표면']},
       {code:'COIN', name:'코이닝', seq:50, unit:'ea', type:'in',   equipment:['코이닝프레스'],               inspect:['치수']},
@@ -3786,9 +3868,14 @@ function getHardness(it){
 }
 
 /* ── 금형 파생 누적 타수 (records 기반 · G1 저장 금지 · Cav 반영) ──────── */
+/* ★ v0.34.0 — 금형 연동 공정 집합 (헬퍼 1벌 · Forging Pack 추출 R2 — 업종 코드 대신 공정 속성) */
+function moldLinkedProcSet(){
+  return new Set(DB.query('processes', p => p.mold_linked).map(p => p.code));
+}
 function _forgeQtyForItem(itemCode){
   if(!itemCode) return 0;
-  return DB.query('records', r => r.plot_no && r.proc === 'FORGE')
+  const _ml = moldLinkedProcSet();
+  return DB.query('records', r => r.plot_no && _ml.has(r.proc))
     .filter(r => (DB.get('production_lots', r.plot_no)?.itemCode) === itemCode)
     .reduce((s,r) => s + (+r.good||0) + (+r.defect||0), 0);
 }
@@ -4460,8 +4547,9 @@ const LOT = {
       ts: Date.now(), by: worker?.emp_no || SESSION.user,
     };
     const saved = DB.set('records', id, rec);
-    // ★ v0.8.0 — FORGE 실적 시 해당 품번 금형 누적타발 자동 누적 (good+defect = 타발수)
-    if(proc==='FORGE'){
+    // ★ v0.8.0 — 금형 연동 공정 실적 시 해당 품번 금형 누적타발 자동 누적 (good+defect = 타발수)
+    // ★ v0.34.0 — 판정을 업종 코드('FORGE')가 아닌 공정 속성(processes.mold_linked)으로 (Forging Pack 추출 R1)
+    if(proc_obj.mold_linked){
       const strokes = (good||0) + (defect||0);
       if(strokes>0 && lot){ accumulateMoldStrokes(lot.itemCode, strokes); }
     }
@@ -15014,8 +15102,8 @@ VIEWS._editBOM = (itemCode) => {
 
   document.getElementById('bom-save').onclick = ()=>{
     // seq 재할당 (10씩 증가, SHIP는 99 보정)
-    const seqMap = {CUT:10, FORGE:20, HEAT:30, SHOT:40, COIN:50, SHIP:99};
-    const newRoute = route.map((r,i)=>({ proc:r.proc, mode:r.mode||'in', seq: seqMap[r.proc] ?? (i+1)*10 }));
+    // ★ v0.34.0 — 업종 고정 seq 맵 제거 (Forging Pack 추출 R3): 배열 순서 기반 · SHIP=Core 예약 말단 공정만 특수
+    const newRoute = route.map((r,i)=>({ proc:r.proc, mode:r.mode||'in', seq: r.proc==='SHIP' ? 99 : (i+1)*10 }));
     DB.set('bom', itemCode, {
       code: itemCode,
       name: item?.name||itemCode,
@@ -16113,7 +16201,14 @@ function generateAutoPlan(){
   items.sort((a,b)=> (a.due||'9999-12-31').localeCompare(b.due||'9999-12-31'));
   // 금형 경고 + CAPA 경고
   const capaByProc = {}; computeCapa().forEach(c=>capaByProc[c.proc.code]=c);
-  // 누적 FORGE 부하 계산 (계획상 추가될 양)
+  // ★ v0.34.0 — 병목 공정 자동 판정 (Forging Pack 추출 R4): 'FORGE' 하드코딩 → 부하율 최고 사내 공정
+  let _bn = null, _bnLoad = -1;
+  Object.values(capaByProc).forEach(c => {
+    if(!c.dailyCapa || c.proc?.type === 'out') return;
+    const l = c.assigned / c.dailyCapa;
+    if(l > _bnLoad){ _bnLoad = l; _bn = c; }
+  });
+  // 누적 병목 부하 계산 (계획상 추가될 양)
   let cumForgeAdd = 0;
   items.forEach(p=>{
     // 금형 경고
@@ -16128,14 +16223,13 @@ function generateAutoPlan(){
         moldWarn = `금형 ${m.id} 임박(잔여 ${remain}타)`;
       }
     }
-    // CAPA 경고 (FORGE 기준 — 단조 병목)
+    // CAPA 경고 (★ v0.34.0 — 병목 공정 자동 판정 기준 · 업종 코드 소멸)
     let capaWarn = null;
-    const fc = capaByProc['FORGE'];
-    if(fc){
+    if(_bn){
       cumForgeAdd += p.netDemand;
-      const projected = fc.assigned + cumForgeAdd;
-      const pct = fc.dailyCapa? (projected / fc.dailyCapa * 100) : 0;
-      if(pct > 100) capaWarn = `FORGE 부하 ${pct.toFixed(0)}% (초과 ${(projected-fc.dailyCapa).toFixed(0)}ea)`;
+      const projected = _bn.assigned + cumForgeAdd;
+      const pct = _bn.dailyCapa? (projected / _bn.dailyCapa * 100) : 0;
+      if(pct > 100) capaWarn = `${_bn.proc.code} 부하 ${pct.toFixed(0)}% (초과 ${(projected-_bn.dailyCapa).toFixed(0)}ea)`;
     }
     p.moldWarn = moldWarn;
     p.capaWarn = capaWarn;
@@ -21607,11 +21701,15 @@ VIEWS.set = () => {
         <div><label>회사명</label><input id="co-name" value="${_esc(co.name||'')}"></div>
         <div><label>공장/사이트</label><input id="co-site" value="${_esc(co.site||'')}"></div>
         <div><label>업종 프리셋</label>
-          <select id="co-preset">
+          <div style="display:flex;gap:6px">
+          <select id="co-preset" style="flex:1">
             <option value="forging" ${co.preset==='forging'?'selected':''}>단조팩</option>
             <option value="machining" ${co.preset==='machining'?'selected':''}>가공팩</option>
             <option value="heat" ${co.preset==='heat'?'selected':''}>열처리팩</option>
-          </select></div>
+          </select>
+          <button class="btn" id="co-pack-install" title="선택한 팩의 표준 공정·불량 유형·정의 필드를 설치합니다 — 이미 있는 항목은 절대 덮어쓰지 않음 (additive)">팩 설치</button>
+          </div>
+          ${(()=>{ const h=(DB.get('settings','pack_installs')||{}).installs||[]; const last=h[h.length-1]; return last?`<div style="font-size:10px;color:var(--dim);margin-top:3px">설치 이력: ${_esc(last.packVersion)} · ${fmtDate(last.installedAt)} · ${_esc(last.installedBy||'')}${h.length>1?` 외 ${h.length-1}건`:''}</div>`:''; })()}</div>
       </div>
       <div class="grid g3" style="margin-top:10px">
         <div><label>사업자등록번호</label><input id="co-biz" value="${_esc(co.biz_no||'')}" placeholder="123-45-67890"></div>
@@ -21878,6 +21976,29 @@ VIEWS.set = () => {
     ` : ''}
   `;
 
+  // ★ v0.34.0 — 산업 팩 프리셋 설치 (additive · 멱등 · 이력 기록 — Forging Pack v1.1)
+  const _packBtn = document.getElementById('co-pack-install');
+  if(_packBtn) _packBtn.onclick = () => {
+    const pk = document.getElementById('co-preset').value;
+    if(!INDUSTRY_PACKS[pk]){ toast(`${pk} 팩은 아직 준비 중입니다 (현재: 단조·가공)`, 'warn'); return; }
+    openModal(`
+      <h2>${_esc(INDUSTRY_PACKS[pk].label)} 설치 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+      <div class="body">
+        <div style="font-size:13px">표준 공정 ${INDUSTRY_PACKS[pk].processes.length}종 · 불량 유형 ${INDUSTRY_PACKS[pk].defect_types.length}종 · 정의 필드 ${INDUSTRY_PACKS[pk].master_fields.length}종을 설치합니다.</div>
+        <div style="font-size:11.5px;color:var(--sub);margin-top:6px">이미 있는 항목은 <b>절대 덮어쓰지 않습니다</b> (건너뜀). 기능 플래그는 이 팩의 최초 설치 때만 적용됩니다.</div>
+        <div class="actions">
+          <button class="btn" onclick="closeModal()">취소</button>
+          <button class="btn primary" id="pack-go">${ico('save')}설치</button>
+        </div></div>`);
+    document.getElementById('pack-go').onclick = () => {
+      try {
+        const r = applyIndustryPack(pk);
+        closeModal();
+        toast(`${INDUSTRY_PACKS[pk].label} ${r.version} 설치 — 추가 ${r.added} · 건너뜀 ${r.skipped}${r.first?' · 플래그 적용':''}`, 'ok', 5000);
+        router();
+      } catch(e){ toast(e.message, 'err', 5000); }
+    };
+  };
   // 회사
   document.getElementById('co-save').onclick = () => {
     const n = {
