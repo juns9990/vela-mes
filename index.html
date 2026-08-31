@@ -1226,7 +1226,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.35.1';
+const APP_VERSION = 'v0.35.2';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -17203,7 +17203,7 @@ VIEWS.plan = () => {
   // ★ v0.23.2 — 구 자동계획 헤더가 있으면 board 행으로 이관 (guard 로 1회만)
   migrateAutoPlanToBoard();
   const state = (window._planFilter = window._planFilter || {
-    tab:'week', axis:'item', anchor: fmtDate(Date.now()),
+    tab:'day', axis:'item', anchor: fmtDate(Date.now()),   // ★ v0.35.2 — 기본 탭 = 일간 (설비 레인·순번·예상시간이 첫 화면)
     q:'', eq:'', status:'', origin:''
   });
   // 이전 세션(v0.23.1)에서 origin 필드가 없던 경우 방어
