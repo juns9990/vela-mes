@@ -1046,6 +1046,47 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 .rule-note{max-height:40px;overflow:hidden;cursor:pointer;position:relative;padding-right:70px !important;transition:max-height .18s ease}
 .rule-note::after{content:'펼치기 ▾';position:absolute;top:9px;right:12px;font-size:10px;color:var(--cyan);font-weight:700;background:inherit;padding-left:6px}
 .rule-note.open{max-height:400px}
+/* ★ v0.35.1 — 메뉴 공통 규격 1벌 (사용자 확정 5원칙: 핵심 스트립·검색 1줄·핵심 컬럼·행 클릭 상세·⋯ 수납) */
+.mstrip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.mstrip .mk{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 14px;box-shadow:var(--sh)}
+.mstrip .mk .l{font-size:10.5px;color:var(--sub);font-weight:700}
+.mstrip .mk .v{font-size:18px;font-weight:800;font-family:'JetBrains Mono',monospace;margin-top:3px;letter-spacing:-.3px}
+.mstrip .mk .s{font-size:10.5px;color:var(--dim);margin-top:2px}
+@media(max-width:900px){.mstrip{grid-template-columns:repeat(2,1fr)}}
+.msrch{display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 13px;margin-bottom:10px;box-shadow:var(--sh)}
+.msrch input{flex:1;background:none;border:none;outline:none;color:var(--ink);font-size:13px;padding:0}
+.msrch select{border:1px solid var(--line2);border-radius:7px;padding:4px 8px;font-size:11.5px;background:var(--panel2);color:var(--sub)}
+.mrow{cursor:pointer}
+.mrow:hover td{background:color-mix(in srgb,var(--ink) 3%,transparent)}
+.mdet td{background:var(--panel2);border-left:3px solid var(--cyan-dim);white-space:normal}
+.mdet .dg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 20px;font-size:11.5px;padding:4px 2px}
+.mdet .dg span{color:var(--dim);font-size:10.5px;display:block}
+.mdet .dg b{color:var(--ink)}
+@media(max-width:900px){.mdet .dg{grid-template-columns:repeat(2,1fr)}}
+.mmore{position:relative;display:inline-block}
+.mmore-menu{position:absolute;right:0;top:38px;background:var(--panel);border:1px solid var(--line2);border-radius:10px;box-shadow:var(--sh2);padding:5px;z-index:50;min-width:160px;display:none}
+.mmore-menu.open{display:block}
+.mmore-menu button{display:block;width:100%;text-align:left;background:none;border:none;padding:8px 12px;font-size:12px;color:var(--sub);border-radius:7px;cursor:pointer}
+.mmore-menu button:hover{background:var(--panel2);color:var(--ink)}
+/* ★ v0.35.0 — 생산계획 설비 레인 · 교대 밴드 (시안 v6+v7) */
+.pln-lane{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.pln-head{display:flex;align-items:center;gap:10px;padding:10px 15px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:13px}
+.pln-shift{display:flex;align-items:center;gap:9px;padding:6px 15px;border-bottom:1px solid var(--line);font-size:11.5px;font-weight:800}
+.pln-shift .rng{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--sub);font-size:10.5px}
+.pln-shift .ldw{margin-left:auto;display:flex;align-items:center;gap:7px}
+.pln-shift .ldb{width:100px;height:7px;background:var(--line);border-radius:4px;overflow:hidden}
+.pln-shift .ldb i{display:block;height:100%;border-radius:4px}
+.pln-shift .ldt{font-size:10.5px;font-weight:800;font-family:'JetBrains Mono',monospace;min-width:36px;text-align:right}
+.pln-row{display:flex;align-items:center;gap:12px;padding:8px 15px;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap}
+.pln-row.late{background:color-mix(in srgb,var(--red) 6%,transparent)}
+.pln-row .num{text-align:right}
+.pln-seq{display:inline-block;width:21px;height:21px;border-radius:7px;color:#fff;font-weight:800;font-size:11px;text-align:center;line-height:21px;font-family:'JetBrains Mono',monospace;flex:none}
+.pln-mv{margin-left:auto;display:inline-flex;flex-direction:column;gap:2px}
+.pln-gap{display:flex;align-items:center;gap:8px;padding:3px 15px 3px 46px;font-size:10.5px;color:var(--amber);border-bottom:1px solid var(--line)}
+.pln-gap .ln{flex:1;border-top:1px dashed var(--line2)}
+.pln-gap .t{font-family:'JetBrains Mono',monospace;font-weight:700}
+.pln-gap.stop{color:var(--red)}
+@media print{.pln-mv{display:none}}
 .rule-note.open::after{content:'접기 ▴'}
 @media print{.rule-note{max-height:none !important}.rule-note::after{display:none}}
 </style>
@@ -1185,11 +1226,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.34.0';
+const APP_VERSION = 'v0.35.1';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-08-22';
+const APP_DATE    = '2026-08-31';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -2108,6 +2149,29 @@ function isLocked(k){
    ------------------------------------------------------------------------------------------------- */
 function getCompany(){
   return DB.get('settings','company') || {name:'대성단조', site:'창원공장', logo:'', seal:'', preset:'forging'};
+}
+/* ★ v0.35.0 — 교대 설정 (생산계획 시간축 · Customer Profile) — 1~3교대 · 시간/휴게. 기본 = 1교대(기존 가정과 동일). */
+const SHIFT_PRESETS = {
+  1: [{ key:'day', name:'주간', icon:'☀', start:'08:00', end:'17:00', brk:'12:00~13:00' }],
+  2: [{ key:'day', name:'주간', icon:'☀', start:'08:00', end:'17:00', brk:'12:00~13:00' },
+      { key:'night', name:'야간', icon:'🌙', start:'20:00', end:'05:00', brk:'00:00~00:30' }],
+  3: [{ key:'a', name:'A조', icon:'☀', start:'06:00', end:'14:00', brk:'10:00~10:30' },
+      { key:'b', name:'B조', icon:'🌤', start:'14:00', end:'22:00', brk:'18:00~18:30' },
+      { key:'c', name:'C조', icon:'🌙', start:'22:00', end:'06:00', brk:'02:00~02:30' }],
+};
+function getShifts(){
+  const s = DB.get('settings','shifts');
+  if(s && Array.isArray(s.list) && s.list.length) return s.list;
+  return SHIFT_PRESETS[1];
+}
+function shiftMinutes(sh){
+  // 교대 가용 분 = (종료−시작, 자정 넘김 허용) − 휴게
+  const toMin = t => { const [h,m] = String(t||'0:0').split(':').map(Number); return h*60 + (m||0); };
+  let dur = toMin(sh.end) - toMin(sh.start);
+  if(dur <= 0) dur += 24*60;   // 자정 넘김 (야간조)
+  const bk = String(sh.brk||'').split('~');
+  if(bk.length === 2){ let b = toMin(bk[1]) - toMin(bk[0]); if(b < 0) b += 24*60; dur -= Math.max(0, b); }
+  return Math.max(0, dur);
 }
 function getProcesses(){
   const all = DB.all('processes');
@@ -8090,15 +8154,33 @@ VIEWS.lot = () => {
 
   document.getElementById('view').innerHTML = `
     <div class="pghead">
-      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('lot')}</svg>LOT 추적 · 잔량원장</div>
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('lot')}</svg>LOT 추적</div>
       <div class="pgtools">
-        <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${lotState.voidView?'rgba(248,113,113,.08)':'var(--bg2)'}"><input type="checkbox" id="lot-void-view" ${lotState.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
-        <button class="btn" id="btn-merge">${ico('merge')}LOT 병합</button>
-        <button class="btn" id="btn-split">${ico('split')}LOT 분할</button>
-        <button class="btn" id="btn-fork">${ico('split')}LOT 분기</button>
-        <button class="btn" id="lot-xlsx">${ico('excel')}엑셀</button>
+        <span class="mmore"><button class="btn" id="lot-more">⋯</button>
+          <span class="mmore-menu" id="lot-more-menu">
+            <button id="btn-merge">${ico('merge')}LOT 병합</button>
+            <button id="btn-split">${ico('split')}LOT 분할</button>
+            <button id="btn-fork">${ico('split')}LOT 분기</button>
+            <button id="lot-xlsx">${ico('excel')}엑셀 내보내기</button>
+            <button id="lot-void-view-btn">${lotState.voidView?'✓ ':''}취소 포함 보기</button>
+          </span></span>
       </div>
     </div>
+
+    ${(() => {   // ★ v0.35.1 — 핵심 스트립 (공통 규격 · 전부 기존 헬퍼 1벌)
+      const act = lots.filter(l => !l.void && LOT.nextProcess(l.plot_no));
+      const wip = act.reduce((s,l) => { const n = LOT.nextProcess(l.plot_no); return s + Math.max(0, n ? LOT.balance(l.plot_no, n.code) : 0); }, 0);
+      const holdN = lots.filter(l => _heldSet.has(l.plot_no)).length;
+      const lockN = lots.filter(l => _lockedSet.has(l.plot_no)).length;
+      let osN = 0, osQty = 0;
+      lots.forEach(l => getRoute(l.itemCode).filter(r => r.mode === 'out').forEach(r => { const f = osInFlight(l.plot_no, r.proc); if(f > 0){ osN++; osQty += f; } }));
+      return `<div class="mstrip">
+        <div class="mk"><div class="l">진행 LOT</div><div class="v">${act.length}건</div><div class="s">재공 ${wip.toLocaleString()}ea</div></div>
+        <div class="mk"><div class="l" style="color:var(--red)">품질 HOLD · 잠금</div><div class="v" style="color:${holdN+lockN?'var(--red)':'var(--ink)'}">${holdN+lockN}건</div><div class="s">${holdN?`HOLD ${holdN}`:''}${holdN&&lockN?' · ':''}${lockN?`잠금 ${lockN}`:''}${!holdN&&!lockN?'없음':''}</div></div>
+        <div class="mk"><div class="l" style="color:var(--blue)">외주 반출 중</div><div class="v">${osN}건</div><div class="s">${osQty.toLocaleString()}ea 체류</div></div>
+        <div class="mk"><div class="l">전체 LOT</div><div class="v">${lots.length}건</div><div class="s">완료 ${lots.filter(l=>!l.void&&!LOT.nextProcess(l.plot_no)).length}건</div></div>
+      </div>`;
+    })()}
 
     <!-- 검색 + 필터 (재고 화면 패턴 복제) -->
     <div class="card" style="padding:14px;margin-bottom:12px">
@@ -8118,48 +8200,35 @@ VIEWS.lot = () => {
     </div>
 
     <div class="card">
-      <h3>생산 LOT <span class="tag">전체 ${lots.length}건 · 잔량 = 직전 양품 − 현 투입 · <span style="color:var(--blue)">반출 중 = 외주처 체류(입고 전)</span></span></h3>
+      <h3>생산 LOT <span class="tag">행 클릭 → 공정 스텝·실적 상세 (전 공정 수량은 상세에서)</span></h3>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>LOT</th><th>품번</th><th>type</th><th>heat</th><th class="num">초기</th>${procs.map(p=>`<th class="num">${p.name}</th>`).join('')}<th></th></tr></thead>
+        <thead><tr><th>LOT</th><th>품번</th><th>진행 위치</th><th class="num">잔량</th><th>heat</th><th>상태</th><th></th></tr></thead>
         <tbody>${filtered.length? filtered.map(l=>{
+          // ★ v0.35.1 — 공통 규격: 공정별 12칸 → 핵심 6컬럼 (상세 = 기존 스텝 패널 재사용 · 계산 불변)
+          //   음수 잔량(동시성 사고 지점) 공정이 있으면 그 공정을 우선 표시 — 문제는 목록에서 바로 보여야 함
           const route = getRoute(l.itemCode);
-          const inRoute = new Set(route.map(r=>r.proc));
-          // ★ v0.16.9 — 행당 1회 records 스캔 → 공정별 불량 집계 (칸마다 개별 query 금지)
-          const defectByProc = {};
-          DB.query('records', r => r.plot_no === l.plot_no).forEach(r => {
-            defectByProc[r.proc] = (defectByProc[r.proc] || 0) + (r.defect || 0);
-          });
-          const cells = procs.map(p=>{
-            if(!inRoute.has(p.code)){
-              return `<td class="num muted" title="라우트에 없음">—</td>`;
-            }
-            const bal = LOT.balance(l.plot_no, p.code);       // 계산 불변
-            const good = LOT.totalGood(l.plot_no, p.code);    // 계산 불변
-            const defect = defectByProc[p.code] || 0;
-            // ★ v0.16.16 — 외주 공정: 반출 중(입고 전) 서브 라인 · osInFlight 재사용(신규 계산 금지)
-            //             잔량 표시는 (잔량 − 반출 중) max 0 — 표시만, LOT.balance 계산 불변.
-            const routeEntry = route.find(r => r.proc === p.code);
-            const isOut = routeEntry?.mode === 'out';
-            const inFlight = isOut ? osInFlight(l.plot_no, p.code) : 0;
-            const displayBal = isOut ? Math.max(0, bal - inFlight) : bal;
-            // ★ v0.16.9 — 3줄 표기: 양품 / 불량(0이면 생략) / 잔량 (+ 반출 중 서브)
-            const defectLine = defect > 0
-              ? `<div style="color:var(--red);font-size:10px">불량 ${defect.toLocaleString()}</div>`
-              : '';
-            // ★ v0.16.11 — 음수 잔량 red bold + 툴팁 (초과 투입 · 이상 신호)
-            // ★ v0.16.14 — 잔량 0 = green ("대기 없음 · 원활" 신호) · dim → green 만 변경
-            const balColor  = displayBal > 0 ? 'var(--amber)' : displayBal < 0 ? 'var(--red)' : 'var(--green)';
-            const balWeight = '700';
-            const balTitle  = bal < 0 ? ' title="초과 투입 — 실적 중복 여부 확인"' : '';
-            const balLine = `<div${balTitle} style="color:${balColor};font-size:10px;font-weight:${balWeight}">잔량 ${displayBal.toLocaleString()}</div>`;
-            const inFlightLine = inFlight > 0
-              ? `<div title="외주처 체류 — 입고 전" style="color:var(--blue);font-size:10px">반출 중 ${inFlight.toLocaleString()}</div>`
-              : '';
-            return `<td class="num"><div>${good.toLocaleString()}</div>${defectLine}${balLine}${inFlightLine}</td>`;
-          }).join('');
+          const negStep = route.find(r => LOT.balance(l.plot_no, r.proc) < 0);
+          const next = negStep
+            ? { ...(DB.get('processes', negStep.proc) || { code:negStep.proc, name:negStep.proc }), mode:negStep.mode }
+            : LOT.nextProcess(l.plot_no);
+          const nextIdx = next ? route.findIndex(r => r.proc === next.code) : -1;
+          const bal = next ? LOT.balance(l.plot_no, next.code) : 0;
+          const isOut = next ? (route.find(r => r.proc === next.code)?.mode === 'out') : false;
+          const inFlight = (next && isOut) ? osInFlight(l.plot_no, next.code) : 0;
+          const displayBal = isOut ? Math.max(0, bal - inFlight) : bal;
+          const posCell = next
+            ? `<b>${_esc(DB.get('processes', next.code)?.name || next.code)}</b>${isOut?' <span class="pill blue" style="font-size:9px">외주</span>':''} <span class="muted" style="font-size:10px">(${nextIdx+1}/${route.length})</span>${inFlight>0?`<div style="color:var(--blue);font-size:10px">반출 중 ${inFlight.toLocaleString()}</div>`:''}`
+            : `<span class="pill gray" style="font-size:10px">완료</span>`;
+          const balCell = next
+            ? `<b style="color:${displayBal>0?'var(--amber)':displayBal<0?'var(--red)':'var(--green)'}"${bal<0?' title="초과 투입 — 실적 중복 여부 확인"':''}>${displayBal.toLocaleString()}</b>`
+            : `<span class="muted">—</span>`;
+          const stateCell = _heldSet.has(l.plot_no) ? '<span class="pill red">HOLD</span>'
+            : _lockedSet.has(l.plot_no) ? '<span class="pill red">잠금</span>'
+            : l.void ? '<span class="pill gray">취소</span>'
+            : next ? '<span class="pill cyan">진행</span>' : '<span class="pill green">완료</span>';
           const forkBadge = l.fork_from
-            ? `<div style="font-size:10px;color:var(--heat2)">↳ fork from ${l.fork_from} @${l.fork_at_proc}</div>`
-            : (l.merge_at_proc?`<div style="font-size:10px;color:var(--heat2)">@${l.merge_at_proc}</div>`:'');
+            ? `<div style="font-size:10px;color:var(--heat2)">↳ fork ${l.fork_from}</div>`
+            : (l.merge_at_proc?`<div style="font-size:10px;color:var(--heat2)">병합 @${l.merge_at_proc}</div>`:(l.type==='split'?'<div style="font-size:10px;color:var(--blue)">분할</div>':''));
           // ★ v0.16.0 — void 표시 · 취소/복원 버튼
           const isVoid = !!l.void;
           const rowStyle = isVoid ? 'opacity:.5;background:rgba(248,113,113,.04)' : '';
@@ -8174,21 +8243,21 @@ VIEWS.lot = () => {
             ? `<button class="btn ghost" data-lot-unvoid="${_esc(l.plot_no)}" style="color:var(--cyan)">${ico('save')}복원</button>`
             : `<button class="btn ghost" onclick="VIEWS._lotHistory('${l.plot_no}')">${ico('eye')}</button> <button class="btn ghost" data-lot-void="${_esc(l.plot_no)}" style="color:var(--red)">${ico('x')}취소</button>`;
           return `<tr style="${rowStyle}" data-lot-row="${_esc(l.plot_no)}">
-            <td><b class="lot-no-link" data-lot-steps="${_esc(l.plot_no)}" title="클릭 → 공정 스텝·실적 상세">${l.plot_no} <span class="lot-chev">▾</span></b>${holdBadge}${lockBadge}${voidBadge}${forkBadge}</td>
-            <td>${l.itemCode}</td>
-            <td><span class="pill ${l.type==='merged'?'heat':l.type==='split'?'blue':l.type==='forked'?'heat':'gray'}">${l.type}</span></td>
-            <td class="muted">${(l.heat_nos||[]).join(',')||'―'}</td>
-            <td class="num">${(l.qty_initial||0).toLocaleString()}</td>
-            ${cells}
+            <td><b class="lot-no-link" data-lot-steps="${_esc(l.plot_no)}" title="클릭 → 공정 스텝·실적 상세">${l.plot_no} <span class="lot-chev">▸</span></b>${voidBadge}${forkBadge}</td>
+            <td><b class="mono" style="font-size:11.5px">${l.itemCode}</b> <span class="muted" style="font-size:10.5px">초기 ${(l.qty_initial||0).toLocaleString()}</span></td>
+            <td>${posCell}</td>
+            <td class="num">${balCell}</td>
+            <td class="muted" style="font-size:11px">${(l.heat_nos||[]).join(',')||'―'}</td>
+            <td>${stateCell}</td>
             <td>${actionBtns}</td>
           </tr>`;
-        }).join('') : `<tr><td colspan="${4+procs.length+2}" class="empty">${hasFilter?'필터에 맞는 LOT이 없습니다':'생성된 LOT 없음'}</td></tr>`}</tbody>
+        }).join('') : `<tr><td colspan="7" class="empty">${hasFilter?'필터에 맞는 LOT이 없습니다':'생성된 LOT 없음'}</td></tr>`}</tbody>
       </table></div>
     </div>
   `;
 
   // ★ v0.32.3 — LOT 번호 클릭 → 공정 스텝 패널 토글 (행 아래 colspan 삽입 · 표시 전용)
-  const _lotColspan = 4 + procs.length + 2;
+  const _lotColspan = 7;   // ★ v0.35.1 — 핵심 6컬럼 + 액션
   document.querySelectorAll('[data-lot-steps]').forEach(el => el.onclick = (ev) => {
     ev.stopPropagation();
     const plot = el.dataset.lotSteps;
@@ -8225,7 +8294,11 @@ VIEWS.lot = () => {
     lotSearch[el.dataset.clear] = ''; router();
   });
   // ★ v0.16.0 — LOT void 토글 + 취소/복원 (연관 WO 동반)
-  document.getElementById('lot-void-view').onchange = (e)=>{ lotState.voidView=e.target.checked; router(); };
+  // ★ v0.35.1 — ⋯ 메뉴 배선 (취소 포함 토글·메뉴 열기)
+  const _lvBtn = document.getElementById('lot-void-view-btn');
+  if(_lvBtn) _lvBtn.onclick = ()=>{ lotState.voidView = !lotState.voidView; router(); };
+  const _lotMore = document.getElementById('lot-more');
+  if(_lotMore) _lotMore.onclick = (e)=>{ e.stopPropagation(); document.getElementById('lot-more-menu').classList.toggle('open'); };
   document.querySelectorAll('[data-lot-void]').forEach(b=>b.onclick = ()=>{
     const plot = b.dataset.lotVoid;
     const liveRecs = DB.query('records', r=>r.plot_no===plot && !r.transferred);
@@ -10249,135 +10322,111 @@ VIEWS.so = () => {
   const items = getActiveItems();
   const custs = getActiveVendors('cust');
 
-  // ★ v0.14.3 — 수주 대비 생산실적: 대시보드와 동일 헬퍼 (계산 1벌)
-  const stages = calcSoFulfillment();
-
-  // ★ v0.14.3 — 고객사별 그룹 (품번 행 · 소계 · 상태)
+  // ★ v0.35.1 — 메뉴 공통 규격 (사용자 확정 2026-08-31): 핵심 스트립 + 통합 표(핵심 6컬럼) + 행 클릭 상세 + ⋯ 수납.
+  //   '수주 대비 생산실적' 띠는 대시보드가 담당(중복 제거 — 정보 존치) · 고객사 소계는 필터·상세로 대체. 계산 전부 기존 1벌.
   const today = fmtDate(Date.now());
-  const byCust = {};
-  sos.forEach(o => {
-    const cust = o.cust || '미지정';
-    if(!byCust[cust]) byCust[cust] = { name: DB.get('vendors', cust)?.name || cust, sos: [] };
-    byCust[cust].sos.push(o);
+  const stF = (window._soFilter = window._soFilter || { q:'', status:'' });
+  const DAY7 = 7*86400000;
+  const rows = sos.map(o => {
+    const shipped = DB.query('shipments', s => s.so_id === o.id).reduce((s,r) => s+(r.qty||0), 0);
+    const remain  = Math.max(0, (o.qty||0) - shipped);
+    const item    = DB.get('items', o.itemCode);
+    const custNm  = DB.get('vendors', o.cust)?.name || o.cust || '';
+    let status;
+    if(remain === 0)                status = { label:'출하완료', cls:'green' };
+    else if(o.due && today > o.due) status = { label:'지연',     cls:'red'   };
+    else if(o.due && (new Date(o.due+'T00:00:00').getTime() - new Date(today+'T00:00:00').getTime()) <= DAY7) status = { label:'납기임박', cls:'amber' };
+    else                            status = { label:'진행',     cls:'cyan'  };
+    return { o, item, custNm, shipped, remain, status };
   });
-  const custGroups = Object.entries(byCust).map(([cust, g]) => {
-    const rows = g.sos.map(o => {
-      const shipped = DB.query('shipments', s => s.so_id === o.id).reduce((s,r) => s+(r.qty||0), 0);
-      const remain  = Math.max(0, (o.qty||0) - shipped);
-      const item    = DB.get('items', o.itemCode);
-      let status;
-      if(remain === 0)                   status = { label:'출하완료', cls:'green' };
-      else if(o.due && today > o.due)    status = { label:'지연',     cls:'red'   };
-      else                               status = { label:'진행',     cls:'cyan'  };
-      return { o, item, shipped, remain, status };
-    });
-    return {
-      cust, name: g.name, rows,
-      soQty:   rows.reduce((s,r) => s + (r.o.qty||0), 0),
-      shipQty: rows.reduce((s,r) => s + r.shipped, 0),
-      remainSum: rows.reduce((s,r) => s + r.remain, 0),
-    };
-  }).sort((a,b) => b.soQty - a.soQty);
+  // 핵심 스트립 4
+  const openR = rows.filter(r => r.remain > 0);
+  const zanAmt = openR.reduce((s,r) => s + r.remain*(+r.o.price||0), 0);
+  const lateR = rows.filter(r => r.status.label === '지연');
+  const soonR = rows.filter(r => r.status.label === '납기임박');
+  const mFirst = today.slice(0,7);
+  const monthR = rows.filter(r => fmtDate(r.o.created||0).slice(0,7) === mFirst);
+  // 필터
+  const fRows = rows.filter(r => {
+    if(stF.status && r.status.label !== stF.status) return false;
+    if(stF.q){
+      const q = stF.q.toLowerCase();
+      if(!`${r.o.id} ${r.custNm} ${r.o.itemCode} ${r.item?.name||''}`.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
   document.getElementById('view').innerHTML = `
     <div class="pghead">
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('so')}</svg>수주</div>
       <div class="pgtools">
-        <button class="btn" onclick="exportXlsx(DB.all('orders'),'SO','수주_${fmtDate(Date.now())}.xlsx')">${ico('excel')}엑셀</button>
         <button class="btn primary" id="btn-so-new">${ico('plus')}새 수주</button>
+        <span class="mmore"><button class="btn" id="so-more">⋯</button>
+          <span class="mmore-menu" id="so-more-menu">
+            <button onclick="exportXlsx(DB.all('orders'),'SO','수주_${fmtDate(Date.now())}.xlsx')">${ico('excel')}엑셀 내보내기</button>
+          </span></span>
       </div>
     </div>
 
-    <!-- ★ v0.14.3 — 수주 대비 생산실적 (대시보드 확정본 이관 · calcSoFulfillment 공용) -->
-    <div class="card core-card">
-      <h3>수주 대비 생산실적 <span class="tag">금액 · 출하 기준</span></h3>
-      ${stages.hasData? `
-        <div class="order-total">
-          <span class="lab">총 수주잔 (진행 중 주문 합계)</span>
-          <span class="amt">₩${stages.total.toLocaleString()}<small>100%</small></span>
-        </div>
-        <div class="stage3">
-          ${stages.donePct>0? `<div class="s done" style="width:${stages.donePct.toFixed(2)}%">${stages.donePct>=8?`출하완료 ${stages.donePct.toFixed(0)}%`:''}</div>`:''}
-          ${stages.progPct>0? `<div class="s prog" style="width:${stages.progPct.toFixed(2)}%">${stages.progPct>=8?`생산중 ${stages.progPct.toFixed(0)}%`:''}</div>`:''}
-          ${stages.waitPct>0? `<div class="s wait" style="width:${stages.waitPct.toFixed(2)}%">${stages.waitPct>=8?`미착수 ${stages.waitPct.toFixed(0)}%`:''}</div>`:''}
-        </div>
-        <div class="stage-legend">
-          <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--cyan)"></span>출하완료</div><div class="slv" style="color:var(--cyan)">₩${Math.round(stages.done).toLocaleString()}</div><div class="sls">납품·매출 확정분</div></div>
-          <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--amber)"></span>생산중</div><div class="slv" style="color:var(--amber)">₩${Math.round(stages.prog).toLocaleString()}</div><div class="sls">공정 진행 중 (재공)</div></div>
-          <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--line2)"></span>미착수</div><div class="slv" style="color:var(--sub)">₩${Math.round(stages.wait).toLocaleString()}</div><div class="sls">작업 시작 전</div></div>
-        </div>
-      ` : '<div class="chart-empty" style="padding:40px 0"><div class="big">수집중</div><div class="sm">수주가 등록되면 출하완료·생산중·미착수 3단계로 분해됩니다</div></div>'}
+    <div class="mstrip">
+      <div class="mk"><div class="l">진행 중 수주잔</div><div class="v">₩${Math.round(zanAmt).toLocaleString()}</div><div class="s">${openR.length}건 · ${openR.reduce((s,r)=>s+r.remain,0).toLocaleString()}ea</div></div>
+      <div class="mk"><div class="l" style="color:var(--red)">지연</div><div class="v" style="color:${lateR.length?'var(--red)':'var(--ink)'}">${lateR.length}건</div><div class="s">${lateR.length?`잔량 ${lateR.reduce((s,r)=>s+r.remain,0).toLocaleString()}ea`:'없음'}</div></div>
+      <div class="mk"><div class="l" style="color:var(--amber)">납기 7일 내</div><div class="v" style="color:${soonR.length?'var(--amber)':'var(--ink)'}">${soonR.length}건</div><div class="s">${soonR.length?`잔량 ${soonR.reduce((s,r)=>s+r.remain,0).toLocaleString()}ea`:'없음'}</div></div>
+      <div class="mk"><div class="l">이번 달 신규</div><div class="v">${monthR.length}건</div><div class="s">₩${Math.round(monthR.reduce((s,r)=>s+(+r.o.qty||0)*(+r.o.price||0),0)).toLocaleString()}</div></div>
     </div>
 
-    <!-- ★ v0.14.3 — 고객사별 수주 현황 (실적현황 그룹 헤더 패턴 재사용) -->
+    <div class="msrch">🔍<input id="so-q" placeholder="검색 — 수주번호 · 고객사 · 품번 · 품명" value="${_esc(stF.q)}">
+      <select id="so-st"><option value="">상태 전체</option>${['지연','납기임박','진행','출하완료'].map(s=>`<option ${stF.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+
     <div class="card">
-      <h3>고객사별 수주 현황 <span class="tag">출하 조인 · 잔량 · 상태</span></h3>
       <div class="tbl-wrap"><table>
-        <thead><tr>
-          <th>품번·품명</th>
-          <th class="num">수주량</th>
-          <th class="num">출하량</th>
-          <th class="num">잔량</th>
-          <th>납기</th>
-          <th>상태</th>
-          <th></th>
-        </tr></thead>
-        <tbody>${custGroups.length? custGroups.map(g => `
-          <tr style="background:var(--bg2)"><td colspan="7" style="font-size:11px;color:var(--cyan);font-weight:600;letter-spacing:.3px;padding:8px 10px">
-            ▾ ${_esc(g.name)}
-            <span style="color:var(--dim);margin-left:8px;font-weight:400">
-              수주 <b style="color:var(--ink)">${g.soQty.toLocaleString()}</b> ea ·
-              출하 <b style="color:var(--green)">${g.shipQty.toLocaleString()}</b> ea ·
-              잔량 <b style="color:var(--amber)">${g.remainSum.toLocaleString()}</b> ea
-            </span>
-          </td></tr>
-          ${g.rows.map(r => `<tr>
-            <td><b>${_esc(itemLabel(r.o.itemCode))}</b> <span class="muted" style="font-size:11px">${_esc(r.item?.name||'')}</span></td>
-            <td class="num">${(r.o.qty||0).toLocaleString()}</td>
-            <td class="num" style="color:${r.shipped>0?'var(--green)':'var(--dim)'}">${r.shipped.toLocaleString()}</td>
-            <td class="num" style="color:${r.remain>0?'var(--amber)':'var(--dim)'}">${r.remain.toLocaleString()}</td>
-            <td class="muted">${_esc(r.o.due||'—')}</td>
+        <thead><tr><th>수주번호</th><th>고객사</th><th>품번</th><th class="num">잔량 / 수량</th><th>납기</th><th>상태</th></tr></thead>
+        <tbody>${fRows.length? fRows.map(r => {
+          const o = r.o;
+          const plannedQty = soPlannedQty(o.id);
+          const planRemain = Math.max(0, (o.qty||0) - plannedQty);
+          const planBtn = (plannedQty > 0 && planRemain <= 0)
+            ? '<span class="pill gray" style="font-size:10px">계획완료</span>'
+            : (r.remain > 0 && getFlags().plan ? `<button class="btn ghost" data-so-plan="${_esc(o.id)}" style="font-size:10.5px;color:var(--cyan)">${ico('plus')}계획${plannedQty>0?` <span style="color:var(--dim);font-size:9px">잔${planRemain.toLocaleString()}</span>`:''}</button>` : '');
+          const shipCnt = DB.query('shipments', s => s.so_id === o.id).length;
+          return `<tr class="mrow" data-so-row="${_esc(o.id)}">
+            <td><b class="mono">${_esc(o.id)}</b> <span class="lot-chev">▸</span></td>
+            <td>${_esc(r.custNm)}</td>
+            <td><b class="mono" style="font-size:11.5px">${_esc(itemLabel(o.itemCode))}</b></td>
+            <td class="num"><b style="color:${r.remain>0?'var(--amber)':'var(--dim)'}">${r.remain.toLocaleString()}</b> <span class="muted">/ ${(o.qty||0).toLocaleString()}</span></td>
+            <td class="muted">${_esc(o.due||'—')}</td>
             <td><span class="pill ${r.status.cls}">${r.status.label}</span></td>
-            <td><div style="display:flex;gap:5px;justify-content:flex-end;align-items:center">
-              ${(() => {   // ★ v0.30.7 — 수량 기준: 계획 합계가 수주 수량 충족 시 '계획완료' · 미충족이면 [계획] 유지 (분할 계획)
-                const plannedQty = soPlannedQty(r.o.id);
-                const planRemain = Math.max(0, (r.o.qty||0) - plannedQty);
-                if(plannedQty > 0 && planRemain <= 0) return '<span class="pill gray" style="font-size:10px" title="계획 수량이 수주 수량을 충족했습니다 — 계획 취소 시 재계획 가능">계획완료</span>';
-                if(!(r.remain>0 && getFlags().plan)) return '';
-                const partTag = plannedQty > 0 ? ` <span style="color:var(--dim);font-size:9px">잔${planRemain.toLocaleString()}</span>` : '';
-                return `<button class="btn ghost" data-so-plan="${_esc(r.o.id)}" style="font-size:10.5px;color:var(--cyan)">${ico('plus')}계획${partTag}</button>`;
-              })()}
-              <button class="btn ghost" data-so-edit="${_esc(r.o.id)}" style="font-size:10.5px" title="수량·단가·납기 수정">수정</button>
-            </div></td>
-          </tr>`).join('')}
-        `).join('') : '<tr><td colspan="7" class="empty">수주 없음 — [새 수주]로 등록하세요</td></tr>'}
-        </tbody>
-      </table></div>
-    </div>
-
-    <!-- 기존 수주 목록 (SO 번호·단가·금액) -->
-    <div class="card">
-      <h3>수주 목록 <span class="tag">SO 번호 · 단가 · 금액</span></h3>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>SO 번호</th><th>고객사</th><th>품번</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th><th>납기</th><th>잔량</th><th></th></tr></thead>
-        <tbody>${sos.length? sos.map(o=>{
-          const shipped = DB.query('shipments', s=>s.so_id===o.id).reduce((s,r)=>s+(r.qty||0),0);
-          const remain = (o.qty||0)-shipped;
-          return `<tr>
-            <td><b>${o.id}</b></td>
-            <td>${DB.get('vendors',o.cust)?.name||o.cust}</td>
-            <td>${_esc(itemLabel(o.itemCode))}</td>
-            <td class="num">${(o.qty||0).toLocaleString()}</td>
-            <td class="num">₩${(o.price||0).toLocaleString()}</td>
-            <td class="num">₩${((o.qty||0)*(o.price||0)).toLocaleString()}</td>
-            <td class="muted">${o.due||'―'}</td>
-            <td>${remain<=0?'<span class="pill green">출하완료</span>':`<span class="pill heat">${remain.toLocaleString()}ea</span>`}</td>
-            <td><button class="btn ghost" data-so-edit="${_esc(o.id)}" title="수량·단가·납기 수정">수정</button></td>
-          </tr>`;
-        }).join('') : '<tr><td colspan="9" class="empty">수주 없음</td></tr>'}</tbody>
+          </tr>
+          <tr class="mdet" data-so-det="${_esc(o.id)}" hidden><td colspan="6">
+            <div class="dg">
+              <div><span>품명</span><b>${_esc(r.item?.name||'—')}</b></div>
+              <div><span>단가 · 금액</span><b>₩${(o.price||0).toLocaleString()} · ₩${((o.qty||0)*(o.price||0)).toLocaleString()}</b></div>
+              <div><span>출하 누계</span><b style="color:${r.shipped>0?'var(--green)':'var(--dim)'}">${r.shipped.toLocaleString()}ea${shipCnt?` (${shipCnt}회)`:''}</b></div>
+              <div><span>등록</span><b>${fmtDate(o.created||0)}</b></div>
+              <div><span>계획 배정</span><b>${plannedQty>0?`${plannedQty.toLocaleString()}ea${planRemain>0?` (잔 ${planRemain.toLocaleString()})`:''}`:'미계획'}</b></div>
+              <div style="grid-column:span 3;display:flex;gap:6px;align-items:end;justify-content:flex-end">
+                ${planBtn}
+                <button class="btn ghost" data-so-edit="${_esc(o.id)}" style="font-size:10.5px">수정</button>
+                ${r.remain>0?`<button class="btn ghost" onclick="location.hash='#ship'" style="font-size:10.5px;color:var(--cyan)">출하 화면 ↗</button>`:''}
+              </div>
+            </div>
+          </td></tr>`;
+        }).join('') : `<tr><td colspan="6" class="empty">${stF.q||stF.status?'검색 결과 없음':'수주 없음 — [새 수주]로 등록하세요'}</td></tr>`}</tbody>
       </table></div>
     </div>
   `;
+  // ★ v0.35.1 — 공통 규격 배선: 행 클릭 상세 토글 · 검색/필터 · ⋯ 메뉴
+  document.querySelectorAll('[data-so-row]').forEach(tr => tr.onclick = (e) => {
+    if(e.target.closest('button')) return;
+    const det = document.querySelector(`[data-so-det="${tr.dataset.soRow}"]`);
+    if(det) det.hidden = !det.hidden;
+    const chev = tr.querySelector('.lot-chev'); if(chev) chev.textContent = det && !det.hidden ? '▾' : '▸';
+  });
+  let _soDeb = null;
+  document.getElementById('so-q').oninput = e => { clearTimeout(_soDeb); _soDeb = setTimeout(() => { stF.q = e.target.value; router(); }, 250); };
+  document.getElementById('so-st').onchange = e => { stF.status = e.target.value; router(); };
+  const _soMore = document.getElementById('so-more');
+  if(_soMore) _soMore.onclick = (e) => { e.stopPropagation(); document.getElementById('so-more-menu').classList.toggle('open'); };
   // ★ v0.20.1 — 잔량 행 [계획] 바로가기 (계획 모달 프리필 오픈)
   document.querySelectorAll('[data-so-plan]').forEach(b => b.onclick = () => {
     const soId = b.dataset.soPlan;
@@ -15042,9 +15091,20 @@ VIEWS._editBOM = (itemCode) => {
     const avail = allProcs.filter(p=>!used.has(p.code));
     document.getElementById('bom-route').innerHTML = route.length? route.map((r,i)=>{
       const p = DB.get('processes', r.proc);
+      // ★ v0.35.0 — 스텝별 사이클타임(타수): 입력 단위 선택(분당/시간당) · 저장은 시간당 표준(uph) 1개 (사용자 판정 2026-09)
+      const uphTxt = (+r.uph||0) > 0 ? `분당 ${(r.uph/60).toFixed(1)} · 시간당 ${(+r.uph).toLocaleString()}` : '미입력 — 폴백(실적→설비)';
       return `<div class="feed-row" style="grid-template-columns:60px 1fr 100px auto">
         <span class="t">seq ${r.seq||(i+1)*10}</span>
-        <span class="e"><b>${p?.name||r.proc}</b> <span class="muted">(${r.proc})</span></span>
+        <span class="e"><b>${p?.name||r.proc}</b> <span class="muted">(${r.proc})</span>
+          <span style="display:inline-flex;gap:4px;align-items:center;margin-left:8px">
+            <input data-ct="${i}" type="number" min="0" step="0.1" value="${+r.uph? (r._ctu==='min'? +(r.uph/60).toFixed(2) : +r.uph) : ''}" placeholder="타수" style="width:70px;padding:4px 7px;font-size:11px;font-family:'JetBrains Mono',monospace">
+            <select data-ctu="${i}" style="padding:4px 5px;font-size:10.5px">
+              <option value="hr"${r._ctu!=='min'?' selected':''}>시간당</option>
+              <option value="min"${r._ctu==='min'?' selected':''}>분당</option>
+            </select>
+            <span class="muted" style="font-size:10px" data-ctv="${i}">${uphTxt}</span>
+          </span>
+        </span>
         <select data-mode="${i}" style="padding:5px 8px;font-size:11px">
           <option value="in"${r.mode==='in'?' selected':''}>사내</option>
           <option value="out"${r.mode==='out'?' selected':''}>외주</option>
@@ -15065,6 +15125,17 @@ VIEWS._editBOM = (itemCode) => {
 
     route.forEach((r,i)=>{
       document.querySelector(`[data-mode="${i}"]`).onchange = e=>{ route[i].mode = e.target.value; };
+      // ★ v0.35.0 — 사이클타임 입력: 어떤 단위로 넣든 uph(시간당) 표준으로 환산 저장 · 병기 표시 즉시 갱신
+      const _ctSync = ()=>{
+        const raw = +document.querySelector(`[data-ct="${i}"]`).value || 0;
+        const unit = document.querySelector(`[data-ctu="${i}"]`).value;
+        route[i]._ctu = unit;
+        route[i].uph = unit==='min' ? Math.round(raw*60*100)/100 : raw;
+        const v = document.querySelector(`[data-ctv="${i}"]`);
+        if(v) v.textContent = route[i].uph>0 ? `분당 ${(route[i].uph/60).toFixed(1)} · 시간당 ${(+route[i].uph).toLocaleString()}` : '미입력 — 폴백(실적→설비)';
+      };
+      document.querySelector(`[data-ct="${i}"]`).oninput = _ctSync;
+      document.querySelector(`[data-ctu="${i}"]`).onchange = _ctSync;
     });
     document.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.up; [route[i-1],route[i]]=[route[i],route[i-1]]; render(); });
     document.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.down; [route[i+1],route[i]]=[route[i],route[i+1]]; render(); });
@@ -15103,7 +15174,7 @@ VIEWS._editBOM = (itemCode) => {
   document.getElementById('bom-save').onclick = ()=>{
     // seq 재할당 (10씩 증가, SHIP는 99 보정)
     // ★ v0.34.0 — 업종 고정 seq 맵 제거 (Forging Pack 추출 R3): 배열 순서 기반 · SHIP=Core 예약 말단 공정만 특수
-    const newRoute = route.map((r,i)=>({ proc:r.proc, mode:r.mode||'in', seq: r.proc==='SHIP' ? 99 : (i+1)*10 }));
+    const newRoute = route.map((r,i)=>({ proc:r.proc, mode:r.mode||'in', seq: r.proc==='SHIP' ? 99 : (i+1)*10, uph: +r.uph||0 }));   // ★ v0.35.0 — uph(시간당 타수 표준) 저장
     DB.set('bom', itemCode, {
       code: itemCode,
       name: item?.name||itemCode,
@@ -16410,8 +16481,8 @@ VIEWS.mold = () => {
           <div><label>보유 수량 (벌) <span style="color:var(--dim);font-weight:400">— 물량 증가 시 +</span></label><input id="m-qty" type="number" min="1" step="1" value="${moldQty(m)}"
             title="같은 금형·지그를 여러 벌 두고 교대 사용하는 경우 — 누적 타수는 벌당 평균(전체 ÷ 보유 수량)으로 계산"></div>
           <div><label>수동 보정 (offset) <span style="color:var(--dim);font-weight:400">— 전체 파생값에 가산</span></label><input id="m-offset" type="number" step="1" value="${+m.offset||0}"></div>
-          <div><label>shots_source <span style="color:var(--dim);font-weight:400">— 자리 예약</span></label>
-            <input value="${_esc(m.shots_source||'derived')}" disabled style="border-style:dashed;color:var(--dim);font-family:'JetBrains Mono',monospace"></div>
+          <div><label>교체 평균시간 (분) <span style="color:var(--dim);font-weight:400">— 생산계획 반영</span></label><input id="m-setup" type="number" min="0" step="5" value="${+m.setup_min||''}" placeholder="미입력=설비 기본"
+            title="★ v0.35.0 — 이 금형 장착 교체에 걸리는 평균 시간(분). 생산계획 예상시간에 자동 가산 · 미입력 시 설비 기본 교체시간 폴백"></div>
         </div>
         <div style="font-size:10px;color:var(--sub);margin-top:-4px">보유 수량을 늘리면 누적/벌이 자동으로 나눠집니다 (교대 사용 균등 근사). 벌별 정밀 추적이 필요하면 장착/해제 이력 기능을 요청하세요.</div>
         ${renderCustomFields('molds', m.custom, 'form')}
@@ -16477,15 +16548,16 @@ VIEWS.mold = () => {
       const life   = +document.getElementById('m-life').value||0;
       const qty    = Math.max(1, Math.floor(+document.getElementById('m-qty').value||1));   // ★ v0.29.7
       const offset = +document.getElementById('m-offset').value||0;
+      const setup_min = +document.getElementById('m-setup').value||0;   // ★ v0.35.0 — 교체 평균시간
       // ★ v0.31.4 — 금형ID 빈칸이면 자동순번 (직접 입력 등록도 번호 걱정 없이 · 연동 제안과 병행)
       const mid2 = mid || suggestNextId('molds','M');
       if(!name){ toast('이름 입력','warn'); return; }
       if(!id && DB.get('molds', mid2)){ toast(`금형ID 중복 — ${mid2}`,'err'); return; }
       const custom = readCustomFieldsInputs('molds');
       const doc = id
-        ? { name, type, mold_no:moldNo, variant, qty, itemCodes:its, life_limit:life, offset,
+        ? { name, type, mold_no:moldNo, variant, qty, itemCodes:its, life_limit:life, offset, setup_min,
             shots_source:'derived', custom }
-        : { id:mid2, name, type, mold_no:moldNo, variant, qty, itemCodes:its, life_limit:life, offset,
+        : { id:mid2, name, type, mold_no:moldNo, variant, qty, itemCodes:its, life_limit:life, offset, setup_min,
             cum_strokes:0, shots_source:'derived', status:'정상', qr:mid2, custom, active:true };
       DB.set('molds', id ? mid : mid2, doc);   // ★ v0.31.4 — 신규는 자동순번 반영
       toast(`저장 — ${id ? mid : mid2}`,'ok'); closeModal(); router();
@@ -16989,6 +17061,140 @@ function issueWoFromPlan(plan){
    plans 컬렉션 = production_plans (기존 auto plan 문서는 plan_type 미지정, 신규 board 는 plan_type='board').
    상태 저장 금지 → calcPlanProgress 로 파생만. 지시 로직 신규 작성 금지 — VIEWS._woNew(pre) 프리필 호출.
    ================================================================================================ */
+/* ★ v0.35.0 — 생산계획 일간 타임라인 1벌 (파생 계산 · 저장 금지 — 사용자 판정 시안 v6+v7 확정 2026-09)
+   설비 레인 × 교대 밴드 × 순번 → 타수 3단 폴백(라우트 uph×cav → 실적 일산출 환산 → 설비 능력) ·
+   금형 교체(순번 간·마스터 평균) · 수명 도달 예측(예비 벌 분기) · 교대 경계 자동 이월.
+   시간 표기는 "경" 수준 — Setup 외 중단 미반영(능력 기준 단순 환산 — capacity-v1 원칙). */
+function planRateFor(itemCode, eqName){
+  const eq = DB.query('equipment', e => e.name === eqName)[0] || null;
+  const proc = eq?.proc || null;
+  const it = DB.get('items', itemCode);
+  const cav = Math.max(1, Math.floor(+(it?.cav||0)) || 1);
+  const isMold = proc ? !!DB.get('processes', proc)?.mold_linked : false;
+  if(proc){
+    const step = getRoute(itemCode).find(r => r.proc === proc);
+    if(step && +step.uph > 0) return { rate: step.uph * (isMold ? cav : 1), basis: `라우트 ${(+step.uph).toLocaleString()}타/h${isMold && cav>1 ? `×${cav}cav` : ''}` };
+  }
+  if(proc){
+    const byDay = {};
+    DB.query('records', r => r.proc === proc && (DB.get('production_lots', r.plot_no)?.itemCode) === itemCode)
+      .forEach(r => { const d = fmtDate(r.ts); byDay[d] = (byDay[d]||0) + (+r.good||0) + (+r.defect||0); });
+    const days = Object.values(byDay);
+    if(days.length >= 3){
+      const wh = Math.max(1, +(eq?.working_hours || 8));
+      const rate = Math.round(days.reduce((s,v)=>s+v,0) / days.length / wh);
+      if(rate > 0) return { rate, basis: `실적 환산 (${days.length}일 일산출 평균)` };
+    }
+  }
+  if(eq && +eq.hourly_capa > 0) return { rate: (+eq.hourly_capa) * (isMold ? cav : 1), basis: '설비 능력' };
+  return { rate: 0, basis: '타수 정보 없음' };
+}
+function planMoldFor(itemCode){
+  return DB.query('molds', m => Array.isArray(m.itemCodes) && m.itemCodes.includes(itemCode) && m.active !== false)[0] || null;
+}
+function _shClock(sh, usedMin){
+  // 교대 시작 + 소요분 → 시계 표기 (휴게 통과 시 휴게분 가산 · 근사)
+  const toMin = t => { const [h,m] = String(t||'0:0').split(':').map(Number); return h*60 + (m||0); };
+  let t = toMin(sh.start) + usedMin;
+  const bk = String(sh.brk||'').split('~');
+  if(bk.length === 2){
+    const b0 = toMin(bk[0]) < toMin(sh.start) ? toMin(bk[0]) + 24*60 : toMin(bk[0]);
+    let bd = toMin(bk[1]) - toMin(bk[0]); if(bd < 0) bd += 24*60;
+    if(t > b0) t += bd;
+  }
+  t = t % (24*60);
+  return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(Math.round(t%60)).padStart(2,'0')}`;
+}
+function planDayTimeline(dateStr, plans){
+  const shifts = getShifts();
+  const byEq = {};
+  const unassigned = [];
+  plans.forEach(p => { if(p.equipment){ (byEq[p.equipment] = byEq[p.equipment] || []).push(p); } else unassigned.push(p); });
+  const lanes = Object.keys(byEq).sort().map(eqName => {
+    const eq = DB.query('equipment', e => e.name === eqName)[0] || null;
+    const isMoldProc = eq?.proc ? !!DB.get('processes', eq.proc)?.mold_linked : false;
+    // 순번: p.seq(사람 저장값) → 없으면 납기·등록순
+    const jobs = byEq[eqName].slice().sort((a,b) => (+a.seq||9e9) - (+b.seq||9e9) || String(a.due||a.date||'').localeCompare(String(b.due||b.date||'')) || (a.ts||0)-(b.ts||0));
+    // 잔여 수량 = 계획 − 실적 (완료분 제외)
+    const q = jobs.map(p => {
+      const pr = calcPlanProgress(p);
+      return { p, remain: Math.max(0, (+p.qty||0) - pr.actual), pr };
+    }).filter(x => x.remain > 0 || x.pr.state !== '완료');
+    // 금형 수명 상태 (레인 내 공유 — 순번 진행하며 소모)
+    const moldUse = {};   // mold.id → 계획 누적 타
+    let prevMoldId = null;
+    const shiftsOut = shifts.map(sh => ({ sh, avail: shiftMinutes(sh), used: 0, entries: [] }));
+    let si = 0;
+    let stopped = false;
+    q.forEach(({ p, remain, pr }) => {
+      if(stopped || si >= shiftsOut.length){
+        (shiftsOut[shiftsOut.length-1] || {entries:[]}).entries.push({ type:'job', p, qty: remain, pr, rate:0, basis:'', from:'', to:'미정', overflow:true });
+        return;
+      }
+      const { rate, basis } = planRateFor(p.itemCode, eqName);
+      const it = DB.get('items', p.itemCode);
+      const cav = Math.max(1, Math.floor(+(it?.cav||0)) || 1);
+      const mold = isMoldProc ? planMoldFor(p.itemCode) : null;
+      // ① 순번 간 금형 교체
+      if(mold && prevMoldId && mold.id !== prevMoldId){
+        const setup = +mold.setup_min || +(eq?.setup_min) || 0;
+        if(setup > 0){
+          const from = _shClock(shiftsOut[si].sh, shiftsOut[si].used);
+          shiftsOut[si].used += setup;
+          shiftsOut[si].entries.push({ type:'setup', mold, min:setup, from, to:_shClock(shiftsOut[si].sh, shiftsOut[si].used) });
+        }
+      }
+      // ② 수명 도달 예측 (계획 타발 누적 vs 잔여)
+      if(mold && +mold.life_limit > 0){
+        const remainShots = Math.max(0, (+mold.life_limit) - moldShotsPerUnit(mold) - Math.ceil((moldUse[mold.id]||0)));
+        const planShots = Math.ceil(remain / cav);
+        if(planShots > remainShots){
+          if(moldQty(mold) > 1){
+            const swap = +mold.setup_min || +(eq?.setup_min) || 30;
+            shiftsOut[si].used += swap;
+            shiftsOut[si].entries.push({ type:'life', mold, min:swap, atQty: remainShots * cav });
+          } else {
+            shiftsOut[si].entries.push({ type:'stop', mold, atQty: remainShots * cav });
+            stopped = true;
+          }
+        }
+        moldUse[mold.id] = (moldUse[mold.id]||0) + planShots;
+      }
+      if(mold) prevMoldId = mold.id;
+      // ③ 작업 배치 + 교대 이월
+      let left = remain;
+      while(left > 0 && si < shiftsOut.length && !(stopped && left === remain)){
+        const cur = shiftsOut[si];
+        const availMin = cur.avail - cur.used;
+        if(rate <= 0){
+          cur.entries.push({ type:'job', p, qty:left, pr, rate:0, basis, from:_shClock(cur.sh, cur.used), to:'미상', carry:left<remain });
+          left = 0; break;
+        }
+        const needMin = left / rate * 60;
+        const from = _shClock(cur.sh, cur.used);
+        if(needMin <= availMin){
+          cur.used += needMin;
+          cur.entries.push({ type:'job', p, qty:left, pr, rate, basis, from, to:'~'+_shClock(cur.sh, cur.used), carry:left<remain });
+          left = 0;
+        } else {
+          const fit = Math.floor(availMin / 60 * rate);
+          if(fit > 0){
+            cur.used = cur.avail;
+            cur.entries.push({ type:'job', p, qty:fit, pr, rate, basis, from, to:_shClock(cur.sh, cur.avail), carryOut:left-fit });
+            left -= fit;
+          }
+          si += 1;   // 다음 교대로 이월
+          if(si >= shiftsOut.length){
+            shiftsOut[shiftsOut.length-1].entries.push({ type:'job', p, qty:left, pr, rate, basis, from:'', to:'익일 이월', overflow:true, carry:true });
+            left = 0;
+          }
+        }
+      }
+    });
+    return { eqName, eq, shifts: shiftsOut, stopped };
+  });
+  return { lanes, unassigned };
+}
 VIEWS.plan = () => {
   if(!getFlags().plan){
     document.getElementById('view').innerHTML = `<div class="card">생산계획 모듈 OFF — 설정에서 켜세요.</div>`;
@@ -17093,51 +17299,69 @@ VIEWS.plan = () => {
   // 뷰별 본문
   let body = '';
   if(state.tab==='day'){
-    // 설비별 그룹 (미배정 포함) — 계획일=anchor
+    // ★ v0.35.0 — 일간 = 설비 레인 × 교대 밴드 × 순번 × 예상시간 (시안 v6+v7 확정 · planDayTimeline 1벌)
     const dayPlans = scoped.filter(p => p.date === state.anchor);
-    const groups = { '__none__':[] };
-    eqNames.forEach(n => groups[n] = []);
-    dayPlans.forEach(p => {
-      const key = p.equipment && groups[p.equipment] ? p.equipment : (p.equipment || '__none__');
-      if(!groups[key]) groups[key] = [];
-      groups[key].push(p);
-    });
-    const groupKeys = ['__none__', ...eqNames.filter(n => (groups[n]||[]).length)];
+    const tl = planDayTimeline(state.anchor, dayPlans);
+    const shiftBg = i => ['#fefce8','#eef2ff','#f5f3ff'][i] || 'var(--panel2)';
+    const seqBg   = i => ['var(--prim)','#4c5b8f','#6d5b8f'][i] || 'var(--prim)';
+    const laneHTML = tl.lanes.map(l => {
+      let bands = l.shifts.map((so, siIdx) => {
+        if(!so.entries.length) return '';
+        const loadPct = so.avail > 0 ? Math.min(999, so.used / so.avail * 100) : 0;
+        const loadClr = loadPct > 100 ? 'var(--red)' : loadPct >= 85 ? 'var(--ink)' : 'var(--green)';
+        let seq = 0;
+        const rows = so.entries.map(en => {
+          if(en.type === 'setup') return `<div class="pln-gap"><span>🔧 금형교체 <b>${en.min}분</b></span><span class="ln"></span><span class="t">${_esc(en.from)} ~ ${_esc(en.to)}</span></div>`;
+          if(en.type === 'life')  return `<div class="pln-gap"><span>⚠ 수명도달 → 예비벌 교체 <b>${en.min}분</b> <span style="color:var(--dim)">(약 ${(+en.atQty||0).toLocaleString()}개째)</span></span><span class="ln"></span></div>`;
+          if(en.type === 'stop')  return `<div class="pln-gap stop"><span>⛔ 금형 준비 필요 (${_esc(en.mold?.id||'')} · 예비벌 없음) — 이후 일정 미정</span><span class="ln"></span><span><button class="btn ghost" style="font-size:10.5px;padding:2px 8px;color:var(--red)" onclick="location.hash='#mold'">금형 ↗</button></span></div>`;
+          seq += 1;
+          const p = en.p, it = DB.get('items', p.itemCode);
+          const so2 = p.so_id ? DB.get('orders', p.so_id) : null;
+          const due = so2?.due ? String(so2.due).slice(5,10) : '';
+          const lateRisk = so2?.due && so2.due <= state.anchor && (en.overflow || en.carryOut || String(en.to).includes('이월'));
+          const prodKg = it?.product_weight_g ? (it.product_weight_g/1000).toFixed(2) : '—';
+          const matKg  = +it?.weight ? (+it.weight).toFixed(2) : '—';
+          return `<div class="pln-row${lateRisk?' late':''}" title="${_esc(en.basis||'')}${en.pr && en.pr.actual>0 ? ` · 실적 ${en.pr.actual.toLocaleString()}` : ''}">
+            <span class="pln-seq" style="background:${lateRisk?'var(--red)':seqBg(siIdx)}">${seq}</span>
+            <span style="min-width:150px"><b class="mono">${_esc(p.itemCode)}</b><br><span class="muted" style="font-size:10.5px">${_esc(it?.name||'')}${en.carry?' · 이월분':''}</span></span>
+            <span class="mono" style="font-size:11px;min-width:110px">${_esc(it?.mat||'—')}${+it?.dia?`<br><span class="muted" style="font-size:10px">Ø${+it.dia}</span>`:''}</span>
+            <span class="mono num" style="font-size:11px;min-width:78px" title="중량 소재/제품 (kg)">${matKg}<span class="muted">/${prodKg}</span></span>
+            <span class="mono num" style="min-width:64px"><b>${(+en.qty||0).toLocaleString()}</b>${en.carryOut?`<br><span style="font-size:9.5px;color:var(--cyan);font-weight:700">→이월 ${(+en.carryOut).toLocaleString()}</span>`:''}</span>
+            <span class="mono num" style="font-size:11px;min-width:60px;border-bottom:1px dashed var(--line2);cursor:help" title="${_esc(en.basis||'타수 정보 없음')}">${en.rate>0?en.rate.toLocaleString()+'/h':'—'}</span>
+            <span class="mono" style="font-size:11px;min-width:128px">${_esc(en.from||'')} → ${_esc(en.to||'')}</span>
+            <span style="font-size:11px;min-width:52px;${lateRisk?'color:var(--red);font-weight:700':''}">${_esc(due||'—')}</span>
+            <span class="pln-mv"><button class="btn ghost" style="padding:1px 6px;font-size:9px" onclick="VIEWS._planSeqMove('${_esc(p.id)}',-1)">▲</button><button class="btn ghost" style="padding:1px 6px;font-size:9px" onclick="VIEWS._planSeqMove('${_esc(p.id)}',1)">▼</button></span>
+          </div>`;
+        }).join('');
+        return `<div class="pln-shift" style="background:${shiftBg(siIdx)}">${_esc(so.sh.icon||'')} ${_esc(so.sh.name)} <span class="rng">${_esc(so.sh.start)} ~ ${_esc(so.sh.end)}</span>
+          <span class="ldw"><span class="ldb"><i style="width:${Math.min(100,loadPct).toFixed(0)}%;background:${loadPct>100?'var(--red)':'var(--cyan-dim)'}"></i></span><span class="ldt" style="color:${loadClr}">${loadPct.toFixed(0)}%</span></span></div>${rows}`;
+      }).join('');
+      return `<div class="pln-lane">
+        <div class="pln-head"><b>${_esc(l.eqName)}</b><span class="muted" style="font-size:11px">${_esc(DB.get('processes', l.eq?.proc)?.name || l.eq?.proc || '')}</span>${l.stopped?'<span class="pill red" style="font-size:9.5px">금형 확인 필요</span>':''}</div>
+        ${bands || '<div style="padding:10px 15px;color:var(--dim);font-size:11.5px">이 날짜 계획 없음</div>'}
+      </div>`;
+    }).join('');
+    const unassignedHTML = tl.unassigned.length ? `
+      <div class="pln-lane" style="border-style:dashed">
+        <div class="pln-head" style="background:#fffbeb"><b style="color:var(--amber)">미배정</b><span class="muted" style="font-size:11px">설비 지정 필요 — ${tl.unassigned.length}건 · ${tl.unassigned.reduce((s,p)=>s+(+p.qty||0),0).toLocaleString()}ea</span></div>
+        ${tl.unassigned.map(p => { const it = DB.get('items', p.itemCode); return `
+          <div class="pln-row">
+            <span class="pln-seq" style="background:var(--line2);color:var(--sub)">—</span>
+            <span style="min-width:150px"><b class="mono">${_esc(p.itemCode)}</b><br><span class="muted" style="font-size:10.5px">${_esc(it?.name||'')}</span></span>
+            <span class="mono num" style="min-width:64px"><b>${(+p.qty||0).toLocaleString()}</b></span>
+            <span class="muted" style="font-size:11px">배정 후 시간 계산</span>
+            <span style="margin-left:auto"><button class="btn" style="padding:3px 10px;font-size:11px" onclick="VIEWS._planEdit && VIEWS._planEdit('${_esc(p.id)}')">설비 배정</button></span>
+          </div>`; }).join('')}
+      </div>` : '';
     body = `
-      <div class="card">
-        <h3>일간 · ${_esc(state.anchor)} <span class="tag">${dayPlans.length}건 · 설비별 그룹 (미배정 포함)</span></h3>
-        ${groupKeys.map(k => {
-          const arr = groups[k] || [];
-          if(!arr.length && k !== '__none__') return '';
-          const label = k==='__none__' ? '미배정' : k;
-          // ★ v0.20.4 — 설비 그룹 헤더에 부하율 소자 (calcDayLoad 재사용 · 미배정은 미표시)
-          let loadBadge = '';
-          if(k !== '__none__'){
-            const ld = calcDayLoad(state.anchor, k);
-            const over = ld.pct > 100;
-            const clr = over ? 'var(--red)' : 'var(--sub)';
-            const bold = over ? 'font-weight:700' : '';
-            const uncntTxt = ld.uncounted > 0 ? ` <span style="color:var(--dim);font-weight:400">±${ld.uncounted}건 미산정</span>` : '';
-            loadBadge = `<span style="margin-left:8px;color:${clr};font-size:10.5px;${bold}">부하 ${ld.pct.toFixed(0)}% <span style="color:var(--dim);font-weight:400">(${ld.usedH.toFixed(1)}h/${ld.capH}h)</span>${uncntTxt}</span>`;
-          }
-          return `
-            <div style="margin-bottom:10px">
-              <div style="font-size:11px;color:${k==='__none__'?'var(--amber)':'var(--cyan)'};font-weight:600;padding:6px 0;letter-spacing:.3px">▾ ${_esc(label)} <span style="color:var(--dim);font-weight:400">${arr.length}건</span>${loadBadge}</div>
-              ${arr.length ? arr.map(p => {
-                const it = DB.get('items', p.itemCode);
-                const pr = calcPlanProgress(p);
-                const mat = calcPlanMaterial(p);
-                return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;margin-bottom:4px;font-size:12px">
-                  ${matDot(mat)}
-                  <b>${_esc(p.itemCode)}</b>
-                  <span class="muted" style="font-size:11px">${_esc(it?.name||'')}</span>
-                  <span class="pill ${stateColor(pr.state)}" style="font-size:10px">${pr.state}</span>
-                  <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;color:var(--cyan)">${(+p.qty||0).toLocaleString()}ea</span>
-                  <span style="font-family:'JetBrains Mono',monospace;color:var(--sub);font-size:11px">→ ${pr.actual.toLocaleString()}</span>
-                </div>`;
-              }).join('') : `<div style="color:var(--dim);font-size:11px;padding:6px 0">계획 없음</div>`}
-            </div>`;
-        }).join('')}
+      <div class="card" style="padding-bottom:10px">
+        <h3>일간 · ${_esc(state.anchor)} <span class="tag">${dayPlans.length}건 · ${getShifts().length}교대 · 예상시간 = 능력 기준(교체 포함) "경" 단위</span>
+          <span style="margin-left:auto;display:inline-flex;gap:6px">
+            <button class="btn" style="font-size:11px;padding:5px 10px" onclick="VIEWS._planSheetPrint('${_esc(state.anchor)}')">🖨 생산계획서</button>
+            <button class="btn" style="font-size:11px;padding:5px 10px" onclick="VIEWS._planSheetXlsx('${_esc(state.anchor)}')">${ico('excel')}엑셀</button>
+          </span></h3>
+        ${laneHTML || '<div class="empty" style="padding:16px">이 날짜에 배정된 계획 없음</div>'}
+        ${unassignedHTML}
       </div>`;
   } else if(state.tab==='week'){
     // 주간 보드 — 7열 · 행 축 토글 (품번 / 설비)
@@ -17437,6 +17661,144 @@ VIEWS._planNav = (dateStr) => {
   router();
 };
 
+/* ★ v0.35.0 — 순번 이동 (사람의 결정 = plan.seq 저장 OK · 같은 날·같은 설비 안에서만) */
+VIEWS._planSeqMove = (id, dir) => {
+  const p = DB.get('production_plans', id);
+  if(!p || !p.equipment) return;
+  const sibs = getLivePlans().filter(x => x.date === p.date && x.equipment === p.equipment)
+    .sort((a,b) => (+a.seq||9e9) - (+b.seq||9e9) || (a.ts||0) - (b.ts||0));
+  sibs.forEach((x,i) => { if(+x.seq !== (i+1)*10) DB.set('production_plans', x.id, { seq:(i+1)*10 }); });
+  const idx = sibs.findIndex(x => x.id === id);
+  const j = idx + (dir < 0 ? -1 : 1);
+  if(idx < 0 || j < 0 || j >= sibs.length) return;
+  DB.set('production_plans', sibs[idx].id, { seq:(j+1)*10 });
+  DB.set('production_plans', sibs[j].id,   { seq:(idx+1)*10 });
+  router();
+};
+/* ★ v0.35.0 — 미배정 계획 → 설비 배정 (소형 모달) */
+VIEWS._planEdit = (id) => {
+  const p = DB.get('production_plans', id);
+  if(!p) return;
+  const eqs = DB.all('equipment').filter(e => e.active !== false);
+  openModal(`
+    <h2>설비 배정 — ${_esc(p.id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="font-size:12.5px"><b class="mono">${_esc(p.itemCode)}</b> · ${(+p.qty||0).toLocaleString()}ea · ${_esc(p.date||'')}</div>
+      <div style="margin-top:8px"><label>설비</label>
+        <select id="pe-eq">${eqs.map(e => `<option value="${_esc(e.name)}" ${p.equipment===e.name?'selected':''}>${_esc(e.name)} (${_esc(DB.get('processes', e.proc)?.name || e.proc || '')})</option>`).join('')}</select></div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="pe-ok">${ico('save')}배정</button>
+      </div>
+    </div>`);
+  document.getElementById('pe-ok').onclick = () => {
+    DB.set('production_plans', id, { equipment: document.getElementById('pe-eq').value });
+    toast('설비 배정 완료', 'ok'); closeModal(); router();
+  };
+};
+/* ★ v0.35.0 — 생산계획서 출력 (설비별 1장 · 교대 구분 · 교체/수명 행 · 중량 소재/제품 · 결재란 · 소재 소요 합계)
+   화면(planDayTimeline)과 동일 계산 1벌 — 표시만 종이/엑셀로. */
+function _planSheetData(dateStr){
+  const plans = getLivePlans().filter(p => p.date === dateStr);
+  return planDayTimeline(dateStr, plans);
+}
+VIEWS._planSheetPrint = (dateStr) => {
+  const tl = _planSheetData(dateStr);
+  if(!tl.lanes.length){ toast('출력할 계획 없음 (설비 배정 필요)', 'warn'); return; }
+  const co = getCompany();
+  const shiftsN = getShifts().length;
+  const pages = tl.lanes.map(l => {
+    const matSum = {};
+    let total = 0, setupMin = 0, setupCnt = 0;
+    const rowsH = l.shifts.map((so, si) => {
+      if(!so.entries.length) return '';
+      let seq = 0;
+      const trs = so.entries.map(en => {
+        if(en.type === 'setup'){ setupMin += en.min; setupCnt++; return `<tr class="gap"><td colspan="12">🔧 금형교체 ${en.min}분 (${_esc(en.from)}~${_esc(en.to)})</td></tr>`; }
+        if(en.type === 'life'){ setupMin += en.min; setupCnt++; return `<tr class="gap"><td colspan="12">⚠ 수명도달 → 예비벌 교체 ${en.min}분 (약 ${(+en.atQty||0).toLocaleString()}개째)</td></tr>`; }
+        if(en.type === 'stop') return `<tr class="gap stop"><td colspan="12">⛔ 금형 준비 필요 (${_esc(en.mold?.id||'')} · 예비벌 없음) — 이후 일정 미정</td></tr>`;
+        seq++;
+        const it = DB.get('items', en.p.itemCode);
+        const mKg = +it?.weight || 0, pKg = it?.product_weight_g ? it.product_weight_g/1000 : 0;
+        total += (+en.qty||0);
+        if(mKg > 0 && it?.mat) matSum[it.mat] = (matSum[it.mat]||0) + (+en.qty||0)*mKg;
+        return `<tr${String(en.to).includes('이월')||en.overflow?' class="warn"':''}>
+          <td class="c">${seq}</td><td class="mono">${_esc(en.p.itemCode)}</td><td>${_esc(it?.name||'')}${en.carry?' (이월)':''}</td>
+          <td class="c">${_esc(it?.mat||'')}</td><td class="c">${+it?.dia?`Ø${+it.dia}`:''}</td>
+          <td class="r">${mKg?mKg.toFixed(2):''}</td><td class="r">${pKg?pKg.toFixed(2):''}</td>
+          <td class="r">${(+en.qty||0).toLocaleString()}</td><td class="r">${en.rate>0?en.rate.toLocaleString()+'/h':'—'}</td>
+          <td class="c">${_esc(en.from||'')}</td><td class="c">${_esc(en.to||'')}</td><td class="c"></td>
+        </tr>`;
+      }).join('');
+      return `<tr class="shift${si>0?' n':''}"><td colspan="12">${_esc(so.sh.icon||'')} ${_esc(so.sh.name)} (${_esc(so.sh.start)} ~ ${_esc(so.sh.end)})</td></tr>${trs}`;
+    }).join('');
+    const matTxt = Object.entries(matSum).map(([m,kg]) => `${_esc(m)} ${kg.toFixed(1)}kg`).join(' · ');
+    return `<div class="sheet">
+      <div class="hd"><h2>생 산 계 획 서</h2><div class="meta"><b>${_esc(l.eqName)}</b> (${_esc(DB.get('processes', l.eq?.proc)?.name||'')}) · ${_esc(dateStr)}<br>${shiftsN}교대 · ${_esc(co.name||'')}</div></div>
+      <table>
+        <thead><tr><th rowspan="2">순번</th><th rowspan="2">품번</th><th rowspan="2">품명</th><th rowspan="2">재질</th><th rowspan="2">규격</th><th colspan="2">중량(kg)</th><th rowspan="2">수량</th><th rowspan="2">타수</th><th rowspan="2">예상시작</th><th rowspan="2">예상종료</th><th rowspan="2">확인</th></tr>
+        <tr><th>소재</th><th>제품</th></tr></thead>
+        <tbody>${rowsH}
+        <tr class="sum"><td colspan="7" style="text-align:right">합계${setupCnt?` (교체 ${setupCnt}회 · ${setupMin}분 포함)`:''}</td><td class="r"><b>${total.toLocaleString()}</b></td><td colspan="4" style="font-size:9.5px">${matTxt?`소재 소요: ${matTxt}`:''}</td></tr>
+        </tbody>
+      </table>
+      <div class="sign"><div><div class="t">작성</div><div class="b"></div></div><div><div class="t">검토</div><div class="b"></div></div><div><div class="t">승인</div><div class="b"></div></div></div>
+      <div class="ft"><span>VELA MES SYSTEM · 예상시간 = 능력 기준(교체 포함) — "경" 단위</span></div>
+    </div>`;
+  }).join('<div style="page-break-after:always"></div>');
+  const css = `
+    .sheet{padding:6mm 2mm}
+    .hd{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2.5px solid #111;padding-bottom:8px}
+    .hd h2{font-size:20px;font-weight:900;letter-spacing:2px;margin:0}
+    .hd .meta{font-size:10.5px;color:#444;text-align:right;line-height:1.6}
+    table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:8px}
+    th{border:1px solid #999;background:#f2f2f2;padding:4px 4px;font-size:9.5px;text-align:center}
+    td{border:1px solid #bbb;padding:4px 4px;text-align:left}
+    td.c{text-align:center} td.r{text-align:right;font-family:monospace}
+    .mono{font-family:monospace}
+    tr.shift td{background:#fdf6d8;font-weight:800}
+    tr.shift.n td{background:#e3e9fb}
+    tr.gap td{background:#fff8e6;color:#92600a;font-weight:700;font-size:9.5px}
+    tr.gap.stop td{background:#fdeaea;color:#b91c1c}
+    tr.warn td{background:#fdeaea}
+    tr.sum td{background:#f7f7f7;font-weight:700}
+    .sign{display:flex;margin-top:10px;margin-left:auto;width:240px;border:1px solid #999}
+    .sign>div{flex:1;text-align:center;border-right:1px solid #999} .sign>div:last-child{border-right:none}
+    .sign .t{font-size:9px;background:#f2f2f2;border-bottom:1px solid #999;padding:2px}
+    .sign .b{height:38px}
+    .ft{margin-top:8px;font-size:8.5px;color:#666}`;
+  _openPrintWindow(`생산계획서 ${dateStr}`, pages, css);
+};
+VIEWS._planSheetXlsx = (dateStr) => {
+  if(!window.XLSX){ toast('엑셀 라이브러리 로딩 중 — 잠시 후 다시 시도', 'warn'); return; }
+  const tl = _planSheetData(dateStr);
+  if(!tl.lanes.length){ toast('출력할 계획 없음', 'warn'); return; }
+  const wb = XLSX.utils.book_new();
+  const HEAD = ['순번','품번','품명','재질','규격','소재중량','제품중량','수량','타수','예상시작','예상종료','확인'];
+  const allRows = [];
+  tl.lanes.forEach(l => {
+    const aoa = [[`생산계획서 — ${l.eqName} · ${dateStr}`], HEAD];
+    l.shifts.forEach(so => {
+      if(!so.entries.length) return;
+      aoa.push([`${so.sh.icon||''} ${so.sh.name} ${so.sh.start}~${so.sh.end}`]);
+      let seq = 0;
+      so.entries.forEach(en => {
+        if(en.type === 'setup'){ aoa.push(['—', `🔧 금형교체 ${en.min}분`, '', '', '', '', '', '', '', en.from, en.to, '']); return; }
+        if(en.type === 'life'){ aoa.push(['—', `⚠ 수명도달 → 예비벌 교체 ${en.min}분 (약 ${en.atQty}개째)`, '', '', '', '', '', '', '', '', '', '']); return; }
+        if(en.type === 'stop'){ aoa.push(['—', `⛔ 금형 준비 필요 (${en.mold?.id||''}) — 일정 미정`, '', '', '', '', '', '', '', '', '', '']); return; }
+        seq++;
+        const it = DB.get('items', en.p.itemCode);
+        const row = [seq, en.p.itemCode, (it?.name||'') + (en.carry?' (이월)':''), it?.mat||'', +it?.dia?`Ø${+it.dia}`:'', +it?.weight||'', it?.product_weight_g? +(it.product_weight_g/1000).toFixed(3):'', +en.qty||0, en.rate>0?`${en.rate}/h`:'', en.from||'', en.to||'', ''];
+        aoa.push(row);
+        allRows.push([l.eqName, ...row]);
+      });
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), l.eqName.slice(0,28));
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['설비', ...HEAD], ...allRows]), '전체');
+  XLSX.writeFile(wb, `생산계획서_${dateStr}.xlsx`);
+  toast('생산계획서 엑셀 내보내기 완료', 'ok');
+};
 // 계획 수립 모달
 VIEWS._planNew = (prefill) => {
   const items = getActiveItems();
@@ -21725,6 +22087,33 @@ VIEWS.set = () => {
       <div style="margin-top:10px"><button class="btn primary" id="co-save">${ico('save')}저장</button></div>
     </div>
 
+    <!-- ★ v0.35.0 — 교대 설정 (생산계획 시간축 · 1~3교대) -->
+    <div class="card">
+      <h3>교대 근무 <span class="tag">생산계획 예상시간의 시간축 · 1~3교대</span></h3>
+      ${(() => {
+        const cur = getShifts();
+        const n = cur.length;
+        return `
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+          <span style="font-size:12px;font-weight:700">교대 수</span>
+          <span class="seg" id="shift-seg">${[1,2,3].map(k=>`<button data-sn="${k}" class="${n===k?'on':''}">${k}교대</button>`).join('')}</span>
+        </div>
+        <div id="shift-rows">
+          ${cur.map((s,i)=>`
+          <div class="grid g4" style="margin-bottom:8px">
+            <div><label>${_esc(s.icon)} ${_esc(s.name)}</label><input data-shn="${i}" value="${_esc(s.name)}"></div>
+            <div><label>시작</label><input data-shs="${i}" value="${_esc(s.start)}" placeholder="08:00" style="font-family:'JetBrains Mono',monospace"></div>
+            <div><label>종료</label><input data-she="${i}" value="${_esc(s.end)}" placeholder="17:00" style="font-family:'JetBrains Mono',monospace"></div>
+            <div><label>휴게</label><input data-shb="${i}" value="${_esc(s.brk||'')}" placeholder="12:00~13:00" style="font-family:'JetBrains Mono',monospace"></div>
+          </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn primary" id="shift-save">${ico('save')}저장</button>
+          <span style="font-size:10.5px;color:var(--dim)">종료가 시작보다 이르면 익일로 처리 (야간조) · 교대 경계를 넘는 계획은 자동 이월</span>
+        </div>`;
+      })()}
+    </div>
+
     <!-- ★ v0.23.1 — 문서 · 출력 (엑셀 결재란) · 회사 공유값(settings/documents) · 일반 노출 -->
     ${(() => {
       const ap = getApprovalSetting();
@@ -21998,6 +22387,28 @@ VIEWS.set = () => {
         router();
       } catch(e){ toast(e.message, 'err', 5000); }
     };
+  };
+  // ★ v0.35.0 — 교대 설정 저장·프리셋 전환
+  document.querySelectorAll('#shift-seg button').forEach(b => b.onclick = () => {
+    const n = +b.dataset.sn;
+    DB.set('settings','shifts', { count:n, list: SHIFT_PRESETS[n] });
+    toast(`${n}교대 프리셋 적용 — 시간은 아래에서 수정 후 저장`, 'ok');
+    router();
+  });
+  const _shSave = document.getElementById('shift-save');
+  if(_shSave) _shSave.onclick = () => {
+    const cur = getShifts();
+    const list = cur.map((s,i) => ({
+      ...s,
+      name:  document.querySelector(`[data-shn="${i}"]`).value.trim() || s.name,
+      start: document.querySelector(`[data-shs="${i}"]`).value.trim() || s.start,
+      end:   document.querySelector(`[data-she="${i}"]`).value.trim() || s.end,
+      brk:   document.querySelector(`[data-shb="${i}"]`).value.trim(),
+    }));
+    const bad = list.find(s => !/^\d{1,2}:\d{2}$/.test(s.start) || !/^\d{1,2}:\d{2}$/.test(s.end));
+    if(bad){ toast(`시간 형식 확인 — ${bad.name} (HH:MM)`, 'warn'); return; }
+    DB.set('settings','shifts', { count:list.length, list });
+    toast('교대 설정 저장', 'ok'); router();
   };
   // 회사
   document.getElementById('co-save').onclick = () => {
