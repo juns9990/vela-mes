@@ -1226,7 +1226,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.35.3';
+const APP_VERSION = 'v0.35.4';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -4644,6 +4644,42 @@ const LOT = {
   totalInput(plot_no, proc){
     return DB.query('records', r=>r.plot_no===plot_no && r.proc===proc)
              .reduce((s,r)=>s+(r.good||0)+(r.defect||0)+(r.rework||0)+(r.scrap||0)+(r.transferred||0), 0);
+  },
+  // ★ v0.35.4 — 실적 보정 단일 경로 (QV-1b 실브라우저 발견 2026-09-06: 실적현황 [수정]이 잔량 초과를 막지 않고 저장됨)
+  //  원칙: 수량이 움직이는 길은 검증된 경로뿐 — 등록(registerRecord)과 같은 잔량 규율을 보정에도 적용.
+  //  규칙: 보정 후 이 LOT 의 라우트 전 공정 잔량이 ①0 미만으로 떨어지면 차단 ②이미 음수(사고 LOT)면 더 나빠지는 보정만 차단
+  //        (감소 보정 = 사고 정정 경로이므로 잠금 여부와 무관하게 허용 — Gate ③ 정정 단계 유지).
+  //  방식: 메모리 레코드를 제자리에서 임시 변경 → LOT.balance 로 전 공정 재계산(드라이런) → 원복 → 통과 시에만 DB.correct.
+  correctionCheck(recId, fields){
+    const r = DB.get('records', recId);
+    if(!r) return { ok:false, violations:[], error:'레코드 없음' };
+    const lot = DB.get('production_lots', r.plot_no);
+    if(!lot) return { ok:true, violations:[] };
+    const route = getRoute(lot.itemCode);
+    const before = {}; route.forEach(s => { before[s.proc] = LOT.balance(r.plot_no, s.proc); });
+    const keys = ['good','defect','rework','scrap','rework_returned'];
+    const saved = {}; keys.forEach(k => { saved[k] = r[k]; });
+    try {
+      keys.forEach(k => { if(fields && Object.prototype.hasOwnProperty.call(fields, k)) r[k] = +fields[k] || 0; });
+      const violations = [];
+      route.forEach(s => {
+        const after = LOT.balance(r.plot_no, s.proc);
+        const floor = Math.min(before[s.proc], 0);   // 0 미만 금지 · 이미 음수면 악화 금지
+        if(after < floor) violations.push({ proc:s.proc, name: DB.get('processes', s.proc)?.name || s.proc, before: before[s.proc], after });
+      });
+      return { ok: violations.length === 0, violations };
+    } finally {
+      keys.forEach(k => { r[k] = saved[k]; });   // 드라이런 원복 (저장 안 함)
+    }
+  },
+  correctRecord(recId, fields, reason){
+    const chk = LOT.correctionCheck(recId, fields);
+    if(chk.error) throw new Error(chk.error);
+    if(!chk.ok){
+      const v = chk.violations[0];
+      throw new Error(`보정 차단 — ${v.name} 잔량 ${v.before}ea → ${v.after}ea (잔량 초과 · 등록과 동일 규율) · 수량을 줄이거나 다른 실적을 먼저 정정하세요`);
+    }
+    return DB.correct('records', recId, fields, reason);
   },
   // ★ v0.6.0 — 등록 (제1원칙: 수량검증 통과해야 함)
   //  rework_returned는 '복구분' — 잔량 검증에서는 제외 (새 투입이 아님).
@@ -12278,6 +12314,7 @@ VIEWS._perfEdit = (recId)=>{
       </div>
       <div><label>비고 (선택)</label><input id="ed-note" placeholder="수정 사유" value=""></div>
       <div style="font-size:11px;color:var(--dim)">※ 원본 보존 — DB.correct로 보정 레코드 누적 (deleteDoc 금지)</div>
+      ${(() => { const bal = LOT.balance(r.plot_no, r.proc); const cur = (+r.good||0)+(+r.defect||0)+(+r.rework||0)+(+r.scrap||0); return `<div style="font-size:11px;color:var(--cyan);font-family:'JetBrains Mono',monospace">이 공정 잔량 ${bal.toLocaleString()}ea · 투입 합계(양품+불량+재작업) 최대 ${Math.max(cur + bal, 0).toLocaleString()}ea까지 (잔량 초과 보정 차단 · 감소는 항상 허용)</div>`; })()}
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn primary" id="ed-ok">${ico('save')}수정 저장</button>
@@ -12289,8 +12326,11 @@ VIEWS._perfEdit = (recId)=>{
     const d = +document.getElementById('ed-d').value||0;
     const re= +document.getElementById('ed-r').value||0;
     const reason = document.getElementById('ed-note').value.trim();
-    DB.correct('records', recId, {good:g, defect:d, rework:re}, reason||'수정');
-    toast('수정 저장 (원본 보존)','ok'); closeModal(); router();
+    // ★ v0.35.4 — 잔량 규율 적용 (LOT.correctRecord 단일 경로 · 초과 보정 차단 · 사고 정정용 감소는 허용)
+    try {
+      LOT.correctRecord(recId, {good:g, defect:d, rework:re}, reason||'수정');
+      toast('수정 저장 (원본 보존)','ok'); closeModal(); router();
+    } catch(e){ toast(e.message,'err'); }
   };
 };
 
