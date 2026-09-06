@@ -6,6 +6,7 @@
 <!-- ★ v0.21.4 — 테마 (다크/라이트) · 기기별 취향(로컬 전용 키 vela_theme) · 폰 상태바 theme-color 동기.
      head 초기 스크립트로 CSS 적용 전 data-theme 세팅 → FOUC 방지. -->
 <meta name="theme-color" id="meta-theme-color" content="#f6f7f9">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23121419'/%3E%3Cpath d='M7 8l9 16 9-16' fill='none' stroke='%235eead4' stroke-width='3.5' stroke-linejoin='round'/%3E%3C/svg%3E">
 <script>
 (function(){
   try {
@@ -1226,7 +1227,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.35.4';
+const APP_VERSION = 'v0.35.5';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -8015,9 +8016,10 @@ function heldPlotSet(){
    ④ 재검증: J1 불변식 자동 재계산 (전 공정 오차 0 + 잔량 음수 없음)
    ⑤ 해제: 재검증 통과한 경우에만 관리책임자가 해제 — 통과 못 하면 잠금 유지.
    Incident 는 사건 기록(부적합 기록과 같은 성격) — 원장 아님. 잔량 자체는 여전히 파생값(저장 안 함). */
-function detectConcurrencyIncidents(){
+/* ★ v0.35.5 — 탐지 범위 인자 (plot_no 지정 시 그 LOT 만 · 미지정 시 전체) — 쓰기 경로에서 LOT 단위 즉시 탐지용 (QV-1b O-2 FAIL #3 수정) */
+function detectConcurrencyIncidents(onlyPlot){
   const created = [];
-  DB.all('production_lots').forEach(l => {
+  DB.all('production_lots').filter(l => !onlyPlot || l.plot_no === onlyPlot).forEach(l => {
     const route = getRoute(l.itemCode);
     route.forEach(r => {
       const bal = LOT.balance(l.plot_no, r.proc);
@@ -8048,17 +8050,34 @@ function detectConcurrencyIncidents(){
   });
   return created;
 }
+/* ★ v0.35.5 — 잠금 판정이 화면 방문에 의존하지 않도록: 저장된 사고가 없어도 파생 잔량이 음수면 그 자리에서 탐지(멱등)·잠금.
+   QV-1b 실브라우저 FAIL #3 (2026-09-06): 오프라인 실적 도착 후 LOT 추적을 열기 전이면 사고 기록이 없어 후공정(열처리) 등록이 통과됨.
+   원칙: "탐지 → 잠금" 은 렌더가 아니라 원장 쓰기 경로가 보장한다 (registerRecord·출하·반출 3중 배선은 그대로 — 판정 함수만 자체 탐지). */
+function lotHasNegativeBalance(plot_no){
+  const lot = DB.get('production_lots', plot_no);
+  if(!lot) return false;
+  return getRoute(lot.itemCode).some(r => LOT.balance(plot_no, r.proc) < 0);
+}
 function lotLockInfo(plot_no){
   if(!plot_no) return { locked:false, incidents:[] };
-  const incidents = DB.query('concurrency_incidents', c => c.plot_no === plot_no && c.status === 'open');
+  let incidents = DB.query('concurrency_incidents', c => c.plot_no === plot_no && c.status === 'open');
+  if(!incidents.length && lotHasNegativeBalance(plot_no)){
+    try { detectConcurrencyIncidents(plot_no); } catch(e){ console.warn('[VELA] 즉시 탐지 실패', e); }
+    incidents = DB.query('concurrency_incidents', c => c.plot_no === plot_no && c.status === 'open');
+    if(!incidents.length) return { locked:true, incidents:[], derived:true };   // 기록 실패해도 파생 판정으로 잠금 유지 (정직)
+  }
   return { locked: incidents.length > 0, incidents };
 }
 function assertLotNotLocked(plot_no, action){
   const k = lotLockInfo(plot_no);
-  if(k.locked) throw new Error(`동시성 잠금 — ${plot_no} 미해결 충돌 사고 ${k.incidents.length}건 (${k.incidents.map(c => c.id).join(', ')}) · 관리자 정정 후 J1 재검증 통과 시 ${action || '진행'} 가능 (변경 이력 → 동시성 사고)`);
+  if(k.locked) throw new Error(`동시성 잠금 — ${plot_no} 미해결 충돌 사고 ${k.incidents.length || 1}건 (${k.incidents.length ? k.incidents.map(c => c.id).join(', ') : '잔량 음수 감지'}) · 관리자 정정 후 J1 재검증 통과 시 ${action || '진행'} 가능 (변경 이력 → 동시성 사고)`);
 }
 /* 목록 렌더用 일괄 판정 (행마다 개별 query 금지 — v0.16.9 원칙) */
+let _lockScanTs = 0;
 function lockedPlotSet(){
+  // ★ v0.35.5 — 목록·선택지 표시도 화면 방문과 무관하게 최신 (전체 탐지 1회 · 400ms 내 중복 호출은 재사용)
+  const now = Date.now();
+  if(now - _lockScanTs > 400){ _lockScanTs = now; try { detectConcurrencyIncidents(); } catch(e){ console.warn('[VELA] 동시성 사고 탐지 실패', e); } }
   return new Set(DB.query('concurrency_incidents', c => c.status === 'open').map(c => c.plot_no).filter(Boolean));
 }
 /* J1 불변식 자동 재검증 — 라우트 전 공정: 가용 − 투입 − 잔량 = 0 (오차) + 잔량 ≥ 0 (초과 투입 없음).
@@ -12155,7 +12174,7 @@ VIEWS._perfAddPC = (prefill)=>{
       </div>` : ''}
       <div class="grid g2">
         <div><label>생산LOT</label>
-          <select id="pa-lot">${lots.map(l=>`<option value="${l.plot_no}" ${prefill.plot_no===l.plot_no?'selected':''}>${_esc(l.plot_no)} (${_esc(l.itemCode)})</option>`).join('')}</select></div>
+          <select id="pa-lot">${(()=>{ const _hs = heldPlotSet(), _ls = lockedPlotSet(); return lots.map(l=>`<option value="${l.plot_no}" ${prefill.plot_no===l.plot_no?'selected':''}>${_esc(l.plot_no)} (${_esc(l.itemCode)})${_hs.has(l.plot_no)?' — 품질 HOLD (등록 불가)':''}${_ls.has(l.plot_no)?' — 동시성 잠금 (등록 불가)':''}</option>`).join(''); })()}</select></div>
         <div><label>공정 <span style="color:var(--dim);font-weight:400">— 등록 가능 공정만</span></label>
           <select id="pa-proc"></select></div>
       </div>
@@ -12215,6 +12234,13 @@ VIEWS._perfAddPC = (prefill)=>{
     if(!proc){ balEl.textContent = '등록 가능 공정 없음 — 라우트 전 공정 소진'; return; }
     const bal = LOT.balance(plot, proc);
     balEl.textContent = `잔량 ${bal.toLocaleString()}ea`;
+    // ★ v0.35.5 — 잠금·HOLD LOT 은 창 안에서 바로 알린다 (클릭해야 막히는 구조 → 5초 이해)
+    try {
+      const lk = lotLockInfo(plot), hd = lotHoldInfo(plot);
+      if(lk.locked){ balEl.innerHTML = `<span style="color:var(--red)">⛔ 동시성 잠금 — ${_esc(plot)} 미해결 충돌 사고 (${_esc(lk.incidents.map(c=>c.id).join(', ') || '잔량 음수')}) · 실적 등록 불가 · 변경 이력 → 동시성 사고에서 정정·J1 재검증 후 해제</span>`; }
+      else if(hd.held){ balEl.innerHTML = `<span style="color:var(--red)">⛔ 품질 HOLD — 미처리 부적합 ${hd.ncs.length}건 (${_esc(hd.ncs.map(n=>n.id).join(', '))}) · 판정 전 실적 등록 불가</span>`; }
+      else { balEl.style.color = ''; }
+    } catch(e){}
     // 수량 입력 placeholder 힌트 (양품/불량/재작업 모두 잔량 초과 시 registerRecord 가드에서 차단)
     const gEl = document.getElementById('pa-g');
     if(gEl) gEl.placeholder = bal>0 ? `최대 ${bal}` : '0';
