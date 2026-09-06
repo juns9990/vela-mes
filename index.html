@@ -1226,11 +1226,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.35.2';
+const APP_VERSION = 'v0.35.3';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-08-31';
+const APP_DATE    = '2026-09-06';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1365,10 +1365,22 @@ function parseFirebaseConfig(text){
 
 // 로컬 어댑터 — localStorage 백엔드 (기존 포맷 완전 호환)
 // write(col,id,doc) 는 인터페이스 계약. 로컬은 memory mirror 를 갖고 있어 전체 재직렬화가 가장 빠름.
+/* ★ v0.35.3 — 문서 단위 쓰기 + 탭 간 동기화 (QV-1b O절 실브라우저 FAIL 수정 · 2026-09-06)
+   문제: 구 write() 가 탭 메모리 전체를 통째로 재직렬화 → 탭 2개가 각각 등록하면 뒤 탭이 앞 탭의 문서를 덮어써 유실
+        (last-writer-wins · 음수 잔량·사고가 생기는 게 아니라 실적이 조용히 사라짐 — Gate 전제 "두 실적 모두 원장 보존" 위반).
+   수정: ① write = localStorage 현재값 read-modify-write 로 [col][id] 만 갱신 (Firestore set(merge) 와 동일 의미론)
+        ② 동기 연속 쓰기(시드·복원)는 마이크로태스크로 1회 합류 (parse/stringify 1번 — 구 방식보다 빠름)
+        ③ 'storage' 이벤트 = 다른 탭의 쓰기를 메모리에 in-place 병합(_updated 최신 우선) + 리렌더 (Firestore onSnapshot 의 로컬판)
+        → 같은 기기 탭 2개는 실서버와 똑같이 "예방(잔량 초과 차단)" 이 먼저 작동하고, 진짜 동시 도착(다른 단말·오프라인)은 두 문서가 모두 남아 Gate 가 탐지한다.
+   불변: DB 단일 쓰기 경로·원장 로직·화면 무변 — 어댑터 내부만. restore() 의 전체 쓰기(col=null) 경로는 그대로. */
 const _LOCAL_ADAPTER = {
   name: 'local',
   _state: null,
-  init(state){ this._state = state; },
+  _dirty: null,        // Map key → {col,id}  (마이크로태스크 합류 대기)
+  _full: false,        // 전체 쓰기 예약 (restore)
+  _flushing: false,
+  _lastWritten: null,  // 이 탭이 마지막으로 쓴 직렬화 문자열 (자기 쓰기 storage 이벤트 무시용 — 브라우저는 자기 탭엔 안 보내지만 방어)
+  init(state){ this._state = state; this._dirty = new Map(); this._listen(); },
   loadAll(){
     // ★ v0.22.0 — 데모 모드 시 별도 키 (실데이터와 완전 격리)
     try { return JSON.parse(localStorage.getItem(_activeLSKey())) || {}; }
@@ -1376,11 +1388,69 @@ const _LOCAL_ADAPTER = {
   },
   write(col, id, doc){
     if(!this._state) return;
-    try { localStorage.setItem(_activeLSKey(), JSON.stringify(this._state)); }
-    catch(e){ console.warn('[VELA] local adapter write failed', e); }
+    if(col == null){ this._full = true; }                       // restore 전용 — 전체 상태 쓰기
+    else { this._dirty.set(col + ' ' + id, {col, id}); }
+    this._schedule();
   },
-  // ★ v0.28.9 — 물리 삭제 (마스터 한정 — DB.remove 가드 경유 전용). 메모리는 이미 삭제됨 → 전체 재직렬화.
-  remove(col, id){ this.write(col, id, null); },
+  // ★ v0.28.9 — 물리 삭제 (마스터 한정 — DB.remove 가드 경유 전용). 메모리는 이미 삭제됨 → 해당 문서만 제거.
+  remove(col, id){
+    if(!this._state) return;
+    this._dirty.set(col + ' ' + id, {col, id, del:true});
+    this._schedule();
+  },
+  _schedule(){
+    if(this._flushing) return;
+    this._flushing = true;
+    const run = () => { this._flushing = false; this.flush(); };
+    if(typeof queueMicrotask === 'function') queueMicrotask(run); else Promise.resolve().then(run);
+  },
+  // 동기 강제 플러시 (테스트·백업 직전 등) — 대기 중인 변경을 즉시 localStorage 에 반영
+  flush(){
+    if(!this._state) return;
+    const key = _activeLSKey();
+    try {
+      let cur;
+      if(this._full){ cur = this._state; }                      // 전체 쓰기: 메모리가 진실 (restore 직후)
+      else {
+        try { cur = JSON.parse(localStorage.getItem(key)) || {}; } catch { cur = {}; }
+        this._dirty.forEach(({col, id, del}) => {
+          if(!cur[col]) cur[col] = {};
+          if(del || !this._state[col] || !(id in this._state[col])) delete cur[col][id];
+          else cur[col][id] = this._state[col][id];
+        });
+      }
+      const s = JSON.stringify(cur);
+      this._lastWritten = s;
+      localStorage.setItem(key, s);
+    } catch(e){ console.warn('[VELA] local adapter write failed', e); }
+    this._dirty.clear(); this._full = false;
+  },
+  // 다른 탭의 쓰기 수신 → 메모리 in-place 병합 (문서별 _updated 최신 우선 · 삭제는 병합하지 않음 — 다음 부팅에서 수렴)
+  _listen(){
+    if(typeof window === 'undefined' || !window.addEventListener || this._listening) return;
+    this._listening = true;
+    window.addEventListener('storage', ev => {
+      try {
+        if(ev.key !== _activeLSKey() || !ev.newValue || ev.newValue === this._lastWritten) return;
+        const incoming = JSON.parse(ev.newValue) || {};
+        let changed = 0;
+        Object.keys(incoming).forEach(col => {
+          if(!this._state[col]) this._state[col] = {};
+          Object.keys(incoming[col] || {}).forEach(id => {
+            const mine = this._state[col][id], theirs = incoming[col][id];
+            if(!mine || (theirs && (theirs._updated || 0) > (mine._updated || 0))){ this._state[col][id] = theirs; changed++; }
+          });
+        });
+        if(changed){
+          this._synced = (this._synced || 0) + changed;
+          // 모달(입력 중) 열려 있으면 화면 갱신은 미루고 데이터만 병합 — 다음 렌더에서 반영
+          const bg = document.getElementById('modal-bg');
+          const modalOpen = bg && bg.classList.contains('show');
+          if(!modalOpen && typeof router === 'function' && typeof SESSION !== 'undefined' && SESSION.loggedIn){ try { router(); } catch(e){} }
+        }
+      } catch(e){ console.warn('[VELA] local adapter sync failed', e); }
+    });
+  },
 };
 
 /* ★ v0.21.0 — Firestore 어댑터 (compat SDK 동적 로드 · 오프라인 퍼시스턴스 · 익명 인증 · onSnapshot 구독)
@@ -22778,6 +22848,7 @@ VIEWS.set = () => {
     `);
     // 백업 다운로드 — 현재 활성 저장소 원본 그대로 (★ v0.22.0 — 데모 모드는 데모 키에서 백업)
     document.getElementById('wp-backup').onclick = () => {
+      try { if(DB._adapter && typeof DB._adapter.flush === 'function') DB._adapter.flush(); } catch(e){}   // ★ v0.35.3 — 대기 중 쓰기 먼저 반영
       const raw = localStorage.getItem(_activeLSKey()) || '{}';
       let pretty; try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch { pretty = raw; }
       const blob = new Blob([pretty], {type:'application/json'});
