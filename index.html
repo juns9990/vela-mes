@@ -1013,6 +1013,8 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
   .tabnav .nav-more-btn .chev{margin-left:auto}
 }
 @media(max-width:1100px){ .tabnav .nav-more-btn .chev{margin-left:4px} }
+.tabnav .nav-mymenu{color:var(--dim);font-size:11.5px}
+.tabnav .nav-mymenu svg{stroke:var(--amber)}
 /* 활성 메뉴 — 솔리드 시안 → 은은한 브랜드 틴트 (두 테마 공통 · 아이콘도 동색) */
 .tabnav button.on{background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan);font-weight:700}
 .tabnav button.on svg{stroke:currentColor}
@@ -1248,7 +1250,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.35.7';
+const APP_VERSION = 'v0.35.8';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -5893,8 +5895,40 @@ const NAV_GROUPS = [
    기능·권한·플래그·MANAGER_ONLY 로직 무변(canSee 그대로) — 보이는 것만 줄어든다. 펼침 상태는 단말 localStorage. */
 const NAV_PRIMARY_DEFAULT = ['dash','so','plan','scan','perf','lot','qc','ship'];
 function getPrimaryMenu(){
+  // ★ v0.35.8 — 담당자별 "내 메뉴" (users/{id}.menu_primary) > 회사 기본(settings/menu.primary) > 코드 기본 — 전부 데이터 · 권한/플래그 게이팅은 renderNav 의 canSee 가 그대로 적용
+  const mine = SESSION.userId ? DB.get('users', SESSION.userId)?.menu_primary : null;
+  if(Array.isArray(mine) && mine.length) return ['dash', ...mine.filter(id => id !== 'dash' && PAGES.some(p => p.id === id))];
   const saved = DB.get('settings','menu')?.primary;
   return (Array.isArray(saved) && saved.length) ? saved.filter(id => PAGES.some(p => p.id === id)) : NAV_PRIMARY_DEFAULT.slice();
+}
+/* ★ v0.35.8 — 내 메뉴 편집 (본인 계정에만 저장 · 관리자 계정은 회사 기본을 쓰므로 설정 › 메뉴 순서에서) */
+function openMyMenuModal(){
+  if(!SESSION.userId){ toast('로그인 계정에서만 내 메뉴를 저장할 수 있습니다 — 데모/관리자는 설정 › 메뉴 순서 [매일/관리]','warn', 4000); return; }
+  const flags = getFlags();
+  const visible = getMenuOrder().map(id => PAGES.find(p => p.id === id)).filter(p => p && p.id !== 'dash' && flags[p.flag]
+    && (!MANAGER_ONLY.includes(p.id) || SESSION.role === 'manager' || SESSION.role === 'vendor') && getUserPerm(SESSION.userId, p.id) !== 'none');
+  const cur = new Set(getPrimaryMenu());
+  openModal(`
+    <h2>내 메뉴 <span style="color:var(--dim);font-size:12px;font-weight:400;margin-left:8px">체크한 메뉴만 바로 보이고 나머지는 「관리」로</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px">
+        ${visible.map(p => `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:12.5px"><input type="checkbox" data-mymenu="${p.id}" ${cur.has(p.id)?'checked':''}><svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--cyan);fill:none;stroke-width:2">${p.icon}</svg>${_esc(p.title)}</label>`).join('')}
+      </div>
+      <div class="actions">
+        <button class="btn" id="mymenu-reset">회사 기본으로</button>
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="mymenu-ok">${ico('save')}저장</button>
+      </div>
+    </div>`);
+  document.getElementById('mymenu-ok').onclick = () => {
+    const picked = [...document.querySelectorAll('[data-mymenu]:checked')].map(c => c.dataset.mymenu);
+    DB.set('users', SESSION.userId, { menu_primary: picked });
+    closeModal(); renderNav(); toast(`내 메뉴 저장 — ${picked.length}개`, 'ok');
+  };
+  document.getElementById('mymenu-reset').onclick = () => {
+    DB.set('users', SESSION.userId, { menu_primary: [] });
+    closeModal(); renderNav(); toast('회사 기본 메뉴로 복원', 'ok');
+  };
 }
 const _NAV_MORE_KEY = 'vela_nav_more';
 function navMoreOpen(){ try { return localStorage.getItem(_NAV_MORE_KEY) === '1'; } catch(e){ return false; } }
@@ -5932,10 +5966,11 @@ function renderNav(){
     const rest = restAll.filter(p => !used.has(p.id));
     if(rest.length) more += `<div class="nav-grp">기타</div>` + rest.map(btn).join('');
     out += `<button class="nav-more-btn" data-more title="자주 쓰지 않는 메뉴 펼치기/접기"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>관리<span class="chev">▾</span></button>`;
-    out += `<div class="nav-more">${more}</div>`;
+    out += `<div class="nav-more">${more}<div class="nav-grp"></div><button class="nav-mymenu" data-mymenu-btn title="바로 보이는 메뉴를 내 계정에 맞게 고릅니다"><svg viewBox="0 0 24 24"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7-6.3-3.6L5.7 21l1.5-7L2 9.3l7-.8z"/></svg>내 메뉴 편집</button></div>`;
   }
   nav.innerHTML = out;
   nav.querySelectorAll('button[data-page]').forEach(b=>b.onclick=()=>location.hash='#'+b.dataset.page);
+  const myBtn = nav.querySelector('[data-mymenu-btn]'); if(myBtn) myBtn.onclick = openMyMenuModal;
   const moreBtn = nav.querySelector('[data-more]');
   if(moreBtn) moreBtn.onclick = () => setNavMore(!nav.classList.contains('more-open'));
   nav.classList.toggle('more-open', navMoreOpen());
@@ -10542,38 +10577,69 @@ VIEWS.so = () => {
     };
   });
   document.getElementById('btn-so-new').onclick = () => {
+    // ★ v0.35.8 — 새 수주 심플화 (파일럿 담당자 피드백: 품번 목록이 품번+품명+단가로 길고 단가 칸이 중복 · "품번 하나 고르면 나머지는 자동, 납기만 고르게")
+    //   규칙(입력 창 공통 규격): 처음 보이는 칸 = 고객사 · 품번 · 수량 · 납기 4개. 시스템이 아는 값(품명·단가·최근 수주 수량)은 자동 카드로 보여주고 묻지 않는다.
+    //   수주번호·단가 수정은 [더 보기] 뒤. 저장 로직·검증(resolveDocNo·DB.set orders) 무변.
+    const _lastSo = code => DB.all('orders').filter(o => o.itemCode === code).sort((a,b)=>(b.created||0)-(a.created||0))[0] || null;
+    const _itemsOf = cust => { const l = items.filter(i => i.cust === cust); return l.length ? l : items; };
+    const _custDefault = (() => { const last = DB.all('orders').sort((a,b)=>(b.created||0)-(a.created||0))[0]; return last && custs.some(c=>c.code===last.cust) ? last.cust : (custs[0]?.code || ''); })();
     openModal(`
       <h2>새 수주 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
-        <div><label>수주번호 (자동 · 수정 가능)</label>
-          <input id="so-id" value="${nextDocNo('SO')}" placeholder="${nextDocNo('SO')}" style="font-family:'JetBrains Mono',monospace;letter-spacing:.3px" autocomplete="off"></div>
-        <div><label>고객사</label>
-          <select id="so-cust">${custs.map(c=>`<option value="${c.code}">${c.name}</option>`).join('')}</select></div>
-        <div><label>품번</label>
-          <select id="so-item">${items.map(i=>`<option value="${i.code}" data-p="${i.price}">${itemLabel(i.code)} · ${i.name} (₩${i.price.toLocaleString()})</option>`).join('')}</select></div>
         <div class="grid g2">
-          <div><label>수량 (ea)</label><input id="so-qty" type="number" placeholder="예: 500"></div>
-          <div><label>단가 (자동)</label><input id="so-price" type="number" placeholder="자동"></div>
+          <div><label>고객사</label>
+            <select id="so-cust">${custs.map(c=>`<option value="${c.code}" ${c.code===_custDefault?'selected':''}>${_esc(c.name)}</option>`).join('')}</select></div>
+          <div><label>품번 <span style="color:var(--dim);font-weight:400">— 고르면 아래가 자동으로 채워집니다</span></label>
+            <select id="so-item"></select></div>
         </div>
-        <div><label>납기</label><input id="so-due" type="date"></div>
+        <div id="so-auto" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;font-size:12px"></div>
+        <div class="grid g2" style="margin-top:10px">
+          <div><label>수량 (ea)</label><input id="so-qty" type="number" placeholder="예: 500" inputmode="numeric"></div>
+          <div><label>납기</label><input id="so-due" type="date"></div>
+        </div>
+        <details id="so-more" style="margin-top:10px">
+          <summary style="cursor:pointer;font-size:11.5px;color:var(--sub)">더 보기 — 수주번호 · 단가 수정</summary>
+          <div class="grid g2" style="margin-top:8px">
+            <div><label>수주번호 (자동 · 수정 가능)</label>
+              <input id="so-id" value="${nextDocNo('SO')}" placeholder="${nextDocNo('SO')}" style="font-family:'JetBrains Mono',monospace;letter-spacing:.3px" autocomplete="off"></div>
+            <div><label>단가 (마스터 자동 · 이번 건만 수정)</label><input id="so-price" type="number" placeholder="자동"></div>
+          </div>
+        </details>
         <div class="actions">
           <button class="btn" onclick="closeModal()">취소</button>
           <button class="btn primary" id="so-ok">${ico('save')}생성</button>
         </div>
       </div>
     `);
-    const setPrice = () => {
-      const o = document.getElementById('so-item').selectedOptions[0];
-      document.getElementById('so-price').value = o.dataset.p;
+    const custSel = document.getElementById('so-cust'), itemSel = document.getElementById('so-item');
+    const autoBox = document.getElementById('so-auto'), priceEl = document.getElementById('so-price'), qtyEl = document.getElementById('so-qty');
+    const renderItems = () => {
+      const list = _itemsOf(custSel.value);
+      itemSel.innerHTML = list.map(i=>`<option value="${_esc(i.code)}" data-p="${i.price}">${_esc(itemLabel(i.code))}</option>`).join('');
+      fillAuto();
     };
-    document.getElementById('so-item').onchange = setPrice; setPrice();
+    const fillAuto = () => {
+      const it = DB.get('items', itemSel.value); if(!it){ autoBox.innerHTML = '<span style="color:var(--dim)">품번 없음</span>'; return; }
+      const last = _lastSo(it.code);
+      priceEl.value = it.price || '';
+      if(!qtyEl.value && last && last.qty) qtyEl.placeholder = `최근 ${last.qty.toLocaleString()}`;
+      autoBox.innerHTML = `
+        <div><div style="font-size:10.5px;color:var(--sub)">품명</div><b>${_esc(it.name||'—')}</b></div>
+        <div><div style="font-size:10.5px;color:var(--sub)">단가 (마스터)</div><b style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">₩${(+it.price||0).toLocaleString()}</b></div>
+        <div><div style="font-size:10.5px;color:var(--sub)">최근 수주</div><b>${last ? `${(last.qty||0).toLocaleString()}ea · ${_esc(last.due||'')}` : '<span style="color:var(--dim)">없음</span>'}</b></div>`;
+    };
+    custSel.onchange = renderItems;
+    itemSel.onchange = fillAuto;
+    renderItems();
     document.getElementById('so-ok').onclick = () => {
-      const cust = document.getElementById('so-cust').value;
-      const it   = document.getElementById('so-item').value;
-      const qty  = +document.getElementById('so-qty').value;
-      const price= +document.getElementById('so-price').value;
+      const cust = custSel.value;
+      const it   = itemSel.value;
+      const qty  = +qtyEl.value;
+      const price= +priceEl.value;
       const due  = document.getElementById('so-due').value;
-      if(!qty){ toast('수량 입력','warn'); return; }
+      if(!it){ toast('품번 선택','warn'); return; }
+      if(!qty){ toast('수량 입력','warn'); qtyEl.focus(); return; }
+      if(!due){ toast('납기 선택','warn'); document.getElementById('so-due').focus(); return; }
       const soNo = resolveDocNo('so-id', 'SO');
       if(soNo.dup){ toast(`수주번호 중복 — ${soNo.id}`,'err'); return; }
       const id = soNo.id;
@@ -15775,9 +15841,11 @@ VIEWS.quote = () => {
           <div><label>마진율 (%)</label><input id="q-margin" type="number" step="0.5" value="15"></div>
           <div><label>유효기간</label><input id="q-valid" type="date" value="${fmtDate(Date.now()+30*86400000)}"></div>
         </div>
-        <div class="card" style="margin:0;padding:12px;background:var(--bg2)">
-          <h3 style="margin-bottom:8px">원가 산출 미리보기 <span class="tag">단가표 기반</span></h3>
-          <div id="q-preview" style="font-size:12px;line-height:1.8"></div>
+        <!-- ★ v0.35.8 — 원가 산출 미리보기 재구성 (파일럿 담당자 피드백: "예제인지 진짜 데이터인지 구분이 안 가고 한눈에 안 들어옴")
+             구성: ① 근거 줄(단가표 등록 여부·라우트·소재 — 실데이터/미등록을 문장으로) ② 원가 4항목 칸 ③ 원가 → 마진 → 단가 → 금액 한 줄 흐름 -->
+        <div class="card" style="margin:0;padding:12px 14px;background:var(--bg2)">
+          <h3 style="margin-bottom:6px">원가 산출 미리보기</h3>
+          <div id="q-preview"></div>
         </div>
         <!-- ★ v0.16.21 — 원가 산출 내역 (접이식) -->
         <details style="border:1px solid var(--line);border-radius:10px;background:var(--bg2)">
@@ -15937,11 +16005,32 @@ VIEWS.quote = () => {
       const totalAmt  = unitPrice * qty;
       const overrideBadge = (overrideCostTotal != null)
         ? ` <span class="pill" style="background:rgba(94,234,212,.15);color:var(--cyan);font-size:9px;margin-left:6px">산출 내역 반영</span>` : '';
+      // ★ v0.35.8 — 근거 줄: 단가표가 실제 등록된 것인지(원가 › 단가표) · 라우트 공정 수 · 소재 — "예시"와 "실데이터"를 문장으로 구분
+      const _rates = DB.get('settings','cost_rates');
+      const _ratesReal = !!(_rates && (Object.keys(_rates.material_rates||{}).length || Object.keys(_rates.process_rates||{}).length));
+      const _route = getRoute(code).filter(r => r.proc !== 'SHIP');
+      const _meta = c.rate_meta || {};
+      const _missing = [];
+      if(!(_meta.matRate > 0)) _missing.push('재질 요율');
+      if(!(_meta.matKg > 0)) _missing.push('단중');
+      if(_route.some(r => r.mode==='out' ? !(_rates?.outsource_rates?.[r.proc] > 0) : !(_rates?.process_rates?.[r.proc] > 0))) _missing.push('공정 요율');
+      const _srcLine = _ratesReal
+        ? `<span style="color:var(--green);font-weight:700">● 실데이터</span> 원가 › 단가표 · 라우트 ${_route.length}공정 · 소재 ${_esc(_meta.matKey||'—')} ${_meta.matKg?`${_meta.matKg}kg/ea`:''}${_missing.length?` · <span style="color:var(--amber)">미등록: ${_missing.join(' · ')} → 0으로 계산됨</span>`:''}`
+        : `<span style="color:var(--amber);font-weight:700">⚠ 단가표 미등록 (예시 아님 · 0으로 계산)</span> <a href="#cost" style="color:var(--cyan)">원가 › 단가표</a>에 재질·공정 단가를 넣으면 실제 원가가 됩니다`;
+      const _box = (label, val, sub) => `<div style="background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px"><div style="font-size:10.5px;color:var(--sub)">${label}</div><div style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:15px;margin-top:2px">₩${Math.round(val).toLocaleString()}</div>${sub?`<div style="font-size:10px;color:var(--dim)">${sub}</div>`:''}</div>`;
+      const _sub = c.material + c.outsource + c.process;
+      const _pct = v => _sub > 0 ? `${(v/_sub*100).toFixed(0)}%` : '';
       box.innerHTML = `
-        <div>재료 <b>₩${Math.round(c.material).toLocaleString()}</b> + 외주 <b>₩${Math.round(c.outsource).toLocaleString()}</b> + 가공 <b>₩${Math.round(c.process).toLocaleString()}</b> + 간접 <b>₩${Math.round(c.overhead).toLocaleString()}</b></div>
-        <div>${overrideCostTotal!=null?'적용 원가':'표준원가'} = <b style="color:var(--cyan)">₩${Math.round(usedTotal).toLocaleString()}</b> /ea${overrideBadge}</div>
-        <div>견적단가 = 원가 × (1 + ${mp}%) = <b style="color:var(--green);font-size:14px">₩${Math.round(unitPrice).toLocaleString()}</b> /ea</div>
-        <div>견적금액 = <b style="color:var(--heat2);font-size:14px">₩${Math.round(totalAmt).toLocaleString()}</b> (수량 ${qty.toLocaleString()})</div>
+        <div style="font-size:11.5px;color:var(--sub);margin-bottom:10px;line-height:1.6">${_srcLine}</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          ${_box('재료', c.material, _pct(c.material))}${_box('외주', c.outsource, _pct(c.outsource))}${_box('가공', c.process, _pct(c.process))}${_box('간접', c.overhead, `${((_meta.overhead_pct||0)*100).toFixed(0)}%`)}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.5px">
+          <span>${overrideCostTotal!=null?'적용 원가':'원가'} <b style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">₩${Math.round(usedTotal).toLocaleString()}</b>/ea${overrideBadge}</span>
+          <span style="color:var(--dim)">→ 마진 ${mp}% →</span>
+          <span>견적단가 <b style="font-family:'JetBrains Mono',monospace;color:var(--green);font-size:16px">₩${Math.round(unitPrice).toLocaleString()}</b>/ea</span>
+          <span style="margin-left:auto">견적금액 <b style="font-family:'JetBrains Mono',monospace;font-size:16px">₩${Math.round(totalAmt).toLocaleString()}</b> <span style="color:var(--dim)">(${qty.toLocaleString()}ea)</span></span>
+        </div>
       `;
       okBtn.disabled = !(qty>0 && mp>=0);
       okBtn._payload = { code, qty, mp, c, unitPrice, totalAmt, usedTotal };
@@ -17910,15 +17999,18 @@ VIEWS._planNew = (prefill) => {
   openModal(`
     <h2>계획 수립 <span style="color:var(--dim);font-size:12px;font-weight:400;margin-left:8px">수주 연결 → 일정 · 수량 · 설비</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
-      <div class="grid g2">
-        <div><label>고객사 필터 <span style="color:var(--dim);font-weight:400">— 수주 목록 좁히기</span></label>
-          <select id="pln-so-cust">
-            <option value="">— 전체 고객사 (${soLive.length}건) —</option>
-            ${soCusts.map(([code,name]) => `<option value="${_esc(code)}">${_esc(name)} (${soLive.filter(x=>x.o.cust===code).length}건)</option>`).join('')}
-          </select></div>
-        <div><label>수주 연결 (잔량 있음)${_soExcluded?` <span style="color:var(--dim);font-weight:400">— 계획 수량 충족 ${_soExcluded}건 제외</span>`:''}</label>
-          <select id="pln-so"></select></div>
+      <!-- ★ v0.35.8 — 수주 연결 = 긴 드롭다운 대신 표에서 행 클릭 (파일럿 담당자 피드백: "칸은 작은데 내용이 너무 길고 복잡") · 선택 로직은 숨은 select 그대로 -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <label style="margin:0">수주 연결 <span style="color:var(--dim);font-weight:400">— 행을 클릭하면 품번·수량이 채워집니다${_soExcluded?` · 계획 충족 ${_soExcluded}건 제외`:''}</span></label>
+        <input id="pln-so-q" placeholder="고객사 · 수주번호 · 품번 검색" style="margin-left:auto;max-width:220px;padding:6px 10px;font-size:12px" autocomplete="off">
       </div>
+      <div class="tbl-wrap" style="max-height:190px;overflow-y:auto;border:1px solid var(--line);border-radius:9px">
+        <table style="font-size:12px" id="pln-so-tbl">
+          <thead><tr><th>수주번호</th><th>고객사</th><th>품번</th><th>납기</th><th class="num">계획 가능</th></tr></thead>
+          <tbody id="pln-so-body"></tbody>
+        </table>
+      </div>
+      <select id="pln-so" style="display:none"></select>
       <div id="pln-so-hint" style="font-size:11px;color:var(--sub);margin-top:6px">재고생산 선택 — 수주 없이 계획 (재고생산은 중복 계획 가능)</div>
       <div class="grid g2" style="margin-top:10px">
         <div><label>품번</label>
@@ -17955,27 +18047,33 @@ VIEWS._planNew = (prefill) => {
   const soHint = document.getElementById('pln-so-hint');
   const matHint = document.getElementById('pln-mat-hint');
   const loadHint = document.getElementById('pln-load-hint');
-  const soCustSel = document.getElementById('pln-so-cust');
   // ★ v0.20.2 — 공용 달력 팝업 (수기 입력 병행 · 모달 바깥클릭 보호와 독립)
   attachCalendar(dateEl);
 
-  // ★ v0.30.6 — 수주 옵션 렌더 (고객사 필터 적용 · 1벌)
-  // ★ v0.30.7 — 계획잔량(미계획 수량) 표기·프리필 기준 = planRemain (분할 계획 지원)
-  const renderSoOpts = (custCode) => {
-    const list = custCode ? soLive.filter(x => x.o.cust === custCode) : soLive;
-    soSel.innerHTML = `<option value="">재고생산 — 수주 연결 없음 (중복 계획 가능)</option>` +
-      list.map(({o, remain, planned, planRemain}) => {
-        const it = DB.get('items', o.itemCode);
+  // ★ v0.35.8 — 숨은 select = 기존 선택·프리필·저장 로직의 단일 소스 (옵션 전부 유지) · 표는 그 위의 보기/클릭 레이어 · 검색 1줄
+  soSel.innerHTML = `<option value="">재고생산 — 수주 연결 없음 (중복 계획 가능)</option>` +
+    soLive.map(({o, remain, planned, planRemain}) => `<option value="${_esc(o.id)}" data-item="${_esc(o.itemCode)}" data-remain="${remain}" data-planned="${planned}" data-planremain="${planRemain}" data-due="${_esc(o.due||'')}">${_esc(o.id)}</option>`).join('');
+  const soBody = document.getElementById('pln-so-body'), soQ = document.getElementById('pln-so-q');
+  const renderSoRows = () => {
+    const q = (soQ.value || '').trim().toLowerCase();
+    const today0 = fmtDate(Date.now());
+    const list = soLive.filter(({o}) => { if(!q) return true; const cust = DB.get('vendors', o.cust)?.name || o.cust || ''; return `${o.id} ${cust} ${o.itemCode} ${itemLabel(o.itemCode)}`.toLowerCase().includes(q); });
+    const sel = soSel.value;
+    const hl = 'background:color-mix(in srgb,var(--cyan) 12%,transparent)';
+    soBody.innerHTML = `<tr data-so="" style="cursor:pointer;${!sel?hl:''}"><td colspan="4" style="color:var(--sub)">재고생산 — 수주 없이 계획</td><td class="num muted">—</td></tr>` +
+      (list.length ? list.map(({o, planned, planRemain}) => {
         const cust = DB.get('vendors', o.cust)?.name || o.cust || '미지정';
-        const planTag = planned > 0 ? ` · 기계획 ${planned.toLocaleString()}ea` : '';
-        return `<option value="${_esc(o.id)}" data-item="${_esc(o.itemCode)}" data-remain="${remain}" data-planned="${planned}" data-planremain="${planRemain}" data-due="${_esc(o.due||'')}">${_esc(o.id)} · ${_esc(cust)} · ${_esc(itemLabel(o.itemCode))} ${_esc(it?.name||'')} · 계획잔 ${planRemain.toLocaleString()}ea${planTag} · 납기 ${_esc(o.due||'—')}</option>`;
-      }).join('');
+        const late = o.due && o.due < today0;
+        return `<tr data-so="${_esc(o.id)}" style="cursor:pointer;${sel===o.id?hl:''}">
+          <td class="mono">${_esc(o.id)}</td><td>${_esc(cust)}</td><td>${_esc(itemLabel(o.itemCode))}</td>
+          <td class="mono" style="${late?'color:var(--red);font-weight:700':''}">${_esc(o.due||'—')}</td>
+          <td class="num mono" style="color:var(--cyan);font-weight:700">${planRemain.toLocaleString()}${planned?`<div style="font-size:10px;color:var(--dim);font-weight:400">기계획 ${planned.toLocaleString()}</div>`:''}</td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="5" class="empty">검색 결과 없음</td></tr>`);
+    soBody.querySelectorAll('tr[data-so]').forEach(tr => tr.onclick = () => { soSel.value = tr.dataset.so; soSel.dispatchEvent(new Event('change')); renderSoRows(); });
   };
-  renderSoOpts('');
-  if(soCustSel) soCustSel.onchange = () => {
-    renderSoOpts(soCustSel.value);
-    soSel.dispatchEvent(new Event('change'));   // 필터 변경 시 힌트·프리필 초기화
-  };
+  soQ.oninput = renderSoRows;
+  renderSoRows();
 
   const updMatHint = () => {
     const p = { itemCode: itemSel.value, qty: +qtyEl.value||0, date: dateEl.value };
@@ -18070,6 +18168,7 @@ VIEWS._planNew = (prefill) => {
     }
     if(prefill.itemCode) itemSel.value = prefill.itemCode;
     if(prefill.qty) qtyEl.value = prefill.qty;
+    renderSoRows();   // ★ v0.35.8 — 프리필 선택 행 강조
   }
   updMatHint(); updLoadHint();
 
