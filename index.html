@@ -1227,11 +1227,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.35.5';
+const APP_VERSION = 'v0.35.6';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-09-06';
+const APP_DATE    = '2026-09-07';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -4594,6 +4594,18 @@ function recordImportLog(master, filename, total, added, skipped){
    잔량 = 직전공정 양품 − 현공정 누적투입.
    초과등록 차단. 병합·분할 지원. heat 상속.
    ------------------------------------------------------------------------------------------------- */
+/* ★ v0.35.6 — 실적 ID 생성 1벌 (QV-1b 관찰 #5 · GPT 파일럿 Gate 필수)
+   기존 `R-{proc}-{plot}-{Date.now()}` 는 같은 ms 에 같은 공정·LOT 실적이 두 건(다른 단말 오프라인 도착 등) 오면
+   DB.set 병합으로 앞 건을 무음 덮어썼다. 접두(정렬·가독)는 유지하고 난수 4자(기존 fid 관례)를 붙이며,
+   생성 시점에 이미 존재하면 재생성. 기존 실적 id 는 그대로(원장 불변). 등록·MERGE·SPLIT·FORK·STOP 5곳 공용. */
+function newRecId(prefix){
+  for(let i=0;i<8;i++){
+    const id = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+    if(!DB.get('records', id)) return id;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;
+}
+
 const LOT = {
   // 생산LOT 신규 (수동 plot_no)
   create({plot_no, itemCode, materialLots, qty_initial, type='normal', sourceLots=[], merge_at_proc=null}){
@@ -4708,7 +4720,7 @@ const LOT = {
         throw new Error(`복귀 한도 초과 — 누적 재작업 ${cumRew+rework}, 기존 복귀 ${cumRet}, 신규 ${rework_returned}`);
       }
     }
-    const id = `R-${proc}-${plot_no}-${Date.now()}`;
+    const id = newRecId(`R-${proc}-${plot_no}`);   // ★ v0.35.6 — 같은 ms 충돌 방지
     const rec = {
       id, plot_no, proc, equipment, vendor, type,
       good, defect, rework, scrap, rework_returned, defect_reason,
@@ -4753,7 +4765,7 @@ const LOT = {
     sources.forEach(s=>{
       const bal = LOT.balance(s.plot_no, proc);
       if(bal>0){
-        const id = `R-MERGE-${s.plot_no}-${proc}-${Date.now()}`;
+        const id = newRecId(`R-MERGE-${s.plot_no}-${proc}`);
         DB.set('records', id, {
           id, plot_no:s.plot_no, proc,
           good:0, defect:0, rework:0, scrap:0, rework_returned:0,
@@ -4783,7 +4795,7 @@ const LOT = {
     //   수정: 병합과 동일 메커니즘 — 부모 첫 공정에 이관(transferred) 레코드를 남겨 잔량 소진.
     //   totalInput 이 transferred 를 포함하므로 잔량·J1 불변식(이관 항 포함)이 자동 정합.
     {
-      const id = `R-SPLIT-${parentPlotNo}-${Date.now()}`;
+      const id = newRecId(`R-SPLIT-${parentPlotNo}`);
       DB.set('records', id, {
         id, plot_no:parentPlotNo, proc:cutCode,
         good:0, defect:0, rework:0, scrap:0, rework_returned:0,
@@ -4846,7 +4858,7 @@ const LOT = {
       DB.set('production_lots', c.plot_no, child);
     });
     // 부모 잔량 소진: 자식 합만큼 transfer 레코드 (totalInput 합산되어 잔량 -= sum)
-    const rid = `R-FORK-${parentPlotNo}-${fork_at_proc}-${Date.now()}`;
+    const rid = newRecId(`R-FORK-${parentPlotNo}-${fork_at_proc}`);
     DB.set('records', rid, {
       id: rid, plot_no: parentPlotNo, proc: fork_at_proc,
       good:0, defect:0, rework:0, scrap:0, rework_returned:0,
@@ -10828,13 +10840,20 @@ VIEWS.ship = () => {
       stripEl.innerHTML = parts.join('<span class="fl-arr">→</span>');
     };
     const drawWarn = () => {
+      // ★ v0.35.6 — 잠금/HOLD LOT 은 차단 안내만 (완성품재고 경고와 혼재 금지 · QV-1b 관찰 #2). 판정 = lotLockInfo/lotHoldInfo 1벌
+      const plotSel = lotSel?.value;
+      if(plotSel){
+        const k = lotLockInfo(plotSel), h = lotHoldInfo(plotSel);
+        if(k.locked){ warnEl.innerHTML = `<div class="fl-warn" style="color:var(--red);border-color:var(--red)">⛔ 동시성 잠금 — ${_esc(plotSel)} 출하 불가 (${k.incidents.length ? k.incidents.map(c=>_esc(c.id)).join(', ') : '잔량 음수 감지'}) · 변경 이력 → 동시성 사고에서 정정·해제 후 출하</div>`; return; }
+        if(h.held){ warnEl.innerHTML = `<div class="fl-warn" style="color:var(--red);border-color:var(--red)">⛔ 품질 HOLD — ${_esc(plotSel)} 출하 불가 (${h.ncs.map(n=>_esc(n.id)).join(', ')}) · 품질 관리에서 처리(특채/폐기/반품) 후 출하</div>`; return; }
+      }
       const opt = soSel.selectedOptions[0];
       const itemCode = opt?.dataset.i;
       const qty = +qtyEl.value || 0;
       if(!itemCode || qty <= 0){ warnEl.innerHTML = ''; return; }
       const flow = calcItemFlow(itemCode);
       warnEl.innerHTML = (qty > flow.finished)
-        ? `<div class="fl-warn">⚠ 완성품재고(${flow.finished.toLocaleString()}) 초과 — 등록은 진행됩니다</div>`
+        ? `<div class="fl-warn">⚠ 이 품번 완성품재고 ${flow.finished.toLocaleString()}ea 보다 많은 수량 — 실제 출하 가능량은 선택 LOT 잔량으로 검증됩니다</div>`
         : '';
     };
     // ★ v0.16.11 — 포장 힌트 (기준·실측) + 실측 기본값 = 표준
@@ -10863,9 +10882,10 @@ VIEWS.ship = () => {
     };
     packEl.oninput = () => { packEl.dataset.touched = '1'; drawPack(); };
     soSel.addEventListener('change', () => { drawStrip(); drawWarn(); drawPack(); });
-    lotSel?.addEventListener('change', () => { drawStrip(); });
+    lotSel?.addEventListener('change', () => { drawStrip(); drawWarn(); });   // ★ v0.35.6 — LOT 변경 시 잠금/HOLD 안내 갱신
     qtyEl.addEventListener('input', () => { drawWarn(); drawPack(); });
     drawStrip();
+    drawWarn();   // ★ v0.35.6 — 초기 선택 LOT 의 잠금/HOLD 안내
     drawPack();
 
     document.getElementById('sh-ok').onclick = () => {
@@ -11218,6 +11238,9 @@ VIEWS.os = () => {
       });
     });
     dispatchTargets.sort((a,b)=>(b.lastTs||0)-(a.lastTs||0));
+    // ★ v0.35.6 — 반출 대상 표·LOT 선택지에 잠금/HOLD 표시 (QV-1b 관찰 #1: 클릭 시에만 차단되던 것을 목록에서 먼저 보이게 · 판정 1벌 재사용)
+    const _odHeld = heldPlotSet(), _odLocked = lockedPlotSet();
+    const _odBlockLabel = plot => _odLocked.has(plot) ? ' — 동시성 잠금 (반출 불가)' : _odHeld.has(plot) ? ' — 품질 HOLD (반출 불가)' : '';
     openModal(`
       <h2>외주 반출 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
@@ -11226,14 +11249,14 @@ VIEWS.os = () => {
           <div style="font-size:11.5px;color:var(--sub);margin-bottom:6px"><b style="color:var(--cyan)">반출 대상 실적</b> — 행을 클릭하면 LOT·공정·수량(가능 잔량)이 자동 입력됩니다 · 일부만 반출할 땐 수량을 줄여 등록 (남은 만큼 다음에 다시 반출 가능)</div>
           <div class="tbl-wrap" style="max-height:180px;overflow-y:auto"><table style="font-size:11.5px">
             <thead><tr><th>LOT</th><th>품번</th><th>외주 공정</th><th>최근 실적</th><th class="num">직전 양품</th><th class="num">반출 중</th><th class="num">반출 가능</th></tr></thead>
-            <tbody>${dispatchTargets.map(t=>`<tr data-odt="${_esc(t.plot)}|${_esc(t.proc)}|${t.avail}" style="cursor:pointer">
-              <td><b class="mono">${_esc(t.plot)}</b></td>
+            <tbody>${dispatchTargets.map(t=>`<tr data-odt="${_esc(t.plot)}|${_esc(t.proc)}|${t.avail}" style="cursor:pointer${_odBlockLabel(t.plot)?';opacity:.55':''}">
+              <td><b class="mono">${_esc(t.plot)}</b>${_odLocked.has(t.plot)?' <span style="color:var(--red);font-weight:700">⛔ 잠금</span>':_odHeld.has(t.plot)?' <span style="color:var(--red);font-weight:700">⛔ HOLD</span>':''}</td>
               <td>${_esc(t.itemCode)}</td>
               <td>${_esc(t.procName)}</td>
               <td class="muted">${t.lastTs?fmtDate(t.lastTs):'—'}</td>
               <td class="num mono">${t.lastGood?t.lastGood.toLocaleString():'—'}</td>
               <td class="num mono">${t.dispatched?t.dispatched.toLocaleString():'—'}</td>
-              <td class="num mono" style="color:var(--cyan);font-weight:700">${t.avail.toLocaleString()}</td>
+              <td class="num mono" style="color:var(--cyan);font-weight:700">${_odBlockLabel(t.plot)?'<span style="color:var(--red)">반출 불가</span>':t.avail.toLocaleString()}</td>
             </tr>`).join('')}</tbody>
           </table></div>
         </div>` : ''}
@@ -11244,7 +11267,7 @@ VIEWS.os = () => {
             <select id="od-p">${procs.map(p=>`<option value="${p.code}">${_esc(p.name)}</option>`).join('')}</select></div>
         </div>
         <div><label>생산LOT</label>
-          <select id="od-l">${lots.map(l=>`<option value="${l.plot_no}">${_esc(l.plot_no)} (${_esc(l.itemCode)})</option>`).join('')}</select></div>
+          <select id="od-l">${lots.map(l=>`<option value="${l.plot_no}">${_esc(l.plot_no)} (${_esc(l.itemCode)})${_odBlockLabel(l.plot_no)}</option>`).join('')}</select></div>
         <!-- ★ v0.16.9 — 반출 가능량 힌트 (osAvailable 1벌) -->
         <div id="od-avail" style="font-size:11.5px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin:-2px 0 8px;font-family:'JetBrains Mono',monospace">—</div>
         <!-- ★ v0.16.18 — 입력 단위 토글 (입고 모달과 osInput* 공용) -->
@@ -12314,7 +12337,7 @@ VIEWS._perfStop = ()=>{
     const reason = document.getElementById('st-r').value;
     const note = document.getElementById('st-note').value.trim();
     // 중단은 실적 0짜리 + stopped:true (records에 마커로 남김)
-    const id = `R-STOP-${proc}-${plot}-${Date.now()}`;
+    const id = newRecId(`R-STOP-${proc}-${plot}`);
     DB.set('records', id, {
       id, plot_no:plot, proc, equipment:'',
       good:0, defect:0, rework:0, scrap:0,
@@ -21667,7 +21690,8 @@ VIEWS._qcDetail = (nc_id) => {
   if(!isVoid && (nc.status === NC_STATUS.SCRAP || nc.status === NC_STATUS.DEV || nc.status === NC_STATUS.RET)){
     actions.push(`<button class="btn primary" id="nc-done">${ico('check')}완료 처리</button>`);
   }
-  if(!isVoid && !isDone) actions.push(`<button class="btn" id="nc-void" style="color:var(--red)">${ico('x')}NC 취소</button>`);
+  // ★ v0.35.6 — [취소]=오등록 취소 전용임을 라벨·툴팁으로 명시 (QV-1b 관찰 #3: 판정 결과를 취소 사유로 입력한 사례)
+  if(!isVoid && !isDone) actions.push(`<button class="btn" id="nc-void" style="color:var(--red)" title="잘못 등록한 부적합을 무효 처리합니다 (이력 보존). 특채·폐기·반품·재작업 판정은 [처리] 버튼">${ico('x')}오등록 취소</button>`);
   actions.push(`<button class="btn" id="nc-print">${ico('print')}인쇄</button>`);
 
   openModal(`
@@ -21693,6 +21717,7 @@ VIEWS._qcDetail = (nc_id) => {
         </div>`).join('')}
       </div>
       ${isDone||isVoid ? `<div style="font-size:11px;color:var(--dim);margin-top:8px;line-height:1.55">${isDone?'· 완료된 NC 는 수정 불가 (상세 열람만) · 되돌리기는 취소 후 재등록.':'· 취소된 NC · 이력 보존.'}</div>` : ''}
+      ${isRcv && !isVoid ? `<div style="font-size:11px;color:var(--sub);margin-top:6px">판정(특채·폐기·반품·재작업) → <b>[처리]</b> · 잘못 등록한 NC 만 <b style="color:var(--red)">[오등록 취소]</b></div>` : ''}
       <div class="actions">
         <button class="btn" onclick="closeModal()">닫기</button>
         ${actions.join(' ')}
@@ -21710,9 +21735,10 @@ VIEWS._qcDetail = (nc_id) => {
   };
   const bV = document.getElementById('nc-void');
   if(bV) bV.onclick = () => {
-    const reason = prompt('취소 사유(선택)', '오입력') || '오입력';
-    voidDoc('nc_records', nc_id, reason);
-    toast('NC 취소 (이력 보존)','ok');
+    const reason = prompt('⚠ 오등록 취소 — 이 부적합을 잘못 등록했을 때만 사용합니다.\n특채·폐기·반품·재작업 등 판정은 [처리] 버튼을 쓰세요.\n\n취소 사유(선택):', '오입력');
+    if(reason === null) return;   // 취소 창에서 [취소] = 아무것도 하지 않음
+    voidDoc('nc_records', nc_id, reason || '오입력');
+    toast('오등록 취소 (이력 보존)','ok');
     closeModal(); router();
   };
   const bPrn = document.getElementById('nc-print');
