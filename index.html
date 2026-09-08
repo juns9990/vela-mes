@@ -1251,7 +1251,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.35.9';
+const APP_VERSION = 'v0.35.10';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -6881,11 +6881,14 @@ VIEWS.dash = () => {
   const _lockN = lockedPlotSet().size;
   const _holdN = heldPlotSet().size;
   const _lateN = calcSoRows().filter(r => r.status.label === '지연').length;
-  const _issueN = _lockN + _holdN + _lateN + (flags.qc ? _ncWait : 0);
+  // ★ v0.35.9-B — 부적합 대기 대신 「판정 지체」(조치 필요 = alert 일수 이상 · 정책값) 집계 — GPT §10
+  const _ncDelay = flags.qc ? DB.query('nc_records', n => ncIsPending(n) && ncPendingLevel(n) >= 2).length : 0;
+  const _ncPend  = flags.qc ? DB.query('nc_records', n => ncIsPending(n)).length : 0;
+  const _issueN = _lockN + _holdN + _lateN + _ncDelay;
   const _issueParts = [];
   if(_lockN) _issueParts.push({ t:`동시성 잠금 ${_lockN}`, h:'#audit' });
   if(_holdN) _issueParts.push({ t:`품질 HOLD ${_holdN}`, h:'#qc' });
-  if(flags.qc && _ncWait) _issueParts.push({ t:`부적합 대기 ${_ncWait}`, h:'#qc' });
+  if(_ncDelay) _issueParts.push({ t:`판정 지체 ${_ncDelay}${_ncPend>_ncDelay?` (대기 ${_ncPend})`:''}`, h:'#qc' });
   if(_lateN) _issueParts.push({ t:`납기 지연 ${_lateN}`, h:'#so' });
   const _issueGo = _issueParts.length ? _issueParts[0].h : '#lot';
 
@@ -6909,7 +6912,7 @@ VIEWS.dash = () => {
       <div class="dkpi clk ${_issueN?'issue':'ok'}" onclick="location.hash='${_issueGo}'"><span class="goarrow">확인 ↗</span>
         <div class="lab"><svg viewBox="0 0 24 24" stroke="${_issueN?'var(--amber)':'var(--green)'}"><circle cx="12" cy="12" r="9"/><path d="${_issueN?'M12 8v5M12 16h.01':'M8 12l3 3 5-6'}"/></svg>오늘 이상</div>
         <div class="val" style="color:${_issueN?'var(--amber)':'var(--green)'}">${_issueN? `${_issueN}<span class="unit">건</span>` : '<span style="font-size:22px">이상 없음</span>'}</div>
-        <div class="sub">${_issueN? _issueParts.map(x=>x.t).join(' · ') : '잠금 · HOLD · 부적합 · 납기 지연 0'}</div>
+        <div class="sub">${_issueN? _issueParts.map(x=>x.t).join(' · ') : `잠금 · HOLD · 판정 지체 · 납기 지연 0${_ncPend?` · 판정 대기 ${_ncPend}`:''}`}</div>
       </div>
     </div>
 
@@ -8016,9 +8019,15 @@ VIEWS._printWO = (id)=>{ printForm.wo([id]); };  // ★ v0.12.0 — 새 양식 �
    해제: 품질 판정(재작업/특채/폐기/완료/반품 처리)으로 상태가 '접수'를 벗어나면 자동 해제.
    차단 지점: ①LOT.registerRecord (원장 단일 경로 — QR·수기·이관 임포트 전부 통과 지점)
              ②출하 등록 핸들러 ③외주 반출 핸들러. 헬퍼 1벌 — 화면 표시도 동일 판정 재사용. */
+/* ★ v0.35.9-B — 품질 판정 상태 머신 (GPT 정책 심사 승인 2026-09-08 · 파일럿 담당자 "부적합 등록 = 무조건 HOLD 아님, 품질팀이 체크")
+   NC(접수) 를 두 갈래로: hold=false → ⚠ 판정 대기 (실적·출하·반출 가능하되 신고 수량만 파생 격리 + 경고)
+                        hold≠false → 🔴 HOLD (품질팀 차단 · 기존 Gate 그대로 — 레거시/시드 NC 는 hold 필드 없음 = HOLD 유지)
+   격리 수량은 저장하지 않는다(파생) · 최종 write path(출하·반출 저장 직전)에서 현재 원장으로 재검증 · 긴급 우회 경로 없음(특채 경로). */
+function ncIsHold(n){ return n && n.status === '접수' && n.hold !== false; }
+function ncIsPending(n){ return n && n.status === '접수' && n.hold === false; }
 function lotHoldInfo(plot_no){
   if(!plot_no) return { held:false, ncs:[] };
-  const ncs = DB.query('nc_records', n => n.lot_id === plot_no && n.status === '접수');
+  const ncs = DB.query('nc_records', n => n.lot_id === plot_no && ncIsHold(n));
   return { held: ncs.length > 0, ncs };
 }
 function assertLotNotHeld(plot_no, action){
@@ -8027,7 +8036,52 @@ function assertLotNotHeld(plot_no, action){
 }
 /* 목록 렌더用 일괄 판정 (행마다 개별 query 금지 — v0.16.9 원칙) */
 function heldPlotSet(){
-  return new Set(DB.query('nc_records', n => n.status === '접수').map(n => n.lot_id).filter(Boolean));
+  return new Set(DB.query('nc_records', n => ncIsHold(n)).map(n => n.lot_id).filter(Boolean));
+}
+function pendingPlotSet(){
+  return new Set(DB.query('nc_records', n => ncIsPending(n)).map(n => n.lot_id).filter(Boolean));
+}
+/* 판정 지체 정책값 (설정 · 코드 고정 금지) */
+function qualityPolicy(){ const q = DB.get('settings','quality') || {}; return { warn: +q.pending_warn_days > 0 ? +q.pending_warn_days : 1, alert: +q.pending_alert_days > 0 ? +q.pending_alert_days : 3 }; }
+function ncPendingDays(n){ return Math.floor((Date.now() - (n.ts || 0)) / 86400000); }
+function ncPendingLevel(n){ if(!ncIsPending(n)) return -1; const d = ncPendingDays(n), p = qualityPolicy(); return d >= p.alert ? 2 : d >= p.warn ? 1 : 0; }
+/* 격리 수량 — 파생 계산 규칙(심사문 ①-보강): 실적 연결 NC 는 실적 불량(defect+rework) 상한 · LOT 단위 NC 는 cap 상한 · 합계 cap 상한 · 재작업 상태는 유지 · 처리 완료/void 제외 */
+function lotQuarantineQty(plot_no, cap){
+  const capN = (cap == null || !isFinite(cap)) ? Infinity : Math.max(0, cap);
+  const ncs = DB.query('nc_records', n => n.lot_id === plot_no && (n.status === '접수' || n.status === '재작업'));
+  const byRec = {}; let lotLevel = 0;
+  ncs.forEach(n => { if(n.record_id) byRec[n.record_id] = (byRec[n.record_id] || 0) + (+n.qty || 0); else lotLevel += Math.min(+n.qty || 0, capN); });
+  let sum = lotLevel;
+  Object.entries(byRec).forEach(([rid, q]) => { const r = DB.get('records', rid); const lim = r ? ((+r.defect||0) + (+r.rework||0)) : q; sum += Math.min(q, lim); });
+  return Math.min(sum, capN);
+}
+function lotPendingInfo(plot_no, cap){
+  if(!plot_no) return { pending:[], quarantine:0, level:-1 };
+  const pending = DB.query('nc_records', n => n.lot_id === plot_no && ncIsPending(n));
+  const level = pending.reduce((m, n) => Math.max(m, ncPendingLevel(n)), -1);
+  return { pending, quarantine: pending.length || DB.query('nc_records', n => n.lot_id === plot_no && n.status === '재작업').length ? lotQuarantineQty(plot_no, cap) : 0, level };
+}
+/* 최종 write path 재검증 1벌 — 출하·반출 저장 직전 호출 (현재 원장 기준 · UI 표시값 불신). 통과 시 {allowed, quarantine, pending} 반환 */
+function assertQuarantine(plot_no, qty, action, availQty){
+  const av = Math.max(0, +availQty || 0);
+  const info = lotPendingInfo(plot_no, av);
+  const allowed = Math.max(0, av - info.quarantine);
+  if(info.quarantine > 0 && (+qty || 0) > allowed){
+    throw new Error(`판정 대기 격리 — ${plot_no} 부적합 신고 ${info.quarantine.toLocaleString()}ea 격리 (${info.pending.map(n => n.id).join(', ')}) · ${action || '진행'} 가능 ${allowed.toLocaleString()}ea (요청 ${(+qty||0).toLocaleString()}) · 품질 관리에서 판정 후 전량 가능`);
+  }
+  return { allowed, quarantine: info.quarantine, pending: info.pending };
+}
+/* 판정 대기 중 출하·반출 사실 기록 — NC 문서(비원장) pending_out + _logs 가 권위 (shipments/os_dispatches 원장 무변) */
+function ncRecordPendingOut(pending, kind, ref_id, qty){
+  (pending || []).forEach(n => { const cur = DB.get('nc_records', n.id); if(!cur) return; DB.set('nc_records', n.id, { pending_out: (cur.pending_out || []).concat([{ kind, ref_id, qty:+qty||0, ts:Date.now(), by:SESSION.user||'system' }]).slice(-50) }); });
+}
+/* 품질팀 HOLD 설정/해제 1벌 — hold_log 이력 + _logs */
+function ncSetHold(nc_id, on, reason){
+  const n = DB.get('nc_records', nc_id); if(!n) throw new Error('NC 없음');
+  if(n.status !== '접수') throw new Error('접수 상태에서만 HOLD 설정/해제 가능');
+  const entry = { on: !!on, by: SESSION.user || 'system', ts: Date.now(), reason: reason || '' };
+  DB.set('nc_records', nc_id, { hold: !!on, hold_log: (n.hold_log || []).concat([entry]).slice(-50) });
+  return entry;
 }
 
 /* ★ v0.33.2 — 동시성 사고 방어·복구 Gate (Q2-3 · G-2 완화 — GPT·개발 합의 설계)
@@ -10869,7 +10923,7 @@ VIEWS.ship = () => {
           <div class="fl-strip" id="sh-strip"><span class="fl-empty">수주(품번)을 선택하세요</span></div>
         </div>
         <div><label>생산LOT (출하 직전공정 양품 보유)</label>
-          <select id="sh-lot">${(()=>{ const _hs = heldPlotSet(); const _ls = lockedPlotSet(); return lots.map(l=>`<option value="${l.plot_no}">${l.plot_no} (${l.itemCode})${_hs.has(l.plot_no)?' — 품질 HOLD (출하 불가)':''}${_ls.has(l.plot_no)?' — 동시성 잠금 (출하 불가)':''}</option>`).join(''); })()}</select></div>
+          <select id="sh-lot">${(()=>{ const _hs = heldPlotSet(); const _ls = lockedPlotSet(); const _ps = pendingPlotSet(); return lots.map(l=>`<option value="${l.plot_no}">${l.plot_no} (${l.itemCode})${_hs.has(l.plot_no)?' — 품질 HOLD (출하 불가)':''}${_ls.has(l.plot_no)?' — 동시성 잠금 (출하 불가)':''}${!_hs.has(l.plot_no)&&_ps.has(l.plot_no)?' — ⚠ 판정 대기 (격리분 제외 가능)':''}</option>`).join(''); })()}</select></div>
         <div class="grid g2">
           <div>
             <label>수량 (ea)</label>
@@ -10953,6 +11007,11 @@ VIEWS.ship = () => {
         const k = lotLockInfo(plotSel), h = lotHoldInfo(plotSel);
         if(k.locked){ warnEl.innerHTML = `<div class="fl-warn" style="color:var(--red);border-color:var(--red)">⛔ 동시성 잠금 — ${_esc(plotSel)} 출하 불가 (${k.incidents.length ? k.incidents.map(c=>_esc(c.id)).join(', ') : '잔량 음수 감지'}) · 변경 이력 → 동시성 사고에서 정정·해제 후 출하</div>`; return; }
         if(h.held){ warnEl.innerHTML = `<div class="fl-warn" style="color:var(--red);border-color:var(--red)">⛔ 품질 HOLD — ${_esc(plotSel)} 출하 불가 (${h.ncs.map(n=>_esc(n.id)).join(', ')}) · 품질 관리에서 처리(특채/폐기/반품) 후 출하</div>`; return; }
+        // ★ v0.35.9-B — 판정 대기: 신고 수량 격리 · 나머지 출하 가능 (표시값 — 저장 직전 재검증은 assertQuarantine)
+        const _lo = DB.get('production_lots', plotSel); const _rt = _lo ? getRoute(_lo.itemCode) : []; const _lp = _rt.length>1 ? _rt[_rt.length-2] : _rt[0];
+        const _av = _lp ? LOT.totalGood(plotSel, _lp.proc) - DB.query('shipments', x=>x.plot_no===plotSel).reduce((a,r)=>a+(r.qty||0),0) : 0;
+        const pd = lotPendingInfo(plotSel, _av);
+        if(pd.pending.length){ warnEl.innerHTML = `<div class="fl-warn" style="color:var(--amber);border-color:var(--amber)">⚠ 판정 대기 NC ${pd.pending.length}건 (${pd.pending.map(n=>_esc(n.id)).join(', ')}) · 격리 ${pd.quarantine.toLocaleString()}ea — <b>출하 가능 ${Math.max(0,_av-pd.quarantine).toLocaleString()}ea</b> · 품질팀 판정 전 출하는 NC 에 기록됩니다</div>`; return; }
       }
       const opt = soSel.selectedOptions[0];
       const itemCode = opt?.dataset.i;
@@ -11017,10 +11076,13 @@ VIEWS.ship = () => {
         const bal = LOT.totalGood(plot, lastProd.proc);
         const shippedFromLot = DB.query('shipments', x=>x.plot_no===plot).reduce((s,r)=>s+(r.qty||0),0);
         if(qty > bal - shippedFromLot) throw new Error(`출하 가능 ${bal-shippedFromLot}ea (요청 ${qty})`);
+        // ★ v0.35.9-B — 최종 write path 재검증: 현재 원장 기준 잔량·격리·HOLD/Lock(위 assert)·요청수량 (UI 표시값 불신 · GPT 조건 ②)
+        const qz = assertQuarantine(plot, qty, '출하', bal - shippedFromLot);
         const shNo = resolveDocNo('sh-id', 'SH');
         if(shNo.dup) throw new Error(`출하번호 중복 — ${shNo.id}`);
         const id = shNo.id;
         DB.set('shipments', id, {id, so_id, itemCode:so.itemCode, plot_no:plot, qty, pallets:plt, pack_qty_actual, ts:Date.now(), by:SESSION.user});
+        if(qz.pending.length){ ncRecordPendingOut(qz.pending, 'ship', id, qty); toast(`⚠ 판정 대기 중 출하 — NC ${qz.pending.map(n=>n.id).join(', ')} 기록`, 'warn', 4500); }   // ★ v0.35.9-B — NC 문서에 기록(원장 무변)
         // ★ v0.13.0 — 고객사 파렛트 출고 자동 (편도, 미회수 없음)
         if(plt>0 && so?.cust){ PALLET.add({vendor:so.cust, type:'out', qty:plt, ref:{kind:'tx', id}}); }
         toast(`출하 완료${plt>0?` · 파렛트 ${plt}개 출고`:''}`,'ok');
@@ -11347,8 +11409,9 @@ VIEWS.os = () => {
     });
     dispatchTargets.sort((a,b)=>(b.lastTs||0)-(a.lastTs||0));
     // ★ v0.35.6 — 반출 대상 표·LOT 선택지에 잠금/HOLD 표시 (QV-1b 관찰 #1: 클릭 시에만 차단되던 것을 목록에서 먼저 보이게 · 판정 1벌 재사용)
-    const _odHeld = heldPlotSet(), _odLocked = lockedPlotSet();
+    const _odHeld = heldPlotSet(), _odLocked = lockedPlotSet(), _odPending = pendingPlotSet();
     const _odBlockLabel = plot => _odLocked.has(plot) ? ' — 동시성 잠금 (반출 불가)' : _odHeld.has(plot) ? ' — 품질 HOLD (반출 불가)' : '';
+    const _odPendLabel = plot => (!_odHeld.has(plot) && !_odLocked.has(plot) && _odPending.has(plot)) ? ' — ⚠ 판정 대기 (격리분 제외)' : '';
     openModal(`
       <h2>외주 반출 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
@@ -11375,7 +11438,7 @@ VIEWS.os = () => {
             <select id="od-p">${procs.map(p=>`<option value="${p.code}">${_esc(p.name)}</option>`).join('')}</select></div>
         </div>
         <div><label>생산LOT</label>
-          <select id="od-l">${lots.map(l=>`<option value="${l.plot_no}">${_esc(l.plot_no)} (${_esc(l.itemCode)})${_odBlockLabel(l.plot_no)}</option>`).join('')}</select></div>
+          <select id="od-l">${lots.map(l=>`<option value="${l.plot_no}">${_esc(l.plot_no)} (${_esc(l.itemCode)})${_odBlockLabel(l.plot_no)}${_odPendLabel(l.plot_no)}</option>`).join('')}</select></div>
         <!-- ★ v0.16.9 — 반출 가능량 힌트 (osAvailable 1벌) -->
         <div id="od-avail" style="font-size:11.5px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin:-2px 0 8px;font-family:'JetBrains Mono',monospace">—</div>
         <!-- ★ v0.16.18 — 입력 단위 토글 (입고 모달과 osInput* 공용) -->
@@ -11487,6 +11550,8 @@ VIEWS.os = () => {
       // ★ v0.16.9 — 반출 가능량 초과 차단 (osAvailable 공용 · 이중 반출 방지 · 환산값도 동일 경로)
       const info = osAvailable(plot, proc);
       if(qty > info.avail){ toast(`반출 가능 수량 초과 — 가능 ${info.avail.toLocaleString()} ea`, 'err'); return; }
+      // ★ v0.35.9-B — 최종 write path 재검증 (출하와 동일 규칙 · 완화 예외 없음 — GPT 조건 ③)
+      let qz; try { qz = assertQuarantine(plot, qty, '외주 반출', info.avail); } catch(e){ toast(e.message, 'err', 5000); return; }
       // ★ v0.20.0 — 채번 v2 (반출 모달에 번호 입력 UI 없음 → 자동만)
       const id = nextDocNo('OD');
       if(DB.get('os_dispatches', id)){ toast(`반출번호 중복 — ${id}`,'err'); return; }
@@ -11497,6 +11562,7 @@ VIEWS.os = () => {
         doc.input_value = +document.getElementById('od-src').value || 0;
       }
       DB.set('os_dispatches', id, doc);
+      if(qz && qz.pending.length){ ncRecordPendingOut(qz.pending, 'os', id, qty); toast(`⚠ 판정 대기 중 반출 — NC ${qz.pending.map(n=>n.id).join(', ')} 기록`, 'warn', 4500); }   // ★ v0.35.9-B
       // 파렛트 출고 자동
       if(plt>0) PALLET.add({vendor, type:'out', qty:plt, ref:{kind:'os', id}});
       toast(`외주 반출 등록${plt>0?` · 파렛트 ${plt}개 출고`:''}`,'ok'); closeModal(); router();
@@ -12341,7 +12407,7 @@ VIEWS._perfAddPC = (prefill)=>{
   // ★ v0.25.0 — prefill.proc 있으면 첫 렌더 시 그 공정 선택 (있을 때만 · 이후 사용자 변경 자유)
   let preferProcOnce = prefill.proc || null;
   // ★ v0.35.9 — 품번 → LOT 2단 선택 (진행 중 LOT = 등록 가능 공정이 남은 LOT · HOLD/잠금은 라벨로)
-  const _hs = heldPlotSet(), _ls = lockedPlotSet();
+  const _hs = heldPlotSet(), _ls = lockedPlotSet(), _ps = pendingPlotSet();
   const liveLots = lots.filter(l => !l.void && LOT.nextProcess(l.plot_no));
   if(prefill.plot_no && !liveLots.some(l => l.plot_no === prefill.plot_no)){ const pl = DB.get('production_lots', prefill.plot_no); if(pl) liveLots.push(pl); }   // 재작업 진입 등 프리필 LOT 보장
   const itemSel = document.getElementById('pa-item'), lotSel = document.getElementById('pa-lot');
@@ -12351,7 +12417,7 @@ VIEWS._perfAddPC = (prefill)=>{
   const refreshLotSelect = () => {
     const code = itemSel.value;
     const list = liveLots.filter(l => l.itemCode === code);
-    lotSel.innerHTML = list.map(l => { const nx = LOT.nextProcess(l.plot_no); return `<option value="${_esc(l.plot_no)}" ${prefill.plot_no===l.plot_no?'selected':''}>${_esc(l.plot_no)} · ${nx ? _esc(nx.name) + ' 대기 ' + LOT.balance(l.plot_no, nx.code).toLocaleString() + 'ea' : ''}${_hs.has(l.plot_no)?' — 품질 HOLD (등록 불가)':''}${_ls.has(l.plot_no)?' — 동시성 잠금 (등록 불가)':''}</option>`; }).join('') || '<option value="">해당 품번 진행 LOT 없음</option>';
+    lotSel.innerHTML = list.map(l => { const nx = LOT.nextProcess(l.plot_no); return `<option value="${_esc(l.plot_no)}" ${prefill.plot_no===l.plot_no?'selected':''}>${_esc(l.plot_no)} · ${nx ? _esc(nx.name) + ' 대기 ' + LOT.balance(l.plot_no, nx.code).toLocaleString() + 'ea' : ''}${_hs.has(l.plot_no)?' — 품질 HOLD (등록 불가)':''}${_ls.has(l.plot_no)?' — 동시성 잠금 (등록 불가)':''}${!_hs.has(l.plot_no)&&_ps.has(l.plot_no)?' — ⚠ 판정 대기':''}</option>`; }).join('') || '<option value="">해당 품번 진행 LOT 없음</option>';
   };
   refreshLotSelect();
   itemSel.onchange = () => { refreshLotSelect(); refreshProcSelect(); updBal(); };
@@ -21605,9 +21671,15 @@ const NC_STATUS_STYLE = {
   '반품':   { bg:'rgba(139,144,156,.16)', color:'var(--sub)'   },
   '완료':   { bg:'rgba(139,144,156,.16)', color:'var(--sub)'   },
 };
-function ncStatusBadge(status){
+function ncStatusBadge(status, nc){
   const s = NC_STATUS_STYLE[status] || NC_STATUS_STYLE['완료'];
-  return `<span style="font-size:10px;font-weight:800;padding:2px 9px;border-radius:99px;background:${s.bg};color:${s.color};display:inline-block">${_esc(status||'—')}</span>`;
+  let base = `<span style="font-size:10px;font-weight:800;padding:2px 9px;border-radius:99px;background:${s.bg};color:${s.color};display:inline-block">${_esc(status||'—')}</span>`;
+  // ★ v0.35.9-B — 접수 = HOLD / 판정 대기(지체 단계) 구분 배지
+  if(nc && status === '접수'){
+    if(ncIsHold(nc)) base += ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9.5px">🔴 HOLD</span>`;
+    else { const lv = ncPendingLevel(nc), d = ncPendingDays(nc); base += lv >= 2 ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9.5px">🔴 판정 지체 ${d}일</span>` : lv >= 1 ? ` <span class="pill" style="background:rgba(251,191,36,.15);color:var(--amber);font-size:9.5px">🟡 판정 지체 ${d}일</span>` : ` <span class="pill" style="background:rgba(251,191,36,.12);color:var(--amber);font-size:9.5px">⚠ 판정 대기</span>`; }
+  }
+  return base;
 }
 // 같은 실적(record_id)에 이미 등록된 NC 수량 합 · void 제외 · 실적 초과 등록 차단 검증에 사용
 function ncSumByRecord(record_id){
@@ -21615,7 +21687,7 @@ function ncSumByRecord(record_id){
   return DB.query('nc_records', n => n.record_id === record_id).reduce((s,n)=>s+(+n.qty||0), 0);
 }
 // NC 등록 — G1 준수 (원장 무변) · 실적 초과 등록 차단
-function qcRegisterNc({ date, item_code, lot_id, record_id, process, equipment, worker, defect_type, qty, memo }){
+function qcRegisterNc({ date, item_code, lot_id, record_id, process, equipment, worker, defect_type, qty, memo, hold }){   // ★ v0.35.9-B — hold: true=품질팀 차단 · false=판정 대기 (기본 true = 기존 동작)
   if(!defect_type) throw new Error('불량 유형 필수');
   const q = +qty || 0;
   if(q <= 0) throw new Error('수량은 1 이상');
@@ -21645,6 +21717,8 @@ function qcRegisterNc({ date, item_code, lot_id, record_id, process, equipment, 
     worker: worker || null,
     defect_type, qty: q, memo: memo || '',
     status: NC_STATUS.RCV,
+    hold: hold !== false,   // ★ v0.35.9-B
+    hold_log: hold === false ? [] : [{ on:true, by: SESSION.user || 'system', ts: Date.now(), reason: '등록 시 차단' }],
     handle: null,
     rework_record_id: null,
     ts: Date.now(),
@@ -21755,6 +21829,12 @@ VIEWS._qcRegister = (prefill) => {
       </div>
       <div><label>현상 메모 (선택)</label>
         <textarea id="nc-memo" rows="3" placeholder="예: 오른쪽 상단 3mm 크랙 · 재발 우려" style="width:100%;resize:vertical;font-family:inherit"></textarea></div>
+      <!-- ★ v0.35.9-B — 품질팀 차단(HOLD) 체크: 품질 화면 직접 등록 = 기본 켜짐 · 실적에서 온 현장 신고 = 기본 꺼짐(판정 대기) -->
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;cursor:pointer;font-size:12.5px">
+        <input type="checkbox" id="nc-hold" ${lockedRecord ? '' : 'checked'}>
+        <span><b>☑ 품질팀 차단(HOLD)</b> <span style="color:var(--sub)">— 켜면 이 LOT 의 실적·출하·반출이 즉시 차단됩니다</span>
+          <div id="nc-hold-note" style="font-size:11px;color:var(--amber);margin-top:2px;${lockedRecord?'':'display:none'}">차단 없이 <b>판정 대기</b>로 등록됩니다 — 신고 수량만 격리되고 나머지는 경고와 함께 출하·반출 가능 · 품질팀이 판정(또는 HOLD 체크)해야 확정</div></span>
+      </label>
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn primary" id="nc-save">${ico('save')}등록</button>
@@ -21780,10 +21860,12 @@ VIEWS._qcRegister = (prefill) => {
     document.getElementById('nc-lot').onchange = refreshRec;
     refreshRec();
   }
+  const _ncHold = document.getElementById('nc-hold'); if(_ncHold) _ncHold.onchange = () => { document.getElementById('nc-hold-note').style.display = _ncHold.checked ? 'none' : ''; };   // ★ v0.35.9-B
   document.getElementById('nc-save').onclick = () => {
     const defect_type = document.getElementById('nc-type').value;
     const qty  = +document.getElementById('nc-qty').value || 0;
     const memo = document.getElementById('nc-memo').value.trim();
+    const hold = !!document.getElementById('nc-hold')?.checked;   // ★ v0.35.9-B
     let payload;
     if(lockedRecord){
       payload = {
@@ -21793,7 +21875,7 @@ VIEWS._qcRegister = (prefill) => {
         process: prefill.process || null,
         equipment: prefill.equipment || null,
         worker: prefill.worker || null,
-        defect_type, qty, memo,
+        defect_type, qty, memo, hold,
       };
     } else {
       const lotId = document.getElementById('nc-lot').value || null;
@@ -21807,12 +21889,12 @@ VIEWS._qcRegister = (prefill) => {
         process: rec?.proc || null,
         equipment: rec?.equipment || null,
         worker: rec?.worker || (rec?.by ? { name: rec.by } : null),
-        defect_type, qty, memo,
+        defect_type, qty, memo, hold,
       };
     }
     try {
       const nc = qcRegisterNc(payload);
-      toast(`부적합 등록 — ${nc.id}`, 'ok');
+      toast(`부적합 등록 — ${nc.id}${hold ? ' · 품질 HOLD' : ' · 판정 대기(차단 없음)'}`, hold ? 'ok' : 'warn');
       closeModal(); router();
     } catch(e){ toast(e.message, 'err'); }
   };
@@ -21846,11 +21928,19 @@ VIEWS._qcDetail = (nc_id) => {
   if(nc.rework_record_id){
     timeline.push({ ts: rework?.ts || Date.now(), by:'system', label: `재작업 실적 연결 · ${nc.rework_record_id} (양품 ${(+rework?.good||0).toLocaleString()}ea) → 완료` });
   }
+  // ★ v0.35.9-B — HOLD 설정/해제 · 판정 대기 중 출하/반출 이력 (Audit: NC 문서 hold_log/pending_out + _logs)
+  (nc.hold_log || []).forEach(h => timeline.push({ ts: h.ts, by: h.by, label: h.on ? `🔴 품질팀 차단(HOLD) 설정${h.reason?` · ${h.reason}`:''}` : `⚠ HOLD 해제 → 판정 대기${h.reason?` · ${h.reason}`:''}` }));
+  (nc.pending_out || []).forEach(o => timeline.push({ ts: o.ts, by: o.by, label: `⚠ 판정 대기 중 ${o.kind === 'ship' ? '출하' : '외주 반출'} · ${o.ref_id} · ${(+o.qty||0).toLocaleString()}ea` }));
+  timeline.sort((a,b) => (a.ts||0) - (b.ts||0));
   if(isVoid){
     timeline.push({ ts: nc.void.ts, by: nc.void.by, label: `NC 취소 · ${nc.void.reason||''}` });
   }
 
   const actions = [];
+  // ★ v0.35.9-B — 접수 상태에서 품질팀 HOLD 체크/해제 (판정과 별개 · 이력 기록)
+  if(!isVoid && isRcv) actions.push(ncIsHold(nc)
+    ? `<button class="btn" id="nc-hold-off" style="color:var(--amber)" title="차단을 풀고 판정 대기로 둡니다 (신고 수량만 격리)">HOLD 해제 → 판정 대기</button>`
+    : `<button class="btn" id="nc-hold-on" style="color:var(--red)" title="이 LOT 의 실적·출하·반출을 즉시 차단합니다">🔴 품질팀 차단(HOLD)</button>`);
   if(!isVoid && isRcv) actions.push(`<button class="btn primary" id="nc-proc">${ico('save')}처리</button>`);
   if(!isVoid && isRw)  actions.push(`<button class="btn primary" id="nc-link">${ico('save')}재작업 실적 연결</button>`);
   if(!isVoid && (nc.status === NC_STATUS.SCRAP || nc.status === NC_STATUS.DEV || nc.status === NC_STATUS.RET)){
@@ -21861,7 +21951,7 @@ VIEWS._qcDetail = (nc_id) => {
   actions.push(`<button class="btn" id="nc-print">${ico('print')}인쇄</button>`);
 
   openModal(`
-    <h2>부적합 상세 <span style="font-family:'JetBrains Mono',monospace;color:var(--cyan);margin-left:6px">${_esc(nc.id)}</span> ${ncStatusBadge(nc.status)} ${isVoid?'<span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9.5px;margin-left:4px">취소</span>':''} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <h2>부적합 상세 <span style="font-family:'JetBrains Mono',monospace;color:var(--cyan);margin-left:6px">${_esc(nc.id)}</span> ${ncStatusBadge(nc.status, nc)} ${isVoid?'<span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9.5px;margin-left:4px">취소</span>':''} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
       <div style="display:grid;grid-template-columns:130px 1fr;gap:8px 12px;font-size:12.5px;padding:11px 13px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;margin-bottom:10px">
         <div style="color:var(--sub)">일자</div><div style="font-family:'JetBrains Mono',monospace">${_esc(nc.date||fmtDate(nc.ts))}</div>
@@ -21899,6 +21989,9 @@ VIEWS._qcDetail = (nc_id) => {
     try { qcCompleteNc(nc_id); toast('완료 처리','ok'); closeModal(); router(); }
     catch(e){ toast(e.message,'err'); }
   };
+  const bHon = document.getElementById('nc-hold-on'), bHoff = document.getElementById('nc-hold-off');   // ★ v0.35.9-B
+  if(bHon) bHon.onclick = () => { const r = prompt('품질팀 차단(HOLD) 사유 (선택):', ''); if(r === null) return; try { ncSetHold(nc_id, true, r); toast(`${nc_id} HOLD — LOT 실적·출하·반출 차단`, 'ok'); closeModal(); router(); } catch(e){ toast(e.message,'err'); } };
+  if(bHoff) bHoff.onclick = () => { const r = prompt('HOLD 해제 사유 (필수 · 판정 대기로 전환 — 신고 수량만 격리):', ''); if(!r){ if(r !== null) toast('해제 사유 필수','warn'); return; } try { ncSetHold(nc_id, false, r); toast(`${nc_id} 판정 대기 — 차단 해제 (격리 ${nc.qty}ea)`, 'warn'); closeModal(); router(); } catch(e){ toast(e.message,'err'); } };
   const bV = document.getElementById('nc-void');
   if(bV) bV.onclick = () => {
     const reason = prompt('⚠ 오등록 취소 — 이 부적합을 잘못 등록했을 때만 사용합니다.\n특채·폐기·반품·재작업 등 판정은 [처리] 버튼을 쓰세요.\n\n취소 사유(선택):', '오입력');
@@ -22205,7 +22298,7 @@ VIEWS.qc = () => {
             <td>${_esc(p?.name||n.process||'—')}</td>
             <td>${_esc(dt?.name||n.defect_type||'—')}</td>
             <td class="num" style="font-family:'JetBrains Mono',monospace">${(+n.qty||0).toLocaleString()}</td>
-            <td>${ncStatusBadge(n.status)}</td>
+            <td>${ncStatusBadge(n.status, n)}</td>
             <td style="text-align:right">${actBtn}</td>
           </tr>`;
         }).join('') : '<tr><td colspan="8" class="empty">부적합 없음 — [+ 부적합 등록] 또는 실적현황의 불량 실적에서 등록</td></tr>'}</tbody>
@@ -22425,6 +22518,17 @@ VIEWS.set = () => {
       </div>
       <div style="margin-top:10px"><button class="btn primary" id="co-save">${ico('save')}저장</button></div>
     </div>
+
+    <!-- ★ v0.35.9-B — 품질 판정 지체 기준 (정책값 · settings/quality · 코드 고정 금지 — GPT §10) -->
+    ${flags.qc ? `<div class="card">
+      <h3>품질 판정 지체 기준 <span class="tag">판정 대기 NC 가 며칠 지나면 지체로 볼지</span></h3>
+      <div class="grid g2">
+        <div><label>🟡 주의 (일)</label><input id="qp-warn" type="number" min="0" step="1" value="${qualityPolicy().warn}"></div>
+        <div><label>🔴 조치 필요 (일) <span style="color:var(--dim);font-weight:400">— 대시보드 「오늘 이상」 집계 기준</span></label><input id="qp-alert" type="number" min="0" step="1" value="${qualityPolicy().alert}"></div>
+      </div>
+      <div style="font-size:11px;color:var(--sub);margin-top:6px;line-height:1.6">현장 불량 신고(판정 대기)는 실적·출하·반출을 막지 않고 신고 수량만 격리합니다. 품질팀이 NC 상세에서 [품질팀 차단(HOLD)] 을 누르면 LOT 전체가 차단됩니다.</div>
+      <div style="margin-top:10px"><button class="btn primary" id="qp-save">${ico('save')}저장</button></div>
+    </div>` : ''}
 
     <!-- ★ v0.35.0 — 교대 설정 (생산계획 시간축 · 1~3교대) -->
     <div class="card">
@@ -22727,6 +22831,9 @@ VIEWS.set = () => {
       } catch(e){ toast(e.message, 'err', 5000); }
     };
   };
+  // ★ v0.35.9-B — 품질 판정 지체 기준 저장
+  const _qpSave = document.getElementById('qp-save');
+  if(_qpSave) _qpSave.onclick = () => { const w = +document.getElementById('qp-warn').value, a = +document.getElementById('qp-alert').value; if(!(w >= 0 && a >= 0)){ toast('0 이상 정수','warn'); return; } DB.set('settings','quality', { pending_warn_days: w, pending_alert_days: a }); toast(`판정 지체 기준 저장 — 주의 ${w}일 · 조치 ${a}일`, 'ok'); };
   // ★ v0.35.0 — 교대 설정 저장·프리셋 전환
   document.querySelectorAll('#shift-seg button').forEach(b => b.onclick = () => {
     const n = +b.dataset.sn;
