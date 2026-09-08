@@ -1079,6 +1079,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 @media(max-width:900px){.mstrip{grid-template-columns:repeat(2,1fr)}}
 .msrch{display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 13px;margin-bottom:10px;box-shadow:var(--sh)}
 .msrch input{flex:1;background:none;border:none;outline:none;color:var(--ink);font-size:13px;padding:0}
+.msrch .msrch-go{padding:4px 10px;font-size:11.5px;flex:none}
 .msrch select{border:1px solid var(--line2);border-radius:7px;padding:4px 8px;font-size:11.5px;background:var(--panel2);color:var(--sub)}
 .mrow{cursor:pointer}
 .mrow:hover td{background:color-mix(in srgb,var(--ink) 3%,transparent)}
@@ -1250,11 +1251,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.35.8';
+const APP_VERSION = 'v0.35.9';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-09-07';
+const APP_DATE    = '2026-09-08';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -4720,7 +4721,7 @@ const LOT = {
   // ★ v0.6.0 — 등록 (제1원칙: 수량검증 통과해야 함)
   //  rework_returned는 '복구분' — 잔량 검증에서는 제외 (새 투입이 아님).
   //  단, 누적 복귀 ≤ 누적 재작업 한도 검증.
-  registerRecord({plot_no, proc, equipment, good=0, defect=0, rework=0, scrap=0, rework_returned=0, defect_reason='', vendor=null, type='in', shift='day', source='manual', worker=null}){
+  registerRecord({plot_no, proc, equipment, good=0, defect=0, rework=0, scrap=0, rework_returned=0, defect_reason='', vendor=null, type='in', shift='day', source='manual', worker=null, pallets=null}){   // ★ v0.35.9 — pallets: 파렛트 수(표시·추적용 · 수량 계산 무관)
     // ★ v0.33.0 — 품질 Hold Gate: 미처리('접수') 부적합 LOT 은 판정 전 실적 등록 차단 (원장 단일 경로)
     if(typeof assertLotNotHeld === 'function') assertLotNotHeld(plot_no, '실적 등록');
     // ★ v0.33.2 — 동시성 사고 잠금: 미해결 충돌 Incident LOT 은 정정·재검증 전 신규 실적 차단 (Q2-3)
@@ -4750,6 +4751,7 @@ const LOT = {
       // ★ v0.10.0 — 교대/소스 필드 (자리만, 기본값 안전 처리)
       // ★ v0.11.0 — 세션의 worker 객체도 함께 저장 (설비현황·이력서 추적)
       shift, source, worker,
+      ...(pallets != null && +pallets > 0 ? { pallets: +pallets } : {}),   // ★ v0.35.9
       ts: Date.now(), by: worker?.emp_no || SESSION.user,
     };
     const saved = DB.set('records', id, rec);
@@ -5937,6 +5939,19 @@ function setNavMore(open){
   const nav = document.getElementById('nav'); if(!nav) return;
   nav.classList.toggle('more-open', !!open);
   const b = nav.querySelector('[data-more]'); if(b) b.classList.toggle('on', !!open);
+}
+/* ★ v0.35.9 — Search Contract (GPT 승인 §7 · 전 화면 공통): 입력 중 재렌더 없음 · Enter/[검색] 으로 검색 · 지우면 전체 복귀 · 검색 후 focus·커서 유지.
+   원인: 글자마다 debounce → router() 전체 재렌더 → 입력 DOM 교체 → 커서 소실 (파일럿 담당자 "한 글자 치면 커서가 사라짐"). */
+function bindSearch(inputId, apply){
+  const el = document.getElementById(inputId); if(!el) return;
+  const run = () => { apply(el.value); router(); const n = document.getElementById(inputId); if(n){ n.focus(); try { const L = n.value.length; n.setSelectionRange(L, L); } catch(e){} } };
+  el.onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); run(); } if(e.key === 'Escape' && el.value){ el.value = ''; run(); } };
+  el.oninput = () => { if(el.value === '') run(); };   // 지우면 즉시 전체 복귀 (타이핑 중 재렌더는 없음)
+  if(!el.nextElementSibling || !el.nextElementSibling.classList || !el.nextElementSibling.classList.contains('msrch-go')){
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost msrch-go'; b.textContent = '검색'; b.title = 'Enter 와 같음';
+    b.onclick = run; el.insertAdjacentElement('afterend', b);
+  }
+  if(!el.placeholder.includes('Enter')) el.placeholder = el.placeholder + ' · Enter';
 }
 function renderNav(){
   const flags = getFlags();
@@ -7618,7 +7633,7 @@ VIEWS.wo = () => {
     </div>
     <div class="card">
       <div class="tbl-wrap"><table>
-        <thead><tr><th>WO번호</th><th>수주</th><th>품번</th><th>생산LOT</th><th class="num">지시수량</th><th>상태</th><th>생성</th><th></th></tr></thead>
+        <thead><tr><th>WO번호</th><th>수주</th><th>품번 · 품명</th><th>소재 규격</th><th>생산LOT</th><th class="num">지시수량</th><th>상태</th><th>생성</th><th></th></tr></thead>
         <tbody>${wos.length? wos.map(w=>{
           const lot = DB.get('production_lots', w.plot_no);
           const next = lot ? LOT.nextProcess(w.plot_no) : null;
@@ -7637,14 +7652,15 @@ VIEWS.wo = () => {
           return `<tr style="${rowStyle}">
             <td><b>${w.id}</b>${voidBadge}</td>
             <td>${soCell}</td>
-            <td>${w.itemCode}</td>
+            <td>${_esc(w.itemCode)}<div style="font-size:11px;color:var(--sub)">${_esc(DB.get('items', w.itemCode)?.name || '—')}</div></td>
+            <td class="muted" style="font-size:11.5px">${(()=>{ const it = DB.get('items', w.itemCode); const bom = getBOM(w.itemCode); const mat = bom?.material?.type || it?.mat || ''; const dia = bom?.material?.dia ?? it?.dia; const wkg = bom?.material?.weight ?? it?.weight; return mat ? `${_esc(mat)}${dia?` · Ø${dia}`:''}${wkg?` · ${wkg}kg`:''}${lot?.heat_nos?.length?`<div class="mono" style="font-size:10.5px;color:var(--dim)">${lot.heat_nos.map(_esc).join(', ')}</div>`:''}` : '—'; })()}</td>
             <td><span class="pill cyan">${w.plot_no}</span></td>
             <td class="num">${(w.qty||0).toLocaleString()}</td>
             <td>${next? `<span class="pill heat">${next.name} 대기</span>` : `<span class="pill green">완료</span>`}</td>
             <td class="muted">${fmtDate(w.created)}</td>
             <td>${actionBtns}</td>
           </tr>`;
-        }).join(''):`<tr><td colspan="8" class="empty">작업지시가 없습니다.</td></tr>`}</tbody>
+        }).join(''):`<tr><td colspan="9" class="empty">작업지시가 없습니다.</td></tr>`}</tbody>
       </table></div>
     </div>
   `;
@@ -7726,24 +7742,19 @@ VIEWS._woNew = (pre) => {
           <div><label>지시수량 (ea)</label>
             <input id="wo-qty" type="number" placeholder="예: 800"></div>
         </div>
-        <div style="margin-top:10px"><label>소재LOT (heat)</label>
-          <select id="wo-mat-sel">
-            <option value="">— 선택 —</option>
-            ${(() => {
-              const { ledger } = calcHeatLedger();
-              return Object.values(ledger)
-                .filter(h => h.remain > 0)
-                .sort((a,b)=>a.heat.localeCompare(b.heat))
-                .map(h => `<option value="${_esc(h.heat)}" data-remain="${h.remain}" data-mat="${_esc(h.mat||'')}" data-dia="${h.dia??''}">${_esc(h.heat)} — ${_esc(h.mat||'')} Ø${h.dia??'—'} · 잔량 ${Math.round(h.remain).toLocaleString()}kg</option>`)
-                .join('');
-            })()}
-            <option value="__manual__">직접 입력…</option>
-          </select>
-          <div id="wo-mat-manual-wrap" style="margin-top:8px;display:none">
-            <input id="wo-mat-manual" placeholder="예: H-2026-A01 (kg 미기록 — 잔량 '—' 표시)">
-            <div style="font-size:10.5px;color:var(--dim);margin-top:4px">폴백 · 잔량 kg 는 지어내지 않음. 실측은 [입고] 메뉴에서 등록.</div>
+        <!-- ★ v0.35.9 — 소재LOT 자동 배정(선입선출) + 직접 선택은 같은 규격만 (파일럿 담당자 피드백 · GPT 승인 §8: 저장 전 배정은 '제안' · 차감은 기존 실적 경로) -->
+        <div style="margin-top:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><label style="margin:0">소재LOT (heat)</label>
+            <span class="seg" id="wo-mat-mode"><button type="button" class="on" data-m="auto">자동 (선입선출)</button><button type="button" data-m="manual">직접 선택</button></span></div>
+          <div id="wo-mat-auto" style="margin-top:8px;font-size:12px;color:var(--sub)">품번·지시수량을 입력하면 같은 규격 소재를 입고 순서대로 배정합니다</div>
+          <div id="wo-mat-manual-box" style="display:none;margin-top:8px">
+            <select id="wo-mat-sel"><option value="">— 선택 —</option></select>
+            <div id="wo-mat-manual-wrap" style="margin-top:8px;display:none">
+              <input id="wo-mat-manual" placeholder="예: H-2026-A01 (kg 미기록 — 잔량 '—' 표시)">
+              <div style="font-size:10.5px;color:var(--dim);margin-top:4px">폴백 · 잔량 kg 는 지어내지 않음. 실측은 [입고] 메뉴에서 등록.</div>
+            </div>
           </div>
-          <div id="wo-mat-hint" style="font-size:11px;color:var(--sub);margin-top:8px">소재 필요량 힌트: 지시수량 × 단중 = ? kg — 품번·수량·heat 선택 시 표시</div>
+          <div id="wo-mat-hint" style="font-size:11px;color:var(--sub);margin-top:8px">소재 필요량 힌트: 지시수량 × 단중 = ? kg — 품번·수량 입력 시 표시</div>
         </div>
       </div>
 
@@ -7855,9 +7866,51 @@ VIEWS._woNew = (pre) => {
     }
     renderRoute(); updMatHint();
   };
-  itemSel.onchange = ()=>{ renderRoute(); updMatHint(); };
+  itemSel.onchange = ()=>{ renderRoute(); matShowAll = false; renderMatSel(); updMatHint(); };
   qtyEl.oninput = updMatHint;
+  // ★ v0.35.9 — 소재 자동 배정(선입선출) · 직접 선택은 같은 규격만 · 배정 결과는 '제안'(원장 차감은 절단 실적 경로 그대로)
+  let matMode = 'auto', matShowAll = false, matAlloc = { rows:[], short:0 };
+  const matAutoBox = document.getElementById('wo-mat-auto'), matManualBox = document.getElementById('wo-mat-manual-box');
+  const _spec = () => { const code = itemSel.value; const it = DB.get('items', code); const bom = getBOM(code); return { mat: (bom?.material?.type || it?.mat || '').trim(), dia: +(bom?.material?.dia ?? it?.dia ?? 0) || 0, w: +(bom?.material?.weight ?? it?.weight ?? 0) || 0 }; };
+  const _heats = () => { const { ledger } = calcHeatLedger(); return Object.values(ledger).filter(h => h.remain > 0).map(h => ({ ...h, firstTs: Math.min(...(h.receipts||[]).map(r => r.ts || Infinity)) })); };
+  const _sameSpec = (h, sp) => (h.mat||'').trim() === sp.mat && (!sp.dia || !h.dia || +h.dia === sp.dia);
+  function fifoAllocate(){
+    const sp = _spec(); const q = +qtyEl.value || 0; const need = Math.round(sp.w * q * 100) / 100;
+    const cands = _heats().filter(h => sp.mat && _sameSpec(h, sp)).sort((a,b) => (a.firstTs||0) - (b.firstTs||0) || a.heat.localeCompare(b.heat));
+    let left = need; const rows = [];
+    for(const h of cands){ if(left <= 0) break; const take = Math.min(h.remain, left); rows.push({ heat:h.heat, kg: Math.round(take*100)/100, remain:h.remain, ts:h.firstTs }); left -= take; }
+    return { need, sp, rows, short: Math.max(0, Math.round(left*100)/100), cands };
+  }
+  function renderMatSel(){
+    const sp = _spec(); const all = _heats().sort((a,b)=>a.heat.localeCompare(b.heat));
+    const list = (matShowAll || !sp.mat) ? all : all.filter(h => _sameSpec(h, sp));
+    const cur = matSel.value;
+    matSel.innerHTML = `<option value="">— 선택 —</option>` + list.map(h => `<option value="${_esc(h.heat)}" data-remain="${h.remain}" data-mat="${_esc(h.mat||'')}" data-dia="${h.dia??''}">${_esc(h.heat)} — ${_esc(h.mat||'')} Ø${h.dia??'—'} · 잔량 ${Math.round(h.remain).toLocaleString()}kg</option>`).join('')
+      + (sp.mat && !matShowAll ? `<option value="__all__">다른 규격 보기… (${all.length - list.length}건)</option>` : '') + `<option value="__manual__">직접 입력…</option>`;
+    if([...matSel.options].some(o => o.value === cur)) matSel.value = cur;
+  }
+  function renderMatAuto(){
+    const a = fifoAllocate(); matAlloc = a;
+    const q = +qtyEl.value || 0;
+    if(!itemSel.value || !q){ matAutoBox.innerHTML = '<span style="color:var(--sub)">품번·지시수량을 입력하면 같은 규격 소재를 입고 순서대로 배정합니다</span>'; return; }
+    if(!a.sp.mat){ matAutoBox.innerHTML = '<span style="color:var(--amber)">⚠ 품번에 재질이 없어 자동 배정 불가 — 기준정보에서 재질·Ø·단중 등록 또는 [직접 선택]</span>'; return; }
+    if(!a.sp.w){ matAutoBox.innerHTML = `<span style="color:var(--amber)">⚠ 품번 단중(kg/ea) 미등록 — 필요량 계산 불가 · [직접 선택] 또는 기준정보에서 단중 등록</span>`; return; }
+    if(!a.cands.length){ matAutoBox.innerHTML = `<span style="color:var(--amber)">⚠ ${_esc(a.sp.mat)} Ø${a.sp.dia||'—'} 규격 재고 없음 — 필요 ${a.need.toLocaleString()}kg · [입고] 메뉴에서 소재 입고 후 발행 또는 [직접 선택]</span>`; return; }
+    matAutoBox.innerHTML = `
+      <div class="tbl-wrap" style="border:1px solid var(--line);border-radius:9px"><table style="font-size:12px">
+        <thead><tr><th>순서</th><th>heat</th><th>입고일</th><th class="num">잔량 kg</th><th class="num">배정 kg</th></tr></thead>
+        <tbody>${a.rows.map((r,i)=>`<tr><td class="mono">${i+1}</td><td class="mono"><b>${_esc(r.heat)}</b></td><td class="muted">${r.ts && isFinite(r.ts) ? fmtDate(r.ts) : '—'}</td><td class="num mono">${Math.round(r.remain).toLocaleString()}</td><td class="num mono" style="color:var(--cyan);font-weight:700">${r.kg.toLocaleString()}</td></tr>`).join('')}</tbody>
+      </table></div>
+      <div style="font-size:11px;margin-top:6px;color:${a.short>0?'var(--amber)':'var(--sub)'}">${_esc(a.sp.mat)} Ø${a.sp.dia||'—'} · 필요 ${a.need.toLocaleString()}kg → 배정 ${a.rows.length}건 ${(Math.round((a.need-a.short)*100)/100).toLocaleString()}kg${a.short>0?` · <b>⚠ 부족 ${a.short.toLocaleString()}kg</b> (부족분은 발행 후 추가 입고 — 차단 아님)`:' · 충족'}</div>`;
+  }
+  document.querySelectorAll('#wo-mat-mode button').forEach(b => b.onclick = () => {
+    matMode = b.dataset.m; document.querySelectorAll('#wo-mat-mode button').forEach(x => x.classList.toggle('on', x === b));
+    matAutoBox.style.display = matMode === 'auto' ? '' : 'none'; matManualBox.style.display = matMode === 'manual' ? '' : 'none';
+    if(matMode === 'manual') renderMatSel(); else renderMatAuto();
+    updMatHint();
+  });
   matSel.onchange = ()=>{
+    if(matSel.value === '__all__'){ matShowAll = true; matSel.value = ''; renderMatSel(); }
     matManualWrap.style.display = (matSel.value==='__manual__') ? 'block' : 'none';
     updMatHint();
   };
@@ -7865,30 +7918,30 @@ VIEWS._woNew = (pre) => {
   // STEP3 — 소재 필요량 힌트 (초과 시 앰버 경고만, 차단 X)
   function updMatHint(){
     const code = itemSel.value;
-    const it = DB.get('items', code);
-    const w = +it?.weight || 0;
+    const sp = _spec(); const w = sp.w;
     const q = +qtyEl.value || 0;
     const need = Math.round(w*q*100)/100;
+    if(matMode === 'auto'){ renderMatAuto(); matHint.innerHTML = ''; return; }
     const heat = matSel.value;
     if(!code || !q || !w){
       matHint.innerHTML = '소재 필요량 힌트: 지시수량 × 단중 = ? kg — 품번·수량·heat 선택 시 표시';
       matHint.style.color = 'var(--sub)';
       return;
     }
-    if(heat && heat!=='__manual__'){
+    if(heat && heat!=='__manual__' && heat!=='__all__'){
       const opt = matSel.selectedOptions[0];
       const rem = +opt?.dataset.remain || 0;
       const over = need > rem;
       matHint.innerHTML = `소재 필요량 ${need.toLocaleString()}kg (${q.toLocaleString()}ea × ${w}kg) vs 선택 heat 잔량 ${Math.round(rem).toLocaleString()}kg${over?' — <b>⚠ 초과: 부족분은 다른 heat 로 보완 필요 (등록은 진행됩니다)</b>':' · 여유 <b>'+Math.round(rem-need).toLocaleString()+'kg</b>'}`;
       matHint.style.color = over ? 'var(--amber)' : 'var(--cyan)';
     } else {
-      matHint.innerHTML = `소재 필요량 ${need.toLocaleString()}kg (${q.toLocaleString()}ea × ${w}kg) — heat 선택 시 잔량 대조`;
+      matHint.innerHTML = `소재 필요량 ${need.toLocaleString()}kg (${q.toLocaleString()}ea × ${w}kg) — 같은 규격(${_esc(sp.mat)} Ø${sp.dia||'—'}) heat 만 표시`;
       matHint.style.color = 'var(--sub)';
     }
   }
 
   // 초기 렌더
-  renderRoute(); updMatHint();
+  renderRoute(); renderMatSel(); updMatHint();
 
   // ★ v0.20.1 — 계획에서 프리필 (수주·품번·수량) — 저장 로직 무수정
   if(pre.so_id && [...soSel.options].some(o => o.value === pre.so_id)){
@@ -7909,7 +7962,8 @@ VIEWS._woNew = (pre) => {
       const qty     = +qtyEl.value;
       const sel     = matSel.value;
       let mats = [];
-      if(sel && sel!=='__manual__') mats = [sel];
+      if(matMode === 'auto'){ mats = (matAlloc.rows || []).map(r => r.heat); }   // ★ v0.35.9 — 선입선출 배정(제안) → LOT material_lot_ids
+      else if(sel && sel!=='__manual__' && sel!=='__all__') mats = [sel];
       else if(sel==='__manual__'){
         const manual = document.getElementById('wo-mat-manual').value.trim();
         if(manual) mats = [manual];
@@ -8252,10 +8306,10 @@ VIEWS.lot = () => {
       <div class="pgtools">
         <span class="mmore"><button class="btn" id="lot-more">⋯</button>
           <span class="mmore-menu" id="lot-more-menu">
-            <button id="btn-merge">${ico('merge')}LOT 병합</button>
-            <button id="btn-split">${ico('split')}LOT 분할</button>
-            <button id="btn-fork">${ico('split')}LOT 분기</button>
-            <button id="lot-xlsx">${ico('excel')}엑셀 내보내기</button>
+            <button id="btn-merge">LOT 병합</button>
+            <button id="btn-split">LOT 분할</button>
+            <button id="btn-fork">LOT 분기</button>
+            <button id="lot-xlsx">엑셀 내보내기</button>
             <button id="lot-void-view-btn">${lotState.voidView?'✓ ':''}취소 포함 보기</button>
           </span></span>
       </div>
@@ -8378,11 +8432,7 @@ VIEWS.lot = () => {
   });
 
   // 검색·필터 이벤트
-  let lotQTimer;
-  document.getElementById('lot-q').oninput = (e)=>{
-    clearTimeout(lotQTimer);
-    lotQTimer = setTimeout(()=>{ lotSearch.q = e.target.value; router(); }, 250);
-  };
+  bindSearch('lot-q', v => { lotSearch.q = v; });   // ★ v0.35.9 — Search Contract
   document.getElementById('lot-cust').onchange = (e)=>{ lotSearch.cust = e.target.value; router(); };
   document.querySelectorAll('[data-clear]').forEach(el=>el.onclick = ()=>{
     lotSearch[el.dataset.clear] = ''; router();
@@ -10162,6 +10212,40 @@ VIEWS._matinOs = () => {
 
 /* -------------------- 재고 -------------------- */
 /* ★ v0.13.0 — 재고: 공정흐름 (inv-flow.html) — 공정 컬럼 자동 + 검색·필터 */
+/* ★ v0.35.9 — 재고 품번 상세: 이 품번의 생산 LOT 별 위치·잔량·heat + LOT 클릭 → 공정 스텝(기존 lotStepPanelHTML 1벌) (파일럿 담당자: "재고에 LOT 번호가 안 보임 · 클릭하면 상세") */
+VIEWS._invItemDetail = (code) => {
+  const it = DB.get('items', code); if(!it){ toast('품번 없음','err'); return; }
+  const lots = DB.query('production_lots', l => l.itemCode === code).sort((a,b) => (b.created||0) - (a.created||0));
+  const _hs = heldPlotSet(), _ls = lockedPlotSet();
+  const flow = calcItemFlow(code);
+  const rows = lots.map(l => { const nx = LOT.nextProcess(l.plot_no); const route = getRoute(code); const idx = nx ? route.findIndex(r => r.proc === nx.code) : route.length; return { l, nx, pos: nx ? `${nx.name} (${idx+1}/${route.length})` : '완료', bal: nx ? LOT.balance(l.plot_no, nx.code) : 0, st: _ls.has(l.plot_no) ? '잠금' : _hs.has(l.plot_no) ? 'HOLD' : nx ? '진행' : '완료' }; });
+  openModal(`
+    <h2>${_esc(itemLabel(code))} <span style="color:var(--sub);font-size:13px;font-weight:400;margin-left:6px">${_esc(it.name||'')}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div class="mstrip" style="grid-template-columns:repeat(3,1fr)">
+        <div class="mk"><div class="l">완성품 재고</div><div class="v" style="color:var(--green)">${flow.finished.toLocaleString()}ea</div><div class="s">출하 누계 ${flow.shippedSum.toLocaleString()}</div></div>
+        <div class="mk"><div class="l">진행 LOT</div><div class="v">${rows.filter(r => r.nx).length}건</div><div class="s">전체 ${lots.length}건</div></div>
+        <div class="mk"><div class="l" style="color:var(--red)">HOLD · 잠금</div><div class="v" style="color:${rows.some(r=>r.st==='HOLD'||r.st==='잠금')?'var(--red)':'var(--ink)'}">${rows.filter(r => r.st==='HOLD'||r.st==='잠금').length}건</div><div class="s">${rows.filter(r=>r.st==='HOLD').length?`HOLD ${rows.filter(r=>r.st==='HOLD').length}`:''}${rows.filter(r=>r.st==='잠금').length?` 잠금 ${rows.filter(r=>r.st==='잠금').length}`:''}</div></div>
+      </div>
+      <div class="tbl-wrap" style="max-height:50vh;overflow-y:auto"><table style="font-size:12px" id="inv-lot-tbl">
+        <thead><tr><th>LOT</th><th>진행 위치</th><th class="num">잔량</th><th>heat</th><th>상태</th></tr></thead>
+        <tbody>${rows.length ? rows.map(r => `<tr data-inv-lot="${_esc(r.l.plot_no)}" style="cursor:pointer" title="클릭 → 공정 스텝·실적 상세">
+          <td><b class="mono lot-no-link">${_esc(r.l.plot_no)}</b><div style="font-size:10.5px;color:var(--dim)">초기 ${(r.l.qty_initial||0).toLocaleString()} · ${fmtDate(r.l.created)}</div></td>
+          <td>${_esc(r.pos)}</td>
+          <td class="num mono" style="color:${r.bal<0?'var(--red)':'var(--cyan)'};font-weight:700">${r.bal.toLocaleString()}</td>
+          <td class="mono muted">${(r.l.heat_nos||[]).map(_esc).join(', ')||'—'}</td>
+          <td><span class="pill ${r.st==='진행'?'cyan':r.st==='완료'?'green':'red'}">${r.st}</span></td>
+        </tr>`).join('') : '<tr><td colspan="5" class="empty">생산 LOT 없음</td></tr>'}</tbody>
+      </table></div>
+      <div class="actions"><button class="btn" onclick="closeModal(); lotSearch.q='${_esc(code)}'; location.hash='#lot';">LOT 추적에서 보기</button><button class="btn primary" onclick="closeModal()">닫기</button></div>
+    </div>`);
+  document.querySelectorAll('#inv-lot-tbl tr[data-inv-lot]').forEach(tr => tr.onclick = () => {
+    const plot = tr.dataset.invLot; const nextTr = tr.nextElementSibling;
+    if(nextTr && nextTr.classList.contains('inv-lot-steps')){ nextTr.remove(); return; }
+    document.querySelectorAll('#inv-lot-tbl .inv-lot-steps').forEach(x => x.remove());
+    const r = document.createElement('tr'); r.className = 'inv-lot-steps'; r.innerHTML = `<td colspan="5" style="padding:0;background:var(--bg2)">${lotStepPanelHTML(plot)}</td>`; tr.after(r);
+  });
+};
 VIEWS.inv = () => {
   const items   = getItems();
   const procsAll= getProcesses();
@@ -10211,6 +10295,7 @@ VIEWS.inv = () => {
       wip, done, defects,
       safety: i.safety||0, low: done < (i.safety||0),
       stopBadge: lastBadge(itemLots),
+      lotN: itemLots.filter(l => !l.void && LOT.nextProcess(l.plot_no)).length,   // ★ v0.35.9 — 진행 LOT 수 (표시)
       // ★ v0.16.15 — 표시 계층 전용 (계산 무영향): 라우트 + outAtVendor
       route: getRoute(i.code),
       outAtVendor: flow.outAtVendor || {},
@@ -10346,8 +10431,9 @@ VIEWS.inv = () => {
           </tr>
         </thead>
         <tbody>${filtered.length? filtered.map(r=>`
-          <tr>
+          <tr class="inv-row" data-inv-item="${_esc(r.code)}" style="cursor:pointer" title="클릭 → 이 품번의 LOT 별 재고 상세">
             <td><b>${_esc(r.code)}</b> <span style="color:var(--sub);font-size:11px">${_esc(r.name)}</span>
+              ${r.lotN? `<span class="pill cyan" style="font-size:9px;margin-left:4px" title="진행 중 생산 LOT">LOT ${r.lotN}</span>`:''}
               ${r.stopBadge? `<span class="pill heat" style="font-size:9px;margin-left:4px">${_esc(r.stopBadge)}</span>`:''}
             </td>
             <td class="muted" style="font-size:11px">${_esc(r.cust||'—')} · ${_esc(r.mat||'—')}</td>
@@ -10383,11 +10469,8 @@ VIEWS.inv = () => {
 
   // 이벤트
   const refresh = () => router();
-  let qTimer;
-  document.getElementById('inv-q').oninput = (e)=>{
-    clearTimeout(qTimer);
-    qTimer = setTimeout(()=>{ state.q = e.target.value; refresh(); }, 250);
-  };
+  bindSearch('inv-q', v => { state.q = v; });   // ★ v0.35.9 — Search Contract
+  document.querySelectorAll('[data-inv-item]').forEach(tr => tr.onclick = () => VIEWS._invItemDetail(tr.dataset.invItem));   // ★ v0.35.9 — 행 클릭 상세
   document.getElementById('inv-cust').onchange = (e)=>{ state.cust = e.target.value; refresh(); };
   document.getElementById('inv-mat').onchange  = (e)=>{ state.mat  = e.target.value; refresh(); };
   document.getElementById('inv-status').onchange = (e)=>{ state.status = e.target.value; refresh(); };
@@ -10462,7 +10545,7 @@ VIEWS.so = () => {
         <button class="btn primary" id="btn-so-new">${ico('plus')}새 수주</button>
         <span class="mmore"><button class="btn" id="so-more">⋯</button>
           <span class="mmore-menu" id="so-more-menu">
-            <button onclick="exportXlsx(DB.all('orders'),'SO','수주_${fmtDate(Date.now())}.xlsx')">${ico('excel')}엑셀 내보내기</button>
+            <button onclick="exportXlsx(DB.all('orders'),'SO','수주_${fmtDate(Date.now())}.xlsx')">엑셀 내보내기</button>
           </span></span>
       </div>
     </div>
@@ -10522,7 +10605,7 @@ VIEWS.so = () => {
     const chev = tr.querySelector('.lot-chev'); if(chev) chev.textContent = det && !det.hidden ? '▾' : '▸';
   });
   let _soDeb = null;
-  document.getElementById('so-q').oninput = e => { clearTimeout(_soDeb); _soDeb = setTimeout(() => { stF.q = e.target.value; router(); }, 250); };
+  bindSearch('so-q', v => { stF.q = v; });   // ★ v0.35.9 — Search Contract
   document.getElementById('so-st').onchange = e => { stF.status = e.target.value; router(); };
   const _soMore = document.getElementById('so-more');
   if(_soMore) _soMore.onclick = (e) => { e.stopPropagation(); document.getElementById('so-more-menu').classList.toggle('open'); };
@@ -10597,7 +10680,7 @@ VIEWS.so = () => {
           <div><label>수량 (ea)</label><input id="so-qty" type="number" placeholder="예: 500" inputmode="numeric"></div>
           <div><label>납기</label><input id="so-due" type="date"></div>
         </div>
-        <details id="so-more" style="margin-top:10px">
+        <details id="so-more-details" style="margin-top:10px">
           <summary style="cursor:pointer;font-size:11.5px;color:var(--sub)">더 보기 — 수주번호 · 단가 수정</summary>
           <div class="grid g2" style="margin-top:8px">
             <div><label>수주번호 (자동 · 수정 가능)</label>
@@ -10768,8 +10851,19 @@ VIEWS.ship = () => {
       <div class="body">
         <div><label>출하번호 (자동 · 수정 가능)</label>
           <input id="sh-id" value="${nextDocNo('SH')}" placeholder="${nextDocNo('SH')}" style="font-family:'JetBrains Mono',monospace;letter-spacing:.3px" autocomplete="off"></div>
-        <div><label>수주</label>
-          <select id="sh-so">${sos.map(o=>`<option value="${o.id}" data-i="${o.itemCode}" data-q="${o.qty}" data-c="${o.cust||''}">${o.id} · ${o.itemCode} (${o.qty}ea)</option>`).join('')}</select></div>
+        <!-- ★ v0.35.9 — 고객사 → 미납 수주 표(수주번호·품번·품명·주문·완성·미납·납기) 행 클릭 · 숨은 select 는 기존 로직 단일 소스 (파일럿 담당자 피드백 · GPT §10) -->
+        ${(() => {
+          const rows = calcSoRows(sos).filter(r => r.remain > 0);
+          const custs = [...new Map(rows.map(r => [r.o.cust || '', r.custNm || '미지정'])).entries()].sort((a,b) => a[1].localeCompare(b[1]));
+          return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <label style="margin:0">미납 수주 <span style="color:var(--dim);font-weight:400">— 행을 클릭하면 품번·LOT 가 맞춰집니다</span></label>
+            <select id="sh-cust" style="margin-left:auto;max-width:220px;padding:5px 8px;font-size:12px"><option value="">전체 고객사 (${rows.length}건)</option>${custs.map(([c,n]) => `<option value="${_esc(c)}">${_esc(n)} (${rows.filter(r => (r.o.cust||'') === c).length})</option>`).join('')}</select>
+          </div>
+          <div class="tbl-wrap" style="max-height:190px;overflow-y:auto;border:1px solid var(--line);border-radius:9px">
+            <table style="font-size:12px"><thead><tr><th>수주번호</th><th>품번 · 품명</th><th class="num">주문</th><th class="num">완성</th><th class="num">미납</th><th>납기</th></tr></thead><tbody id="sh-so-body"></tbody></table>
+          </div>`;
+        })()}
+        <select id="sh-so" style="display:none">${sos.map(o=>`<option value="${o.id}" data-i="${o.itemCode}" data-q="${o.qty}" data-c="${o.cust||''}">${o.id} · ${o.itemCode} (${o.qty}ea)</option>`).join('')}</select>
         <!-- ★ v0.16.3 — 공정 실적 참고 스트립 (calcItemFlow.goodByProc · LOT 선택 시 LOT.totalGood 로 전환) -->
         <div><label>공정 실적 참고 <span style="color:var(--dim);font-weight:400">— 공정별 양품 누계</span></label>
           <div class="fl-strip" id="sh-strip"><span class="fl-empty">수주(품번)을 선택하세요</span></div>
@@ -10804,6 +10898,26 @@ VIEWS.ship = () => {
     const qtyEl   = document.getElementById('sh-qty');
     const stripEl = document.getElementById('sh-strip');
     const warnEl  = document.getElementById('sh-warn');
+    // ★ v0.35.9 — 미납 수주 표 렌더 (calcSoRows 1벌 · 완성 = calcItemFlow.finished) · 행 클릭 → 숨은 select 선택 + 같은 품번 LOT 자동 선택
+    const soBody = document.getElementById('sh-so-body'), custSel = document.getElementById('sh-cust');
+    const _soRows = calcSoRows(sos).filter(r => r.remain > 0);
+    const _lotOpts = [...lotSel.options];
+    const renderSoTable = () => {
+      const c = custSel.value; const today0 = fmtDate(Date.now());
+      const list = _soRows.filter(r => !c || (r.o.cust||'') === c);
+      const hl = 'background:color-mix(in srgb,var(--cyan) 12%,transparent)';
+      soBody.innerHTML = list.length ? list.map(r => { const fin = calcItemFlow(r.o.itemCode).finished; const late = r.o.due && r.o.due < today0;
+        return `<tr data-sh-so="${_esc(r.o.id)}" style="cursor:pointer;${soSel.value===r.o.id?hl:''}"><td class="mono">${_esc(r.o.id)}</td><td>${_esc(itemLabel(r.o.itemCode))}<div style="font-size:10.5px;color:var(--sub)">${_esc(r.item?.name||'')}</div></td><td class="num mono">${(r.o.qty||0).toLocaleString()}</td><td class="num mono" style="color:${fin>=r.remain?'var(--green)':'var(--amber)'}">${fin.toLocaleString()}</td><td class="num mono" style="font-weight:700">${r.remain.toLocaleString()}</td><td class="mono" style="${late?'color:var(--red);font-weight:700':''}">${_esc(r.o.due||'—')}</td></tr>`; }).join('') : '<tr><td colspan="6" class="empty">미납 수주 없음</td></tr>';
+      soBody.querySelectorAll('tr[data-sh-so]').forEach(tr => tr.onclick = () => { soSel.value = tr.dataset.shSo; soSel.dispatchEvent(new Event('change')); renderSoTable(); });
+    };
+    const syncLotToItem = () => {   // 선택 수주 품번의 LOT 만 목록에 (출하 가능 잔량 있는 것 우선) · 없으면 전체
+      const itemCode = soSel.selectedOptions[0]?.dataset.i; if(!itemCode) return;
+      const mine = _lotOpts.filter(o => DB.get('production_lots', o.value)?.itemCode === itemCode);
+      const cur = lotSel.value; lotSel.innerHTML = ''; (mine.length ? mine : _lotOpts).forEach(o => lotSel.appendChild(o));
+      if(![...lotSel.options].some(o => o.value === cur)) lotSel.selectedIndex = 0;
+    };
+    custSel.onchange = renderSoTable;
+    renderSoTable();
     const drawStrip = () => {
       const opt = soSel.selectedOptions[0];
       const itemCode = opt?.dataset.i;
@@ -10874,9 +10988,10 @@ VIEWS.ship = () => {
       }
     };
     packEl.oninput = () => { packEl.dataset.touched = '1'; drawPack(); };
-    soSel.addEventListener('change', () => { drawStrip(); drawWarn(); drawPack(); });
+    soSel.addEventListener('change', () => { syncLotToItem(); drawStrip(); drawWarn(); drawPack(); });   // ★ v0.35.9 — 수주 → 같은 품번 LOT
     lotSel?.addEventListener('change', () => { drawStrip(); drawWarn(); });   // ★ v0.35.6 — LOT 변경 시 잠금/HOLD 안내 갱신
     qtyEl.addEventListener('input', () => { drawWarn(); drawPack(); });
+    syncLotToItem();   // ★ v0.35.9
     drawStrip();
     drawWarn();   // ★ v0.35.6 — 초기 선택 LOT 의 잠금/HOLD 안내
     drawPack();
@@ -12159,7 +12274,7 @@ VIEWS._perfPlanCompare = () => {
   document.getElementById('perf-date').onchange = (e)=>{ state.date = e.target.value; router(); };
   document.getElementById('perf-eq').onchange = (e)=>{ state.equipment = e.target.value; router(); };
   let qT;
-  document.getElementById('perf-q').oninput = (e)=>{ clearTimeout(qT); qT=setTimeout(()=>{ state.q = e.target.value; router(); }, 250); };
+  bindSearch('perf-q', v => { state.q = v; });   // ★ v0.35.9 — Search Contract
   // ★ v0.20.3 — 기간 탭 · 기준일 ◀▶
   document.querySelectorAll('[data-planptab]').forEach(b => b.onclick = ()=>{ state.planTab = b.dataset.planptab; router(); });
   document.querySelectorAll('[data-planshift]').forEach(b => b.onclick = ()=>{
@@ -12188,16 +12303,20 @@ VIEWS._perfAddPC = (prefill)=>{
       ${prefill._from_nc ? `<div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:10px;line-height:1.55">
         <b style="color:var(--amber)">안내</b> 재작업 실적으로 등록 (기존 실적 경로) · 등록 후 품질 › ${_esc(prefill._from_nc)} 상세에서 <b>[재작업 실적 연결]</b> 로 완료 처리.
       </div>` : ''}
-      <div class="grid g2">
-        <div><label>생산LOT</label>
-          <select id="pa-lot">${(()=>{ const _hs = heldPlotSet(), _ls = lockedPlotSet(); return lots.map(l=>`<option value="${l.plot_no}" ${prefill.plot_no===l.plot_no?'selected':''}>${_esc(l.plot_no)} (${_esc(l.itemCode)})${_hs.has(l.plot_no)?' — 품질 HOLD (등록 불가)':''}${_ls.has(l.plot_no)?' — 동시성 잠금 (등록 불가)':''}</option>`).join(''); })()}</select></div>
+      <!-- ★ v0.35.9 — 품번 먼저 → 그 품번의 진행 LOT 만 (파일럿 담당자: "생산 LOT 만 있으니 초반에 찾기 어렵다") · 출하(SHIP)는 공정 목록에서 제외(출하 메뉴 담당) -->
+      <div class="grid g3">
+        <div><label>품번</label>
+          <select id="pa-item"></select></div>
+        <div><label>생산LOT <span style="color:var(--dim);font-weight:400">— 진행 중만</span></label>
+          <select id="pa-lot"></select></div>
         <div><label>공정 <span style="color:var(--dim);font-weight:400">— 등록 가능 공정만</span></label>
           <select id="pa-proc"></select></div>
       </div>
-      <div class="grid g3">
+      <div class="grid g4">
         <div><label>양품</label><input id="pa-g" type="number" min="0" placeholder="0"></div>
         <div><label>불량</label><input id="pa-d" type="number" min="0" placeholder="0"></div>
         <div><label>재작업</label><input id="pa-r" type="number" min="0" placeholder="0"></div>
+        <div><label>파렛트 <span style="color:var(--dim);font-weight:400">(선택)</span></label><input id="pa-plt" type="number" min="0" placeholder="개"></div>
       </div>
       <div class="grid g2">
         <div><label>작업자</label>
@@ -12221,12 +12340,29 @@ VIEWS._perfAddPC = (prefill)=>{
   // ★ v0.16.13 — LOT 변경 시 공정 select 재구성 (availableProcesses 1벌 공용)
   // ★ v0.25.0 — prefill.proc 있으면 첫 렌더 시 그 공정 선택 (있을 때만 · 이후 사용자 변경 자유)
   let preferProcOnce = prefill.proc || null;
+  // ★ v0.35.9 — 품번 → LOT 2단 선택 (진행 중 LOT = 등록 가능 공정이 남은 LOT · HOLD/잠금은 라벨로)
+  const _hs = heldPlotSet(), _ls = lockedPlotSet();
+  const liveLots = lots.filter(l => !l.void && LOT.nextProcess(l.plot_no));
+  if(prefill.plot_no && !liveLots.some(l => l.plot_no === prefill.plot_no)){ const pl = DB.get('production_lots', prefill.plot_no); if(pl) liveLots.push(pl); }   // 재작업 진입 등 프리필 LOT 보장
+  const itemSel = document.getElementById('pa-item'), lotSel = document.getElementById('pa-lot');
+  const itemCodes = [...new Set(liveLots.map(l => l.itemCode))].sort();
+  const preItem = prefill.plot_no ? DB.get('production_lots', prefill.plot_no)?.itemCode : null;
+  itemSel.innerHTML = itemCodes.map(c => { const it = DB.get('items', c); const n = liveLots.filter(l => l.itemCode === c).length; return `<option value="${_esc(c)}" ${preItem===c?'selected':''}>${_esc(itemLabel(c))}${it?.name?` · ${_esc(it.name)}`:''} (${n})</option>`; }).join('') || '<option value="">진행 중 LOT 없음</option>';
+  const refreshLotSelect = () => {
+    const code = itemSel.value;
+    const list = liveLots.filter(l => l.itemCode === code);
+    lotSel.innerHTML = list.map(l => { const nx = LOT.nextProcess(l.plot_no); return `<option value="${_esc(l.plot_no)}" ${prefill.plot_no===l.plot_no?'selected':''}>${_esc(l.plot_no)} · ${nx ? _esc(nx.name) + ' 대기 ' + LOT.balance(l.plot_no, nx.code).toLocaleString() + 'ea' : ''}${_hs.has(l.plot_no)?' — 품질 HOLD (등록 불가)':''}${_ls.has(l.plot_no)?' — 동시성 잠금 (등록 불가)':''}</option>`; }).join('') || '<option value="">해당 품번 진행 LOT 없음</option>';
+  };
+  refreshLotSelect();
+  itemSel.onchange = () => { refreshLotSelect(); refreshProcSelect(); updBal(); };
   const refreshProcSelect = ()=>{
     const plot = document.getElementById('pa-lot').value;
     const sel = document.getElementById('pa-proc');
-    const {list, defaultIndex} = LOT.availableProcesses(plot);
+    const av = LOT.availableProcesses(plot);
+    const list = av.list.filter(p => p.code !== 'SHIP');   // ★ v0.35.9 — 출하는 출하 메뉴에서 (수주 연결·명세서)
+    const defaultIndex = Math.max(0, Math.min(av.defaultIndex, list.length - 1));
     if(!list.length){
-      sel.innerHTML = '<option value="">등록 가능 공정 없음</option>';
+      sel.innerHTML = av.list.some(p => p.code === 'SHIP') ? '<option value="">생산 공정 완료 — 출하는 출하 메뉴에서</option>' : '<option value="">등록 가능 공정 없음</option>';
       sel.disabled = true;
     } else {
       sel.disabled = false;
@@ -12247,7 +12383,7 @@ VIEWS._perfAddPC = (prefill)=>{
     const plot = document.getElementById('pa-lot').value;
     const proc = document.getElementById('pa-proc').value;
     const balEl = document.getElementById('pa-bal');
-    if(!proc){ balEl.textContent = '등록 가능 공정 없음 — 라우트 전 공정 소진'; return; }
+    if(!proc){ balEl.textContent = plot && LOT.availableProcesses(plot).list.some(p => p.code === 'SHIP') ? `생산 공정 완료 · 출하 대기 ${LOT.balance(plot,'SHIP').toLocaleString()}ea — 출하 메뉴에서 수주와 연결해 출하` : '등록 가능 공정 없음 — 라우트 전 공정 소진'; return; }
     const bal = LOT.balance(plot, proc);
     balEl.textContent = `잔량 ${bal.toLocaleString()}ea`;
     // ★ v0.35.5 — 잠금·HOLD LOT 은 창 안에서 바로 알린다 (클릭해야 막히는 구조 → 5초 이해)
@@ -12285,6 +12421,8 @@ VIEWS._perfAddPC = (prefill)=>{
     const r = +document.getElementById('pa-r').value||0;
     const wid = document.getElementById('pa-w').value;
     const eq  = document.getElementById('pa-eq').value.trim();
+    const plt = +(document.getElementById('pa-plt')?.value || 0);   // ★ v0.35.9
+    if(!plot || !proc){ toast('품번·LOT·공정 선택','warn'); return; }
     if(g+d+r<=0){ toast('수량 입력','warn'); return; }
     try {
       const worker = wid ? DB.get('workers', wid) : null;
@@ -12294,6 +12432,7 @@ VIEWS._perfAddPC = (prefill)=>{
         type: DB.get('processes',proc)?.type==='out'?'out':'in',
         shift:'day', source:'manual_pc',
         worker: worker ? {id:worker.id, name:worker.name, emp_no:worker.emp_no, dept:worker.dept} : null,
+        pallets: plt || null,
       });
       toast(`PC 실적 등록 — 양품 ${g}ea`,'ok'); closeModal(); router();
     } catch(e){ toast(e.message,'err'); }
@@ -13052,6 +13191,7 @@ const printForm = {
         <td class="item-strong">${_esc(w.itemCode)}<br><span class="iname">${_esc(item?.name||'')}</span></td>
         <td class="mono">${_esc(w.plot_no)}</td>
         <td class="c mono">${(w.qty||0).toLocaleString()}</td>
+        <td class="c"><div style="border:1px solid #9aa0a6;border-radius:4px;height:34px;width:100%"></div></td>
         <td class="route">${route}</td>
         <td class="qr-cell"><img src="${qr}"></td>
       </tr>`;
@@ -13059,13 +13199,13 @@ const printForm = {
     const css = `
       .page{width:794px;min-height:560px;background:#fff;padding:40px 44px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
       .doc-title{text-align:center;font-size:27px;font-weight:900;letter-spacing:18px;padding-left:18px;margin-bottom:6px}
-      .rule{height:3px;background:#16181d;margin-bottom:7px}
+      .rule{height:1px;background:#9aa0a6;margin-bottom:7px}
       .head{display:flex;justify-content:space-between;align-items:flex-end;padding:10px 0 16px}
       .co-name{font-size:14px;font-weight:700} .co-site{font-weight:400;color:#555;margin-left:4px;font-size:13px}
       .meta{font-size:12px;color:#555;text-align:right}
       .meta .big{font-size:13px;color:#16181d;font-weight:700}
       table{width:100%;border-collapse:collapse;margin-top:4px}
-      th{background:#16181d;color:#fff;font-size:11px;font-weight:500;padding:9px 8px;text-align:left}
+      th{background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;font-size:11px;font-weight:500;padding:9px 8px;text-align:left}
       th.c{text-align:center}
       td{border-bottom:1px solid #d5d7dc;padding:11px 8px;font-size:12px;vertical-align:middle}
       td.c{text-align:center}
@@ -13093,7 +13233,7 @@ const printForm = {
       <table>
         <thead><tr>
           <th style="width:11%">WO 번호</th><th style="width:11%">수주</th><th style="width:15%">품번·품명</th><th style="width:11%">생산 LOT</th>
-          <th class="c" style="width:8%">지시수량</th><th style="width:32%">공정 (라우트 · [계획 설비])</th><th class="c" style="width:12%">스캔 QR</th>
+          <th class="c" style="width:8%">지시수량</th><th class="c" style="width:9%">실 수량<br><span style="font-size:8.5px;color:#666;font-weight:400">(수기)</span></th><th style="width:25%">공정 (라우트 · [계획 설비])</th><th class="c" style="width:12%">스캔 QR</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -13187,7 +13327,7 @@ const printForm = {
       .page{width:559px;height:794px;background:#fff;padding:32px 34px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
       .doc-title{text-align:center;font-size:21px;font-weight:900;letter-spacing:9px;padding-left:9px;margin-bottom:5px}
       .a5-tag{text-align:center;font-size:10px;color:#999;margin-bottom:10px}
-      .rule{height:2.5px;background:#16181d;margin-bottom:14px}
+      .rule{height:1px;background:#9aa0a6;margin-bottom:14px}
       .top{display:flex;gap:16px;margin-bottom:16px}
       .top-info{flex:1}
       .ti-row{display:flex;padding:6px 0;border-bottom:1px solid #e2e4e8;font-size:13px}
@@ -13197,7 +13337,7 @@ const printForm = {
       .top-qr{width:104px;height:104px;border:1px solid #ddd}
       .sec-label{font-size:11px;font-weight:700;color:#555;margin:6px 0 7px;letter-spacing:.5px}
       table{width:100%;border-collapse:collapse}
-      th{background:#16181d;color:#fff;font-size:10px;font-weight:500;padding:8px 6px;text-align:left}
+      th{background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;font-size:10px;font-weight:500;padding:8px 6px;text-align:left}
       th.c{text-align:center}
       td{border-bottom:1px solid #d5d7dc;padding:12px 6px;font-size:12px}
       .pseq{color:#999;font-size:11px;width:36px}
@@ -13291,7 +13431,7 @@ const printForm = {
       .slip:first-child{border-bottom:2px dashed #999}
       .copy-tag{position:absolute;top:22px;right:38px;color:#fff;font-size:10px;font-weight:700;padding:4px 11px;border-radius:4px}
       .slip-title{text-align:center;font-size:19px;font-weight:900;letter-spacing:10px;padding-left:10px;margin-bottom:4px}
-      .srule{height:2.5px;background:#16181d;margin-bottom:12px}
+      .srule{height:1px;background:#9aa0a6;margin-bottom:12px}
       .slip-top{display:flex;gap:16px;margin-bottom:12px}
       .st-info{flex:1}
       .r{display:flex;align-items:baseline;padding:4px 0;font-size:12px;border-bottom:1px solid #eee}
@@ -13299,7 +13439,7 @@ const printForm = {
       .r .v{font-weight:500}
       .slip-qr{width:84px;height:84px}
       table{width:100%;border-collapse:collapse;margin-bottom:8px}
-      th{background:#16181d;color:#fff;font-size:9.5px;font-weight:500;padding:7px 5px;text-align:left}
+      th{background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;font-size:9.5px;font-weight:500;padding:7px 5px;text-align:left}
       th.c{text-align:center}
       td{border-bottom:1px solid #d5d7dc;padding:9px 5px;font-size:11px}
       td.c{text-align:center} td.b{font-weight:700}
@@ -13420,7 +13560,7 @@ const printForm = {
       .top-bar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
       .doc-title{font-size:25px;font-weight:900;letter-spacing:10px}
       .copy-tag{font-size:11px;font-weight:700;color:#16181d;border:1.5px solid #16181d;padding:4px 12px;border-radius:4px}
-      .rule{height:3px;background:#16181d;margin-bottom:16px}
+      .rule{height:1px;background:#9aa0a6;margin-bottom:16px}
       .parties{display:flex;gap:14px;margin-bottom:8px}
       .party{flex:1;border:1px solid #ccc;border-radius:6px;padding:13px 16px;position:relative}
       .party .ptag{font-size:10px;color:#888;font-weight:700;margin-bottom:8px;letter-spacing:1px}
@@ -13440,7 +13580,7 @@ const printForm = {
       .meta{font-size:11.5px} .meta .mr{padding:2px 0;color:#444} .meta .mr b{color:#16181d}
       .meta-qr img{width:72px;height:72px}
       table{width:100%;border-collapse:collapse;margin-bottom:10px}
-      th{background:#16181d;color:#fff;font-size:10.5px;font-weight:500;padding:7px 6px;text-align:left}
+      th{background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;font-size:10.5px;font-weight:500;padding:7px 6px;text-align:left}
       th.c{text-align:center} th.r{text-align:right}
       td{border-bottom:1px solid #d5d7dc;padding:6px 6px;font-size:11px;height:26px}
       td.c{text-align:center} td.r{text-align:right}
@@ -13549,7 +13689,7 @@ const printForm = {
       .top-bar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
       .doc-title{font-size:25px;font-weight:900;letter-spacing:10px}
       .copy-tag{font-size:11px;font-weight:700;color:#16181d;border:1.5px solid #16181d;padding:4px 12px;border-radius:4px}
-      .rule{height:3px;background:#16181d;margin-bottom:16px}
+      .rule{height:1px;background:#9aa0a6;margin-bottom:16px}
       .parties{display:flex;gap:20px;margin-bottom:8px}
       .party{flex:1;border:1px solid #ccc;border-radius:6px;padding:13px 16px;position:relative}
       .party .ptag{font-size:10px;color:#888;font-weight:700;margin-bottom:8px;letter-spacing:1px}
@@ -13562,7 +13702,7 @@ const printForm = {
       .meta{font-size:12px} .meta .mr{padding:3px 0;color:#444} .meta .mr b{color:#16181d}
       .meta-qr img{width:84px;height:84px}
       table{width:100%;border-collapse:collapse;margin-bottom:14px}
-      th{background:#16181d;color:#fff;font-size:11px;font-weight:500;padding:9px 8px;text-align:left}
+      th{background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;font-size:11px;font-weight:500;padding:9px 8px;text-align:left}
       th.c{text-align:center} th.r{text-align:right}
       td{border-bottom:1px solid #d5d7dc;padding:10px 8px;font-size:12px;height:34px}
       td.c{text-align:center} td.r{text-align:right} td.b{font-weight:700}
@@ -14044,7 +14184,7 @@ printForm.pa = (ids) => {
     .top-bar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
     .doc-title{font-size:25px;font-weight:900;letter-spacing:10px}
     .copy-tag{font-size:11px;font-weight:700;color:#16181d;border:1.5px solid #16181d;padding:4px 12px;border-radius:4px}
-    .rule{height:3px;background:#16181d;margin-bottom:16px}
+    .rule{height:1px;background:#9aa0a6;margin-bottom:16px}
     .parties{display:flex;gap:14px;margin-bottom:8px}
     .party{flex:1;border:1px solid #ccc;border-radius:6px;padding:13px 16px;position:relative}
     .party .ptag{font-size:10px;color:#888;font-weight:700;margin-bottom:8px;letter-spacing:1px}
@@ -14063,7 +14203,7 @@ printForm.pa = (ids) => {
     .meta{font-size:11.5px} .meta .mr{padding:2px 0;color:#444} .meta .mr b{color:#16181d}
     .mono{font-family:'JetBrains Mono','Consolas',monospace}
     table{width:100%;border-collapse:collapse;margin-bottom:12px}
-    th{background:#16181d;color:#fff;font-size:10.5px;font-weight:500;padding:7px 6px;text-align:left}
+    th{background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;font-size:10.5px;font-weight:500;padding:7px 6px;text-align:left}
     th.c{text-align:center} th.r{text-align:right}
     td{border-bottom:1px solid #d5d7dc;padding:7px 6px;font-size:11.5px;height:26px}
     td.c{text-align:center} td.r{text-align:right} td.b{font-weight:600} td.note{font-size:10.5px;color:#555}
@@ -14707,7 +14847,7 @@ VIEWS.draw = () => {
     </table></div></div>`;
 
   let _dwDeb = null;
-  document.getElementById('dw-q').oninput = e => { clearTimeout(_dwDeb); _dwDeb = setTimeout(()=>{ state.q = e.target.value; router(); }, 250); };
+  bindSearch('dw-q', v => { state.q = v; });   // ★ v0.35.9 — Search Contract
   document.getElementById('dw-showoff').onchange = e => { state.showOff = e.target.checked; router(); };
   document.getElementById('dw-new').onclick = () => VIEWS._drawNewModal();
   document.getElementById('dw-import').onclick = () => VIEWS._mstImport('drawings');   // ★ v0.28.4
@@ -16831,7 +16971,7 @@ VIEWS.audit = () => {
     </div>
   `;
   let _auDeb = null;
-  document.getElementById('au-q').oninput = e => { clearTimeout(_auDeb); _auDeb = setTimeout(() => { st.q = e.target.value; st.cap = 100; router(); }, 250); };
+  bindSearch('au-q', v => { st.q = v; st.cap = 100; });   // ★ v0.35.9 — Search Contract
   const more = document.getElementById('au-more');
   if(more) more.onclick = () => { st.cap += 100; router(); };
   document.getElementById('au-lot-go').onclick = () => { st.lot = document.getElementById('au-lot').value.trim(); router(); };
@@ -17777,7 +17917,7 @@ VIEWS.plan = () => {
   document.querySelectorAll('[data-ptab]').forEach(b => b.onclick = ()=>{ state.tab=b.dataset.ptab; router(); });
   document.querySelectorAll('[data-paxis]').forEach(b => b.onclick = ()=>{ state.axis=b.dataset.paxis; router(); });
   let qT;
-  document.getElementById('plan-q').oninput = (e)=>{ clearTimeout(qT); qT=setTimeout(()=>{ state.q=e.target.value; router(); }, 250); };
+  bindSearch('plan-q', v => { state.q = v; });   // ★ v0.35.9 — Search Contract
   document.getElementById('plan-eq').onchange = (e)=>{ state.eq=e.target.value; router(); };
   document.getElementById('plan-status').onchange = (e)=>{ state.status=e.target.value; router(); };
   document.getElementById('plan-origin').onchange = (e)=>{ state.origin=e.target.value; router(); };
@@ -21379,7 +21519,7 @@ function _reportPrint(data){
 
   const body = `<div class="page">
     <div style="text-align:center;font-size:22px;font-weight:900;letter-spacing:8px;margin-bottom:6px">${_esc(t)}</div>
-    <div style="height:3px;background:#16181d;margin-bottom:10px"></div>
+    <div style="height:1px;background:#9aa0a6;margin-bottom:10px"></div>
     <div style="display:flex;justify-content:space-between;font-size:12px;color:#555;margin-bottom:12px">
       <div>${coHead}</div>
       <div><b>기간</b> ${_esc(data.period.label)} · <b>발행</b> ${fmtDate(Date.now())}</div>
@@ -21398,7 +21538,7 @@ function _reportPrint(data){
       line('달성률', p.pct.toFixed(1)+' %'),
       line('진행 LOT', p.activeLots + '개'),
     ])}
-    ${p.byEquipment.length?`<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px"><thead><tr><th style="background:#16181d;color:#fff;text-align:left;padding:6px 8px">설비</th><th style="background:#16181d;color:#fff;text-align:right;padding:6px 8px">실적</th><th style="background:#16181d;color:#fff;text-align:right;padding:6px 8px">부하율</th></tr></thead><tbody>${p.byEquipment.map(e=>`<tr><td style="padding:6px 8px;border-bottom:1px solid #ddd">${_esc(e.name)}</td><td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right">${e.actual.toLocaleString()}</td><td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right">${e.loadPct.toFixed(0)}%</td></tr>`).join('')}</tbody></table>`:''}
+    ${p.byEquipment.length?`<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px"><thead><tr><th style="background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;text-align:left;padding:6px 8px">설비</th><th style="background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;text-align:right;padding:6px 8px">실적</th><th style="background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;text-align:right;padding:6px 8px">부하율</th></tr></thead><tbody>${p.byEquipment.map(e=>`<tr><td style="padding:6px 8px;border-bottom:1px solid #ddd">${_esc(e.name)}</td><td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right">${e.actual.toLocaleString()}</td><td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right">${e.loadPct.toFixed(0)}%</td></tr>`).join('')}</tbody></table>`:''}
     <h4 style="font-size:12px;color:#0369a1;margin:8px 0 4px">영업부</h4>
     ${kpiBlock([
       line('신규 수주 / 출하', `${s.newOrders}건 / ${s.shipped.toLocaleString()} ea`),
@@ -22010,8 +22150,14 @@ VIEWS.qc = () => {
       <div class="pgtools">
         <input id="qc-month" type="month" value="${_esc(st.month)}" style="width:160px">
         <label class="chk-toggle" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${st.voidView?'rgba(248,113,113,.08)':'var(--bg2)'}"><input type="checkbox" id="qc-void-view" ${st.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기${voidInPeriod>0?` <span style="color:var(--red);font-weight:700">(${voidInPeriod})</span>`:''}</label>
-        <button class="btn" id="qc-xlsx">${ico('excel')}엑셀</button>
         <button class="btn primary" id="qc-new">${ico('plus')}부적합 등록</button>
+        <!-- ★ v0.35.9 — 헤더 규격(주 버튼 1 + ⋯ 글자만) · 불량 유형은 품질팀이 여기서 추가 (마스터 편집 1벌 재사용) -->
+        <span class="mmore"><button class="btn" id="qc-more">⋯</button>
+          <span class="mmore-menu" id="qc-more-menu">
+            <button id="qc-dt-new">불량 유형 추가</button>
+            <button id="qc-dt-list">불량 유형 목록 (기준정보)</button>
+            <button id="qc-xlsx">엑셀 내보내기</button>
+          </span></span>
       </div>
     </div>
     <div style="font-size:11px;color:var(--dim);margin-bottom:14px;line-height:1.6">
@@ -22138,9 +22284,14 @@ VIEWS.qc = () => {
   document.getElementById('qc-month').onchange = (e) => { st.month = e.target.value; router(); };
   document.getElementById('qc-void-view').onchange = (e) => { st.voidView = e.target.checked; router(); };
   let qT;
-  document.getElementById('qc-q').oninput = (e) => { clearTimeout(qT); qT = setTimeout(() => { st.q = e.target.value; router(); }, 220); };
+  bindSearch('qc-q', v => { st.q = v; });   // ★ v0.35.9 — Search Contract
   document.getElementById('qc-status').onchange = (e) => { st.status = e.target.value; router(); };
   document.getElementById('qc-new').onclick = () => VIEWS._qcRegister({});
+  // ★ v0.35.9 — ⋯ 메뉴 + 불량 유형 추가(품질팀 · 기준정보 마스터 편집 1벌)
+  const _qcMore = document.getElementById('qc-more'), _qcMenu = document.getElementById('qc-more-menu');
+  if(_qcMore){ _qcMore.onclick = e => { e.stopPropagation(); _qcMenu.classList.toggle('open'); }; document.addEventListener('click', () => _qcMenu.classList.remove('open'), { once:true }); }
+  document.getElementById('qc-dt-new').onclick = () => { _qcMenu.classList.remove('open'); VIEWS._mstDefectTypeEdit(''); };
+  document.getElementById('qc-dt-list').onclick = () => { _qcMenu.classList.remove('open'); location.hash = '#masters'; };
   document.getElementById('qc-xlsx').onclick = () => {
     const xrows = ncFiltered.map(n => {
       const dt = DB.get('defect_types', n.defect_type);
