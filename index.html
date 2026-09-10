@@ -1255,7 +1255,7 @@ const APP_VERSION = 'v0.35.10';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-09-08';
+const APP_DATE    = '2026-09-10';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -3154,6 +3154,7 @@ function seedDemoData(){
       worker: { name:'홍길동' },
       defect_type: n.type, qty: n.qty, memo: n.memo,
       status: n.status,
+      hold: n.status === '접수',   // ★ v0.35.10 — 시드의 접수 NC = 품질팀이 로트 불량 HOLD 판정한 시연 케이스 (기본 정책은 판정 대기)
       handle: n.handle ? { ...n.handle, ts: ts + 3600000, by: _demoUser } : null,
       rework_record_id: null,
       ts, by: _demoUser, void: null,
@@ -3403,7 +3404,7 @@ function seedDemoData(){
       const dAgo = 3 + i*4;
       DB.set('nc_records', `NC-2026-DB${String(i+1).padStart(2,'0')}`, { id:`NC-2026-DB${String(i+1).padStart(2,'0')}`, date:fmt(daysBack(dAgo)), item_code:it.code, lot_id: lot?lot.plot:'', record_id:null,
         process:['CUT','FORGE','HEAT','SHOT'][i%4], equipment:['절단기 1호','프레스 1호','한국열처리(외주)','쇼트기'][i%4], worker:{name:['홍길동','강민준','서지우'][i%3]},
-        defect_type:`DT-00${(i%4)+1}`, qty:4+i*3, memo:'데모 대량 시드 — 시연용', status, handle: h? { ...h, date:fmt(daysBack(dAgo)), by_name:'데모', ts:daysBack(dAgo)+3600000, by:'데모', memo:h.memo||'' } : null, rework_record_id:null, ts:daysBack(dAgo), by:'데모', void:null });
+        defect_type:`DT-00${(i%4)+1}`, qty:4+i*3, memo:'데모 대량 시드 — 시연용', status, hold: status === '접수', handle: h? { ...h, date:fmt(daysBack(dAgo)), by_name:'데모', ts:daysBack(dAgo)+3600000, by:'데모', memo:h.memo||'' } : null, rework_record_id:null, ts:daysBack(dAgo), by:'데모', void:null });
     }
     // 18-15. 회계 대량 (수금 +8 · 지급 +6 · 경비 +10 · 계산서 +3)
     for(let i=0;i<8;i++){
@@ -8021,10 +8022,11 @@ VIEWS._printWO = (id)=>{ printForm.wo([id]); };  // ★ v0.12.0 — 새 양식 �
              ②출하 등록 핸들러 ③외주 반출 핸들러. 헬퍼 1벌 — 화면 표시도 동일 판정 재사용. */
 /* ★ v0.35.9-B — 품질 판정 상태 머신 (GPT 정책 심사 승인 2026-09-08 · 파일럿 담당자 "부적합 등록 = 무조건 HOLD 아님, 품질팀이 체크")
    NC(접수) 를 두 갈래로: hold=false → ⚠ 판정 대기 (실적·출하·반출 가능하되 신고 수량만 파생 격리 + 경고)
-                        hold≠false → 🔴 HOLD (품질팀 차단 · 기존 Gate 그대로 — 레거시/시드 NC 는 hold 필드 없음 = HOLD 유지)
+                        hold=true → 🔴 HOLD (로트 불량 체크 · 기존 Gate 그대로 — hold 필드 없는 기존 NC 는 판정 대기 · 시드는 HOLD 시나리오 NC 에 hold:true 명시)
    격리 수량은 저장하지 않는다(파생) · 최종 write path(출하·반출 저장 직전)에서 현재 원장으로 재검증 · 긴급 우회 경로 없음(특채 경로). */
-function ncIsHold(n){ return n && n.status === '접수' && n.hold !== false; }
-function ncIsPending(n){ return n && n.status === '접수' && n.hold === false; }
+// ★ 사용자 판정 2026-09-10: 기본은 전부 HOLD 아님 — 부적합 등록에서 「로트 불량 → LOT 전체 HOLD」 를 명시적으로 켠 것만 차단. 그 외는 불량 수량만 격리하고 나머지는 출하 (hold 필드 없는 기존 NC = 판정 대기)
+function ncIsHold(n){ return n && n.status === '접수' && n.hold === true; }
+function ncIsPending(n){ return n && n.status === '접수' && n.hold !== true; }
 function lotHoldInfo(plot_no){
   if(!plot_no) return { held:false, ncs:[] };
   const ncs = DB.query('nc_records', n => n.lot_id === plot_no && ncIsHold(n));
@@ -21687,7 +21689,7 @@ function ncSumByRecord(record_id){
   return DB.query('nc_records', n => n.record_id === record_id).reduce((s,n)=>s+(+n.qty||0), 0);
 }
 // NC 등록 — G1 준수 (원장 무변) · 실적 초과 등록 차단
-function qcRegisterNc({ date, item_code, lot_id, record_id, process, equipment, worker, defect_type, qty, memo, hold }){   // ★ v0.35.9-B — hold: true=품질팀 차단 · false=판정 대기 (기본 true = 기존 동작)
+function qcRegisterNc({ date, item_code, lot_id, record_id, process, equipment, worker, defect_type, qty, memo, hold }){   // ★ v0.35.10 — hold: true=로트 불량 HOLD(차단) · 그 외=판정 대기(불량 수량만 격리) — 기본 false
   if(!defect_type) throw new Error('불량 유형 필수');
   const q = +qty || 0;
   if(q <= 0) throw new Error('수량은 1 이상');
@@ -21717,8 +21719,8 @@ function qcRegisterNc({ date, item_code, lot_id, record_id, process, equipment, 
     worker: worker || null,
     defect_type, qty: q, memo: memo || '',
     status: NC_STATUS.RCV,
-    hold: hold !== false,   // ★ v0.35.9-B
-    hold_log: hold === false ? [] : [{ on:true, by: SESSION.user || 'system', ts: Date.now(), reason: '등록 시 차단' }],
+    hold: hold === true,   // ★ v0.35.10 — 기본 판정 대기 · 「로트 불량」 체크 시에만 HOLD (사용자 판정 2026-09-10)
+    hold_log: hold === true ? [{ on:true, by: SESSION.user || 'system', ts: Date.now(), reason: '등록 시 로트 불량 HOLD' }] : [],
     handle: null,
     rework_record_id: null,
     ts: Date.now(),
@@ -21829,11 +21831,11 @@ VIEWS._qcRegister = (prefill) => {
       </div>
       <div><label>현상 메모 (선택)</label>
         <textarea id="nc-memo" rows="3" placeholder="예: 오른쪽 상단 3mm 크랙 · 재발 우려" style="width:100%;resize:vertical;font-family:inherit"></textarea></div>
-      <!-- ★ v0.35.9-B — 품질팀 차단(HOLD) 체크: 품질 화면 직접 등록 = 기본 켜짐 · 실적에서 온 현장 신고 = 기본 꺼짐(판정 대기) -->
+      <!-- ★ v0.35.10 — 「로트 불량 → LOT 전체 HOLD」 체크 (사용자 판정 2026-09-10: 기본 꺼짐 · 어느 경로든 동일 · 켠 것만 차단, 그 외는 불량 수량만 격리하고 나머지 출하) -->
       <label style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;cursor:pointer;font-size:12.5px">
-        <input type="checkbox" id="nc-hold" ${lockedRecord ? '' : 'checked'}>
-        <span><b>☑ 품질팀 차단(HOLD)</b> <span style="color:var(--sub)">— 켜면 이 LOT 의 실적·출하·반출이 즉시 차단됩니다</span>
-          <div id="nc-hold-note" style="font-size:11px;color:var(--amber);margin-top:2px;${lockedRecord?'':'display:none'}">차단 없이 <b>판정 대기</b>로 등록됩니다 — 신고 수량만 격리되고 나머지는 경고와 함께 출하·반출 가능 · 품질팀이 판정(또는 HOLD 체크)해야 확정</div></span>
+        <input type="checkbox" id="nc-hold">
+        <span><b>로트 불량 — LOT 전체 HOLD</b> <span style="color:var(--sub)">— 이 LOT 전체가 의심될 때만 체크 · 실적·출하·반출 즉시 차단</span>
+          <div id="nc-hold-note" style="font-size:11px;color:var(--amber);margin-top:2px">체크 안 함 = <b>불량 수량만 격리</b> · 나머지 양품은 출하·반출 가능(경고 표시) · 품질팀 판정으로 확정</div></span>
       </label>
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
@@ -21860,7 +21862,7 @@ VIEWS._qcRegister = (prefill) => {
     document.getElementById('nc-lot').onchange = refreshRec;
     refreshRec();
   }
-  const _ncHold = document.getElementById('nc-hold'); if(_ncHold) _ncHold.onchange = () => { document.getElementById('nc-hold-note').style.display = _ncHold.checked ? 'none' : ''; };   // ★ v0.35.9-B
+  const _ncHold = document.getElementById('nc-hold'); if(_ncHold) _ncHold.onchange = () => { const nt = document.getElementById('nc-hold-note'); nt.style.display = ''; nt.style.color = _ncHold.checked ? 'var(--red)' : 'var(--amber)'; nt.innerHTML = _ncHold.checked ? '<b>LOT 전체 차단</b> — 실적·출하·반출 전부 막힘 · 품질팀 판정(특채/폐기/재작업) 또는 HOLD 해제 전까지' : '체크 안 함 = <b>불량 수량만 격리</b> · 나머지 양품은 출하·반출 가능(경고 표시) · 품질팀 판정으로 확정'; };   // ★ v0.35.10
   document.getElementById('nc-save').onclick = () => {
     const defect_type = document.getElementById('nc-type').value;
     const qty  = +document.getElementById('nc-qty').value || 0;
@@ -21894,7 +21896,7 @@ VIEWS._qcRegister = (prefill) => {
     }
     try {
       const nc = qcRegisterNc(payload);
-      toast(`부적합 등록 — ${nc.id}${hold ? ' · 품질 HOLD' : ' · 판정 대기(차단 없음)'}`, hold ? 'ok' : 'warn');
+      toast(`부적합 등록 — ${nc.id}${hold ? ' · 로트 불량 HOLD (LOT 차단)' : ` · 불량 ${qty}ea 격리 (LOT 차단 없음)`}`, hold ? 'warn' : 'ok');
       closeModal(); router();
     } catch(e){ toast(e.message, 'err'); }
   };
@@ -21929,7 +21931,7 @@ VIEWS._qcDetail = (nc_id) => {
     timeline.push({ ts: rework?.ts || Date.now(), by:'system', label: `재작업 실적 연결 · ${nc.rework_record_id} (양품 ${(+rework?.good||0).toLocaleString()}ea) → 완료` });
   }
   // ★ v0.35.9-B — HOLD 설정/해제 · 판정 대기 중 출하/반출 이력 (Audit: NC 문서 hold_log/pending_out + _logs)
-  (nc.hold_log || []).forEach(h => timeline.push({ ts: h.ts, by: h.by, label: h.on ? `🔴 품질팀 차단(HOLD) 설정${h.reason?` · ${h.reason}`:''}` : `⚠ HOLD 해제 → 판정 대기${h.reason?` · ${h.reason}`:''}` }));
+  (nc.hold_log || []).forEach(h => timeline.push({ ts: h.ts, by: h.by, label: h.on ? `🔴 로트 불량 HOLD 설정${h.reason?` · ${h.reason}`:''}` : `⚠ HOLD 해제 → 불량 수량만 격리${h.reason?` · ${h.reason}`:''}` }));
   (nc.pending_out || []).forEach(o => timeline.push({ ts: o.ts, by: o.by, label: `⚠ 판정 대기 중 ${o.kind === 'ship' ? '출하' : '외주 반출'} · ${o.ref_id} · ${(+o.qty||0).toLocaleString()}ea` }));
   timeline.sort((a,b) => (a.ts||0) - (b.ts||0));
   if(isVoid){
@@ -21939,8 +21941,8 @@ VIEWS._qcDetail = (nc_id) => {
   const actions = [];
   // ★ v0.35.9-B — 접수 상태에서 품질팀 HOLD 체크/해제 (판정과 별개 · 이력 기록)
   if(!isVoid && isRcv) actions.push(ncIsHold(nc)
-    ? `<button class="btn" id="nc-hold-off" style="color:var(--amber)" title="차단을 풀고 판정 대기로 둡니다 (신고 수량만 격리)">HOLD 해제 → 판정 대기</button>`
-    : `<button class="btn" id="nc-hold-on" style="color:var(--red)" title="이 LOT 의 실적·출하·반출을 즉시 차단합니다">🔴 품질팀 차단(HOLD)</button>`);
+    ? `<button class="btn" id="nc-hold-off" style="color:var(--amber)" title="LOT 차단을 풀고 불량 수량만 격리합니다">HOLD 해제 → 불량 수량만 격리</button>`
+    : `<button class="btn" id="nc-hold-on" style="color:var(--red)" title="로트 불량 — 이 LOT 의 실적·출하·반출을 즉시 차단합니다">🔴 로트 불량 HOLD</button>`);
   if(!isVoid && isRcv) actions.push(`<button class="btn primary" id="nc-proc">${ico('save')}처리</button>`);
   if(!isVoid && isRw)  actions.push(`<button class="btn primary" id="nc-link">${ico('save')}재작업 실적 연결</button>`);
   if(!isVoid && (nc.status === NC_STATUS.SCRAP || nc.status === NC_STATUS.DEV || nc.status === NC_STATUS.RET)){
@@ -22526,7 +22528,7 @@ VIEWS.set = () => {
         <div><label>🟡 주의 (일)</label><input id="qp-warn" type="number" min="0" step="1" value="${qualityPolicy().warn}"></div>
         <div><label>🔴 조치 필요 (일) <span style="color:var(--dim);font-weight:400">— 대시보드 「오늘 이상」 집계 기준</span></label><input id="qp-alert" type="number" min="0" step="1" value="${qualityPolicy().alert}"></div>
       </div>
-      <div style="font-size:11px;color:var(--sub);margin-top:6px;line-height:1.6">현장 불량 신고(판정 대기)는 실적·출하·반출을 막지 않고 신고 수량만 격리합니다. 품질팀이 NC 상세에서 [품질팀 차단(HOLD)] 을 누르면 LOT 전체가 차단됩니다.</div>
+      <div style="font-size:11px;color:var(--sub);margin-top:6px;line-height:1.6">부적합 등록은 기본적으로 LOT 을 막지 않고 불량 수량만 격리합니다. 등록 창의 「로트 불량 — LOT 전체 HOLD」 를 체크하거나 NC 상세에서 [로트 불량 HOLD] 를 누른 것만 실적·출하·반출이 차단됩니다.</div>
       <div style="margin-top:10px"><button class="btn primary" id="qp-save">${ico('save')}저장</button></div>
     </div>` : ''}
 
