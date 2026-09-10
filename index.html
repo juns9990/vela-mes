@@ -15047,6 +15047,73 @@ async function _dwStoreDelete(att){
 /* ★ v0.28.2 — 첨부 모달 공용화 (도면·단가합의서 등 컬렉션 무관 · 1벌 — 복사 구현 금지)
    파일(서버 모드 자동 판정) + 링크 + PC 경로 · 보기 · 삭제 */
 VIEWS._drawFilesModal = (id) => VIEWS._attFilesModal('drawings', id);
+const ATT_INLINE_MAX_KB = 400;   // ★ v0.35.10 — 데모/로컬 모드 인라인 첨부 상한 (localStorage 보호)
+/* ★ v0.35.10 — 첨부 업로드 1벌 (첨부 창 · 등록 폼 드롭존 공용) — 소형 = 앱 내 저장(Firestore 분할) · 대형 = Storage · 반환 = 성공 건수 */
+async function attUploadFiles(col, id, list){
+  list = [...(list||[])];
+  if(!list.length){ toast('파일 선택','warn'); return 0; }
+  const over = list.find(f => f.size > DW_FILE_MAX_MB*1048576);
+  if(over){ toast(`${over.name} — ${DW_FILE_MAX_MB}MB 초과`,'err'); return 0; }
+  let n = 0;
+  try {
+    for(const f of list){
+      toast(`업로드 중 — ${f.name}`,'ok',1500);
+      if(DB._backend !== 'firestore'){
+        // ★ v0.35.10 — 데모/로컬 모드 폴백: 소형(≤ ATT_INLINE_MAX_KB) 만 문서 안에 data URL 로 보관 (localStorage 용량 보호 · 서버 모드는 기존 경로)
+        if(f.size > ATT_INLINE_MAX_KB*1024) throw new Error(`${f.name} — 데모/로컬 모드는 ${ATT_INLINE_MAX_KB}KB 이하만 앱 내 보관 (서버 연결 시 ${DW_STORE_MAX_MB}MB)`);
+        const b64 = await _dwReadFileB64(f);
+        const cur = DB.get(col, id);
+        DB.set(col, id, { attachments: _drawAttAdd(cur, {
+          fid: 'I-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),
+          kind:'inline', name: f.name, size: f.size, ext: _drawFileExt(f.name), mime: f.type || '',
+          data: b64, rev: cur?.current_rev ?? '', ts: Date.now(), by: SESSION.user,
+        })});
+      } else if(f.size <= DW_STORE_MAX_MB*1048576){
+        await _dwStoreUpload(col, id, f);   // ★ v0.27.6 — 소형: 앱 내 저장 (무료 · Firestore 분할)
+      } else {
+        const st = await _drawEnsureStorage();   // 대형: Firebase Storage (Blaze)
+        const path = `${col}/${id}/${Date.now()}_${_drawSafeName(f.name)}`;
+        const snap = await st.ref(path).put(f);
+        const url = await snap.ref.getDownloadURL();
+        const cur = DB.get(col, id);
+        DB.set(col, id, { attachments: _drawAttAdd(cur, {
+          fid: 'F-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),
+          kind:'file', name: f.name, size: f.size, ext: _drawFileExt(f.name),
+          url, path, rev: cur?.current_rev ?? '', ts: Date.now(), by: SESSION.user,
+        })});
+      }
+      n++;
+    }
+    toast(`업로드 완료 — ${n}건`,'ok');
+  } catch(e){
+    const msg = String(e?.message||e);
+    toast('업로드 실패 — ' + (msg.includes('storage/unknown')||msg.includes('does not exist') ? 'Firebase 콘솔에서 Storage 활성화 필요' : msg), 'err', 5000);
+  }
+  return n;
+}
+/* ★ v0.35.10 — 등록 폼 안 「대기 드롭존」 1벌 (부적합 등록 · 도면 등록 공용): 저장 전에는 파일을 모아 두고, 문서가 생긴 뒤 attUploadFiles 로 올린다.
+   사용: const dz = attPendingDropZone(document.getElementById('nc-drop')); … 저장 후 await dz.flush('nc_records', id) */
+function attPendingDropZone(host, opts){
+  opts = opts || {};
+  const files = [];
+  host.innerHTML = `
+    <div class="att-dz" style="border:2px dashed var(--line2);border-radius:10px;padding:12px 14px;text-align:center;cursor:pointer;transition:.15s;font-size:12px;color:var(--sub)">
+      📷 ${_esc(opts.label || '사진·파일을 여기에 드래그하거나 클릭해서 선택')} <span style="color:var(--dim)">— 저장할 때 함께 올라갑니다</span>
+      <input type="file" class="att-dz-file" multiple accept="${_esc(opts.accept || 'image/*,.pdf,.png,.jpg,.jpeg,.heic,.zip,.dwg,.dxf,.pdf,.xlsx,.hwp')}" ${opts.capture ? 'capture="environment"' : ''} style="display:none">
+    </div>
+    <div class="att-dz-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>`;
+  const dz = host.querySelector('.att-dz'), inp = host.querySelector('.att-dz-file'), list = host.querySelector('.att-dz-list');
+  const render = () => { list.innerHTML = files.map((f,i) => `<span class="pill cyan" style="font-size:10.5px;display:inline-flex;align-items:center;gap:6px">${_esc(f.name)} <span style="color:var(--dim)">${_fmtBytes(f.size)}</span><b data-dz-rm="${i}" style="cursor:pointer;color:var(--red)">×</b></span>`).join(''); list.querySelectorAll('[data-dz-rm]').forEach(b => b.onclick = e => { e.stopPropagation(); files.splice(+b.dataset.dzRm, 1); render(); }); };
+  const add = (fl) => { [...(fl||[])].forEach(f => { if(f.size > DW_FILE_MAX_MB*1048576){ toast(`${f.name} — ${DW_FILE_MAX_MB}MB 초과`,'err'); return; } files.push(f); }); render(); };
+  dz.onclick = () => inp.click();
+  inp.onchange = () => { add(inp.files); inp.value = ''; };
+  dz.ondragover = e => { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = 'var(--cyan)'; dz.style.background = 'rgba(94,234,212,.05)'; };
+  dz.ondragleave = () => { dz.style.borderColor = ''; dz.style.background = ''; };
+  dz.ondrop = e => { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = ''; dz.style.background = ''; const dt = e.dataTransfer; if(dt?.files?.length) add(dt.files); };
+  // 폼 전체에 떨어뜨려도 받도록 (모달 body)
+  const modalBody = host.closest('.body'); if(modalBody && !modalBody._dzWired){ modalBody._dzWired = true; modalBody.addEventListener('dragover', e => { if(e.dataTransfer?.types?.includes('Files')) e.preventDefault(); }); modalBody.addEventListener('drop', e => { if(e.dataTransfer?.files?.length){ e.preventDefault(); add(e.dataTransfer.files); } }); }
+  return { files, count: () => files.length, flush: async (col, id) => files.length ? await attUploadFiles(col, id, files) : 0 };
+}
 VIEWS._attFilesModal = (col, id) => {
   const d = DB.get(col, id); if(!d) return;
   const files = _drawAttList(d);
@@ -15054,6 +15121,7 @@ VIEWS._attFilesModal = (col, id) => {
   const _dwBadge = a => a.kind==='link' ? '<span class="pill blue" style="font-size:9px">링크</span>'
     : a.kind==='path' ? '<span class="pill gray" style="font-size:9px">PC 경로</span>'
     : a.kind==='store' ? `<span class="pill green" style="font-size:9px">내장 ${_esc((a.ext||'').toUpperCase())}</span>`
+    : a.kind==='inline' ? `<span class="pill green" style="font-size:9px">내장(로컬) ${_esc((a.ext||'').toUpperCase())}</span>`
     : `<span class="pill cyan" style="font-size:9px">${_esc((a.ext||'file').toUpperCase())}</span>`;
   const rows = files.length ? files.map(a => `<tr>
       <td>${_dwBadge(a)}
@@ -15110,6 +15178,11 @@ VIEWS._attFilesModal = (col, id) => {
       catch(e){ toast('열기 실패 — ' + (e.message||e), 'err', 4000); }
       return;
     }
+    if(a.kind === 'inline' && a.data){   // ★ v0.35.10 — 데모/로컬 인라인 첨부 열기
+      const mime = a.mime || (/(png|jpe?g|gif|webp)$/i.test(a.ext||'') ? 'image/' + (a.ext||'').replace('jpg','jpeg') : 'application/octet-stream');
+      const w = window.open('', '_blank'); if(w){ w.document.write(mime.startsWith('image/') ? `<title>${_esc(a.name)}</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="data:${mime};base64,${a.data}" style="max-width:100%;max-height:100vh"></body>` : `<a href="data:${mime};base64,${a.data}" download="${_esc(a.name)}">${_esc(a.name)} 다운로드</a>`); }
+      return;
+    }
     if(!a.url){ toast('열 수 있는 주소 없음','warn'); return; }
     window.open(a.url, '_blank');
   });
@@ -15139,37 +15212,7 @@ VIEWS._attFilesModal = (col, id) => {
     } catch(e){ toast('삭제 실패 — ' + (e.message||e), 'err', 4000); }
   });
   // ★ v0.28.3 — 업로드 1벌 (파일 선택·드래그&드롭 공용)
-  const doUploadFiles = async (list) => {
-    list = [...(list||[])];
-    if(!list.length){ toast('파일 선택','warn'); return; }
-    const over = list.find(f => f.size > DW_FILE_MAX_MB*1048576);
-    if(over){ toast(`${over.name} — ${DW_FILE_MAX_MB}MB 초과`,'err'); return; }
-    try {
-      for(const f of list){
-        toast(`업로드 중 — ${f.name}`,'ok',1500);
-        if(f.size <= DW_STORE_MAX_MB*1048576){
-          // ★ v0.27.6 — 소형: 앱 내 저장 (무료 · Firestore 분할)
-          await _dwStoreUpload(col, id, f);
-        } else {
-          // 대형: Firebase Storage (Blaze)
-          const st = await _drawEnsureStorage();
-          const path = `${col}/${d.id}/${Date.now()}_${_drawSafeName(f.name)}`;
-          const snap = await st.ref(path).put(f);
-          const url = await snap.ref.getDownloadURL();
-          const cur = DB.get(col, id);
-          DB.set(col, id, { attachments: _drawAttAdd(cur, {
-            fid: 'F-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),
-            kind:'file', name: f.name, size: f.size, ext: _drawFileExt(f.name),
-            url, path, rev: cur.current_rev ?? '', ts: Date.now(), by: SESSION.user,
-          })});
-        }
-      }
-      toast(`업로드 완료 — ${list.length}건`,'ok'); reopen();
-    } catch(e){
-      const msg = String(e?.message||e);
-      toast('업로드 실패 — ' + (msg.includes('storage/unknown')||msg.includes('does not exist') ? 'Firebase 콘솔에서 Storage 활성화 필요' : msg), 'err', 5000);
-    }
-  };
+  const doUploadFiles = async (list) => { const n = await attUploadFiles(col, id, list); if(n > 0) reopen(); };   // ★ v0.35.10 — 업로드 1벌로 이관
   // 링크 자동 등록 1벌 (URL 드롭·수동 입력 공용)
   const addLinkAtt = (name, url) => {
     const cur = DB.get(col, id);
@@ -15240,12 +15283,14 @@ VIEWS._drawNewModal = () => {
         <div><label>사유</label><input id="dw-reason" value="신규 제정"></div>
       </div>
       <div><label>메모 (선택)</label><input id="dw-memo"></div>
+      <div style="margin-top:10px"><label>도면 파일 <span style="color:var(--dim);font-weight:400">— 드래그해서 올리기 (DWG·PDF·이미지)</span></label><div id="dw-drop"></div></div>
       <div style="font-size:10.5px;color:var(--cyan-dim);margin-top:6px">저장하면 <b>첨부 창(파일 업로드 · 링크 · PC 경로)</b>이 바로 열립니다 — 이후엔 목록의 [첨부 N] 버튼</div>
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn primary" id="dw-ok">${ico('save')}등록</button>
       </div>
     </div>`);
+  const _dwDz = attPendingDropZone(document.getElementById('dw-drop'), { label: '도면 파일을 여기에 드래그하거나 클릭', accept: '.dwg,.dxf,.step,.stp,.igs,.iges,.pdf,.png,.jpg,.jpeg,.tif,.tiff,.zip,.hwp,.xlsx' });   // ★ v0.35.10
   document.getElementById('dw-ok').onclick = () => {
     const no = document.getElementById('dw-no').value.trim();
     if(!no){ toast('도면번호 입력','warn'); return; }
@@ -15260,9 +15305,9 @@ VIEWS._drawNewModal = () => {
       memo: document.getElementById('dw-memo').value.trim(),
       active: true, created: Date.now(), by: SESSION.user,
     });
-    toast(`도면 등록 — ${no} · Rev ${rev}`,'ok'); closeModal(); router();
-    // ★ v0.28.0 — 등록 직후 첨부 창 자동 오픈 (파일·링크·PC 경로를 바로 등록하도록 동선 연결)
-    setTimeout(()=>{ try { VIEWS._drawFilesModal(no); } catch(e){} }, 150);
+    toast(`도면 등록 — ${no} · Rev ${rev}`,'ok'); const pending = _dwDz.count(); closeModal(); router();
+    // ★ v0.28.0 — 등록 직후 첨부 창 자동 오픈 · ★ v0.35.10 — 폼에 드롭해 둔 파일 먼저 업로드(1벌)
+    (async () => { if(pending) await _dwDz.flush('drawings', no); setTimeout(()=>{ try { VIEWS._drawFilesModal(no); } catch(e){} }, 150); })();
   };
 };
 /* 리비전 업 모달 — revs 증분 누적 · current_rev 갱신 (이력 보존) */
@@ -21843,6 +21888,7 @@ VIEWS._qcRegister = (prefill) => {
           <input id="nc-hold-reason" placeholder="예: 소재 heat 혼입 의심 · 전수 크랙"></div>
       </div>
       <div id="nc-hold-note" style="font-size:11px;color:var(--amber);margin-top:6px;line-height:1.55">부분 불량 = 신고 수량만 격리 · 나머지 양품은 출하·반출 가능(경고 표시) · 품질팀 판정으로 확정</div>
+      <div style="margin-top:10px"><label>사진 · 파일 <span style="color:var(--dim);font-weight:400">— 드래그해서 올리기 (현장 사진 · 검사 성적서)</span></label><div id="nc-drop"></div></div>
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn" id="nc-save-att" title="등록 후 바로 사진·파일 첨부 창을 엽니다 (현장 사진)">📷 등록 + 사진 첨부</button>
@@ -21869,6 +21915,7 @@ VIEWS._qcRegister = (prefill) => {
     document.getElementById('nc-lot').onchange = refreshRec;
     refreshRec();
   }
+  const _ncDz = attPendingDropZone(document.getElementById('nc-drop'), { label: '사진·파일을 여기에 드래그하거나 클릭 (폰은 카메라)', capture: true });   // ★ v0.35.10 — 등록 폼 드롭존 1벌
   const _ncScope = document.getElementById('nc-scope');   // ★ v0.35.10 — 판정 범위 선택
   _ncScope.onchange = () => { const lotBad = _ncScope.value === 'lot'; document.getElementById('nc-hold-reason-wrap').style.display = lotBad ? '' : 'none'; const nt = document.getElementById('nc-hold-note'); nt.style.color = lotBad ? 'var(--red)' : 'var(--amber)'; nt.innerHTML = lotBad ? '<b>LOT 전체 차단</b> — 실적·출하·반출 전부 막힘 · 품질팀 판정(특채/폐기/재작업) 또는 NC 상세에서 HOLD 해제 전까지 · 사유·사진을 남기세요' : '부분 불량 = 신고 수량만 격리 · 나머지 양품은 출하·반출 가능(경고 표시) · 품질팀 판정으로 확정'; };
   const _ncDoSave = (withAtt) => {
@@ -21907,8 +21954,10 @@ VIEWS._qcRegister = (prefill) => {
     try {
       const nc = qcRegisterNc(payload);
       toast(`부적합 등록 — ${nc.id}${hold ? ' · 로트 불량 HOLD (LOT 차단)' : ` · 불량 ${qty}ea 격리 (LOT 차단 없음)`}`, hold ? 'warn' : 'ok');
+      const pending = _ncDz.count();
       closeModal(); router();
-      if(withAtt){ setTimeout(() => { try { VIEWS._attFilesModal('nc_records', nc.id); } catch(e){} }, 150); }   // ★ v0.35.10 — 사진 첨부 (첨부 모듈 1벌 재사용)
+      // ★ v0.35.10 — 폼에 드롭해 둔 파일은 문서 생성 후 업로드(1벌) · [등록 + 사진 첨부] 는 이어서 첨부 창까지 오픈
+      (async () => { if(pending) await _ncDz.flush('nc_records', nc.id); if(withAtt) setTimeout(() => { try { VIEWS._attFilesModal('nc_records', nc.id); } catch(e){} }, 150); else if(pending) router(); })();
     } catch(e){ toast(e.message, 'err'); }
   };
   document.getElementById('nc-save').onclick = () => _ncDoSave(false);
