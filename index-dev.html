@@ -11,7 +11,12 @@
 (function(){
   try {
     var t = localStorage.getItem('vela_theme');
-    if(t !== 'light' && t !== 'dark') t = 'light';   /* ★ v0.32.0 — 기본 라이트 (사용자 판정 2026-08-16 · 저장된 취향은 그대로) */
+    /* ★ v0.37.1 — 'auto' = 기기(OS) 모드 따름. 저장값 없으면: 폰(터치 ∧ ≤768px) 은 auto(스마트폰 기본 모드) · PC 는 라이트(v0.32.0 사용자 판정) */
+    if(t !== 'light' && t !== 'dark' && t !== 'auto'){
+      var phone = false; try { phone = window.matchMedia('(pointer: coarse)').matches && window.innerWidth <= 768; } catch(e){}
+      t = phone ? 'auto' : 'light';
+    }
+    if(t === 'auto'){ try { t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch(e){ t = 'light'; } }
     document.documentElement.setAttribute('data-theme', t);
     var m = document.getElementById('meta-theme-color');
     if(m) m.setAttribute('content', t === 'light' ? '#f6f7f9' : '#08090b');
@@ -1157,6 +1162,10 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 .m-tabs .ic{font-size:20px;position:relative;line-height:1}
 .m-badge{position:absolute;top:-6px;right:-12px;background:var(--red);color:#fff;font-size:9.5px;border-radius:9px;padding:1px 5px;font-weight:800}
 .m-shell .dim{color:var(--dim)} .m-shell .amber{color:var(--amber)} .m-shell .red{color:var(--red)} .m-shell .mono{font-family:'JetBrains Mono',monospace}
+.m-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.m-seg-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:52px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);color:var(--sub);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+.m-seg-btn small{font-size:10px;font-weight:500;color:var(--dim)}
+.m-seg-btn.on{border-color:var(--cyan);color:var(--cyan);background:rgba(94,234,212,.08)}
 .m-shell .reason-input{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:14px;font-family:inherit}
 </style>
 </head>
@@ -1296,36 +1305,50 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.37.0';
+const APP_VERSION = 'v0.37.1';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-09-11';
+const APP_DATE    = '2026-09-12';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
    applyTheme(theme) 1벌 — 속성·로컬 키·meta theme-color·헤더 아이콘 갱신. */
 const _THEME_KEY = 'vela_theme';
-function getTheme(){
+function getTheme(){   // 실제 적용된 테마 (light | dark)
   const t = document.documentElement.getAttribute('data-theme');
   return (t === 'light') ? 'light' : 'dark';
 }
-function applyTheme(theme){
-  const t = (theme === 'light') ? 'light' : 'dark';
+/* ★ v0.37.1 — 테마 취향 3값: 'auto'(기기 OS 모드 따름 · 폰 기본) | 'light' | 'dark'. 저장은 취향, 적용은 해석값. 단말 로컬 키(DB 밖 · §1-7) */
+function getThemePref(){
+  let p = null; try { p = localStorage.getItem(_THEME_KEY); } catch {}
+  if(p === 'light' || p === 'dark' || p === 'auto') return p;
+  let phone = false; try { phone = window.matchMedia('(pointer: coarse)').matches && window.innerWidth <= 768; } catch {}
+  return phone ? 'auto' : 'light';
+}
+function _osTheme(){ try { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch { return 'light'; } }
+function resolveTheme(pref){ return pref === 'auto' ? _osTheme() : (pref === 'light' ? 'light' : 'dark'); }
+function applyTheme(pref){
+  const p = (pref === 'auto' || pref === 'light') ? pref : 'dark';
+  const t = resolveTheme(p);
   document.documentElement.setAttribute('data-theme', t);
-  try { localStorage.setItem(_THEME_KEY, t); } catch {}
+  try { localStorage.setItem(_THEME_KEY, p); } catch {}
   const m = document.getElementById('meta-theme-color');
   if(m) m.setAttribute('content', t === 'light' ? '#f6f7f9' : '#08090b');
   const ic = document.getElementById('theme-icon');
-  if(ic) ic.textContent = (t === 'light') ? '☀' : '🌙';
-  // 설정 화면 라디오가 열려 있으면 반영
-  document.querySelectorAll('input[name="theme-radio"]').forEach(r => { r.checked = (r.value === t); });
+  if(ic) ic.textContent = p === 'auto' ? '◐' : (t === 'light') ? '☀' : '🌙';
+  // 설정 화면 라디오·현장 모드 선택칸이 열려 있으면 반영
+  document.querySelectorAll('input[name="theme-radio"]').forEach(r => { r.checked = (r.value === p); });
+  document.querySelectorAll('[data-theme-pick]').forEach(b => b.classList.toggle('on', b.dataset.themePick === p));
 }
-function toggleTheme(){
+function toggleTheme(){   // PC 헤더 토글: 적용값 기준으로 반대편을 명시 저장 (auto 해제)
   applyTheme(getTheme() === 'light' ? 'dark' : 'light');
 }
-// 부팅 시 아이콘 초기 표시 (head 스크립트가 data-theme 은 이미 설정)
-document.addEventListener('DOMContentLoaded', () => { applyTheme(getTheme()); });
+// 부팅 시 아이콘 초기 표시 (head 스크립트가 data-theme 은 이미 설정) + OS 모드 변경 추적(auto 일 때만)
+document.addEventListener('DOMContentLoaded', () => {
+  applyTheme(getThemePref());
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if(getThemePref() === 'auto') applyTheme('auto'); }); } catch {}
+});
 
 /* =================================================================================================
    ★ v0.12.2 — QR 생성 라이브러리 (qrcode-generator · v0.23.2 부터 cdnjs)
@@ -7981,12 +8004,16 @@ VIEWS.m_more = (session) => {
       <div class="m-kv"><span>오늘 내 실적</span><b class="mono">${mine.length}건 · 양품 ${good.toLocaleString()}${def?` · 불량 ${def.toLocaleString()}`:''}</b></div>
     </div>
     <button class="m-btn ghost" id="m-sess">교대 · 설비 변경</button>
-    <button class="m-btn ghost" onclick="toggleTheme()">테마 전환</button>
+    <div class="m-card static" style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:13px;color:var(--sub)">화면 모드 <span class="dim">— 이 폰에만 저장</span></div>
+      <div class="m-seg">${[['auto','◐ 자동','폰 설정 따름'],['light','☀ 밝게',''],['dark','🌙 어둡게','']].map(([v,l,sub]) => `<button type="button" class="m-seg-btn ${getThemePref()===v?'on':''}" data-theme-pick="${v}">${l}${sub?`<small>${sub}</small>`:''}</button>`).join('')}</div>
+    </div>
     <button class="m-btn ghost" id="m-pc">🖥 PC 화면으로</button>
     <button class="m-btn ghost" id="m-logout">로그아웃</button>
     <div class="m-foot">VELA MES SYSTEM · ${APP_VERSION} · MADE BY JUNS</div>
   `);
   document.getElementById('m-sess').onclick = () => { renderSessionSetup(session || undefined); document.getElementById('view').insertAdjacentHTML('beforeend', mobileTabs('more')); };
+  document.querySelectorAll('[data-theme-pick]').forEach(b => b.onclick = () => { applyTheme(b.dataset.themePick); toast(b.dataset.themePick === 'auto' ? `화면 모드: 폰 설정 따름 (지금 ${getTheme()==='dark'?'어둡게':'밝게'})` : `화면 모드: ${b.dataset.themePick==='dark'?'어둡게':'밝게'}`, 'ok'); });   // ★ v0.37.1
   document.getElementById('m-pc').onclick = () => { setUiMode('pc'); document.getElementById('app').classList.remove('m-mode'); renderNav(); location.hash = '#dash'; };
   document.getElementById('m-logout').onclick = () => doLogout();
 };
@@ -23104,10 +23131,13 @@ VIEWS.set = () => {
         <div><label>테마 <span style="color:var(--dim);font-weight:400">— 기기별 취향 · 즉시 전환 · 인쇄물은 백지 고정</span></label>
           <div style="display:flex;gap:14px;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:8px">
             <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--ink);cursor:pointer">
-              <input type="radio" name="theme-radio" value="dark"  ${getTheme()==='dark'?'checked':''} onchange="applyTheme('dark')" style="width:auto;margin:0"> 🌙 다크
+              <input type="radio" name="theme-radio" value="auto"  ${getThemePref()==='auto'?'checked':''} onchange="applyTheme('auto')" style="width:auto;margin:0"> ◐ 기기 설정 따름
             </label>
             <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--ink);cursor:pointer">
-              <input type="radio" name="theme-radio" value="light" ${getTheme()==='light'?'checked':''} onchange="applyTheme('light')" style="width:auto;margin:0"> ☀ 라이트
+              <input type="radio" name="theme-radio" value="light" ${getThemePref()==='light'?'checked':''} onchange="applyTheme('light')" style="width:auto;margin:0"> ☀ 라이트
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--ink);cursor:pointer">
+              <input type="radio" name="theme-radio" value="dark"  ${getThemePref()==='dark'?'checked':''} onchange="applyTheme('dark')" style="width:auto;margin:0"> 🌙 다크
             </label>
           </div>
         </div>
