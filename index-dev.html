@@ -254,6 +254,9 @@ label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spaci
 .gp-login-btn:disabled{opacity:.5;cursor:not-allowed}
 .pw-err{font-size:10.5px;color:var(--red);margin-top:5px;line-height:1.4;min-height:14px}
 .pw-hint{font-size:10.5px;color:var(--dim);margin-top:4px;line-height:1.5}
+.gp-remember{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--sub);margin:2px 0 6px;cursor:pointer}   /* ★ v0.37.2 */
+.gp-remember input{width:16px;height:16px;margin:0}
+.gp-remember .dim{color:var(--dim);font-size:10.5px}
 /* ★ v0.21.4 — 테마 토글 버튼 (헤더 pill 옆) */
 .theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;color:var(--ink);font-size:15px;cursor:pointer;transition:.15s;padding:0;line-height:1}
 .theme-toggle:hover{background:var(--panel);border-color:var(--line2)}
@@ -1122,6 +1125,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 
 /* ★ v0.37.0 — Mobile Shop Floor (#m/ 전용 셸 · PC 화면 무변 · 터치 타깃 ≥44px · 색은 CSS 변수만) */
 #app.m-mode #nav, #app.m-mode .foot{display:none}
+/* ★ v0.37.2 — 현장 화면 상단바 압축: 폰 폭에서 pill 글자가 세로로 꺾이던 것 — 이름·역할 배지는 홈 헤더에 있으므로 아바타만 · 저장 pill 은 한 줄 */
+#app.m-mode .up-info{display:none}
+#app.m-mode .user-pill{padding:3px}
+#app.m-mode .sync-pill{white-space:nowrap;padding:4px 9px;font-size:10px}
+#app.m-mode .sync-pill #sync-txt{max-width:64px;overflow:hidden;text-overflow:ellipsis}
 #app.m-mode #view{padding-bottom:80px;max-width:520px;margin:0 auto}
 .m-shell{display:flex;flex-direction:column;gap:12px;padding:4px 2px}
 .m-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub)}
@@ -1167,6 +1175,19 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 .m-seg-btn small{font-size:10px;font-weight:500;color:var(--dim)}
 .m-seg-btn.on{border-color:var(--cyan);color:var(--cyan);background:rgba(94,234,212,.08)}
 .m-shell .reason-input{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:14px;font-family:inherit}
+/* ★ v0.37.2 — 출근(M00) · 설비 없음 · 퇴근 */
+.m-clock{display:flex;flex-direction:column;gap:12px;padding-top:12px}
+.m-clock-hi{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.m-clock-sub{font-size:14px;color:var(--sub)}
+.m-clock-note{font-size:12px;color:var(--dim);text-align:center;line-height:1.5}
+.m-list{display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow:auto}
+.m-list-it{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:52px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel,var(--bg2));color:var(--ink);font-size:15px;font-family:inherit;text-align:left;cursor:pointer}
+.m-list-it.on{border-color:var(--cyan);background:rgba(94,234,212,.08)}
+.m-noeq{display:flex;flex-direction:column;gap:14px;align-items:stretch;padding:32px 16px}
+.m-noeq-t{font-size:18px;font-weight:800;color:var(--ink)}
+.m-noeq .sub{line-height:1.6}
+.m-chk{display:flex;gap:10px;align-items:center;font-size:13px;margin:10px 0;cursor:pointer}
+.m-chk input{width:20px;height:20px}
 </style>
 </head>
 <body>
@@ -1305,11 +1326,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.37.1';
+const APP_VERSION = 'v0.37.2';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-09-12';
+const APP_DATE    = '2026-09-13';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -2149,18 +2170,92 @@ async function verifyPassword(input, opts){
   // legacy 평문 (구 숫자 6자리 · 초기 000000 · 벤더 000000 등)
   return { match: input === stored, legacy: input === stored };
 }
+/* ★ v0.37.2 — 현장 작업자 자동 로그인 = 「이 기기 기억」 (GPT §11 🟡 조건부 · 사용자 판정 B안 기기 토큰)
+   저장: 단말 로컬 vela_remember = {userId, token, dev}  — 토큰 = 비밀번호 로그인 성공 시 1회 발급한 랜덤값 (비밀번호·비밀번호 해시 아님)
+         서버 users/{id}.devices[dev] = { hash: sha256(token, userId), since }  — 해시만 (토큰 원문은 단말에만)
+   검증: 부팅 시 users 문서 active ∧ role==='worker' ∧ sha256(token) === devices[dev].hash 일 때만 진입
+         → 로컬에 userId 만 써 넣어도 진입 불가 (표식만으로 우회 금지 조건 충족)
+   해제: 퇴근 「기억 안 함」(로컬 제거) · 관리자 사용자 관리 [기기 해제](devices 비움 → 다음 부팅부터 게이트)
+   범위: role 'worker' 만 · 초기 비밀번호 강제 변경 로그인에서는 발급 안 함(다음 로그인부터)
+   데모: 별도 키 vela_demo_remember (§1-9 데모에서도 전 기능 동일 — 데모 부팅은 기억된 작업자가 있으면 '데모' 대신 그 사용자로 진입) */
+const _REMEMBER_KEY = 'vela_remember';
+function _rememberKey(){ return isDemoMode() ? 'vela_demo_remember' : _REMEMBER_KEY; }
+function getRememberedLogin(){
+  try { const r = JSON.parse(localStorage.getItem(_rememberKey()) || 'null'); return r && r.userId && r.token && r.dev ? r : null; } catch(e){ return null; }
+}
+function clearRememberedLogin(){ try { localStorage.removeItem(_rememberKey()); } catch(e){} }
+function _randToken(){
+  try { const a = new Uint8Array(24); crypto.getRandomValues(a); return Array.from(a).map(b => b.toString(16).padStart(2,'0')).join(''); }
+  catch(e){ return Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); }
+}
+async function rememberLogin(u){
+  if(!u || u.role !== 'worker') return false;
+  const token = _randToken(); const dev = `${getDeviceCode()}-${_randToken().slice(0,6)}`;
+  const hash = await hashPassword(token, u.id);
+  const devices = { ...((DB.get('users', u.id) || {}).devices || {}) }; devices[dev] = { hash, since: Date.now() };
+  DB.set('users', u.id, { devices });
+  try { localStorage.setItem(_rememberKey(), JSON.stringify({ userId: u.id, token, dev })); } catch(e){ return false; }
+  return true;
+}
+async function tryRememberedLogin(){
+  const r = getRememberedLogin(); if(!r) return null;
+  const u = DB.get('users', r.userId);
+  if(!u) return null;   // 아직 스냅샷 전일 수 있음 — 지우지 않는다
+  if(u.active === false || u.role !== 'worker'){ clearRememberedLogin(); return null; }
+  const d = u.devices && u.devices[r.dev]; if(!d || !d.hash){ clearRememberedLogin(); return null; }   // 관리자 해제
+  const h = await hashPassword(r.token, u.id);
+  if(h !== d.hash){ clearRememberedLogin(); return null; }
+  return u;
+}
+let _rememberBusy = false;
+function attemptRememberedLogin(){
+  if(SESSION.loggedIn || _rememberBusy) return;
+  const r = getRememberedLogin(); if(!r || !DB.get('users', r.userId)) return;
+  _rememberBusy = true;
+  tryRememberedLogin().then(u => { _rememberBusy = false; if(u && !SESSION.loggedIn){ detachGateKey(); enterAsUser(u); } }).catch(() => { _rememberBusy = false; });
+}
 
-/* ★ v0.11.0 — 교대 세션 (작업자+교대+설비) — 실적 등록시 자동 태깅 */
+/* ★ v0.11.0 — 교대 세션 (작업자+교대+설비) — 실적 등록시 자동 태깅
+   ★ v0.37.2 — 저장소를 settings/active_session(서버 동기 전역 문서 1개 · 폰 A/B 가 서로 덮어씀 — GPT §8 🔴) 에서
+      단말 로컬 키로 이동 (§1-7 단말 고유값은 DB 밖 · v0.21.1 단말 코드와 같은 길). 세션 = 작업 컨텍스트 ≠ 원장(GPT §10).
+      · 로컬 키에 userId 를 함께 저장 → 로그인 사용자와 다르면 null (공용 폰 사용자 교체 시 남의 세션 상속 0)
+      · equipment 는 선택(null 허용) — 현장 모드는 마지막 QR 설비가 현재 설비(GPT §3) · PC 실적 등록은 기존 3단 설정 그대로
+      · 구 settings/active_session 문서는 읽지도 쓰지도 않는다(삭제 금지 원칙 — 고아 문서로 둔다) */
+const _SES_KEY = 'vela_m_session';
+function _sesKey(){ return isDemoMode() ? 'vela_demo_m_session' : _SES_KEY; }
 const SES = {
+  _read(){ try { return JSON.parse(localStorage.getItem(_sesKey()) || 'null'); } catch(e){ return null; } },
+  _write(s){ try { if(s) localStorage.setItem(_sesKey(), JSON.stringify(s)); else localStorage.removeItem(_sesKey()); } catch(e){} },
   get(){
-    const s = DB.get('settings','active_session');
+    const s = this._read();
     if(!s) return null;
-    if(!s.shift || !s.worker?.id || !s.equipment?.id) return null;
+    if(s.userId && SESSION.userId && s.userId !== SESSION.userId) return null;   // 다른 사용자의 세션 — 상속 금지
+    if(!s.shift || !s.worker?.id) return null;
+    if(s.equipment && !s.equipment.id && !s.equipment.name) s.equipment = null;
     return s;
   },
-  set(s){ return DB.set('settings','active_session', s); },
-  clear(){ return DB.set('settings','active_session', {shift:null, worker:null, equipment:null, started:null}); },
+  set(s){ this._write({ ...s, userId: SESSION.userId || s?.userId || null }); return s; },
+  clear(){ this._write(null); },
+  /* 출근 = 현장 세션 시작 (근태 저장 0 — GPT §7) · 설비는 QR 로 결정되므로 null */
+  clockIn({ shift, worker }){ const s = { userId: SESSION.userId || null, shift, worker, equipment: null, started: Date.now() }; this._write(s); return s; },
+  setEquipment(eq){ const s = this._read(); if(!s) return null; s.equipment = eq || null; this._write(s); return s; },
+  setShift(shift){ const s = this._read(); if(!s) return null; s.shift = shift; this._write(s); return s; },
+  clockOut(){ this._write(null); },
 };
+/* ★ v0.37.2 — 교대 자동 판정 1벌 (출근 시각 → 설정 교대 시간표 · 자정 넘김 허용) — 세션 화면과 같은 소스 settings/shifts.shifts */
+function sessionShiftList(){
+  return (DB.get('settings','shifts')?.shifts) || [
+    {code:'day', name:'주간', start:'08:00', end:'20:00'},
+    {code:'night', name:'야간', start:'20:00', end:'08:00'},
+  ];
+}
+function shiftAt(ts){
+  const list = sessionShiftList(); if(!list.length) return null;
+  const d = new Date(ts == null ? Date.now() : ts); const cur = d.getHours()*60 + d.getMinutes();
+  const toMin = t => { const [h,m] = String(t||'0:0').split(':').map(Number); return (h||0)*60 + (m||0); };
+  const hit = list.find(sh => { const a = toMin(sh.start), b = toMin(sh.end); return a < b ? (cur >= a && cur < b) : (cur >= a || cur < b); });
+  return hit || list[0];
+}
 
 /* -------------------------------------------------------------------------------------------------
    §기능 플래그 — 2단계 모듈화 (CLAUDE.md §2)
@@ -2824,6 +2919,8 @@ function seedDemoData(){
 
   // ─────────────── 1. 사용자 (자동 로그인 대상) ───────────────
   DB.set('users','U-DEMO', { id:'U-DEMO', name:'데모', pin:'000000', role:'manager', active:true, created_at:now, last_login:null });
+  // ★ v0.37.2 — 현장 작업자 역할 데모 사용자 (이름 = 작업자 마스터 '홍길동' 과 동일 → 출근 화면 이름 자동 매칭 · 데모 게이트에서 로그인 000000 → 즉시 현장 화면)
+  if(!DB.get('users','U-DEMO-W')) DB.set('users','U-DEMO-W', { id:'U-DEMO-W', name:'홍길동', pin:'000000', role:'worker', active:true, created_at:now, last_login:null });
 
   // ─────────────── 2. 거래처 (고객 3 · 소재사 2 · 외주 2) ───────────────
   const vendorsSeed = [
@@ -5584,6 +5681,7 @@ function exportXlsx(rows, sheetName, fileName){
    ------------------------------------------------------------------------------------------------- */
 let _gateKeyHandler = null;
 function renderGate(){
+  attemptRememberedLogin();   // ★ v0.37.2 — 기억된 기기(현장 작업자) 는 토큰 검증 후 자동 진입 (users 스냅샷 도착 시 재시도됨)
   // 좌 패널 회사·버전 표시
   const co = getCompany();
   const nm = document.getElementById('gt-co-name');
@@ -5691,6 +5789,7 @@ function renderPinPad(){
         <button type="button" class="pw-toggle" id="gt-pw-toggle" aria-label="비밀번호 표시/숨김" title="비밀번호 표시/숨김">👁</button>
       </div>
       <div class="pw-err" id="gt-err"></div>
+      <label class="gp-remember"><input type="checkbox" id="gt-remember"> 이 기기에서 자동 로그인 <span class="dim">(현장 작업자만 · 공용 폰이면 끄기)</span></label>
       <button type="submit" class="gp-login-btn" id="gt-login">로그인</button>
       <div class="pw-hint">초기 비밀번호 <b style="color:var(--cyan)">000000</b> · 첫 로그인 시 새 정책으로 변경</div>
     </form>
@@ -5742,6 +5841,12 @@ function renderPinPad(){
         openForcePwChange(cand, { reason });
         return;
       }
+      // ★ v0.37.2 — 「이 기기에서 자동 로그인」: 현장 작업자만 · 비밀번호 검증 성공 직후 1회 토큰 발급
+      const rememberEl = document.getElementById('gt-remember');
+      if(rememberEl?.checked){
+        if(cand.role === 'worker'){ try { await rememberLogin(cand); } catch(e){ console.warn('[VELA] rememberLogin 실패', e); } }
+        else toast('자동 로그인은 현장 작업자 역할에서만 켤 수 있습니다','warn',3200);
+      }
       showRecognition(cand);
     } catch(e){
       console.error('[VELA] login error', e);
@@ -5766,7 +5871,7 @@ function showRecognition(u){
   const isVendor = u.role === 'vendor';
   const isMgr    = u.role === 'manager';
   const badgeCls = isVendor ? 'vd' : (isMgr ? 'mgr' : 'op');
-  const badgeTxt = isVendor ? '개발자(JUNS)' : (isMgr ? '관리책임자' : '일반');
+  const badgeTxt = isVendor ? '개발자(JUNS)' : (isMgr ? '관리책임자' : u.role === 'worker' ? '현장 작업자' : '일반');   // ★ v0.37.2
   document.getElementById('pin-box').innerHTML = `
     <div class="reco-card">
       <div class="rc-ic">${ico('check')}</div>
@@ -5900,7 +6005,8 @@ function onDemoClick(){
 }
 /* ★ v0.22.0 — 데모 체험 진입/자동 시드/자동 로그인/종료 (분기는 부팅·게이트만)
    ★ v0.22.3 — 원자화: 플래그 set/remove 후 즉시 reload · 실모드 로컬 키(vela_device_code / vela_theme /
-      vela_mes_db_v1 / vela_backend_config) 는 절대 건드리지 않음 · 재부팅 후 부팅 자가 점검이 잔재 검증. */
+      vela_mes_db_v1 / vela_backend_config / vela_m_session / vela_remember — v0.37.2) 는 절대 건드리지 않음 · 재부팅 후 부팅 자가 점검이 잔재 검증.
+      데모 세션은 별도 키 vela_demo_m_session (데모 종료 후 잔재는 무해 — 데모 재진입 시 userId 검증). */
 function enterDemoMode(){
   try { localStorage.setItem(_DEMO_FLAG_KEY, '1'); } catch(e){ console.warn('[VELA] enterDemoMode 플래그 저장 실패', e); }
   // 배지 즉시 노출(재부팅 전 시각 잔재 방지 · 실키에는 아무 것도 쓰지 않음)
@@ -5923,7 +6029,7 @@ function resetDemoData(){
 // 데모 자동 로그인 — 데모 사용자('데모' manager) 진입. 없으면 seedDemoData() 가 만든다.
 /* ★ v0.32.6 — 데모 시드 버전 (시드 확장 시 +1 → 기존 데모 저장소도 자동 보강 — 수동 초기화 불필요)
    seedDemoData 는 고정 id 멱등이라 재실행해도 중복·유실 없음 (LOT 는 존재 가드 · DB.set 동일값 덮어씀). */
-const DEMO_SEED_VER = 6;
+const DEMO_SEED_VER = 7;   // ★ v0.37.2 — 현장 작업자 데모 사용자 추가
 function autoLoginDemo(){
   let u = DB.query('users', x => x.name === '데모')[0];
   if(!u){
@@ -5953,6 +6059,11 @@ function autoLoginDemo(){
     u = { id:'U-DEMO', name:'데모', pin:'000000', role:'manager', active:true, created_at:Date.now(), last_login:null };
     DB.set('users', u.id, u);
   }
+  // ★ v0.37.2 — 데모에서도 「이 기기에서 자동 로그인」 시연: 기억된 현장 작업자가 토큰 검증을 통과하면 '데모' 대신 그 사용자로 진입
+  if(getRememberedLogin()){
+    tryRememberedLogin().then(w => enterAsUser(w || u)).catch(() => enterAsUser(u));
+    return;
+  }
   enterAsUser(u);
 }
 
@@ -5981,7 +6092,9 @@ function getUserPerm(userId, pageId){
 function currentPagePerm(){
   if(typeof SESSION === 'undefined' || !SESSION.loggedIn) return 'edit';
   if(SESSION.role === 'manager' || SESSION.role === 'vendor') return 'edit';
-  return getUserPerm(SESSION.userId, (location.hash||'#dash').replace('#',''));
+  const h = (location.hash||'#dash').replace('#','');
+  // ★ v0.37.2 — 현장 화면(#m/*) = 실적 등록 메뉴(scan) 의 권한을 그대로 적용 (view 면 DB.set 가드가 폰 실적 등록도 차단 · v0.37.0 누락 보정)
+  return getUserPerm(SESSION.userId, (h === 'm' || h.startsWith('m/')) ? 'scan' : h);
 }
 let _permToastTs = 0;
 function _permBlockWrite(col){
@@ -6117,6 +6230,7 @@ function router(){
   if(!SESSION.loggedIn) return;
   // ★ v0.37.0 — Mobile Shop Floor: #m/ 접두 = 별도 UI 아키텍처 (같은 원장·같은 규칙 · PC 화면 무변)
   if(isMobileHash()){ mobileRouter(); return; }
+  if(isWorkerRole()){ location.hash = '#m/home'; return; }   // ★ v0.37.2 — 현장 작업자 = 역할상 현장 화면 (PC 해시 직접 접근도 현장으로 · hashchange 가 다시 router 호출)
   document.getElementById('app').classList.remove('m-mode');
   const id = (location.hash||'#dash').replace('#','');
   // ★ v0.15.2 — MANAGER_ONLY 직접 hash 접근 차단 (v0.15.4 — vendor 도 허용)
@@ -6251,7 +6365,7 @@ function renderUserPill(){
   const isMgr = SESSION.role === 'manager';
   const name  = SESSION.user || '';
   const roleCls = isVendor ? 'vd' : (isMgr ? 'mgr' : 'op');
-  const roleTxt = isVendor ? '개발자' : (isMgr ? '관리책임자' : '일반');
+  const roleTxt = isVendor ? '개발자' : (isMgr ? '관리책임자' : SESSION.role === 'worker' ? '현장 작업자' : '일반');   // ★ v0.37.2
   document.getElementById('up-name').textContent = name;
   const bd = document.getElementById('up-badge');
   bd.textContent = roleTxt;
@@ -6279,6 +6393,7 @@ function doLogout(){
   document.getElementById('lg-ok').onclick = ()=>doLogoutNow();
 }
 function doLogoutNow(){
+  clearRememberedLogin();   // ★ v0.37.2 — 명시적 로그아웃 = 이 기기 자동 로그인도 해제 (서버 해시는 관리자 [기기 해제] 또는 다음 로그인 때 교체)
   SESSION.userId  = null;
   SESSION.user    = 'OP-001';    // DB._logs.by 초기값과 일치 (로그아웃 상태의 시스템 조작 로그)
   SESSION.role    = null;
@@ -7190,10 +7305,7 @@ VIEWS.scan = () => {
 
 /* ============== 세션 설정 화면 ============== */
 function renderSessionSetup(prefill){
-  const shifts = (DB.get('settings','shifts')?.shifts) || [
-    {code:'day', name:'주간', start:'08:00', end:'20:00'},
-    {code:'night', name:'야간', start:'20:00', end:'08:00'},
-  ];
+  const shifts = sessionShiftList();   // ★ v0.37.2 — 1벌 (shiftAt 와 같은 소스)
   const workers = DB.all('workers').filter(w=>w.active!==false);
   // ★ v0.16.7 — 설비 목록 소스: equipments 마스터 우선 + 기존 equipment 컬렉션 폴백 (렌더 로직 불변)
   const eqs = buildEquipmentList();
@@ -7401,10 +7513,10 @@ function renderSessionSetup(prefill){
     if(!eqQr) eqQr = new Html5Qrcode("qr-reader-eq");
     eqQr.start({facingMode:'environment'}, {fps:10, qrbox:200},
       txt=>{
-        const e = DB.get('equipment', txt.trim()) || DB.all('equipment').find(x=>x.qr===txt.trim() || x.name===txt.trim());
+        const e = matchEquipmentQr(txt);   // ★ v0.37.2 — 설비 QR 매칭 1벌
         if(e){
           scanFeedback();
-          sel.equipment = {id:e.id, name:e.name, proc:e.proc, hourly_capa:e.hourly_capa};
+          sel.equipment = e;
           stopEqQR();
           toast(`설비: ${e.name}`,'ok');
           render();
@@ -7501,7 +7613,7 @@ function renderScanPhone(session){
             : `<div id="qr-reader" style="width:100%;height:100%"></div>
                <div class="cam-corner c1"></div><div class="cam-corner c2"></div><div class="cam-corner c3"></div><div class="cam-corner c4"></div>
                <div class="cam-scanline"></div>
-               <div class="cam-txt">${parsed? `<span style="color:var(--cyan);font-weight:700">${parsed.plot_no}</span> 판정완료` : '작업지시서 QR을 비추세요'}</div>`
+               <div class="cam-txt">${parsed? `<span style="color:var(--cyan);font-weight:700">${parsed.plot_no}</span> 판정완료` : (isMobileHash() ? '작업지시서 QR 또는 설비 QR을 비추세요' : '작업지시서 QR을 비추세요')}</div>`
           }
         </div>
 
@@ -7555,7 +7667,8 @@ function renderScanPhone(session){
     // 이벤트
     document.getElementById('btn-change-sess').onclick = ()=>{
       stopCam();
-      renderSessionSetup(session);  // 기존 값 prefill
+      if(isMobileHash()){ location.hash = '#m/more'; router(); return; }   // ★ v0.37.2 — 현장 모드: 교대 변경·퇴근은 더보기에서 (설비는 QR 로)
+      renderSessionSetup(session);  // 기존 값 prefill (PC 실적 등록)
     };
     document.getElementById('sw-cont').onclick = (e)=>{
       continuous = !continuous;
@@ -7613,6 +7726,11 @@ function renderScanPhone(session){
 
   function applyParsed(p){
     parsed = p;
+    // ★ v0.37.2 — 현장 모드: QR 성공 = 현재 설비 결정 (QR 설비 > WO 계획 설비 > 유지) · 단말 로컬 세션에만 저장 (원장 무변)
+    if(isMobileHash()){
+      const eq = resolveScanEquipment(p, session);
+      if(eq && (eq.name !== session.equipment?.name)){ SES.setEquipment(eq); session.equipment = eq; toast(`현재 설비: ${eq.name}`,'ok'); }
+    }
     bal = LOT.balance(p.plot_no, p.proc);
     qval = ''; qreason = '';
     render();
@@ -7699,6 +7817,11 @@ function renderScanPhone(session){
       html5Qr.start({facingMode:'environment'}, {fps:10, qrbox:240},
         txt=>{
           try {
+            // ★ v0.37.2 — 현장 모드: 설비 QR 도 여기서 인식 → 현재 설비만 갱신 (작업지시 QR 과 같은 카메라 · 기존 설비 QR 매칭 규칙 재사용)
+            if(isMobileHash()){
+              const eqDoc = matchEquipmentQr(txt);
+              if(eqDoc){ scanFeedback(); session.equipment = SES.setEquipment(eqDoc)?.equipment || eqDoc; toast(`현재 설비: ${eqDoc.name}`,'ok'); location.hash = '#m/home'; router(); return; }
+            }
             const p = parseQRPayload(txt);
             scanFeedback();
             if(html5Qr) html5Qr.pause(true);
@@ -7742,13 +7865,16 @@ function renderScanPhone(session){
              ⑤ 완료 시 화면 수량을 신뢰하지 않는다 — 기존 write path(LOT.registerRecord) 가 현재 원장으로 재검증.
    금지(지시서 §22): PC 화면 CSS 모바일화 · 모바일 전용 DB/계산/write path · 다음 공정 실적 자동 생성 · 관리자 승인 우회 · 알림 남발.
    ================================================================================================= */
-const M_UI_KEY = 'vela_ui_mode';   // 단말 취향(DB 밖 · §1-7): 'mobile' | 'pc' | 없음(자동)
+const M_UI_KEY = 'vela_ui_mode';   // 단말 취향(DB 밖 · §1-7): 'mobile' = 관리자·일반이 수동으로 현장 화면을 켠 상태 (현장 작업자에겐 무의미)
+/* ★ v0.37.2 — 진입 = 역할 기반 (GPT §2 · 기기 추측형 제거)
+   현장 작업자(role 'worker') = 역할상 현장 화면으로 들어오는 사람 → 항상 true (전환 개념 없음)
+   일반·관리책임자·개발자 = PC 기본 · 하단 「📱 현장 모드」 로 켠 경우(vela_ui_mode='mobile')만 현장 화면
+   금지: 터치·화면 폭 등 기기 특성만으로 역할/화면을 결정하지 않는다 */
+function isWorkerRole(){ return SESSION.role === 'worker'; }
 function mobileEntryDefault(){
+  if(isWorkerRole()) return true;
   let pref = null; try { pref = localStorage.getItem(M_UI_KEY); } catch(e){}
-  if(pref === 'mobile') return true;
-  if(pref === 'pc') return false;
-  if(SESSION.role === 'manager' || SESSION.role === 'vendor') return false;   // 관리자·개발자 = PC 기본 (수동 전환 가능)
-  try { return !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches) && window.innerWidth <= 768; } catch(e){ return false; }
+  return pref === 'mobile';
 }
 function setUiMode(mode){ try { if(mode) localStorage.setItem(M_UI_KEY, mode); else localStorage.removeItem(M_UI_KEY); } catch(e){} }
 function isMobileHash(h){ h = h == null ? (location.hash||'') : h; return h === '#m' || h.startsWith('#m/'); }
@@ -7831,9 +7957,70 @@ function mobileRouter(){
   }
   document.getElementById('app').classList.add('m-mode');
   const session = SES.get();
-  if(!session && page !== 'more'){ renderSessionSetup(); document.getElementById('view').insertAdjacentHTML('beforeend', mobileTabs(page)); return; }   // 기존 세션 화면 재사용 (이미 모바일 UI)
+  if(!session && page !== 'more'){ VIEWS.m_clockin(); return; }   // ★ v0.37.2 — 세션 없음 = 출근 화면 (교대·작업자·설비 3단 설정 대신 · 설비는 QR 로)
   const fn = { home: VIEWS.m_home, job: VIEWS.m_job, run: VIEWS.m_run, done: VIEWS.m_done, check: VIEWS.m_check, scan: VIEWS.m_scan, more: VIEWS.m_more }[page] || VIEWS.m_home;
   fn(session, parts.slice(1));
+}
+/* ★ v0.37.2 — 출근 (M00) = 현장 세션 시작 (GPT §7) — 근태 저장 0 · 설비 고정 0
+   이름 = 로그인 사용자 → workers 이름 매칭(기존 세션 화면 규칙 · users↔workers 통합 아님) · 안 맞으면 작업자 목록 1탭(마스터 신설 0 · 사용자 판정)
+   교대 = shiftAt(지금) 자동 판정 · 칩 한 번 탭으로 변경 (records.shift 데이터는 그대로 — GPT §6) */
+VIEWS.m_clockin = () => {
+  const shifts = sessionShiftList();
+  const workers = DB.all('workers').filter(w => w.active !== false);
+  const toW = w => ({ id:w.id, name:w.name, emp_no:w.emp_no, dept:w.dept });
+  const matched = workers.find(w => w.name === SESSION.user) || null;
+  let sel = { shift: shiftAt(Date.now()), worker: matched ? toW(matched) : null };
+  let pick = !matched;   // 이름 불일치 → 목록 1탭
+  const render = () => {
+    mobileShell('home', `
+      <div class="m-clock">
+        <div class="m-clock-hi">안녕하세요, <b>${_esc(SESSION.user||'')}</b> 님</div>
+        <div class="m-clock-sub">${sel.worker ? `작업자 <b>${_esc(sel.worker.name)}</b>${sel.worker.emp_no?` <span class="mono dim">${_esc(sel.worker.emp_no)}</span>`:''}` : '작업자 마스터에 같은 이름이 없습니다 — 본인을 선택하세요'}</div>
+        ${pick ? `<div class="m-list">${workers.length ? workers.map(w => `<button type="button" class="m-list-it ${sel.worker?.id===w.id?'on':''}" data-w="${_esc(w.id)}"><b>${_esc(w.name)}</b><span class="dim">${_esc(w.emp_no||'')}${w.dept?` · ${_esc(w.dept)}`:''}</span></button>`).join('') : `<div class="m-empty">등록된 작업자가 없습니다 — 관리책임자에게 작업자 등록을 요청하세요</div>`}</div>` : `<a class="m-link center" id="m-ci-other" href="#">다른 작업자로 출근</a>`}
+        <div class="m-sec">오늘 근무</div>
+        <div class="m-seg">${shifts.map(sh => `<button type="button" class="m-seg-btn ${sel.shift?.code===sh.code?'on':''}" data-sh="${_esc(sh.code)}">${_esc(sh.name)}<small>${_esc(sh.start||'')}~${_esc(sh.end||'')}</small></button>`).join('')}</div>
+        <div class="m-clock-note">교대는 지금 시각으로 자동 선택됐습니다 · 다르면 탭해서 바꾸세요</div>
+        <button class="m-btn primary" id="m-ci-go" ${sel.worker && sel.shift ? '' : 'disabled'}>출근 · 업무 시작</button>
+        <div class="m-clock-note">출근 후 작업지시 QR 을 찍으면 그 설비의 작업이 표시됩니다</div>
+        ${!isWorkerRole() ? `<button class="m-btn ghost" id="m-ci-pc">🖥 PC 화면으로</button>` : ''}
+        <button class="m-btn ghost" id="m-ci-logout">로그아웃</button>
+      </div>
+    `);
+    document.querySelectorAll('[data-w]').forEach(b => b.onclick = () => { const w = workers.find(x => x.id === b.dataset.w); if(w){ sel.worker = toW(w); pick = false; render(); } });
+    document.querySelectorAll('[data-sh]').forEach(b => b.onclick = () => { sel.shift = shifts.find(s => s.code === b.dataset.sh) || sel.shift; render(); });
+    const other = document.getElementById('m-ci-other'); if(other) other.onclick = e => { e.preventDefault(); pick = true; render(); };
+    document.getElementById('m-ci-go').onclick = () => {
+      if(!sel.worker || !sel.shift) return;
+      SES.clockIn({ shift: { code: sel.shift.code, name: sel.shift.name }, worker: sel.worker });
+      toast(`출근 — ${sel.shift.name} · ${sel.worker.name}`, 'ok');
+      location.hash = '#m/home'; router();
+    };
+    const pc = document.getElementById('m-ci-pc'); if(pc) pc.onclick = () => { setUiMode('pc'); document.getElementById('app').classList.remove('m-mode'); renderNav(); location.hash = '#dash'; };
+    document.getElementById('m-ci-logout').onclick = () => doLogout();
+  };
+  render();
+};
+/* ★ v0.37.2 — 퇴근 = 세션 종료 (근태 저장 0) · 「이 기기 기억」 유지 여부 선택 (공용 폰 대응 · GPT §11) */
+function mobileClockOut(){
+  const rem = getRememberedLogin();
+  openModal(`
+    <h2>퇴근 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div>오늘 작업을 마치고 세션을 종료합니다. 등록한 실적은 그대로 남습니다.</div>
+      ${rem ? `<label class="m-chk"><input type="checkbox" id="m-co-keep" checked> 이 기기에 <b>${_esc(SESSION.user||'')}</b> 로그인 기억 유지 <span class="dim">(공용 폰이면 해제)</span></label>` : ''}
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="m-co-ok">퇴근 · 세션 종료</button>
+      </div>
+    </div>`);
+  document.getElementById('m-co-ok').onclick = () => {
+    const keep = document.getElementById('m-co-keep')?.checked !== false;
+    SES.clockOut();
+    closeModal();
+    if(rem && !keep){ clearRememberedLogin(); doLogoutNow(); return; }   // 기억 해제 = 게이트로
+    toast('퇴근 — 수고하셨습니다', 'ok');
+    location.hash = '#m/home'; router();   // 세션 없음 → 출근 화면 (다음 출근 때 다시 시작)
+  };
 }
 /* M01 홈 / 내 작업 */
 VIEWS.m_home = (session) => {
@@ -7843,10 +8030,11 @@ VIEWS.m_home = (session) => {
       <div class="m-row1"><b>${_esc(j.procName)}</b> · ${_esc(j.itemCode)} ${_esc(j.itemName)}</div>
       <div class="m-row2"><span class="mono">${_esc(j.plot_no)}</span> · ${M_LABEL.avail} <b class="mono">${j.avail.toLocaleString()}</b> EA${j.pending?` · <span class="amber">${M_LABEL.pending} ${j.pending.toLocaleString()}</span>`:''}${j.ncPending?` · <span class="amber">품질 판정 대기</span>`:''}${j.late?` · <span class="red">납기 지남</span>`:''}</div>
     </a>`;
+  const eqName = session.equipment?.name || '';
   mobileShell('home', `
-    <div class="m-head"><div><b>${_esc(session.worker?.name||'')}</b> · ${_esc(session.shift?.name||'')} · <b>${_esc(session.equipment?.name||'')}</b></div><a href="#m/more" class="m-link">교대</a></div>
+    <div class="m-head"><div><b>${_esc(session.worker?.name||'')}</b> · ${_esc(session.shift?.name||'')} · <b>${eqName ? _esc(eqName) : '<span class="dim">설비 없음</span>'}</b></div><a href="#m/more" class="m-link">더보기</a></div>
     <div class="m-strip"><a href="#m/home" class="m-stat blue"><span>내 작업</span><b>${jobs.length}</b></a><a href="#m/check" class="m-stat ${attention.length?'red':''}"><span>확인 필요</span><b>${attention.length}</b></a></div>
-    ${now ? `<div class="m-sec">지금 할 작업</div>
+    ${!eqName ? `<div class="m-empty m-noeq"><div class="m-noeq-t">현재 작업 설비가 없습니다</div><a class="m-btn primary" href="#m/scan">🔍 QR 스캔</a><div class="sub">작업지시 QR 을 스캔하면 해당 설비의<br>작업 가능 작업이 표시됩니다</div></div>` : now ? `<div class="m-sec">지금 할 작업</div>
       <div class="m-now">
         <div class="m-row1"><b>${_esc(now.procName)}</b> · ${_esc(now.itemCode)} ${_esc(now.itemName)}</div>
         <div class="m-big"><span class="mono">${_esc(now.plot_no)}</span></div>
@@ -7855,9 +8043,9 @@ VIEWS.m_home = (session) => {
         ${mobileStatusBanners(now.plot_no, now.proc)}
         <a class="m-btn primary" href="#m/run/${encodeURIComponent(now.plot_no)}/${encodeURIComponent(now.proc)}">작업 시작</a>
         <a class="m-link center" href="#m/job/${encodeURIComponent(now.plot_no)}/${encodeURIComponent(now.proc)}">상세 보기</a>
-      </div>` : `<div class="m-empty">이 설비에 배정된 작업이 없습니다<div class="sub">계획/작업지시에서 설비 <b>${_esc(session.equipment?.name||'')}</b> 로 배정되면 여기 나타납니다 · QR 스캔으로도 등록할 수 있습니다</div></div>`}
+      </div>` : `<div class="m-empty">이 설비에 배정된 작업이 없습니다<div class="sub">계획/작업지시에서 설비 <b>${_esc(eqName)}</b> 로 배정되면 여기 나타납니다 · QR 스캔으로도 등록할 수 있습니다</div></div>`}
     ${rest.length ? `<div class="m-sec">다음 작업</div>${rest.map(card).join('')}` : ''}
-    <a class="m-btn ghost" href="#m/scan">🔍 QR 스캔</a>
+    ${eqName ? `<a class="m-btn ghost" href="#m/scan">🔍 QR 스캔</a>` : ''}
   `);
 };
 /* M02 작업 상세 */
@@ -7879,7 +8067,7 @@ VIEWS.m_job = (session, [plot_no, proc]) => {
       <div class="m-kv"><span>지시수량</span><b class="mono">${(+wo?.qty||+lot.qty_initial||0).toLocaleString()} EA</b>${wo?` <span class="dim mono">${_esc(wo.id)}</span>`:''}</div>
       <div class="m-kv big"><span>${M_LABEL.avail}</span><b class="mono">${avail.toLocaleString()} EA</b></div>
       ${so?`<div class="m-kv"><span>납기</span><b>${_esc(so.due||'—')}</b>${so.cust?` <span class="dim">${_esc(DB.get('vendors', so.cust)?.name||so.cust)}</span>`:''}</div>`:''}
-      <div class="m-kv"><span>설비</span><b>${_esc(session.equipment?.name||'')}</b>${wo?.plan_eq?.[proc]?` <span class="dim">계획 ${_esc(wo.plan_eq[proc])}</span>`:''}</div>
+      <div class="m-kv"><span>설비</span><b>${_esc(session.equipment?.name||'—')}</b>${wo?.plan_eq?.[proc]?` <span class="dim">계획 ${_esc(wo.plan_eq[proc])}</span>`:''}</div>
       ${(lot.heat_nos||[]).length?`<div class="m-kv"><span>소재 heat</span><b class="mono">${_esc(lot.heat_nos.join(', '))}</b></div>`:''}
     </div>
     ${held ? `<button class="m-btn primary" disabled>작업 시작 (HOLD — 판정 전 불가)</button>` : avail > 0 ? `<a class="m-btn primary" href="#m/run/${encodeURIComponent(plot_no)}/${encodeURIComponent(proc)}">작업 시작</a>` : `<button class="m-btn primary" disabled>이 공정 ${M_LABEL.avail} 0</button>`}
@@ -7891,7 +8079,29 @@ VIEWS.m_job = (session, [plot_no, proc]) => {
     </details>
   `);
 };
-/* 폰 실적 payload 1벌 (기존 doRegister 와 동일 규칙 — 세션 설비 > QR 설비 > WO 계획 설비 > 공정 기본 설비) */
+/* ★ v0.37.2 — 현재 설비 결정 1벌 (GPT §5 · 계산 아님 — 기존 폴백 순서를 함수로 묶은 것)
+   ① QR 의 설비(parsed.eq) ② work_orders(plot).plan_eq[proc] ③ 둘 다 없으면 현재 설비 유지(있으면) · 없으면 null
+   설비 객체 = buildEquipmentList() 항목({id,name,proc,…}) · 이름만 있고 목록에 없으면 {id:name,name} */
+function equipmentByName(name){
+  if(!name) return null;
+  const hit = buildEquipmentList().find(e => e.name === name || e.id === name);
+  return hit ? { id: hit.id, name: hit.name, proc: hit.proc, hourly_capa: hit.hourly_capa } : { id: name, name, proc: null };
+}
+function resolveScanEquipment(parsed, session){
+  const wo = DB.query('work_orders', w => w.plot_no === parsed.plot_no)[0];
+  const name = parsed.eq || wo?.plan_eq?.[parsed.proc] || '';
+  if(name) return equipmentByName(name);
+  return session?.equipment || null;
+}
+/* 설비 QR 매칭 1벌 (세션 설정 화면의 설비 QR 과 같은 규칙: equipment 문서 id / qr / name) */
+function matchEquipmentQr(txt){
+  const t = String(txt||'').trim(); if(!t) return null;
+  const e = DB.get('equipment', t) || DB.all('equipment').find(x => x.qr === t || x.name === t);
+  if(!e) return null;
+  return { id: e.id, name: e.name, proc: e.proc, hourly_capa: e.hourly_capa };
+}
+/* 폰 실적 payload 1벌 (기존 doRegister 와 동일 규칙 — 세션 설비 > QR 설비 > WO 계획 설비 > 공정 기본 설비)
+   ★ v0.37.2 — 세션 설비 = 마지막 QR 설비(현재 설비) · 없으면 기존 폴백 그대로 */
 function buildPhonePayload(session, parsed, qtype, v, qreason){
   const procObj = DB.get('processes', parsed.proc);
   const _woForLot = DB.query('work_orders', w => w.plot_no === parsed.plot_no)[0];
@@ -7977,7 +8187,7 @@ VIEWS.m_done = (session, [plot_no, proc, recId]) => {
 VIEWS.m_check = (session) => {
   const { attention } = mobileJobs(session);
   mobileShell('check', `
-    <div class="m-title">확인 필요 <span class="dim">${attention.length}건 · 설비 ${_esc(session.equipment?.name||'')}</span></div>
+    <div class="m-title">확인 필요 <span class="dim">${attention.length}건 · ${session.equipment?.name ? `설비 ${_esc(session.equipment.name)}` : '설비 없음 — QR 스캔 후 표시'}</span></div>
     ${attention.length ? attention.map(j => `<a class="m-card" href="#m/job/${encodeURIComponent(j.plot_no)}/${encodeURIComponent(j.proc)}">
       <div class="m-row1">${j.held ? '🔴 품질 HOLD' : j.ncPending ? '🟡 품질 판정 대기' : j.ciOpen ? `⚠ ${M_LABEL.pending} ${j.pending.toLocaleString()} EA` : '⏰ 납기 지남'} · <b>${_esc(j.procName)}</b></div>
       <div class="m-row2"><span class="mono">${_esc(j.plot_no)}</span> · ${_esc(j.itemCode)} ${_esc(j.itemName)} · ${M_LABEL.avail} <b class="mono">${j.avail.toLocaleString()}</b> EA</div>
@@ -7999,22 +8209,27 @@ VIEWS.m_more = (session) => {
   mobileShell('more', `
     <div class="m-title">더보기</div>
     <div class="m-card static">
-      <div class="m-kv"><span>작업자</span><b>${_esc(session?.worker?.name||'—')}</b></div>
-      <div class="m-kv"><span>교대 · 설비</span><b>${_esc(session?.shift?.name||'—')} · ${_esc(session?.equipment?.name||'—')}</b></div>
+      <div class="m-kv"><span>작업자</span><b>${_esc(session?.worker?.name||'—')}</b>${session?.started?` <span class="dim">출근 ${new Date(session.started).toTimeString().slice(0,5)}</span>`:''}</div>
+      <div class="m-kv"><span>교대 · 현재 설비</span><b>${_esc(session?.shift?.name||'—')} · ${_esc(session?.equipment?.name||'없음 (QR 로 결정)')}</b></div>
       <div class="m-kv"><span>오늘 내 실적</span><b class="mono">${mine.length}건 · 양품 ${good.toLocaleString()}${def?` · 불량 ${def.toLocaleString()}`:''}</b></div>
     </div>
-    <button class="m-btn ghost" id="m-sess">교대 · 설비 변경</button>
+    ${session ? `<div class="m-card static" style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:13px;color:var(--sub)">오늘 근무 <span class="dim">— 실적에 기록되는 교대</span></div>
+      <div class="m-seg">${sessionShiftList().map(sh => `<button type="button" class="m-seg-btn ${session.shift?.code===sh.code?'on':''}" data-shift-pick="${_esc(sh.code)}">${_esc(sh.name)}<small>${_esc(sh.start||'')}~${_esc(sh.end||'')}</small></button>`).join('')}</div>
+    </div>
+    <button class="m-btn ghost" id="m-clockout">퇴근 · 세션 종료</button>` : `<a class="m-btn primary" href="#m/home">출근</a>`}
     <div class="m-card static" style="display:flex;flex-direction:column;gap:10px">
       <div style="font-size:13px;color:var(--sub)">화면 모드 <span class="dim">— 이 폰에만 저장</span></div>
       <div class="m-seg">${[['auto','◐ 자동','폰 설정 따름'],['light','☀ 밝게',''],['dark','🌙 어둡게','']].map(([v,l,sub]) => `<button type="button" class="m-seg-btn ${getThemePref()===v?'on':''}" data-theme-pick="${v}">${l}${sub?`<small>${sub}</small>`:''}</button>`).join('')}</div>
     </div>
-    <button class="m-btn ghost" id="m-pc">🖥 PC 화면으로</button>
+    ${!isWorkerRole() ? `<button class="m-btn ghost" id="m-pc">🖥 PC 화면으로</button>` : ''}
     <button class="m-btn ghost" id="m-logout">로그아웃</button>
     <div class="m-foot">VELA MES SYSTEM · ${APP_VERSION} · MADE BY JUNS</div>
   `);
-  document.getElementById('m-sess').onclick = () => { renderSessionSetup(session || undefined); document.getElementById('view').insertAdjacentHTML('beforeend', mobileTabs('more')); };
+  document.querySelectorAll('[data-shift-pick]').forEach(b => b.onclick = () => { const sh = sessionShiftList().find(s => s.code === b.dataset.shiftPick); if(!sh) return; SES.setShift({ code: sh.code, name: sh.name }); toast(`오늘 근무: ${sh.name}`, 'ok'); router(); });   // ★ v0.37.2 — 교대 한 번 탭 (records.shift 는 그대로)
+  const co = document.getElementById('m-clockout'); if(co) co.onclick = () => mobileClockOut();
   document.querySelectorAll('[data-theme-pick]').forEach(b => b.onclick = () => { applyTheme(b.dataset.themePick); toast(b.dataset.themePick === 'auto' ? `화면 모드: 폰 설정 따름 (지금 ${getTheme()==='dark'?'어둡게':'밝게'})` : `화면 모드: ${b.dataset.themePick==='dark'?'어둡게':'밝게'}`, 'ok'); });   // ★ v0.37.1
-  document.getElementById('m-pc').onclick = () => { setUiMode('pc'); document.getElementById('app').classList.remove('m-mode'); renderNav(); location.hash = '#dash'; };
+  const pc = document.getElementById('m-pc'); if(pc) pc.onclick = () => { setUiMode('pc'); document.getElementById('app').classList.remove('m-mode'); renderNav(); location.hash = '#dash'; };
   document.getElementById('m-logout').onclick = () => doLogout();
 };
 
@@ -23245,7 +23460,8 @@ VIEWS.set = () => {
       </table></div>
       <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;line-height:1.7;flex:1;min-width:280px">
-          <b style="color:var(--amber)">가드</b> 관리책임자 최소 1명 유지 — 마지막 관리책임자는 퇴사·강등 불가(후임 승격 먼저). 물리 삭제 없음: 퇴사=비활성(increment-only, 과거 실적 이력 보존·재활성 가능). 비밀번호 평문 비노출 · 이름은 식별자이므로 <b>동명이인 등록 불가</b> · 분실 시 [PIN 재설정]으로 000000 초기화.
+          <b style="color:var(--amber)">가드</b> 관리책임자 최소 1명 유지 — 마지막 관리책임자는 퇴사·강등 불가(후임 승격 먼저). 물리 삭제 없음: 퇴사=비활성(increment-only, 과거 실적 이력 보존·재활성 가능). 비밀번호 평문 비노출 · 이름은 식별자이므로 <b>동명이인 등록 불가</b> · 분실 시 [PIN 재설정]으로 000000 초기화.<br>
+          <b style="color:var(--cyan)">현장 작업자</b>(v0.37.2) = 로그인하면 바로 현장 화면(출근 → QR → 실적) · 권한은 일반과 동일 · 이름을 작업자 마스터와 같게 등록하면 출근 화면에서 자동 매칭 · 📱 = 자동 로그인이 켜진 기기 수([기기 해제]로 전부 해제).
         </div>
         <button class="btn primary" id="usr-add">${ico('plus')}사용자 등록</button>
       </div>
@@ -23965,6 +24181,17 @@ VIEWS.set = () => {
       closeModal(); renderUsers();
     };
   }
+  /* ★ v0.37.2 — 역할 3택 1벌: operator(일반 · PC) / worker(현장 작업자 · 로그인 즉시 현장 화면) / manager(관리책임자)
+     worker 의 권한 = operator 와 동일(메뉴별 none/view/edit 그대로) — 다른 것은 기본 진입 화면뿐 (GPT §2) */
+  const rolePicker = (id, cur) => `
+      <div style="background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:12px 14px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px">역할</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">
+          ${[['operator','일반','PC 화면 · 실적 등록·조회 (권한은 [권한] 에서)'],['worker','현장 작업자','로그인하면 바로 현장 화면 (출근 → QR → 실적) · 권한은 일반과 동일'],['manager','관리책임자','설정 · 기준정보 · 사용자 관리 접근']].map(([v,l,d]) => `
+          <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="radio" name="${id}" value="${v}" ${(cur||'operator')===v?'checked':''} style="margin-top:3px"><span><b>${l}</b><br><span style="color:var(--dim);font-size:11px">${d}</span></span></label>`).join('')}
+        </div>
+      </div>`;
+  const pickedRole = id => document.querySelector(`[name="${id}"]:checked`)?.value || 'operator';
   function renderUsers(){
     const users = DB.all('users').sort((a,b)=>{
       const aa = a.active !== false, ba = b.active !== false;
@@ -23977,7 +24204,8 @@ VIEWS.set = () => {
       const isMgr  = u.role === 'manager';
       const badge  = !active
         ? `<span class="pill gray">퇴사</span>`
-        : (isMgr ? `<span class="pill amber">관리책임자</span>` : `<span class="pill gray">일반</span>`);
+        : (isMgr ? `<span class="pill amber">관리책임자</span>` : u.role === 'worker' ? `<span class="pill cyan">현장 작업자</span>` : `<span class="pill gray">일반</span>`);
+      const remembered = u.devices && Object.keys(u.devices).length;   // ★ v0.37.2 — 기억된 기기(자동 로그인) 수
       const last = u.last_login ? `${fmtDate(u.last_login)} ${fmtTime(u.last_login)}` : '<span style="color:var(--dim)">—</span>';
       const stateBtn = active
         ? `<button class="btn ghost usr-quit" data-usr-quit="${u.id}">퇴사</button>`
@@ -23985,11 +24213,12 @@ VIEWS.set = () => {
       return `<tr class="${active?'':'usr-off'}">
         <td><b>${_esc(u.name)}</b>${SESSION.userId===u.id?' <span class="pill cyan" style="margin-left:4px">본인</span>':''}</td>
         <td style="font-family:'JetBrains Mono',monospace;color:var(--sub);letter-spacing:3px">••••••</td>
-        <td>${badge}</td>
+        <td>${badge}${remembered ? ` <span class="pill gray" title="자동 로그인이 켜진 기기">📱${remembered}</span>` : ''}</td>
         <td class="muted">${last}</td>
         <td style="text-align:right">
           <div style="display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
             ${!isMgr && active ? `<button class="btn ghost" data-usr-perm="${u.id}" style="color:var(--cyan)">권한</button>` : ''}
+            ${remembered ? `<button class="btn ghost" data-usr-forget="${u.id}" title="기억된 기기의 자동 로그인을 전부 해제">기기 해제</button>` : ''}
             <button class="btn ghost" data-usr-pin="${u.id}">PIN 재설정</button>
             <button class="btn ghost" data-usr-edit="${u.id}">수정</button>
             ${stateBtn}
@@ -23998,6 +24227,7 @@ VIEWS.set = () => {
       </tr>`;
     }).join('') : `<tr><td colspan="5" class="empty">사용자 없음</td></tr>`;
     document.querySelectorAll('[data-usr-perm]').forEach(b=>b.onclick      = ()=>openUserPermModal(b.dataset.usrPerm));
+    document.querySelectorAll('[data-usr-forget]').forEach(b=>b.onclick    = ()=>{ const u = DB.get('users', b.dataset.usrForget); if(!u) return; if(!confirm(`${u.name} 의 기억된 기기 ${Object.keys(u.devices||{}).length}대의 자동 로그인을 해제할까요? (다음 접속부터 비밀번호 필요)`)) return; DB.set('users', u.id, { devices: {} }); toast(`기기 해제 — ${u.name}`,'ok'); renderUsers(); });   // ★ v0.37.2
     document.querySelectorAll('[data-usr-pin]').forEach(b=>b.onclick       = ()=>usrResetPin(b.dataset.usrPin));
     document.querySelectorAll('[data-usr-edit]').forEach(b=>b.onclick      = ()=>usrEdit(b.dataset.usrEdit));
     document.querySelectorAll('[data-usr-quit]').forEach(b=>b.onclick      = ()=>usrQuit(b.dataset.usrQuit));
@@ -24013,13 +24243,7 @@ VIEWS.set = () => {
           <b style="color:var(--amber)">초기 비밀번호 000000 자동 부여</b> · 최초 접속 시 비밀번호 변경을 강제합니다.<br>
           <span style="color:var(--dim)">동명이인은 이름을 구분 표기(예: 김철수B). '개발자'·'juns' 등 예약어는 사용할 수 없습니다.</span>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:12px 14px;gap:10px">
-          <div>
-            <div style="font-size:13px;font-weight:700">관리책임자 권한</div>
-            <div style="font-size:11px;color:var(--dim);margin-top:2px">켜면 설정 · 기준정보 접근 가능 · 끄면 실적 등록·조회만</div>
-          </div>
-          <label class="usr-sw"><input type="checkbox" id="ua-mgr"><span></span></label>
-        </div>
+        ${rolePicker('ua-role', 'operator')}
         <div class="actions">
           <button class="btn" onclick="closeModal()">취소</button>
           <button class="btn primary" id="ua-ok">${ico('save')}저장</button>
@@ -24028,7 +24252,7 @@ VIEWS.set = () => {
     `);
     document.getElementById('ua-ok').onclick = ()=>{
       const name = document.getElementById('ua-name').value.trim();
-      const mgr  = document.getElementById('ua-mgr').checked;
+      const role = pickedRole('ua-role'); const mgr = role === 'manager';   // ★ v0.37.2 — 3택
       if(!name){ toast('이름을 입력하세요','warn'); return; }
       // ★ v0.16.22 — 예약어 차단 (개발자 이름 도용 방지)
       if(isReservedName(name)){ toast('예약된 이름은 사용할 수 없습니다','err'); return; }
@@ -24038,8 +24262,8 @@ VIEWS.set = () => {
       const nums = DB.all('users').map(u=>parseInt(String(u.id||'').replace(/^U-/,''),10)||0);
       const next = (nums.length? Math.max(...nums) : 0) + 1;
       const id = `U-${String(next).padStart(3,'0')}`;
-      DB.set('users', id, { id, name, pin:'000000', role: mgr?'manager':'operator', active:true, created_at:Date.now(), last_login:null });
-      toast(`사용자 등록 — ${name} · 초기 비밀번호 000000`,'ok',3200);
+      DB.set('users', id, { id, name, pin:'000000', role, active:true, created_at:Date.now(), last_login:null });
+      toast(`사용자 등록 — ${name} · 초기 비밀번호 000000${role==='worker' ? ' · 현장 작업자 (로그인하면 바로 현장 화면)' : ''}`,'ok',3200);
       closeModal(); renderUsers();
     };
   }
@@ -24049,14 +24273,8 @@ VIEWS.set = () => {
       <h2>사용자 수정 — ${_esc(u.name)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
         <div><label>이름</label><input id="ue-name" value="${_esc(u.name)}"></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:12px 14px;gap:10px">
-          <div>
-            <div style="font-size:13px;font-weight:700">관리책임자 권한</div>
-            <div style="font-size:11px;color:var(--dim);margin-top:2px">현재 <b style="color:${u.role==='manager'?'var(--amber)':'var(--sub)'}">${u.role==='manager'?'관리책임자':'일반'}</b> · 마지막 관리책임자 강등 시 차단</div>
-          </div>
-          <label class="usr-sw"><input type="checkbox" id="ue-mgr" ${u.role==='manager'?'checked':''}><span></span></label>
-        </div>
-        <div style="font-size:11px;color:var(--sub)">※ PIN 변경은 [PIN 재설정] 버튼으로 별도 진행</div>
+        ${rolePicker('ue-role', u.role)}
+        <div style="font-size:11px;color:var(--sub)">※ 마지막 관리책임자 강등 시 차단 · PIN 변경은 [PIN 재설정] 버튼으로 별도 진행</div>
         <div class="actions">
           <button class="btn" onclick="closeModal()">취소</button>
           <button class="btn primary" id="ue-ok">${ico('save')}저장</button>
@@ -24065,7 +24283,7 @@ VIEWS.set = () => {
     `);
     document.getElementById('ue-ok').onclick = ()=>{
       const name = document.getElementById('ue-name').value.trim();
-      const mgr  = document.getElementById('ue-mgr').checked;
+      const role = pickedRole('ue-role'); const mgr = role === 'manager';   // ★ v0.37.2 — 3택
       if(!name){ toast('이름을 입력하세요','warn'); return; }
       // ★ v0.16.22 — 예약어 · 동명 차단 (이름=식별자)
       if(isReservedName(name)){ toast('예약된 이름은 사용할 수 없습니다','err'); return; }
@@ -24074,11 +24292,11 @@ VIEWS.set = () => {
       if(u.active !== false && u.role === 'manager' && !mgr && activeManagerCount() <= 1){
         toast('후임 관리책임자를 먼저 승격하세요','err',3000); return;
       }
-      DB.set('users', id, { name, role: mgr?'manager':'operator' });
+      DB.set('users', id, { name, role });
       // 본인 편집이면 SESSION 표시 갱신
       if(SESSION.userId === id){
         SESSION.user = name;
-        SESSION.role = mgr?'manager':'operator';
+        SESSION.role = role;
         renderNav();
         // 스스로 강등 → 현재 페이지가 MANAGER_ONLY 면 대시보드로
         const cur = (location.hash||'#dash').replace('#','');
