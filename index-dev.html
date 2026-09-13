@@ -339,6 +339,9 @@ td.muted{color:var(--sub)}
 .scroll-nav button{width:42px;height:42px;border-radius:12px;border:1px solid var(--line2);background:var(--panel);color:var(--cyan);font-size:15px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,.45);transition:.15s;user-select:none}
 .scroll-nav button:hover{border-color:var(--cyan-dim);background:rgba(94,234,212,.08)}
 @media print{.scroll-nav{display:none !important}}
+/* ★ v0.37.3 — 터치 기기(스마트폰·태블릿)에서는 ▲▼ 스크롤 버튼 숨김 (손가락 스크롤이 기본 · 글자 가림 — 사용자 실기기 피드백) */
+@media (pointer:coarse){.scroll-nav{display:none !important}}
+#app.m-mode ~ .scroll-nav{display:none !important}
 .empty{padding:30px;text-align:center;color:var(--dim);font-size:12.5px}
 
 /* Toast */
@@ -1188,6 +1191,21 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 .m-noeq .sub{line-height:1.6}
 .m-chk{display:flex;gap:10px;align-items:center;font-size:13px;margin:10px 0;cursor:pointer}
 .m-chk input{width:20px;height:20px}
+/* ★ v0.37.3 — 작업 순서(순번 · ✓●○) · 정지 */
+.m-seq{display:flex;flex-direction:column;gap:8px}
+.m-seq-it{display:flex;gap:10px;align-items:flex-start;padding:12px 12px;border-radius:14px;border:1px solid var(--line);background:var(--panel,var(--bg2));color:var(--ink);text-decoration:none;min-height:56px}
+.m-seq-it.done{opacity:.62}
+.m-seq-it.done .m-row1{text-decoration:line-through}
+.m-seq-it.now{border:2px solid var(--cyan);background:rgba(94,234,212,.06);padding:14px 12px}
+.m-seq-l{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:34px;padding-top:2px}
+.m-seq-no{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:2px 7px}
+.m-seq-st{font-size:15px;font-weight:900;color:var(--sub)}
+.m-seq-it.now .m-seq-st{color:var(--cyan)} .m-seq-it.now .m-seq-no{color:var(--cyan);border-color:var(--cyan)}
+.m-seq-it.done .m-seq-st{color:var(--green)}
+.m-seq-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.m-seq-b .m-row1{font-size:14px} .m-seq-b .m-row2{font-size:12.5px;color:var(--sub)}
+.m-stop{border:1px solid var(--red);color:var(--red);background:transparent;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:800;font-family:inherit;min-height:40px;cursor:pointer}
+.m-stop:active{background:rgba(248,113,113,.12)}
 </style>
 </head>
 <body>
@@ -1326,7 +1344,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.37.2';
+const APP_VERSION = 'v0.37.3';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2238,7 +2256,9 @@ const SES = {
   clear(){ this._write(null); },
   /* 출근 = 현장 세션 시작 (근태 저장 0 — GPT §7) · 설비는 QR 로 결정되므로 null */
   clockIn({ shift, worker }){ const s = { userId: SESSION.userId || null, shift, worker, equipment: null, started: Date.now() }; this._write(s); return s; },
-  setEquipment(eq){ const s = this._read(); if(!s) return null; s.equipment = eq || null; this._write(s); return s; },
+  setEquipment(eq){ const s = this._read(); if(!s) return null; s.equipment = eq || null; if(!eq) s.current = null; this._write(s); return s; },
+  /* ★ v0.37.3 — 「● 진행」 = 이 단말에서 마지막으로 연 작업 (단말 컨텍스트 · 원장 무관 · 저장 0) */
+  setCurrent(job){ const s = this._read(); if(!s) return null; s.current = job ? { plot_no: job.plot_no, proc: job.proc } : null; this._write(s); return s; },
   setShift(shift){ const s = this._read(); if(!s) return null; s.shift = shift; this._write(s); return s; },
   clockOut(){ this._write(null); },
 };
@@ -7594,7 +7614,7 @@ function renderScanPhone(session){
       <div class="scan-shell">
         <div class="scan-title">실적 등록 <span class="zer">ZERO-ERROR QR</span>
           <span class="right">
-            <button class="btn ghost" id="btn-manual">${ico('plus')}수동</button>
+            ${isMobileHash() ? '' : `<button class="btn ghost" id="btn-manual">${ico('plus')}수동</button>`}
           </span>
         </div>
 
@@ -7687,7 +7707,7 @@ function renderScanPhone(session){
     const rsn = document.getElementById('q-reason');
     if(rsn) rsn.oninput = ()=>{ qreason = rsn.value; };
     document.getElementById('btn-register').onclick = doRegister;
-    document.getElementById('btn-manual').onclick = manualInput;
+    const manualBtn = document.getElementById('btn-manual'); if(manualBtn) manualBtn.onclick = manualInput;   // ★ v0.37.3 — 현장 화면에는 [수동](JSON 입력) 없음 (QR 원칙 · PC 실적 등록만 유지)
     // ★ v0.16.13 — 공정 select 변경 (parsed.proc 전환 + bal 갱신 · 재렌더)
     const scProc = document.getElementById('sc-proc');
     if(scProc){
@@ -7809,27 +7829,28 @@ function renderScanPhone(session){
     };
   }
 
+  /* ★ v0.37.3 — 스캔 문자열 처리 1벌 (카메라 콜백 · 하드웨어 스캐너/검증 주입 `VIEWS._scanText` 공용) */
+  function onScanText(txt){
+    try {
+      // ★ v0.37.2 — 현장 모드: 설비 QR 도 여기서 인식 → 현재 설비만 갱신 (작업지시 QR 과 같은 카메라 · 기존 설비 QR 매칭 규칙 재사용)
+      if(isMobileHash()){
+        const eqDoc = matchEquipmentQr(txt);
+        if(eqDoc){ scanFeedback(); session.equipment = SES.setEquipment(eqDoc)?.equipment || eqDoc; SES.setCurrent(null); toast(`현재 설비: ${eqDoc.name}`,'ok'); location.hash = '#m/home'; router(); return; }
+      }
+      const p = parseQRPayload(txt);
+      scanFeedback();
+      try { if(html5Qr && typeof html5Qr.pause === 'function') html5Qr.pause(true); } catch(e){}
+      applyParsed(p);
+    } catch(e){ toast(e.message,'err'); }
+  }
+  VIEWS._scanText = onScanText;
   function startCam(){
     if(!cameraOK()) return;
     if(!window.Html5Qrcode) { setTimeout(startCam, 400); return; }
     try {
       if(!html5Qr) html5Qr = new Html5Qrcode("qr-reader");
-      html5Qr.start({facingMode:'environment'}, {fps:10, qrbox:240},
-        txt=>{
-          try {
-            // ★ v0.37.2 — 현장 모드: 설비 QR 도 여기서 인식 → 현재 설비만 갱신 (작업지시 QR 과 같은 카메라 · 기존 설비 QR 매칭 규칙 재사용)
-            if(isMobileHash()){
-              const eqDoc = matchEquipmentQr(txt);
-              if(eqDoc){ scanFeedback(); session.equipment = SES.setEquipment(eqDoc)?.equipment || eqDoc; toast(`현재 설비: ${eqDoc.name}`,'ok'); location.hash = '#m/home'; router(); return; }
-            }
-            const p = parseQRPayload(txt);
-            scanFeedback();
-            if(html5Qr) html5Qr.pause(true);
-            applyParsed(p);
-          } catch(e){ toast(e.message,'err'); }
-        },
-        ()=>{}
-      ).catch(()=>{ /* 권한 없으면 침묵 — 수동 가능 */ });
+      html5Qr.start({facingMode:'environment'}, {fps:10, qrbox:240}, onScanText, ()=>{})
+        .catch(()=>{ /* 권한 없으면 침묵 — PC 는 수동 가능 */ });
     } catch(e){/* ignore */}
   }
   function stopCam(){
@@ -7884,7 +7905,7 @@ const M_LABEL = { avail:'작업 가능', reported:'보고', pending:'확인 필�
    조건(GPT ②): 라우트상 그 설비 공정 ∧ 작업 대상(계획 레인 or WO 계획 설비 = 내 설비) ∧ balance > 0 ∧ HOLD 아님
    HOLD LOT 은 「확인 필요」 로만 (작업 목록에서 제외 · 자동 노출 ≠ 자동 실행) */
 function mobileJobs(session){
-  const eq = session?.equipment; if(!eq?.name) return { jobs:[], attention:[] };
+  const eq = session?.equipment; if(!eq?.name) return { jobs:[], attention:[], done:[] };
   const eqName = eq.name, eqProc = eq.proc || null;
   const seen = new Set(); const cands = [];
   const consider = (plot_no, order, src, ref) => {
@@ -7919,10 +7940,54 @@ function mobileJobs(session){
     if(j.held || j.ciOpen || j.ncPending || j.late) attention.push(j);
     if(!j.held) jobs.push(j);   // HOLD = 작업 목록 제외 (확인 필요에서만) · 보류/판정 대기 = 인정분 안에서 진행 가능
   });
-  jobs.sort((a,b) => (b.isNext - a.isNext) || (a.order - b.order));
+  jobs.sort((a,b) => (a.order - b.order) || (b.isNext - a.isNext));   // ★ v0.37.3 — 순번 원천 = 계획 레인 seq(→ 작업지시 created) · GPT 확정
   const rank = j => j.held ? 0 : j.ncPending ? 1 : j.ciOpen ? 2 : 3;   // 지시서 §11 순서: HOLD → 품질 판정 → 확인 필요 → 지연
   attention.sort((a,b) => rank(a) - rank(b) || (a.order - b.order));
-  return { jobs, attention };
+  /* ★ v0.37.3 — 「✓ 완료」 = 오늘 이 설비에서 실적이 있고 그 공정 작업 가능이 0 인 것 (Core 파생 · 저장 0) */
+  const done = []; const today = fmtDate(Date.now()); const seenD = new Set();
+  DB.all('records').filter(r => !r.void && r.equipment === eqName && fmtDate(r.ts) === today).sort((a,b) => a.ts - b.ts).forEach(r => {
+    const k = r.plot_no + '|' + r.proc; if(seenD.has(k)) return; seenD.add(k);
+    if(jobs.some(j => j.plot_no === r.plot_no && j.proc === r.proc)) return;
+    const lot = DB.get('production_lots', r.plot_no); if(!lot || lot.void) return;
+    if(LOT.balance(r.plot_no, r.proc) > 0) return;
+    const item = DB.get('items', lot.itemCode);
+    done.push({ plot_no: r.plot_no, proc: r.proc, procName: DB.get('processes', r.proc)?.name || r.proc, itemCode: lot.itemCode, itemName: item?.name || '', avail: 0, reported: LOT.totalInput(r.plot_no, r.proc), doneAt: r.ts });
+  });
+  return { jobs, attention, done };
+}
+/* ★ v0.37.3 — 작업 순서 1벌: ✓완료(오늘) → ●진행(단말이 마지막에 연 작업 · 없으면 첫 순번) → ○대기 · 순번 = 배열 인덱스+1 · 저장 0 */
+function mobileSequence(session){
+  const { jobs, attention, done } = mobileJobs(session);
+  const cur = session?.current && jobs.find(j => j.plot_no === session.current.plot_no && j.proc === session.current.proc) || jobs[0] || null;
+  const seq = [ ...done.map(j => ({ ...j, st:'done' })), ...jobs.map(j => ({ ...j, st: cur && j.plot_no === cur.plot_no && j.proc === cur.proc ? 'now' : 'wait' })) ];
+  seq.forEach((j,i) => { j.no = i + 1; });
+  return { seq, jobs, attention, done, cur };
+}
+/* 다음 순번 = 현재 작업 다음에 오는 첫 작업(작업 가능 > 0) · 없으면 첫 작업 · 현재 자신은 제외 — 화면 이동용(실적 생성 0) */
+function mobileNextJob(session, cur){
+  const { jobs } = mobileJobs(session);
+  const others = jobs.filter(j => !(cur && j.plot_no === cur.plot_no && j.proc === cur.proc));
+  if(!others.length) return null;
+  const after = cur ? others.find(j => j.order > (cur.order ?? -1)) : null;
+  return after || others[0];
+}
+/* ★ v0.37.3 — 정지 = 현재 작업 강조 해제 + 현재 설비 비움 + 홈 복귀 (정지 시각·비가동·사유 저장 ❌ · 원장 무변) */
+function mobileStop(){
+  SES.setEquipment(null);
+  toast('정지 — 설비 QR 을 찍거나 목록에서 설비를 선택하면 다시 시작합니다', 'ok', 2600);
+  location.hash = '#m/home'; router();
+}
+/* 설비 이동 — 1순위 설비 QR(스캔 탭) · 2순위 기존 설비 마스터 목록(buildEquipmentList 1벌 · 모바일 별도 목록/판정 DB 없음) */
+function mobileEquipmentPicker(){
+  const list = buildEquipmentList().filter(e => e.status !== 'off' && e.status !== '중지' && e.active !== false);
+  openModal(`
+    <h2>설비 선택 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <a class="m-btn primary" href="#m/scan" onclick="closeModal()">🔍 설비 QR 스캔 (우선)</a>
+      <div class="m-clock-note">QR 이 없을 때만 아래 목록에서 선택</div>
+      <div class="m-list">${list.length ? list.map(e => `<button type="button" class="m-list-it" data-eq="${_esc(e.name)}"><b>${_esc(e.name)}</b><span class="dim">${_esc(DB.get('processes', e.proc)?.name || e.proc || '')}</span></button>`).join('') : `<div class="m-empty">등록된 설비가 없습니다</div>`}</div>
+    </div>`);
+  document.querySelectorAll('[data-eq]').forEach(b => b.onclick = () => { const eq = equipmentByName(b.dataset.eq); SES.setEquipment(eq); closeModal(); toast(`현재 설비: ${eq.name}`, 'ok'); location.hash = '#m/home'; router(); });
 }
 /* 상태 배너 1벌 (M05/M06) — 읽기만 */
 function mobileStatusBanners(plot_no, proc){
@@ -7958,7 +8023,7 @@ function mobileRouter(){
   document.getElementById('app').classList.add('m-mode');
   const session = SES.get();
   if(!session && page !== 'more'){ VIEWS.m_clockin(); return; }   // ★ v0.37.2 — 세션 없음 = 출근 화면 (교대·작업자·설비 3단 설정 대신 · 설비는 QR 로)
-  const fn = { home: VIEWS.m_home, job: VIEWS.m_job, run: VIEWS.m_run, done: VIEWS.m_done, check: VIEWS.m_check, scan: VIEWS.m_scan, more: VIEWS.m_more }[page] || VIEWS.m_home;
+  const fn = { home: VIEWS.m_home, job: VIEWS.m_job, run: VIEWS.m_run, check: VIEWS.m_check, scan: VIEWS.m_scan, more: VIEWS.m_more }[page] || VIEWS.m_home;   // ★ v0.37.3 — 완료 화면(M08) 폐지 → 토스트 + 다음 작업 화면 자동 이동
   fn(session, parts.slice(1));
 }
 /* ★ v0.37.2 — 출근 (M00) = 현장 세션 시작 (GPT §7) — 근태 저장 0 · 설비 고정 0
@@ -8022,31 +8087,41 @@ function mobileClockOut(){
     location.hash = '#m/home'; router();   // 세션 없음 → 출근 화면 (다음 출근 때 다시 시작)
   };
 }
-/* M01 홈 / 내 작업 */
+/* M01 홈 / 작업 순서 — ★ v0.37.3 (GPT 승인 2026-09-13): ✓완료 → ●진행 → ○대기 순번 목록 · 상태는 전부 Core 파생(저장 0) · [■ 정지] · 설비 없음 = QR 우선 + 목록 보조 */
 VIEWS.m_home = (session) => {
-  const { jobs, attention } = mobileJobs(session);
-  const now = jobs[0] || null, rest = jobs.slice(1, 8);
-  const card = j => `<a class="m-card" href="#m/job/${encodeURIComponent(j.plot_no)}/${encodeURIComponent(j.proc)}">
-      <div class="m-row1"><b>${_esc(j.procName)}</b> · ${_esc(j.itemCode)} ${_esc(j.itemName)}</div>
-      <div class="m-row2"><span class="mono">${_esc(j.plot_no)}</span> · ${M_LABEL.avail} <b class="mono">${j.avail.toLocaleString()}</b> EA${j.pending?` · <span class="amber">${M_LABEL.pending} ${j.pending.toLocaleString()}</span>`:''}${j.ncPending?` · <span class="amber">품질 판정 대기</span>`:''}${j.late?` · <span class="red">납기 지남</span>`:''}</div>
-    </a>`;
+  const { seq, jobs, attention, done, cur } = mobileSequence(session);
   const eqName = session.equipment?.name || '';
+  const pn = j => `${encodeURIComponent(j.plot_no)}/${encodeURIComponent(j.proc)}`;
+  const row = j => j.st === 'now' ? `
+      <div class="m-seq-it now" id="m-seq-now">
+        <div class="m-seq-l"><span class="m-seq-no">${j.no}</span><span class="m-seq-st">●</span></div>
+        <div class="m-seq-b">
+          <div class="m-row1"><b>${_esc(j.procName)}</b> · ${_esc(j.itemCode)} ${_esc(j.itemName)}</div>
+          <div class="m-big"><span class="mono">${_esc(j.plot_no)}</span></div>
+          <div class="m-kv"><span>${M_LABEL.avail}</span><b class="mono">${j.avail.toLocaleString()} EA</b></div>
+          ${j.due?`<div class="m-kv"><span>납기</span><b>${_esc(j.due)}</b></div>`:''}${j.wo_id?`<div class="m-kv"><span>지시</span><b class="mono">${_esc(j.wo_id)}</b></div>`:''}
+          ${mobileStatusBanners(j.plot_no, j.proc)}
+          <a class="m-btn primary" href="#m/run/${pn(j)}">작업 시작</a>
+          <a class="m-link center" href="#m/job/${pn(j)}">상세 보기</a>
+        </div>
+      </div>` : `
+      <a class="m-seq-it ${j.st}" href="#m/job/${pn(j)}">
+        <div class="m-seq-l"><span class="m-seq-no">${j.no}</span><span class="m-seq-st">${j.st==='done'?'✓':'○'}</span></div>
+        <div class="m-seq-b">
+          <div class="m-row1"><b>${_esc(j.procName)}</b> · ${_esc(j.itemCode)} ${_esc(j.itemName)}</div>
+          <div class="m-row2"><span class="mono">${_esc(j.plot_no)}</span> · ${j.st==='done' ? `완료 · ${M_LABEL.reported} <b class="mono">${(j.reported||0).toLocaleString()}</b> EA` : `${M_LABEL.avail} <b class="mono">${j.avail.toLocaleString()}</b> EA`}${j.pending?` · <span class="amber">${M_LABEL.pending} ${j.pending.toLocaleString()}</span>`:''}${j.ncPending?` · <span class="amber">품질 판정 대기</span>`:''}${j.late?` · <span class="red">납기 지남</span>`:''}</div>
+        </div>
+      </a>`;
   mobileShell('home', `
-    <div class="m-head"><div><b>${_esc(session.worker?.name||'')}</b> · ${_esc(session.shift?.name||'')} · <b>${eqName ? _esc(eqName) : '<span class="dim">설비 없음</span>'}</b></div><a href="#m/more" class="m-link">더보기</a></div>
-    <div class="m-strip"><a href="#m/home" class="m-stat blue"><span>내 작업</span><b>${jobs.length}</b></a><a href="#m/check" class="m-stat ${attention.length?'red':''}"><span>확인 필요</span><b>${attention.length}</b></a></div>
-    ${!eqName ? `<div class="m-empty m-noeq"><div class="m-noeq-t">현재 작업 설비가 없습니다</div><a class="m-btn primary" href="#m/scan">🔍 QR 스캔</a><div class="sub">작업지시 QR 을 스캔하면 해당 설비의<br>작업 가능 작업이 표시됩니다</div></div>` : now ? `<div class="m-sec">지금 할 작업</div>
-      <div class="m-now">
-        <div class="m-row1"><b>${_esc(now.procName)}</b> · ${_esc(now.itemCode)} ${_esc(now.itemName)}</div>
-        <div class="m-big"><span class="mono">${_esc(now.plot_no)}</span></div>
-        <div class="m-kv"><span>${M_LABEL.avail}</span><b class="mono">${now.avail.toLocaleString()} EA</b></div>
-        ${now.due?`<div class="m-kv"><span>납기</span><b>${_esc(now.due)}</b></div>`:''}${now.wo_id?`<div class="m-kv"><span>지시</span><b class="mono">${_esc(now.wo_id)}</b></div>`:''}
-        ${mobileStatusBanners(now.plot_no, now.proc)}
-        <a class="m-btn primary" href="#m/run/${encodeURIComponent(now.plot_no)}/${encodeURIComponent(now.proc)}">작업 시작</a>
-        <a class="m-link center" href="#m/job/${encodeURIComponent(now.plot_no)}/${encodeURIComponent(now.proc)}">상세 보기</a>
-      </div>` : `<div class="m-empty">이 설비에 배정된 작업이 없습니다<div class="sub">계획/작업지시에서 설비 <b>${_esc(eqName)}</b> 로 배정되면 여기 나타납니다 · QR 스캔으로도 등록할 수 있습니다</div></div>`}
-    ${rest.length ? `<div class="m-sec">다음 작업</div>${rest.map(card).join('')}` : ''}
+    <div class="m-head"><div><b>${_esc(session.worker?.name||'')}</b> · ${_esc(session.shift?.name||'')} · <b>${eqName ? _esc(eqName) : '<span class="dim">설비 없음</span>'}</b></div>${eqName ? `<button type="button" class="m-stop" id="m-stop" title="현재 설비에서 정지 — 다른 설비로 이동">■ 정지</button>` : `<a href="#m/more" class="m-link">더보기</a>`}</div>
+    <div class="m-strip"><a href="#m/home" class="m-stat blue"><span>작업 순서</span><b>${jobs.length}</b></a><a href="#m/check" class="m-stat ${attention.length?'red':''}"><span>확인 필요</span><b>${attention.length}</b></a></div>
+    ${!eqName ? `<div class="m-empty m-noeq"><div class="m-noeq-t">현재 작업 설비가 없습니다</div><a class="m-btn primary" href="#m/scan">🔍 QR 스캔</a><button type="button" class="m-btn ghost" id="m-eq-pick">목록에서 설비 선택</button><div class="sub">작업지시 QR 또는 설비 QR 을 스캔하면<br>그 설비의 작업 순서가 표시됩니다</div></div>`
+      : seq.length ? `<div class="m-sec">작업 순서 <span class="dim">✓ 완료 ${done.length} · ● 진행 · ○ 대기 ${Math.max(0, jobs.length - (cur?1:0))}</span></div><div class="m-seq">${seq.map(row).join('')}</div>`
+      : `<div class="m-empty">이 설비에 배정된 작업이 없습니다<div class="sub">계획/작업지시에서 설비 <b>${_esc(eqName)}</b> 로 배정되면 여기 나타납니다 · QR 스캔으로도 등록할 수 있습니다</div></div>`}
     ${eqName ? `<a class="m-btn ghost" href="#m/scan">🔍 QR 스캔</a>` : ''}
   `);
+  const stop = document.getElementById('m-stop'); if(stop) stop.onclick = () => mobileStop();
+  const pick = document.getElementById('m-eq-pick'); if(pick) pick.onclick = () => mobileEquipmentPicker();
 };
 /* M02 작업 상세 */
 VIEWS.m_job = (session, [plot_no, proc]) => {
@@ -8124,6 +8199,7 @@ const M_DRAFT_KEY = 'vela_m_draft';
 VIEWS.m_run = (session, [plot_no, proc]) => {
   const lot = DB.get('production_lots', plot_no); if(!lot){ location.hash = '#m/home'; return; }
   const p = DB.get('processes', proc); const item = DB.get('items', lot.itemCode);
+  if(!(session.current && session.current.plot_no === plot_no && session.current.proc === proc)){ SES.setCurrent({ plot_no, proc }); session.current = { plot_no, proc }; }   // ★ v0.37.3 — 「● 진행」 = 마지막에 연 작업 (단말 컨텍스트)
   let draft = null; try { draft = JSON.parse(sessionStorage.getItem(M_DRAFT_KEY) || 'null'); } catch(e){}
   if(!draft || draft.plot_no !== plot_no || draft.proc !== proc) draft = { plot_no, proc, qtype:'good', qval:'', qreason:'' };
   const saveDraft = () => { try { sessionStorage.setItem(M_DRAFT_KEY, JSON.stringify(draft)); } catch(e){} };
@@ -8132,8 +8208,9 @@ VIEWS.m_run = (session, [plot_no, proc]) => {
     const bal = LOT.balance(plot_no, proc);   // 표시용 · 저장 시 registerRecord 가 다시 계산
     const v = +draft.qval || 0; const rem = bal - v;
     const held = lotHoldInfo(plot_no).held;
+    const nextJob = mobileNextJob(SES.get(), { plot_no, proc, order: (mobileJobs(SES.get()).jobs.find(j => j.plot_no === plot_no && j.proc === proc) || {}).order });
     mobileShell('home', `
-      <a class="m-back" href="#m/job/${encodeURIComponent(plot_no)}/${encodeURIComponent(proc)}">‹ 상세</a>
+      <a class="m-back" href="#m/home">‹ 작업 순서</a>
       <div class="m-title"><b>${_esc(p?.name||proc)}</b> · <span class="mono">${_esc(plot_no)}</span><span class="dim"> ${_esc(lot.itemCode)} ${_esc(item?.name||'')}</span></div>
       ${err ? `<div class="m-ban red">⛔ <b>저장 안 됨</b><div>${_esc(err)}</div></div>` : ''}
       ${mobileStatusBanners(plot_no, proc)}
@@ -8143,45 +8220,35 @@ VIEWS.m_run = (session, [plot_no, proc]) => {
       <div class="qval-big ${draft.qtype==='def'?'def':draft.qtype==='rew'?'rew':''}">${draft.qval||'0'}</div>
       <div class="keypad">${[1,2,3,4,5,6,7,8,9].map(n=>`<div class="key" data-key="${n}">${n}</div>`).join('')}<div class="key act" data-key="C">C</div><div class="key" data-key="0">0</div><div class="key act" data-key="back">⌫</div></div>
       <button class="submit-big ${v>0 && !held ? 'next':''}" id="m-done" ${v>0 && !held ? '' : 'disabled'}>${held ? 'HOLD — 판정 전 작업 불가' : '작업 완료'}</button>
+      ${nextJob && bal > 0 ? `<a class="m-link center" id="m-skip" href="#m/run/${encodeURIComponent(nextJob.plot_no)}/${encodeURIComponent(nextJob.proc)}">다음 작업으로 → ${_esc(nextJob.procName)} · ${_esc(nextJob.plot_no)} <span class="dim">(이 작업은 미완료로 남음)</span></a>` : ''}
     `);
     document.querySelectorAll('[data-qt]').forEach(b => b.onclick = () => { draft.qtype = b.dataset.qt; saveDraft(); render(); });
     document.querySelectorAll('[data-key]').forEach(k => k.onclick = () => { const key = k.dataset.key; if(key==='C') draft.qval=''; else if(key==='back') draft.qval = draft.qval.slice(0,-1); else if(draft.qval.length < 6) draft.qval += key; saveDraft(); render(); });
     const rs = document.getElementById('m-reason'); if(rs) rs.oninput = () => { draft.qreason = rs.value; saveDraft(); };
+    const skip = document.getElementById('m-skip'); if(skip) skip.onclick = () => { try { sessionStorage.removeItem(M_DRAFT_KEY); } catch(e){} };   // 건너뛰기 = 화면 이동만 (실적 0)
     document.getElementById('m-done').onclick = () => {
       const qty = +draft.qval || 0; if(qty <= 0) return;
       const payload = buildPhonePayload(session, { plot_no, proc, item: lot.itemCode }, draft.qtype, qty, draft.qreason);
+      const kind = draft.qtype==='good' ? '양품' : draft.qtype==='def' ? '불량' : '재작업';
       try {
-        const saved = LOT.registerRecord(payload);   // ★ 최종 재검증은 여기(현재 원장 · HOLD · 잔량 · 라우트) — 화면 값 불신
+        LOT.registerRecord(payload);   // ★ 최종 재검증은 여기(현재 원장 · HOLD · 잔량 · 라우트) — 화면 값 불신
         try { scanFeedback(); } catch(e){}
         try { sessionStorage.removeItem(M_DRAFT_KEY); } catch(e){}
-        location.hash = `#m/done/${encodeURIComponent(plot_no)}/${encodeURIComponent(proc)}/${encodeURIComponent(saved.id)}`;
+        const rem = LOT.balance(plot_no, proc);
+        // ★ v0.37.3 — 잔량 0 = 완료 → ✓ · 다음 순번 ● · 다음 작업 입력 화면으로 자동 이동(수량 빈 값 · 실적 생성 0) · 잔량 > 0 = 현재 작업 유지
+        if(rem <= 0){
+          const nxt = nextJob;
+          toast(`✓ 작업 완료 — ${kind} ${qty.toLocaleString()} EA${nxt ? ` · 다음: ${nxt.procName} ${nxt.plot_no}` : ' · 이 설비의 작업이 모두 끝났습니다'}`, 'ok', 2200);
+          if(nxt){ SES.setCurrent(nxt); location.hash = `#m/run/${encodeURIComponent(nxt.plot_no)}/${encodeURIComponent(nxt.proc)}`; }
+          else { location.hash = '#m/home'; }
+        } else {
+          toast(`✓ 등록 ${kind} ${qty.toLocaleString()} EA · ${M_LABEL.avail} ${rem.toLocaleString()} EA 남음`, 'ok', 2200);
+          draft = { plot_no, proc, qtype:'good', qval:'', qreason:'' }; err = ''; render();
+        }
       } catch(e){ err = e.message; render(); }   // 입력값 유지
     };
   };
   render();
-};
-/* M08 완료 — 다음 공정은 파생 안내만 (실적 자동 생성 없음) */
-VIEWS.m_done = (session, [plot_no, proc, recId]) => {
-  const rec = DB.get('records', recId); const lot = DB.get('production_lots', plot_no);
-  if(!rec || !lot){ location.hash = '#m/home'; return; }
-  const rem = LOT.balance(plot_no, proc);
-  const route = getRoute(lot.itemCode); const idx = route.findIndex(r => r.proc === proc);
-  const nextR = idx >= 0 ? route[idx+1] : null; const next = nextR ? (DB.get('processes', nextR.proc) || { code:nextR.proc, name:nextR.proc }) : null;   // 라우트상 다음 공정 (파생 · 실적 생성 없음)
-  const kind = rec.good ? '양품' : rec.defect ? '불량' : '재작업'; const n = rec.good || rec.defect || rec.rework || 0;
-  const nextAvail = next ? LOT.balance(plot_no, next.code) : 0;
-  mobileShell('home', `
-    <div class="m-done">
-      <div class="m-done-ic">✓</div>
-      <div class="m-title">작업 완료</div>
-      <div class="m-kv big"><span>${_esc(plot_no)}</span><b class="mono">${kind} ${n.toLocaleString()} EA</b></div>
-      <div class="m-kv"><span>이 공정 남은 수량</span><b class="mono">${rem.toLocaleString()} EA</b></div>
-      ${next && next.code !== 'SHIP' ? `<div class="m-next">다음 공정 <b>${_esc(next.name)}</b>${nextR.mode==='out'||next.type==='out'?' (외주)':''} · ${M_LABEL.avail} <b class="mono">${nextAvail.toLocaleString()}</b> EA<div class="sub">→ 그 공정 설비의 「내 작업」 에 작업 가능 상태로 표시됩니다 (실적은 그 작업자가 완료할 때 생깁니다)${rem>0?` · 이 공정에 ${rem.toLocaleString()} EA 가 더 남아 있습니다`:''}</div></div>` : `<div class="m-next">마지막 가공 공정입니다 — 완성품 재고 → 출하 대기</div>`}
-      ${mobileStatusBanners(plot_no, proc)}
-      <a class="m-btn primary" href="#m/home">내 작업으로</a>
-      ${rem > 0 ? `<a class="m-btn ghost" href="#m/run/${encodeURIComponent(plot_no)}/${encodeURIComponent(proc)}">같은 LOT 계속</a>` : ''}
-      <a class="m-btn ghost" href="#m/scan">다음 QR 스캔</a>
-    </div>
-  `);
 };
 /* M07 확인 필요 — 내 설비 작업 범위 · 알림 아님 (지시서 §11 순서) */
 VIEWS.m_check = (session) => {
