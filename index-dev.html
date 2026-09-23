@@ -1014,12 +1014,15 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 }
 @media print{ #app{display:block} }
 /* ★ v0.37.7 — 사이드바 = 내 메뉴 + 「⋯ 전체 메뉴」 버튼 (v0.35.7 「관리」 접이식·내 메뉴 편집 폐지 · 아이콘 없음) */
-.tabnav .nav-all-btn{color:var(--dim);flex-wrap:wrap}
-.tabnav .nav-all-btn.on{background:var(--bg2);color:var(--ink);font-weight:600}
-.tabnav .nav-all-btn .nav-cur{color:var(--cyan);font-weight:700;margin-left:4px}
+.tabnav .nav-all-btn{color:var(--ink);font-weight:700;flex-wrap:wrap;border:1px solid var(--line);background:var(--bg2);border-radius:9px;justify-content:center;gap:6px}
+.tabnav .nav-all-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.tabnav .nav-all-btn.on{border-color:var(--cyan);background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan)}
+.tabnav .nav-all-btn .nav-cur{color:var(--cyan);font-weight:700;margin-left:2px}
 @media(min-width:1101px){
-  .tabnav .nav-all-btn{margin-top:10px;border-top:1px solid var(--line);border-radius:0 0 9px 9px;padding-top:12px}
+  .tabnav .nav-all-btn{margin-top:12px;padding:10px 12px}
 }
+/* ★ v0.37.8 — 「📱 현장 모드」 버튼은 터치 기기에서만 (PC 마우스 환경에서는 어색 — 사용자 피드백 · 기능·라우트 무변) */
+@media(hover:hover) and (pointer:fine){ #foot-mobile{display:none} }
 /* 전체 메뉴 창 */
 .am-q{width:100%;box-sizing:border-box;margin-bottom:10px}
 .am-list{max-height:60vh;overflow-y:auto}
@@ -1367,7 +1370,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.37.7';
+const APP_VERSION = 'v0.37.8';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -6274,7 +6277,7 @@ function renderNav(){
   const primary = getPrimaryMenu();
   const prim = ordered.filter(p => primary.includes(p.id));
   let out = prim.map(p => `<button data-page="${p.id}">${_esc(p.title)}</button>`).join('');
-  out += `<button class="nav-all-btn" data-allmenu title="관리책임자가 열어준 전체 메뉴 · ★ 로 내 메뉴 고르기">⋯ 전체 메뉴</button>`;
+  out += `<button class="nav-all-btn" data-allmenu title="관리책임자가 열어준 전체 메뉴 · ★ 로 내 메뉴 고르기">☰ 전체 메뉴</button>`;
   nav.innerHTML = out;
   nav.querySelectorAll('button[data-page]').forEach(b=>b.onclick=()=>location.hash='#'+b.dataset.page);
   nav.querySelector('[data-allmenu]').onclick = openAllMenuModal;
