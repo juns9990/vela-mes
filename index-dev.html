@@ -1037,6 +1037,32 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 .am-star.fixed{cursor:default;opacity:.7}
 .am-star:disabled{opacity:.35;cursor:not-allowed}
 .am-note{font-size:11.5px;color:var(--dim);margin-top:10px}
+/* ★ v0.38.0 — 고르는 창 1벌 (내 대시보드·내 보고서) + 대시보드 「카드 고르기」 */
+.pk-body{max-height:62vh;overflow-y:auto}
+.pk-sec{font-size:10px;font-weight:700;color:var(--dim);letter-spacing:1.3px;padding:6px 8px 4px;display:flex;align-items:center;gap:6px}
+.pk-sec .pk-n{font-family:'JetBrains Mono',monospace;font-weight:500;color:var(--sub);letter-spacing:0}
+.pk-grp{font-size:10.5px;color:var(--dim);padding:6px 8px 2px}
+.pk-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;border:1px solid transparent}
+.pk-row.on{border-color:var(--line);background:var(--bg2);margin-bottom:3px}
+.pk-t{flex:1;font-size:12.8px;color:var(--ink)}
+.pk-d{font-size:10.5px;color:var(--dim);margin-left:8px}
+.pk-ctl{display:flex;align-items:center;gap:2px}
+.pk-mv{background:none;border:1px solid var(--line);border-radius:6px;color:var(--sub);font-size:10px;padding:3px 6px;cursor:pointer;line-height:1}
+.pk-mv:disabled{opacity:.3;cursor:default}
+.pk-star{background:none;border:0;color:var(--dim);font-size:16px;cursor:pointer;padding:2px 6px;border-radius:6px;line-height:1}
+.pk-star.on,.pk-star.fixed{color:var(--amber)}
+.pk-star.fixed{cursor:default;opacity:.75}
+.pk-empty{font-size:11.5px;color:var(--dim);padding:6px 8px}
+.dash-tools{display:flex;justify-content:flex-end;margin-bottom:8px}
+.dash-tools .btn{font-size:11.5px;padding:5px 10px}
+#app.m-mode .dash-tools{display:none}
+.rep-mine{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12px}
+.rep-mine-l{font-weight:700;color:var(--sub);font-size:11px;letter-spacing:.5px}
+.rep-mine-secs{display:flex;gap:4px;flex-wrap:wrap}
+.rep-mine-secs .pill{font-size:10.5px;padding:2px 8px}
+.rep-mine-fmt{display:flex;align-items:center;gap:6px;color:var(--sub);font-size:11.5px;margin-left:auto}
+.rep-mine-fmt select{font-size:12px;padding:4px 8px}
+.rep-ai-note{font-size:10.5px;color:var(--amber);margin-bottom:6px}
 @media(max-width:640px){ .am-cols{columns:1} }
 /* 활성 메뉴 — 솔리드 시안 → 은은한 브랜드 틴트 (두 테마 공통 · 아이콘도 동색) */
 .tabnav button.on{background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan);font-weight:700}
@@ -1370,7 +1396,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.37.8';
+const APP_VERSION = 'v0.38.0';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2400,9 +2426,9 @@ const MODULE_DEFS = [
       ['closing',  '마감',           true, false],
     ]},
   // ★ v0.24.0 — AI 보고서 (일/주/월간) — 기존 헬퍼 재사용만 · 스냅샷 저장 · AI 브리핑은 선택
-  { mod:'report',  title:'AI 보고서', desc:'일간·주간·월간 · 전사 KPI + 부서별 5섹션 + 이슈 + AI 브리핑(옵션)',
+  { mod:'report',  title:'보고서', desc:'일간·주간·월간 · 전사 KPI + 부서별 5섹션 + 이슈 + 자동 브리핑(옵션) · 담당자별 섹션 구성',
     items:[
-      ['report',   'AI 보고서',      true, false],
+      ['report',   '보고서',      true, false],
     ]},
   // ★ v0.25.0 — 품질 관리 (판매 옵션) — 부적합 등록·처리(재작업/폐기/특채/반품) · 파레토 · LOT/보고서 연동
   //   대원칙(G1): 재고·실적·마감 원장을 직접 수정하지 않는다 — 기록·추적·통계·안내만.
@@ -2639,7 +2665,7 @@ const PAGES = [
   // ★ v0.27.0 — 회계 (마감 뒤 · 특급)
   { id:'acct',  flag:'acct',  title:'회계',  icon:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 14h4M7 17h2"/><circle cx="17" cy="15.5" r="2.2"/>' },
   // ★ v0.24.0 — AI 보고서 (마감 뒤)
-  { id:'report',  flag:'report',  title:'AI 보고서', icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>' },
+  { id:'report',  flag:'report',  title:'보고서', icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>' },
   // ★ '그 외 기존' — 원가 · 자동계획 · 설비현황 · 금형 (파렛트와 문서출력 사이 위치 유지)
   { id:'cost',  flag:'cost',  title:'원가',       icon:'<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' },
   { id:'autoplan', flag:'pl_auto', title:'자동계획', icon:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v16M14 14l2 2 4-4"/>' },
@@ -7022,6 +7048,173 @@ function calcPoStatus(po){
   return { items:rows, totalOrdered, totalReceived, state, uniformUnit };
 }
 
+/* ★ v0.38.0 — 고르는 창 1벌 openPickerModal (SPEC 「개인화 v0.1」 §2 · 내 대시보드·내 보고서 공유)
+   catalog=[{id,title,group?,fixed?,desc?}] · selected=[id 순서] · fixed 항목은 해제 불가(자물쇠) · ▲▼ 로 순서 · 저장 → onSave(ids) · 「회사 기본으로」 → onReset()
+   개인화 = 표시 항목과 순서만 — 창은 어떤 계산·저장도 직접 하지 않는다(호출자가 setPrefs). 폰 .m-mode 에서는 호출되지 않음. */
+function openPickerModal(opt){
+  const catalog = opt.catalog || [];
+  const byId = id => catalog.find(c => c.id === id);
+  let sel = (opt.selected || []).filter(id => byId(id));
+  catalog.filter(c => c.fixed && !sel.includes(c.id)).forEach(c => sel.unshift(c.id));
+  const canSave = opt.canSave !== false;
+  const paint = () => {
+    const md = document.getElementById('modal');
+    const box = md.querySelector('#pk-body'); if(!box) return;
+    const rows = sel.map((id, i) => { const c = byId(id); return `<div class="pk-row on" data-pk="${id}">
+        <span class="pk-t">${_esc(c.title)}${c.desc ? `<span class="pk-d">${_esc(c.desc)}</span>` : ''}</span>
+        <span class="pk-ctl">
+          <button type="button" class="pk-mv" data-pk-up="${id}" ${i === 0 ? 'disabled' : ''} title="위로">▲</button>
+          <button type="button" class="pk-mv" data-pk-dn="${id}" ${i === sel.length - 1 ? 'disabled' : ''} title="아래로">▼</button>
+          ${c.fixed ? `<span class="pk-star fixed" title="항상 표시 (안전 신호 · 해제 불가)">★</span>` : `<button type="button" class="pk-star on" data-pk-off="${id}" title="빼기">★</button>`}
+        </span></div>`; }).join('');
+    const rest = catalog.filter(c => !sel.includes(c.id));
+    const groups = []; rest.forEach(c => { const g = c.group || ''; let G = groups.find(x => x.g === g); if(!G){ G = { g, items:[] }; groups.push(G); } G.items.push(c); });
+    const restHtml = rest.length ? groups.map(G => `${G.g ? `<div class="pk-grp">${_esc(G.g)}</div>` : ''}${G.items.map(c => `<div class="pk-row" data-pk="${c.id}">
+        <span class="pk-t">${_esc(c.title)}${c.desc ? `<span class="pk-d">${_esc(c.desc)}</span>` : ''}</span>
+        <span class="pk-ctl"><button type="button" class="pk-star" data-pk-on="${c.id}" title="넣기">☆</button></span></div>`).join('')}`).join('')
+      : '<div class="pk-empty">전부 선택됨</div>';
+    box.innerHTML = `<div class="pk-sec">${_esc(opt.selectedLabel || '내 구성 (표시 순서)')}<span class="pk-n">${sel.length}</span></div>${rows || '<div class="pk-empty">선택된 항목 없음</div>'}
+      <div class="pk-sec" style="margin-top:12px">${_esc(opt.restLabel || '추가할 수 있는 항목')}<span class="pk-n">${rest.length}</span></div>${restHtml}`;
+    box.querySelectorAll('[data-pk-on]').forEach(b => b.onclick = () => { sel.push(b.dataset.pkOn); paint(); });
+    box.querySelectorAll('[data-pk-off]').forEach(b => b.onclick = () => { sel = sel.filter(x => x !== b.dataset.pkOff); paint(); });
+    box.querySelectorAll('[data-pk-up]').forEach(b => b.onclick = () => { const i = sel.indexOf(b.dataset.pkUp); if(i > 0){ [sel[i-1], sel[i]] = [sel[i], sel[i-1]]; paint(); } });
+    box.querySelectorAll('[data-pk-dn]').forEach(b => b.onclick = () => { const i = sel.indexOf(b.dataset.pkDn); if(i >= 0 && i < sel.length - 1){ [sel[i+1], sel[i]] = [sel[i], sel[i+1]]; paint(); } });
+  };
+  openModal(`
+    <h2>${_esc(opt.title || '고르기')} <span style="color:var(--dim);font-size:12px;font-weight:400;margin-left:8px">${_esc(opt.sub || '★ 넣기/빼기 · ▲▼ 순서 · 표시 항목과 순서만 바뀝니다')}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div id="pk-body" class="pk-body"></div>
+      <div class="am-note">${canSave ? '저장하면 내 계정에만 적용됩니다 (다른 사람 화면 무변 · 계산·원장 무변).' : '개발자 세션은 개인 구성을 저장할 수 없습니다 — 회사 기본이 보입니다.'}</div>
+      <div class="actions">
+        <button class="btn" id="pk-reset" ${canSave ? '' : 'disabled'}>회사 기본으로</button>
+        <button class="btn" onclick="closeModal()">취소</button>
+        <button class="btn primary" id="pk-save" ${canSave ? '' : 'disabled'}>${ico('save')}저장</button>
+      </div>
+    </div>`, { width:'620px' });
+  paint();
+  document.getElementById('pk-save').onclick = () => { if(opt.onSave && opt.onSave(sel.slice()) !== false) closeModal(); };
+  document.getElementById('pk-reset').onclick = () => { if(opt.onReset && opt.onReset() !== false) closeModal(); };
+}
+
+/* ★ v0.38.0 — 대시보드 카드 카탈로그 DASH_CARDS 12종 (SPEC §4-1 · GPT 🟢): 전부 기존 계산 읽기만 · 새 계산식 0.
+   회사 기본 DASH_DEFAULT = v3 A안 6종(v0.35.7 그대로 → `_verify-dash357.js` 무변) · ○ 6종 = v0.35.7 에서 뺀 값(계산 코드 유지) 기본 OFF.
+   k_alert(오늘 이상) = 고정(fixed) — 개인 설정으로 안전 신호를 숨길 수 없다. page/flag = 권한·플래그 게이팅(menuCanSee 1벌). */
+const DASH_DEFAULT = ['k_backlog','k_sales','k_today','k_alert','c_fulfil','c_trend'];
+const DASH_CARDS = [
+  { id:'k_backlog', kind:'kpi',  title:'총 수주잔',            group:'핵심 숫자', page:'so',   render: c => `
+      <div class="dkpi clk" onclick="location.hash='#so'"><span class="goarrow">수주 ↗</span>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M4 6h16v4H4zM4 14h16v4H4z"/></svg>총 수주잔</div>
+        <div class="val c">${c.stages.hasData ? '₩'+Math.round(c.stages.total).toLocaleString() : '<span style="color:var(--dim);font-size:15px">수주 없음</span>'}</div>
+        <div class="sub">${c.stages.hasData ? `생산중 ₩${Math.round(c.stages.prog).toLocaleString()} · 미착수 ₩${Math.round(c.stages.wait).toLocaleString()}` : '<span class="nodata">수주가 등록되면 표시</span>'}</div>
+      </div>` },
+  { id:'k_sales',   kind:'kpi',  title:'당월 매출',            group:'핵심 숫자', page:'ship', render: c => `
+      <div class="dkpi clk" onclick="location.hash='#ship'"><span class="goarrow">출하 ↗</span>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M5 4l3.5 8M19 4l-3.5 8M8.5 12h7M5 16h14M12 12v8"/></svg>당월 매출</div>
+        <div class="val">${c.monthSales>0? '₩'+Math.round(c.monthSales).toLocaleString() : '<span style="color:var(--dim);font-size:15px">수집중</span>'}</div>
+        <div class="sub">${c.monthSalesChg===null? '<span class="nodata">전월 데이터 없음</span>' : `<span class="chg ${c.monthSalesChg>=0?'up':'down'}">${c.monthSalesChg>=0?'▲':'▼'} ${Math.abs(c.monthSalesChg).toFixed(1)}%</span> 전월`} · 연 누적 ₩${Math.round(c.yearSales).toLocaleString()}</div>
+      </div>` },
+  { id:'k_today',   kind:'kpi',  title:'오늘 생산',            group:'핵심 숫자', page:'perf', render: c => `
+      <div class="dkpi clk" onclick="location.hash='#perf'"><span class="goarrow">실적 ↗</span>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>오늘 생산</div>
+        <div class="val">${c.dayGood.toLocaleString()}<span class="unit">ea</span></div>
+        <div class="sub">이달 ${c.monthGood.toLocaleString()}ea${c.monthPct!==null? ` · 목표 대비 <b class="up">${c.monthPct.toFixed(0)}%</b>` : ''}${c.overallYield!==null? ` · 수율 ${c.overallYield.toFixed(1)}%` : ''}</div>
+      </div>` },
+  { id:'k_alert',   kind:'kpi',  title:'오늘 이상 (신호등)',    group:'핵심 숫자', page:'dash', fixed:true, desc:'항상 표시', render: c => `
+      <div class="dkpi clk ${c._issueN?'issue':'ok'}" onclick="location.hash='${c._issueGo}'"><span class="goarrow">확인 ↗</span>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="${c._issueN?'var(--amber)':'var(--green)'}"><circle cx="12" cy="12" r="9"/><path d="${c._issueN?'M12 8v5M12 16h.01':'M8 12l3 3 5-6'}"/></svg>오늘 이상</div>
+        <div class="val" style="color:${c._issueN?'var(--amber)':'var(--green)'}">${c._issueN? `${c._issueN}<span class="unit">건</span>` : '<span style="font-size:22px">이상 없음</span>'}</div>
+        <div class="sub">${c._issueN? c._issueParts.map(x=>x.t).join(' · ') : `사고 · HOLD · 판정 지체 · 납기 지연 0${c._ncPend?` · 판정 대기 ${c._ncPend}`:''}`}</div>
+      </div>` },
+  { id:'c_fulfil',  kind:'card', title:'수주 대비 생산실적',     group:'카드', page:'so', render: c => `
+      <div class="card clk" onclick="location.hash='#so'" style="margin-bottom:0"><span class="goarrow">수주 ↗</span>
+        <h3>수주 대비 생산실적 <span class="tag">금액 · 출하 기준</span></h3>
+        ${c.stages.hasData? `
+          <div class="stage3">
+            ${c.stageDonePct>0? `<div class="s done" style="width:${c.stageDonePct.toFixed(2)}%">${c.stageDonePct>=8?`출하완료 ${c.stageDonePct.toFixed(0)}%`:''}</div>`:''}
+            ${c.stageProgPct>0? `<div class="s prog" style="width:${c.stageProgPct.toFixed(2)}%">${c.stageProgPct>=8?`생산중 ${c.stageProgPct.toFixed(0)}%`:''}</div>`:''}
+            ${c.stageWaitPct>0? `<div class="s wait" style="width:${c.stageWaitPct.toFixed(2)}%">${c.stageWaitPct>=8?`미착수 ${c.stageWaitPct.toFixed(0)}%`:''}</div>`:''}
+          </div>
+          <div class="stage-legend">
+            <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--cyan-dim)"></span>출하완료</div><div class="slv" style="color:var(--cyan)">₩${Math.round(c.stages.done).toLocaleString()}</div></div>
+            <div class="sl"><div class="slh"><span class="dot-sq" style="background:#f59e0b"></span>생산중</div><div class="slv" style="color:var(--amber)">₩${Math.round(c.stages.prog).toLocaleString()}</div></div>
+            <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--line2)"></span>미착수</div><div class="slv" style="color:var(--sub)">₩${Math.round(c.stages.wait).toLocaleString()}</div></div>
+            <div class="sl" style="margin-left:auto;text-align:right"><div class="slh" style="justify-content:flex-end">총 수주 금액</div><div class="slv">₩${c.stages.total.toLocaleString()}</div></div>
+          </div>
+        ` : '<div class="chart-empty" style="padding:40px 0"><div class="big">수집중</div><div class="sm">수주가 등록되면 출하완료·생산중·미착수 3단계로 분해됩니다</div></div>'}
+      </div>` },
+  { id:'c_trend',   kind:'card', title:'생산 추세 (주/월/년)',   group:'카드', page:'perf', render: c => `
+      <div class="card" style="margin-bottom:0">
+        <h3>생산 추세 <span class="seg" id="trend-seg"><button class="on" data-r="w">주</button><button data-r="m">월</button><button data-r="y">년</button></span></h3>
+        <div class="chartbox" id="trend-chart" onclick="event.stopPropagation()">
+          ${c.trendHasData? renderTrendSVG(c.trendInit) : `
+            <div class="chart-empty">
+              <div class="big">데이터 수집중</div>
+              <div class="sm">실적이 며칠 쌓이면 추세 그래프가 표시됩니다</div>
+            </div>
+          `}
+        </div>
+      </div>` },
+  { id:'c_capa',    kind:'card', title:'설비 부하',            group:'카드 (기본 꺼짐)', page:'eqstatus', flag:'capa', desc:'공정별 부하율', render: c => `
+      <div class="card clk" onclick="location.hash='#eqstatus'" style="margin-bottom:0"><span class="goarrow">설비현황 ↗</span>
+        <h3>설비 부하 <span class="tag">잔량 기준 · 평균 ${c.capaAvg===null?'—':c.capaAvg.toFixed(0)+'%'}</span></h3>
+        ${c.capaRows.length ? `<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>공정</th><th class="num">잔량</th><th class="num">일 능력</th><th class="num">부하율</th></tr></thead><tbody>${c.capaRows.slice(0,6).map(r => `<tr><td>${_esc(r.proc.name)}</td><td class="num">${Math.round(r.assigned).toLocaleString()}</td><td class="num">${Math.round(r.dailyCapa).toLocaleString()}</td><td class="num" style="color:${r.loadPct>100?'var(--red)':(r.loadPct<85?'var(--green)':'var(--ink)')}">${r.loadPct.toFixed(0)}%${r.loadPct>100?' ▲':(r.loadPct<85?' ▼':'')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="chart-empty"><div class="big">데이터 없음</div><div class="sm">설비 마스터에 능력이 등록되면 표시됩니다</div></div>'}
+      </div>` },
+  { id:'c_quality', kind:'card', title:'품질 (불량률 · 판정 대기)', group:'카드 (기본 꺼짐)', page:'qc', flag:'qc', desc:'당월', render: c => `
+      <div class="card clk" onclick="location.hash='#qc'" style="margin-bottom:0"><span class="goarrow">품질 ↗</span>
+        <h3>품질 <span class="tag">당월</span></h3>
+        <div class="grid g3">
+          <div class="kpi-mini"><div class="lab">당월 불량률</div><div class="val" style="color:${c._qcRate>=3?'var(--red)':(c._qcRate>0?'var(--amber)':'var(--green)')}">${c._qcRate.toFixed(2)}<span style="font-size:11px;color:var(--sub)">%</span></div></div>
+          <div class="kpi-mini"><div class="lab">판정 대기</div><div class="val" style="color:${c._ncPend?'var(--amber)':'var(--ink)'}">${c._ncPend}<span style="font-size:11px;color:var(--sub)">건</span></div>${c._ncDelay?`<div class="sub">지체 ${c._ncDelay}</div>`:''}</div>
+          <div class="kpi-mini"><div class="lab">누적 수율</div><div class="val">${c.overallYield===null?'—':c.overallYield.toFixed(1)}<span style="font-size:11px;color:var(--sub)">%</span></div>${c.maxDefProc?`<div class="sub">불량 최다 ${_esc(c.maxDefProc)} ${c.maxDefPct.toFixed(1)}%</div>`:''}</div>
+        </div>
+      </div>` },
+  { id:'c_due',     kind:'card', title:'납기 준수율 · 임박',      group:'카드 (기본 꺼짐)', page:'so', desc:'지연·7일 이내', render: c => `
+      <div class="card clk" onclick="location.hash='#so'" style="margin-bottom:0"><span class="goarrow">수주 ↗</span>
+        <h3>납기 <span class="tag">준수율 ${c.onTimePct===null?'—':c.onTimePct.toFixed(0)+'%'} · 지연 ${c.dueRows.filter(r=>r.status.label==='지연').length} · 임박 ${c.dueRows.filter(r=>r.status.label==='납기임박').length}</span></h3>
+        ${c.dueRows.length ? `<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>수주</th><th>고객</th><th>납기</th><th class="num">잔량</th><th>상태</th></tr></thead><tbody>${c.dueRows.slice(0,6).map(r => `<tr><td>${_esc(r.o.id)}</td><td>${_esc(r.custNm)}</td><td style="font-family:'JetBrains Mono',monospace">${_esc(r.o.due||'—')}</td><td class="num">${r.remain.toLocaleString()}</td><td><span class="pill ${r.status.cls}">${r.status.label}</span></td></tr>`).join('')}</tbody></table></div>` : '<div class="chart-empty"><div class="big">지연·임박 없음</div><div class="sm">납기 7일 이내 또는 지연 수주가 생기면 표시됩니다</div></div>'}
+      </div>` },
+  { id:'c_stock',   kind:'card', title:'완제품 재고',           group:'카드 (기본 꺼짐)', page:'inv', desc:'인정양품 − 출하', render: c => `
+      <div class="card clk" onclick="location.hash='#inv'" style="margin-bottom:0"><span class="goarrow">재고 ↗</span>
+        <h3>완제품 재고 <span class="tag">${c.stockSum.toLocaleString()}ea · ₩${Math.round(c.stockValue).toLocaleString()}</span></h3>
+        ${c.stockRows.length ? `<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>품번</th><th class="num">재고</th><th class="num">금액</th></tr></thead><tbody>${c.stockRows.slice(0,6).map(r => `<tr><td>${_esc(r.code)}</td><td class="num">${r.stock.toLocaleString()}</td><td class="num">₩${Math.round(r.value).toLocaleString()}</td></tr>`).join('')}</tbody></table></div>` : '<div class="chart-empty"><div class="big">재고 없음</div><div class="sm">완료 실적이 출하보다 많아지면 표시됩니다</div></div>'}
+      </div>` },
+  { id:'c_cust',    kind:'card', title:'고객사별 매출',          group:'카드 (기본 꺼짐)', page:'ship', desc:'상위 5', render: c => `
+      <div class="card clk" onclick="location.hash='#ship'" style="margin-bottom:0"><span class="goarrow">출하 ↗</span>
+        <h3>고객사별 매출 <span class="tag">누적 · 상위 5</span></h3>
+        ${c.custRows.length ? c.custRows.slice(0,5).map(r => `<div style="display:flex;align-items:center;gap:10px;font-size:12px;padding:5px 0"><span style="width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(r.name)}</span><div style="flex:1;height:8px;background:var(--bg2);border-radius:4px;overflow:hidden"><div style="width:${(r.amount/c.custMax*100).toFixed(1)}%;height:100%;background:var(--cyan)"></div></div><span style="font-family:'JetBrains Mono',monospace;min-width:96px;text-align:right">₩${Math.round(r.amount).toLocaleString()}</span></div>`).join('') : '<div class="chart-empty"><div class="big">수집중</div><div class="sm">출하가 등록되면 표시됩니다</div></div>'}
+      </div>` },
+  { id:'c_prog',    kind:'card', title:'공정 진행 4단',          group:'카드 (기본 꺼짐)', page:'wo', desc:'일·주·월·년 작업지시 달성', render: c => `
+      <div class="card clk" onclick="location.hash='#wo'" style="margin-bottom:0"><span class="goarrow">작업지시 ↗</span>
+        <h3>공정 진행 <span class="tag">작업지시 완료량 / 지시량</span></h3>
+        <div class="grid g4">${['day','week','month','year'].map(k => { const p = c.prog4[k]; return `<div class="kpi-mini"><div class="lab">${_esc(c.progLabels[k])}</div><div class="val">${p.pct.toFixed(0)}<span style="font-size:11px;color:var(--sub)">%</span></div><div class="sub">${p.good.toLocaleString()} / ${p.target.toLocaleString()}ea · ${p.count}건</div></div>`; }).join('')}</div>
+      </div>` },
+];
+function dashCardVisible(card, flags){
+  flags = flags || getFlags();
+  if(card.flag && !flags[card.flag]) return false;
+  const pg = PAGES.find(p => p.id === card.page);
+  return !pg || pg.id === 'dash' || menuCanSee(pg, flags);
+}
+function dashCardsFor(){
+  // 우선순위: prefs.dash_cards → settings/dash.default(회사 기본 · 관리책임자) → DASH_DEFAULT. 권한 none·플래그 OFF 카드 제외 · k_alert 는 항상(고정).
+  const flags = getFlags();
+  const pref = SESSION.userId ? getPrefs(SESSION.userId)?.dash_cards : null;
+  const co = DB.get('settings','dash')?.default;
+  let ids = (Array.isArray(pref) && pref.length) ? pref.slice() : ((Array.isArray(co) && co.length) ? co.slice() : DASH_DEFAULT.slice());
+  ids = ids.filter((id, i) => ids.indexOf(id) === i && DASH_CARDS.some(c => c.id === id && dashCardVisible(c, flags)));
+  if(!ids.includes('k_alert')){ let at = -1; ids.forEach((id, i) => { if(id.startsWith('k_')) at = i; }); ids.splice(at + 1, 0, 'k_alert'); }
+  return ids;
+}
+function openDashPicker(){
+  const flags = getFlags();
+  const catalog = DASH_CARDS.filter(c => dashCardVisible(c, flags)).map(c => ({ id:c.id, title:c.title, group:c.group, fixed:!!c.fixed, desc:c.desc }));
+  openPickerModal({
+    title:'내 대시보드', sub:'★ 카드 넣기/빼기 · ▲▼ 순서 · 「오늘 이상」 은 항상 표시', selectedLabel:'내 대시보드 (표시 순서)', restLabel:'추가할 수 있는 카드',
+    catalog, selected: dashCardsFor(), canSave: !!SESSION.userId,
+    onSave: ids => { if(!setPrefs(SESSION.userId, { dash_cards: ids })) return false; toast(`내 대시보드 저장 — 카드 ${ids.length}개`, 'ok'); router(); },
+    onReset: () => { if(!setPrefs(SESSION.userId, { dash_cards: [] })) return false; toast('회사 기본 대시보드로 복원', 'ok'); router(); },
+  });
+}
 VIEWS.dash = () => {
   const flags = getFlags();
   const records = DB.all('records');
@@ -7191,62 +7384,26 @@ VIEWS.dash = () => {
   if(_lateN) _issueParts.push({ t:`납기 지연 ${_lateN}`, h:'#so' });
   const _issueGo = _issueParts.length ? _issueParts[0].h : '#lot';
 
+  // ★ v0.38.0 — 계산 컨텍스트 1회 → 선택 카드(dashCardsFor · prefs.dash_cards)만 순서대로 렌더. 계산 위치·횟수 무변(카드를 빼도 계산은 같음 — 단순성 우선).
+  const capaRows = capaOn && typeof computeCapa === 'function' ? computeCapa() : [];
+  const ctx = {
+    flags, stages, stageDonePct, stageProgPct, stageWaitPct, monthSales, monthSalesChg, yearSales, dayGood, monthGood, monthPct, overallYield,
+    _issueN, _issueParts, _issueGo, _ncPend, _ncDelay, trendInit, trendHasData,
+    capaAvg, capaRows, _qcRate, maxDefProc, maxDefPct, onTimePct,
+    dueRows: calcSoRows().filter(r => r.status.label === '지연' || r.status.label === '납기임박').sort((a,b) => (a.o.due||'') < (b.o.due||'') ? -1 : 1),
+    stockSum, stockValue, stockRows: stockData.filter(r => r.stock > 0).sort((a,b) => b.value - a.value),
+    custRows, custMax, prog4, progLabels,
+  };
+  const picked = dashCardsFor().map(id => DASH_CARDS.find(c => c.id === id)).filter(Boolean);
+  const kpis = picked.filter(c => c.kind === 'kpi'), cards = picked.filter(c => c.kind === 'card');
   document.getElementById('view').innerHTML = `
-    <div class="hero hero4 dash3">
-      <div class="dkpi clk" onclick="location.hash='#so'"><span class="goarrow">수주 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M4 6h16v4H4zM4 14h16v4H4z"/></svg>총 수주잔</div>
-        <div class="val c">${stages.hasData ? '₩'+Math.round(stages.total).toLocaleString() : '<span style="color:var(--dim);font-size:15px">수주 없음</span>'}</div>
-        <div class="sub">${stages.hasData ? `생산중 ₩${Math.round(stages.prog).toLocaleString()} · 미착수 ₩${Math.round(stages.wait).toLocaleString()}` : '<span class="nodata">수주가 등록되면 표시</span>'}</div>
-      </div>
-      <div class="dkpi clk" onclick="location.hash='#ship'"><span class="goarrow">출하 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M5 4l3.5 8M19 4l-3.5 8M8.5 12h7M5 16h14M12 12v8"/></svg>당월 매출</div>
-        <div class="val">${monthSales>0? '₩'+Math.round(monthSales).toLocaleString() : '<span style="color:var(--dim);font-size:15px">수집중</span>'}</div>
-        <div class="sub">${monthSalesChg===null? '<span class="nodata">전월 데이터 없음</span>' : `<span class="chg ${monthSalesChg>=0?'up':'down'}">${monthSalesChg>=0?'▲':'▼'} ${Math.abs(monthSalesChg).toFixed(1)}%</span> 전월`} · 연 누적 ₩${Math.round(yearSales).toLocaleString()}</div>
-      </div>
-      <div class="dkpi clk" onclick="location.hash='#perf'"><span class="goarrow">실적 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>오늘 생산</div>
-        <div class="val">${dayGood.toLocaleString()}<span class="unit">ea</span></div>
-        <div class="sub">이달 ${monthGood.toLocaleString()}ea${monthPct!==null? ` · 목표 대비 <b class="up">${monthPct.toFixed(0)}%</b>` : ''}${overallYield!==null? ` · 수율 ${overallYield.toFixed(1)}%` : ''}</div>
-      </div>
-      <div class="dkpi clk ${_issueN?'issue':'ok'}" onclick="location.hash='${_issueGo}'"><span class="goarrow">확인 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="${_issueN?'var(--amber)':'var(--green)'}"><circle cx="12" cy="12" r="9"/><path d="${_issueN?'M12 8v5M12 16h.01':'M8 12l3 3 5-6'}"/></svg>오늘 이상</div>
-        <div class="val" style="color:${_issueN?'var(--amber)':'var(--green)'}">${_issueN? `${_issueN}<span class="unit">건</span>` : '<span style="font-size:22px">이상 없음</span>'}</div>
-        <div class="sub">${_issueN? _issueParts.map(x=>x.t).join(' · ') : `사고 · HOLD · 판정 지체 · 납기 지연 0${_ncPend?` · 판정 대기 ${_ncPend}`:''}`}</div>
-      </div>
+    <div class="dash-tools"><button class="btn ghost" id="dash-pick" title="카드 넣기/빼기 · 순서 — 내 계정에만 저장">☆ 카드 고르기</button></div>
+    <div class="hero hero4 dash3"${kpis.length && kpis.length !== 4 ? ` style="grid-template-columns:repeat(${kpis.length},1fr)"` : ''}>
+      ${kpis.map(c => c.render(ctx)).join('')}
     </div>
-
-    <div class="dgrid2 dash3g">
-      <!-- 수주 3단계 (★ v0.33.3 — 단색 띠 · GPT 승인 D′4 그대로) -->
-      <div class="card clk" onclick="location.hash='#so'" style="margin-bottom:0"><span class="goarrow">수주 ↗</span>
-        <h3>수주 대비 생산실적 <span class="tag">금액 · 출하 기준</span></h3>
-        ${stages.hasData? `
-          <div class="stage3">
-            ${stageDonePct>0? `<div class="s done" style="width:${stageDonePct.toFixed(2)}%">${stageDonePct>=8?`출하완료 ${stageDonePct.toFixed(0)}%`:''}</div>`:''}
-            ${stageProgPct>0? `<div class="s prog" style="width:${stageProgPct.toFixed(2)}%">${stageProgPct>=8?`생산중 ${stageProgPct.toFixed(0)}%`:''}</div>`:''}
-            ${stageWaitPct>0? `<div class="s wait" style="width:${stageWaitPct.toFixed(2)}%">${stageWaitPct>=8?`미착수 ${stageWaitPct.toFixed(0)}%`:''}</div>`:''}
-          </div>
-          <div class="stage-legend">
-            <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--cyan-dim)"></span>출하완료</div><div class="slv" style="color:var(--cyan)">₩${Math.round(stages.done).toLocaleString()}</div></div>
-            <div class="sl"><div class="slh"><span class="dot-sq" style="background:#f59e0b"></span>생산중</div><div class="slv" style="color:var(--amber)">₩${Math.round(stages.prog).toLocaleString()}</div></div>
-            <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--line2)"></span>미착수</div><div class="slv" style="color:var(--sub)">₩${Math.round(stages.wait).toLocaleString()}</div></div>
-            <div class="sl" style="margin-left:auto;text-align:right"><div class="slh" style="justify-content:flex-end">총 수주 금액</div><div class="slv">₩${stages.total.toLocaleString()}</div></div>
-          </div>
-        ` : '<div class="chart-empty" style="padding:40px 0"><div class="big">수집중</div><div class="sm">수주가 등록되면 출하완료·생산중·미착수 3단계로 분해됩니다</div></div>'}
-      </div>
-      <!-- 생산 추세 -->
-      <div class="card" style="margin-bottom:0">
-        <h3>생산 추세 <span class="seg" id="trend-seg"><button class="on" data-r="w">주</button><button data-r="m">월</button><button data-r="y">년</button></span></h3>
-        <div class="chartbox" id="trend-chart" onclick="event.stopPropagation()">
-          ${trendHasData? renderTrendSVG(trendInit) : `
-            <div class="chart-empty">
-              <div class="big">데이터 수집중</div>
-              <div class="sm">실적이 며칠 쌓이면 추세 그래프가 표시됩니다</div>
-            </div>
-          `}
-        </div>
-      </div>
-    </div>
+    ${cards.length ? `<div class="dgrid2 dash3g">${cards.map(c => c.render(ctx)).join('')}</div>` : ''}
   `;
+  const pickBtn = document.getElementById('dash-pick'); if(pickBtn) pickBtn.onclick = openDashPicker;
 
   // 추세 토글 (주/월/년) — 카드 onclick 막기 (chartbox에 stopPropagation 적용 + seg 영역도 별도 처리)
   document.querySelectorAll('#trend-seg button').forEach(b=>b.onclick = (e)=>{
@@ -21397,7 +21554,7 @@ function setAiKey(v){
 }
 
 // 스코프별 상품명
-const _REPORT_TITLES = { day:'AI 일일보고서', week:'AI 주간보고서', month:'AI 월간보고서' };
+const _REPORT_TITLES = { day:'일일보고서', week:'주간보고서', month:'월간보고서' };   // ★ v0.38.0 — 「AI」 접두 제거 (보고서가 주인공 · AI 는 자동 브리핑 기능일 뿐 · GPT 🟢)
 // 부서 메타 1벌 (배지·엑셀·인쇄 공용 · ★ v0.26.3 화면 밖에서도 같은 이름 쓰도록 상수 분리)
 //   ink = 흰 배경(인쇄·PPT·투사)용 진한 대응색 — 화면 배지 색 계열을 어둡게 (인쇄 양식 _reportPrint 와 동일 색상)
 const _DEPT_META = {
@@ -21666,11 +21823,93 @@ function buildReportData(scope, baseDate){
 }
 
 // 보고서 화면 상태 (필터 · 열람 스냅샷 id)
+/* ★ v0.38.0 — 보고서 섹션 카탈로그 REPORT_SECTIONS 8 (SPEC §5-1 · GPT 🟢): id = buildReportData 반환 키 1:1 · 계산 무변.
+   선택(prefs.report_sections)은 렌더·엑셀·PPT·인쇄·자동 브리핑 입력 다섯 곳이 같은 배열(reportSectionsFor)을 읽는다.
+   kpi = 고정(전사 상황판 · 이슈 수는 항상 보임) · 스냅샷은 저장 당시 sections 로 열람(없으면 구 문서 = 전부). */
+const REPORT_SECTIONS = [
+  { id:'kpi',    title:'전사 KPI',      fixed:true, pages:['report'] },
+  { id:'prod',   title:'생산부',        pages:['plan','perf'] },
+  { id:'sales',  title:'영업부',        pages:['so','ship'] },
+  { id:'pur',    title:'구매·자재',     pages:['po','matin','os'] },
+  { id:'qc',     title:'품질',          pages:['qc'], flag:'qc' },
+  { id:'fin',    title:'경영·정산',     pages:['closing','acct'] },
+  { id:'issues', title:'이슈',          pages:['report'] },
+  { id:'ai',     title:'자동 브리핑',   pages:['report'], desc:'API 키 있을 때 생성' },
+];
+const REPORT_FORMATS = { screen:'화면만', xlsx:'엑셀', pptx:'PPT', print:'인쇄' };
+function reportSectionVisible(sec, flags){
+  flags = flags || getFlags();
+  if(sec.flag && !flags[sec.flag]) return false;
+  const pgs = (sec.pages || []).map(id => PAGES.find(p => p.id === id)).filter(Boolean);
+  return !pgs.length || pgs.some(pg => menuCanSee(pg, flags));   // 매핑 메뉴가 전부 none 이면 제외
+}
+function _normReportSections(ids){
+  const known = REPORT_SECTIONS.map(x => x.id);
+  const out = (ids || []).filter((id, i, a) => known.includes(id) && a.indexOf(id) === i);
+  if(!out.includes('kpi')) out.unshift('kpi');
+  return out;
+}
+function myReportSections(){
+  // 라이브(내 구성): prefs.report_sections → settings/report.default(회사 기본) → 전부. 권한 none·플래그 OFF 섹션 제외.
+  const flags = getFlags();
+  const pref = SESSION.userId ? getPrefs(SESSION.userId)?.report_sections : null;
+  const co = DB.get('settings','report')?.default;
+  const ids = (Array.isArray(pref) && pref.length) ? pref : ((Array.isArray(co) && co.length) ? co : REPORT_SECTIONS.map(x => x.id));
+  return _normReportSections(ids.filter(id => { const sec = REPORT_SECTIONS.find(x => x.id === id); return sec && reportSectionVisible(sec, flags); }));
+}
+function reportSectionsFor(reportDoc){
+  // 스냅샷 문서({data,sections}) = 저장 당시 구성(재해석 없음) · sections 없는 구 문서 = 전부 · 라이브 데이터 = 내 구성
+  if(reportDoc && reportDoc.data){ return Array.isArray(reportDoc.sections) ? _normReportSections(reportDoc.sections) : REPORT_SECTIONS.map(x => x.id); }
+  return myReportSections();
+}
+function reportSectionLabel(secs){
+  const all = REPORT_SECTIONS.map(x => x.id).every(id => secs.includes(id));
+  const names = REPORT_SECTIONS.filter(x => secs.includes(x.id) && x.id !== 'kpi' && x.id !== 'ai').map(x => x.title);
+  return all ? '전체 섹션 기준' : `선택한 섹션 기준(${names.join('·') || '전사 KPI'})`;
+}
+function myReportFormat(){ const f = SESSION.userId ? getPrefs(SESSION.userId)?.report_format : null; return REPORT_FORMATS[f] ? f : 'screen'; }
+function openReportPicker(){
+  const flags = getFlags();
+  const catalog = REPORT_SECTIONS.filter(x => reportSectionVisible(x, flags)).map(x => ({ id:x.id, title:x.title, fixed:!!x.fixed, desc:x.desc }));
+  openPickerModal({
+    title:'내 보고서 구성', sub:'★ 섹션 넣기/빼기 · ▲▼ 순서 · 전사 KPI 는 항상 포함 · 수치 계산은 그대로', selectedLabel:'내 보고서 (섹션 순서)', restLabel:'추가할 수 있는 섹션',
+    catalog, selected: myReportSections(), canSave: !!SESSION.userId,
+    onSave: ids => { if(!setPrefs(SESSION.userId, { report_sections: ids })) return false; toast(`내 보고서 구성 저장 — 섹션 ${ids.length}개`, 'ok'); router(); },
+    onReset: () => { if(!setPrefs(SESSION.userId, { report_sections: [] })) return false; toast('회사 기본 보고서 구성으로 복원', 'ok'); router(); },
+  });
+}
+/* ★ v0.38.0 — [보고서 만들기] 원클릭 (SPEC §5-3 · GPT 🟢): 계산(무변) → 스냅샷(sections 포함 · 기존 21879 경로) → 자동 브리핑(고른 섹션만 · 기존 DB.correct 경로) → 내 기본 형식 출력.
+   새 write path 0 — 기존 핸들러를 순서대로 부른다. 🔴 페이지 열 때 자동 생성 금지: 오직 이 버튼으로만. 브리핑 실패여도 스냅샷·출력은 완료. */
+async function makeReportOneClick(st){
+  const fresh = buildReportData(st.scope, st.anchor);
+  const sections = myReportSections();
+  const id = nextDocNo('RP');
+  if(DB.get('reports', id)){ toast(`보고서 번호 중복 — ${id}`,'err'); return null; }
+  const doc = DB.set('reports', id, { id, scope: fresh.scope, period: fresh.period, data: fresh, sections, ts: Date.now(), by: SESSION.user || 'system' });
+  if(!doc) return null;   // 보기 전용 가드 등 (toast 는 가드가 냄)
+  toast(`① 계산 · ② 스냅샷 저장 — ${id}`, 'ok', 1600);
+  st.viewSnapshotId = id;
+  let aiErr = null;
+  if(sections.includes('ai') && getAiKey()){
+    toast('③ 자동 브리핑 생성 중…', 'ok', 2500);
+    try {
+      const summary = await _requestAiBriefing(fresh, sections);
+      DB.correct('reports', id, { data: { ...fresh, ai_summary: summary } }, 'AI 요약 병합');
+    } catch(e){ aiErr = e?.message || '네트워크 오류'; }
+  }
+  const saved = DB.get('reports', id);
+  const fmt = myReportFormat();
+  if(fmt === 'xlsx') _reportExportXlsx(saved);
+  else if(fmt === 'pptx') _reportExportPpt(saved);
+  else if(fmt === 'print') _reportPrint(saved.data, saved);
+  toast(aiErr ? `보고서 완료 — 브리핑 생성 실패(${aiErr}) · 수치·스냅샷은 저장됨` : `④ 보고서 완료 — ${REPORT_FORMATS[fmt]}`, aiErr ? 'warn' : 'ok', 3200);
+  return id;
+}
 window._reportState = window._reportState || { scope:'week', anchor: fmtDate(Date.now()), viewSnapshotId: null };
 
 VIEWS.report = () => {
   if(!getFlags().report){
-    document.getElementById('view').innerHTML = `<div class="card">AI 보고서 모듈 OFF — 설정에서 켜세요.</div>`;
+    document.getElementById('view').innerHTML = `<div class="card">보고서 모듈 OFF — 설정에서 켜세요.</div>`;
     return;
   }
   const st = window._reportState;
@@ -21678,11 +21917,17 @@ VIEWS.report = () => {
   const snap = st.viewSnapshotId ? DB.get('reports', st.viewSnapshotId) : null;
   const data = (snap && snap.data) ? snap.data : buildReportData(st.scope, st.anchor);
   const scope = data.scope;
-  const title = _REPORT_TITLES[scope] || 'AI 보고서';
+  const title = _REPORT_TITLES[scope] || '보고서';
   const co = getCompany();
   const coTag = (co?.name && co.name.trim()) ? ` · ${_esc(co.name)}` : '';
   const hasKey = !!getAiKey();
   const historyRaw = DB.all('reports').sort((a,b)=>(b.ts||0)-(a.ts||0));
+  // ★ v0.38.0 — 섹션 = 스냅샷이면 저장 당시 구성 · 라이브면 내 구성(prefs). 렌더·엑셀·PPT·인쇄·브리핑 다섯 곳이 같은 배열.
+  const secs = reportSectionsFor(snap || data);
+  const has = id => secs.includes(id);
+  const secLabel = reportSectionLabel(secs);
+  const myFmt = myReportFormat();
+  const canPick = !!SESSION.userId;
 
   // 기간 이동 (스냅샷 열람 중엔 노출만 · 편집 없음)
   const shiftBtn = (delta, label) => `<button class="btn ghost" data-rep-shift="${delta}" ${snap?'disabled style="opacity:.4"':''}>${label}</button>`;
@@ -21701,47 +21946,10 @@ VIEWS.report = () => {
     </div>`;
   };
 
-  document.getElementById('view').innerHTML = `
-    <div class="pghead">
-      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('report')}</svg>${_esc(title)} <span class="pill cyan">${APP_VERSION}</span>${snap?` <span class="pill amber" title="이력 스냅샷 열람 중">이력</span>`:''}</div>
-      <div class="pgtools">
-        <button class="btn" id="btn-rep-xlsx">${ico('excel')}엑셀</button>
-        <button class="btn" id="btn-rep-ppt">${ico('ppt')}PPT</button>
-        <button class="btn" id="btn-rep-print">${ico('print')}인쇄</button>
-        ${snap
-          ? `<button class="btn primary" id="btn-rep-back">${ico('refresh')}라이브로 돌아가기</button>`
-          : `<button class="btn primary" id="btn-rep-gen">${ico('save')}보고서 생성 (스냅샷 저장)</button>`}
-      </div>
-    </div>
-
-    <div class="card" style="padding:12px 14px;margin-bottom:12px">
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        ${tabBtn('day','일간')}${tabBtn('week','주간')}${tabBtn('month','월간')}
-        <div style="display:flex;gap:4px;margin-left:12px">
-          ${shiftBtn(-1,'◀')}
-          <button class="btn ghost" data-rep-today ${snap?'disabled style="opacity:.4"':''}>오늘</button>
-          ${shiftBtn(1,'▶')}
-        </div>
-        <span style="color:var(--sub);font-size:11.5px;margin-left:10px">${_esc(data.period.label)}${coTag}${snap?` · ${_esc(snap.id)} · 생성 ${fmtDate(snap.ts)} ${fmtTime(snap.ts)}`:''}</span>
-      </div>
-      <!-- ★ v0.26.3 — 라이브러리 한계 정직 고지 (무료 SheetJS 는 셀 색·테두리 미지원)
-           ★ v0.26.4 — 색이 필요한 제출용 경로에 [PPT] 추가 -->
-      <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.5">
-        · [엑셀]은 구조·병합·숫자 서식까지 지원합니다 — <b>색·테두리 있는 제출용은 [인쇄] → PDF 저장</b> 또는 <b>[PPT]</b>를 사용하세요.
-      </div>
-    </div>
-
-    <!-- ① 전사 핵심 데이터 -->
-    <div class="grid g4" style="margin-bottom:12px">
-      ${kpi('생산 실적', num(data.companyKPI.actual,'ea'), null, 'var(--green)')}
-      ${kpi('매출', _wKr(data.companyKPI.sales), null, 'var(--cyan)')}
-      ${kpi('매입+외주', _wKr(data.companyKPI.purchases), null)}
-      ${kpi('이슈', num(data.companyKPI.issueCount,'건'), null, data.companyKPI.issueCount>0?'var(--amber)':'var(--dim)')}
-    </div>
-
-    <!-- ② 부서별 데이터 -->
-    <!-- 생산부 -->
-    <div class="card">
+  // ★ v0.38.0 — 섹션 HTML 맵 (선택·순서 = secs 배열 그대로 · kpi 는 고정 상단)
+  const _sec = {};
+  _sec.prod = `<!-- 생산부 -->
+    <div class="card" data-rep-sec="prod">
       <div style="margin-bottom:10px">${_deptBadge('prod')}</div>
       <div class="grid g4" style="margin-bottom:10px">
         ${kpi('계획',   num(data.production.plan,'ea'))}
@@ -21759,10 +21967,9 @@ VIEWS.report = () => {
           </tr>`).join('')}</tbody>
         </table></div>
       ` : '<div style="color:var(--dim);font-size:11px">설비별 실적 없음</div>'}
-    </div>
-
-    <!-- 영업부 -->
-    <div class="card">
+    </div>`;
+  _sec.sales = `<!-- 영업부 -->
+    <div class="card" data-rep-sec="sales">
       <div style="margin-bottom:10px">${_deptBadge('sales')}</div>
       <div class="grid g4" style="margin-bottom:10px">
         ${kpi('신규 수주', num(data.sales.newOrders,'건'))}
@@ -21781,10 +21988,9 @@ VIEWS.report = () => {
           </tr>`).join('')}</tbody>
         </table></div>
       ` : '<div style="color:var(--dim);font-size:11px">고객사별 데이터 없음</div>'}
-    </div>
-
-    <!-- 구매·자재 -->
-    <div class="card">
+    </div>`;
+  _sec.pur = `<!-- 구매·자재 -->
+    <div class="card" data-rep-sec="pur">
       <div style="margin-bottom:10px">${_deptBadge('pur')}</div>
       <div class="grid g4" style="margin-bottom:10px">
         ${kpi('소재 입고', num(Math.round(data.procurement.matInKg),'kg'))}
@@ -21802,10 +22008,9 @@ VIEWS.report = () => {
           </tr>`).join('')}</tbody>
         </table></div>
       ` : '<div style="color:var(--dim);font-size:11px">재질별 데이터 없음</div>'}
-    </div>
-
-    <!-- 품질 -->
-    <div class="card">
+    </div>`;
+  _sec.qc = `<!-- 품질 -->
+    <div class="card" data-rep-sec="qc">
       <div style="margin-bottom:10px">${_deptBadge('qc')}</div>
       <div class="grid g3">
         ${kpi('불량률', num(data.quality.defectRate,'%'), null, data.quality.defectRate>=3?'var(--red)':(data.quality.defectRate>0?'var(--amber)':'var(--green)'))}
@@ -21818,46 +22023,90 @@ VIEWS.report = () => {
         ${kpi('처리 대기', num(data.quality.ncWaiting||0,'건'), '접수 상태', (+data.quality.ncWaiting||0)>0?'var(--amber)':null)}
         ${kpi('유형 상위', (data.quality.ncTopTypes && data.quality.ncTopTypes.length) ? _esc(data.quality.ncTopTypes.map(t => `${t.name} ${t.qty}ea`).join(' · ')) : '<span style="color:var(--dim)">—</span>')}
       </div>` : ''}
-    </div>
-
-    <!-- 경영·정산 -->
-    <div class="card">
+    </div>`;
+  _sec.fin = `<!-- 경영·정산 -->
+    <div class="card" data-rep-sec="fin">
       <div style="margin-bottom:10px">${_deptBadge('fin')}</div>
       <div class="grid g3">
         ${kpi(`마감 매출 (${data.period.month})`, _wKr(data.finance.salesClosing))}
         ${kpi('미수 잔액',       data.finance.unpaid   != null ? _wKr(data.finance.unpaid)    : '—', data.finance.unpaid==null?'<span style="color:var(--dim)">마감 미확정</span>':null, data.finance.unpaid>0?'var(--amber)':null)}
         ${kpi('미지급(매입·외주)', data.finance.unpayable!= null ? _wKr(data.finance.unpayable) : '—', data.finance.unpayable==null?'<span style="color:var(--dim)">마감 미확정</span>':null)}
       </div>
-    </div>
-
-    <!-- ③ 이슈 -->
-    <div class="card">
+    </div>`;
+  _sec.issues = `<!-- ③ 이슈 (켜면 전체 · 부서 필터 없음 · red 수는 전사 KPI 에 항상) -->
+    <div class="card" data-rep-sec="issues">
       <h3 style="color:${data.issues.length?'var(--amber)':'var(--dim)'};font-size:13px">이슈 · ${data.issues.length}건 <span class="tag">자동 감지 (기존 판정 재사용)</span></h3>
       ${data.issues.length
         ? `<div>${data.issues.map(issueLine).join('')}</div>`
         : '<div style="color:var(--dim);font-size:11.5px;padding:8px 0">감지된 이슈 없음</div>'}
-    </div>
-
-    <!-- ④ AI 종합 브리핑 -->
-    ${hasKey ? `
-    <div class="card" style="background:linear-gradient(135deg,rgba(94,234,212,.07),rgba(125,211,252,.05));border:1px solid rgba(94,234,212,.28)">
+    </div>`;
+  _sec.ai = hasKey ? `<!-- ④ 자동 브리핑 (★ v0.38.0 — 구 AI 종합 브리핑 · 고른 섹션만 입력 · 9-A LLM 은 설명만) -->
+    <div class="card" data-rep-sec="ai" style="background:linear-gradient(135deg,rgba(94,234,212,.07),rgba(125,211,252,.05));border:1px solid rgba(94,234,212,.28)">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-        <b style="color:var(--cyan);font-size:12px;letter-spacing:1px">AI 종합 브리핑</b>
+        <b style="color:var(--cyan);font-size:12px;letter-spacing:1px">자동 브리핑 · ${_esc(secLabel)}</b>
         <span style="font-size:10.5px;color:var(--dim)">Anthropic API · 로컬 키(vela_ai_key)</span>
-        ${!snap?`<button class="btn primary" id="btn-rep-ai" style="margin-left:auto">${ico('save')}AI 요약 생성</button>`:''}
+        ${!snap?`<button class="btn primary" id="btn-rep-ai" style="margin-left:auto">${ico('save')}브리핑 생성</button>`:''}
       </div>
+      <div class="rep-ai-note">자동 생성 문장 · 수치는 표/계산 결과가 기준 · ${_esc(secLabel)}</div>
       <div id="rep-ai-body" style="font-size:12.5px;line-height:1.7">
         ${(snap?.data?.ai_summary || data.ai_summary)
           ? `<pre style="white-space:pre-wrap;font-family:inherit;margin:0">${_esc(snap?.data?.ai_summary || data.ai_summary)}</pre>`
-          : `<span style="color:var(--dim)">${snap?'이 스냅샷에는 AI 요약이 저장되지 않았습니다.':'상단 [AI 요약 생성] 클릭 시 데이터를 API 로 전송 후 요약을 여기에 표시합니다.'}</span>`}
+          : `<span style="color:var(--dim)">${snap?'이 스냅샷에는 자동 브리핑이 저장되지 않았습니다.':'[보고서 만들기] 또는 [브리핑 생성] 클릭 시 고른 섹션의 수치를 API 로 보내 문장을 여기에 표시합니다.'}</span>`}
       </div>
       <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.55">
         · 원칙: 앱 수치 인용만 · 과장·데이터 밖 생성 금지 프롬프트 · 실패해도 보고서 수치 무영향.
       </div>
     </div>` : `
-    <div class="card" style="border:1px dashed var(--line);color:var(--dim);font-size:11.5px;line-height:1.6">
-      · AI 종합 브리핑 블록은 <b>API 키 설정 시</b>에만 표시됩니다 (설정 › 시스템 · 개발자 전용 카드).
-    </div>`}
+    <div class="card" data-rep-sec="ai" style="border:1px dashed var(--line);color:var(--dim);font-size:11.5px;line-height:1.6">
+      · <b>자동 브리핑 사용 안 함</b> — 설정 › 시스템 › AI 키 를 등록하면 고른 섹션의 수치를 문장으로 요약합니다 (자동 생성 문장 · 수치는 표/계산 결과가 기준).
+    </div>`;
+  document.getElementById('view').innerHTML = `
+    <div class="pghead">
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('report')}</svg>${_esc(title)} <span class="pill cyan">${APP_VERSION}</span>${snap?` <span class="pill amber" title="이력 스냅샷 열람 중">이력</span>`:''}</div>
+      <div class="pgtools">
+        <button class="btn" id="btn-rep-xlsx">${ico('excel')}엑셀</button>
+        <button class="btn" id="btn-rep-ppt">${ico('ppt')}PPT</button>
+        <button class="btn" id="btn-rep-print">${ico('print')}인쇄</button>
+        ${snap
+          ? `<button class="btn primary" id="btn-rep-back">${ico('refresh')}라이브로 돌아가기</button>`
+          : `<button class="btn primary" id="btn-rep-make" title="내 구성으로 계산 → 스냅샷 저장 → 자동 브리핑 → 기본 형식 출력 (한 번에)">${ico('save')}보고서 만들기</button>`}
+      </div>
+    </div>
+
+    <div class="card" style="padding:12px 14px;margin-bottom:12px">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        ${tabBtn('day','일간')}${tabBtn('week','주간')}${tabBtn('month','월간')}
+        <div style="display:flex;gap:4px;margin-left:12px">
+          ${shiftBtn(-1,'◀')}
+          <button class="btn ghost" data-rep-today ${snap?'disabled style="opacity:.4"':''}>오늘</button>
+          ${shiftBtn(1,'▶')}
+        </div>
+        <span style="color:var(--sub);font-size:11.5px;margin-left:10px">${_esc(data.period.label)}${coTag}${snap?` · ${_esc(snap.id)} · 생성 ${fmtDate(snap.ts)} ${fmtTime(snap.ts)}`:''}</span>
+      </div>
+      <!-- ★ v0.38.0 — 내가 정한 보고서 구성 (섹션 순서 + 기본 출력) · 기간은 위 탭 = 실행 조건(저장 안 함) -->
+      <div class="rep-mine" id="rep-mine">
+        <span class="rep-mine-l">${snap ? '이 스냅샷의 구성' : '내 보고서 구성'}</span>
+        <span class="rep-mine-secs">${secs.map(id => `<span class="pill ${id==='kpi'?'cyan':''}">${_esc((REPORT_SECTIONS.find(x=>x.id===id)||{}).title||id)}</span>`).join('')}</span>
+        ${snap ? '' : `<button class="btn ghost" id="btn-rep-pick" ${canPick?'':'disabled title="개발자 세션은 저장 불가"'}>☆ 구성 바꾸기</button>
+        <label class="rep-mine-fmt">기본 출력 <select id="rep-fmt" ${canPick?'':'disabled'}>${Object.entries(REPORT_FORMATS).map(([k,v]) => `<option value="${k}" ${myFmt===k?'selected':''}>${v}</option>`).join('')}</select></label>`}
+      </div>
+      <!-- ★ v0.26.3 — 라이브러리 한계 정직 고지 (무료 SheetJS 는 셀 색·테두리 미지원)
+           ★ v0.26.4 — 색이 필요한 제출용 경로에 [PPT] 추가 -->
+      <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.5">
+        · [엑셀]은 구조·병합·숫자 서식까지 지원합니다 — <b>색·테두리 있는 제출용은 [인쇄] → PDF 저장</b> 또는 <b>[PPT]</b>를 사용하세요.
+      </div>
+    </div>
+
+    <!-- ① 전사 핵심 데이터 -->
+    <div class="grid g4" style="margin-bottom:12px">
+      ${kpi('생산 실적', num(data.companyKPI.actual,'ea'), null, 'var(--green)')}
+      ${kpi('매출', _wKr(data.companyKPI.sales), null, 'var(--cyan)')}
+      ${kpi('매입+외주', _wKr(data.companyKPI.purchases), null)}
+      ${kpi('이슈', num(data.companyKPI.issueCount,'건'), null, data.companyKPI.issueCount>0?'var(--amber)':'var(--dim)')}
+    </div>
+
+    <!-- ② 부서별 데이터 · ③ 이슈 · ④ 자동 브리핑 (★ v0.38.0 — 선택 섹션만 · prefs 순서 그대로) -->
+    ${secs.filter(id => id !== 'kpi').map(id => _sec[id] || '').join('')}
 
     <!-- 이력 -->
     <div class="card">
@@ -21868,7 +22117,7 @@ VIEWS.report = () => {
       <div class="tbl-wrap"><table style="font-size:12px">
         <thead><tr><th>생성</th><th>보고서</th><th class="num">실적</th><th class="num">매출</th><th>이슈</th><th style="text-align:right"></th></tr></thead>
         <tbody>${historyRaw.length ? historyRaw.map(r => {
-          const t = _REPORT_TITLES[r.scope] || 'AI 보고서';
+          const t = _REPORT_TITLES[r.scope] || '보고서';
           const per = r.data?.period?.label || '—';
           const rActual = r.data?.companyKPI?.actual || 0;
           const rSales  = r.data?.companyKPI?.sales  || 0;
@@ -21884,7 +22133,7 @@ VIEWS.report = () => {
               <button class="btn ghost" data-rep-void="${_esc(r.id)}" style="color:var(--red)" title="스냅샷 취소 (원본 보존)">${ico('x')}</button>
             </td>
           </tr>`;
-        }).join('') : '<tr><td colspan="6" class="empty">저장된 스냅샷 없음 — [보고서 생성] 클릭</td></tr>'}</tbody>
+        }).join('') : '<tr><td colspan="6" class="empty">저장된 스냅샷 없음 — [보고서 만들기] 클릭</td></tr>'}</tbody>
       </table></div>
     </div>
   `;
@@ -21905,18 +22154,13 @@ VIEWS.report = () => {
   if(todayBtn) todayBtn.onclick = () => { st.anchor = fmtDate(Date.now()); st.viewSnapshotId = null; router(); };
   const backBtn = document.getElementById('btn-rep-back');
   if(backBtn) backBtn.onclick = () => { st.viewSnapshotId = null; router(); };
-  const genBtn = document.getElementById('btn-rep-gen');
-  if(genBtn) genBtn.onclick = () => {
-    const fresh = buildReportData(st.scope, st.anchor);
-    const id = nextDocNo('RP');
-    if(DB.get('reports', id)){ toast(`보고서 번호 중복 — ${id}`,'err'); return; }
-    DB.set('reports', id, {
-      id, scope: fresh.scope, period: fresh.period, data: fresh,
-      ts: Date.now(), by: SESSION.user || 'system',
-    });
-    toast(`보고서 스냅샷 저장 — ${id}`, 'ok');
-    router();
-  };
+  // ★ v0.38.0 — [보고서 만들기] 원클릭 (열 때 자동 생성 없음 · 오직 버튼)
+  const makeBtn = document.getElementById('btn-rep-make');
+  if(makeBtn) makeBtn.onclick = async () => { makeBtn.disabled = true; try { await makeReportOneClick(st); } finally { router(); } };
+  const pickBtn = document.getElementById('btn-rep-pick');
+  if(pickBtn) pickBtn.onclick = openReportPicker;
+  const fmtSel = document.getElementById('rep-fmt');
+  if(fmtSel) fmtSel.onchange = () => { if(setPrefs(SESSION.userId, { report_format: fmtSel.value })) toast(`기본 출력 — ${REPORT_FORMATS[fmtSel.value]}`, 'ok'); };
   document.querySelectorAll('[data-rep-view]').forEach(b => b.onclick = () => { st.viewSnapshotId = b.dataset.repView; router(); });
   document.querySelectorAll('[data-rep-void]').forEach(b => b.onclick = () => {
     voidDoc('reports', b.dataset.repVoid, '보고서 취소');
@@ -21930,7 +22174,7 @@ VIEWS.report = () => {
     const body = document.getElementById('rep-ai-body');
     if(body) body.innerHTML = '<span style="color:var(--dim)">AI 요약 생성 중…</span>';
     try {
-      const summary = await _requestAiBriefing(data);
+      const summary = await _requestAiBriefing(data, secs);   // ★ v0.38.0 — 고른 섹션만 입력
       if(body) body.innerHTML = `<pre style="white-space:pre-wrap;font-family:inherit;margin:0">${_esc(summary)}</pre>`;
       // 최근 스냅샷에 병합 (있으면) — 라이브에도 반영
       data.ai_summary = summary;
@@ -21940,9 +22184,9 @@ VIEWS.report = () => {
         const nd = { ...(latest.data||{}), ai_summary: summary };
         DB.correct('reports', latest.id, { data: nd }, 'AI 요약 병합');
       }
-      toast('AI 요약 생성 완료','ok');
+      toast('자동 브리핑 생성 완료','ok');
     } catch(e){
-      if(body) body.innerHTML = `<span style="color:var(--red)">AI 요약 실패 — ${_esc(e.message||'네트워크 오류')}</span> <span style="color:var(--dim);font-size:11px">(보고서 수치는 그대로)</span>`;
+      if(body) body.innerHTML = `<span style="color:var(--red)">자동 브리핑 실패 — ${_esc(e.message||'네트워크 오류')}</span> <span style="color:var(--dim);font-size:11px">(보고서 수치는 그대로)</span>`;
     }
   };
 
@@ -21950,37 +22194,46 @@ VIEWS.report = () => {
   // ★ v0.26.3 — 스냅샷 열람 중이면 스냅샷 문서를 넘겨 작성자·문서번호까지 반영 (재계산 없음)
   document.getElementById('btn-rep-xlsx').onclick = () => _reportExportXlsx(snap || data);
   document.getElementById('btn-rep-ppt').onclick  = () => _reportExportPpt(snap || data);   // ★ v0.26.4
-  document.getElementById('btn-rep-print').onclick = () => _reportPrint(data);
+  document.getElementById('btn-rep-print').onclick = () => _reportPrint(data, snap || data);   // ★ v0.38.0 — 섹션 배열 결정용 문서 전달
 };
 
 // AI 브리핑 요청 — 수치 요약 텍스트 → Anthropic API
-async function _requestAiBriefing(data){
-  const key = getAiKey();
-  if(!key) throw new Error('API 키 없음');
+/* ★ v0.38.0 — 입력 텍스트 = 고른 섹션만(sections · 기본 전부) · [기간][전사] 는 항상 · 9-A: LLM 은 설명만(계산·판정·원장 변경 0). 문장 형식도 고른 부서만 요구. */
+function _aiBriefingInput(data, sections){
+  const secs = Array.isArray(sections) && sections.length ? sections : REPORT_SECTIONS.map(x => x.id);
+  const has = id => secs.includes(id);
   const p = data.production, s = data.sales, m = data.procurement, q = data.quality, f = data.finance;
   const lines = [];
   lines.push(`[기간] ${data.period.label} · ${_REPORT_TITLES[data.scope]||''}`);
   lines.push(`[전사] 실적 ${p.actual}ea · 매출 ${_wKr(s.revenue)} · 매입+외주 ${_wKr(m.purchaseAmount + m.osCost)} · 이슈 ${data.issues.length}건`);
-  lines.push(`[생산] 계획 ${p.plan}ea · 실적 ${p.actual}ea · 달성률 ${p.pct.toFixed(0)}% · 진행 LOT ${p.activeLots}개`);
-  if(p.byEquipment.length){
-    lines.push(`  · 설비별: ${p.byEquipment.map(e => `${e.name} ${e.actual}(부하 ${e.loadPct.toFixed(0)}%)`).join(', ')}`);
+  if(has('prod')){
+    lines.push(`[생산] 계획 ${p.plan}ea · 실적 ${p.actual}ea · 달성률 ${p.pct.toFixed(0)}% · 진행 LOT ${p.activeLots}개`);
+    if(p.byEquipment.length) lines.push(`  · 설비별: ${p.byEquipment.map(e => `${e.name} ${e.actual}(부하 ${e.loadPct.toFixed(0)}%)`).join(', ')}`);
   }
-  lines.push(`[영업] 신규 수주 ${s.newOrders}건 · 출하 ${s.shipped}ea · 매출 ${_wKr(s.revenue)} · 잔량 ${s.backlog}ea`);
-  if(s.byCustomer.length){
-    lines.push(`  · 고객사: ${s.byCustomer.map(c => `${c.name} ${_wKr(c.revenue)}(잔량 ${c.backlog}${c.nextDue?`, 납기 ${c.nextDue}`:''})`).join(', ')}`);
+  if(has('sales')){
+    lines.push(`[영업] 신규 수주 ${s.newOrders}건 · 출하 ${s.shipped}ea · 매출 ${_wKr(s.revenue)} · 잔량 ${s.backlog}ea`);
+    if(s.byCustomer.length) lines.push(`  · 고객사: ${s.byCustomer.map(c => `${c.name} ${_wKr(c.revenue)}(잔량 ${c.backlog}${c.nextDue?`, 납기 ${c.nextDue}`:''})`).join(', ')}`);
   }
-  lines.push(`[구매·자재] 소재 입고 ${Math.round(m.matInKg)}kg · 매입액 ${_wKr(m.purchaseAmount)} · 외주 진행 ${m.osActive}건 · 외주비 ${_wKr(m.osCost)}`);
-  if(m.byMaterial.length){
-    lines.push(`  · 재질별: ${m.byMaterial.map(x => `${x.mat} 잔량 ${Math.round(x.remain)}kg${x.short?'(부족)':''}, 소요 ${Math.round(x.used)}kg`).join(', ')}`);
+  if(has('pur')){
+    lines.push(`[구매·자재] 소재 입고 ${Math.round(m.matInKg)}kg · 매입액 ${_wKr(m.purchaseAmount)} · 외주 진행 ${m.osActive}건 · 외주비 ${_wKr(m.osCost)}`);
+    if(m.byMaterial.length) lines.push(`  · 재질별: ${m.byMaterial.map(x => `${x.mat} 잔량 ${Math.round(x.remain)}kg${x.short?'(부족)':''}, 소요 ${Math.round(x.used)}kg`).join(', ')}`);
   }
-  lines.push(`[품질] 불량률 ${q.defectRate.toFixed(2)}% · 불량 ${q.defectQty}ea · 중단 ${q.stopCount}건${((+q.ncCount||0)>0||(+q.ncWaiting||0)>0)?` · 부적합 ${(+q.ncCount||0)}건(대기 ${(+q.ncWaiting||0)})${(q.ncTopTypes&&q.ncTopTypes.length)?` · 상위 ${q.ncTopTypes.map(t=>`${t.name} ${t.qty}ea`).join(', ')}`:''}`:''}`);
-  lines.push(`[경영·정산] 마감 매출 ${_wKr(f.salesClosing)} · 미수 ${f.unpaid==null?'미확정':_wKr(f.unpaid)} · 미지급 ${f.unpayable==null?'미확정':_wKr(f.unpayable)}`);
-  if(data.issues.length){
+  if(has('qc')) lines.push(`[품질] 불량률 ${q.defectRate.toFixed(2)}% · 불량 ${q.defectQty}ea · 중단 ${q.stopCount}건${((+q.ncCount||0)>0||(+q.ncWaiting||0)>0)?` · 부적합 ${(+q.ncCount||0)}건(대기 ${(+q.ncWaiting||0)})${(q.ncTopTypes&&q.ncTopTypes.length)?` · 상위 ${q.ncTopTypes.map(t=>`${t.name} ${t.qty}ea`).join(', ')}`:''}`:''}`);
+  if(has('fin')) lines.push(`[경영·정산] 마감 매출 ${_wKr(f.salesClosing)} · 미수 ${f.unpaid==null?'미확정':_wKr(f.unpaid)} · 미지급 ${f.unpayable==null?'미확정':_wKr(f.unpayable)}`);
+  if(has('issues') && data.issues.length){
     lines.push(`[이슈]`);
     data.issues.slice(0, 12).forEach(iss => { lines.push(`  · [${iss.severity}][${iss.dept}] ${iss.text}`); });
   }
-  const summaryText = lines.join('\n');
-  const prompt = `아래 제조 현황 수치를 경영 브리핑으로 작성해 주세요.\n\n형식:\n[총평] 1~2 문장\n[생산부] 1~2 문장\n[영업부] 1~2 문장\n[구매·자재] 1~2 문장\n[품질] 1~2 문장\n[경영·정산] 1~2 문장\n\n원칙: 한국어, 과장 금지, 아래 수치만 인용, 데이터에 없는 내용 생성 금지.\n\n${summaryText}`;
+  const fmt = ['[총평] 1~2 문장'];
+  if(has('prod')) fmt.push('[생산부] 1~2 문장'); if(has('sales')) fmt.push('[영업부] 1~2 문장'); if(has('pur')) fmt.push('[구매·자재] 1~2 문장'); if(has('qc')) fmt.push('[품질] 1~2 문장'); if(has('fin')) fmt.push('[경영·정산] 1~2 문장');
+  return { text: lines.join('\n'), format: fmt.join('\n'), label: reportSectionLabel(secs) };
+}
+async function _requestAiBriefing(data, sections){
+  const key = getAiKey();
+  if(!key) throw new Error('API 키 없음');
+  const inp = _aiBriefingInput(data, sections);
+  const summaryText = inp.text;
+  const prompt = `아래 제조 현황 수치를 경영 브리핑으로 작성해 주세요. (${inp.label} — 아래에 없는 부서는 언급하지 마세요)\n\n형식:\n${inp.format}\n\n원칙: 한국어, 과장 금지, 아래 수치만 인용, 데이터에 없는 내용 생성 금지.\n\n${summaryText}`;
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -22030,11 +22283,13 @@ function buildReportSheet(reportDoc){
   const data = doc ? doc.data : reportDoc;
   if(!data || !data.period) return null;
 
-  const t     = _REPORT_TITLES[data.scope] || 'AI 보고서';
+  const t     = _REPORT_TITLES[data.scope] || '보고서';
   const co    = getCompany();
   const coTag = (co?.name && String(co.name).trim()) ? ` · ${String(co.name).trim()}` : '';
   const genTs = doc?.ts || Date.now();
   const genBy = doc?.by || SESSION.user || 'system';
+  const secs  = reportSectionsFor(reportDoc);   // ★ v0.38.0 — 화면과 같은 섹션 배열
+  const has   = id => secs.includes(id);
 
   const bodyRows = [];    // 셀 = 문자열 | {v,z} | null
   const wideRows = [];    // 전 열 병합 대상 행 (bodyRows 기준)
@@ -22064,9 +22319,10 @@ function buildReportSheet(reportDoc){
   ]);
   putBlank();
 
+  const _xs = {};   // ★ v0.38.0 — 섹션 빌더 맵 · secs 순서대로
   // ── ■ 생산부 ──
   const p = data.production || {};
-  section('■ 생산부', [
+  _xs.prod = () => { section('■ 생산부', [
     ['계획',      _zNum(p.plan),       'ea'],
     ['실적',      _zNum(p.actual),     'ea'],
     ['달성률',    _zPct(p.pct),        ''],
@@ -22074,11 +22330,11 @@ function buildReportSheet(reportDoc){
   ]);
   subTable('· 설비별 실적', ['설비','실적(ea)','부하율(계획)'],
     (p.byEquipment||[]).map(e => [e.name, _zNum(e.actual), _zPct(e.loadPct)]));
-  putBlank();
+  putBlank(); };
 
   // ── ■ 영업부 ──
   const s = data.sales || {};
-  section('■ 영업부', [
+  _xs.sales = () => { section('■ 영업부', [
     ['신규 수주',   _zNum(s.newOrders), '건'],
     ['출하',       _zNum(s.shipped),   'ea'],
     ['매출',       _zNum(s.revenue),   '원'],
@@ -22086,11 +22342,11 @@ function buildReportSheet(reportDoc){
   ]);
   subTable('· 고객사별', ['고객사','매출(원)','잔량(ea)','최근 납기'],
     (s.byCustomer||[]).map(c => [c.name, _zNum(c.revenue), _zNum(c.backlog), c.nextDue || '—']));
-  putBlank();
+  putBlank(); };
 
   // ── ■ 구매·자재 ──
   const m = data.procurement || {};
-  section('■ 구매·자재', [
+  _xs.pur = () => { section('■ 구매·자재', [
     ['소재 입고',   _zNum(m.matInKg),        'kg'],
     ['매입액',     _zNum(m.purchaseAmount), '원'],
     ['외주 진행',   _zNum(m.osActive),       '건'],
@@ -22098,11 +22354,11 @@ function buildReportSheet(reportDoc){
   ]);
   subTable('· 재질별', ['재질','현 잔량(kg)','기간 소요(kg)','판정'],
     (m.byMaterial||[]).map(x => [x.mat, _zNum(x.remain), _zNum(x.used), x.short ? '부족' : '—']));
-  putBlank();
+  putBlank(); };
 
   // ── ■ 품질 ──
   const q = data.quality || {};
-  const qRows = [
+  _xs.qc = () => { const qRows = [
     ['불량률',      _zPct(q.defectRate), ''],
     ['불량 수량',   _zNum(q.defectQty),  'ea'],
     ['중단 이력',   _zNum(q.stopCount),  '건'],
@@ -22116,19 +22372,20 @@ function buildReportSheet(reportDoc){
     subTable('· 부적합 유형 상위', ['유형','수량(ea)','건수'],
       q.ncTopTypes.map(x => [x.name, _zNum(x.qty), _zNum(x.count)]));
   }
-  putBlank();
+  putBlank(); };
 
   // ── ■ 경영·정산 ──
   const f = data.finance || {};
-  section('■ 경영·정산', [
+  _xs.fin = () => { section('■ 경영·정산', [
     [`마감 매출 (${data.period.month})`, _zNum(f.salesClosing), '원'],
     ['미수 잔액',          f.unpaid    == null ? '미확정' : _zNum(f.unpaid),    f.unpaid    == null ? '' : '원'],
     ['미지급(매입·외주)',   f.unpayable == null ? '미확정' : _zNum(f.unpayable), f.unpayable == null ? '' : '원'],
   ]);
-  putBlank();
+  putBlank(); };
 
   // ── ■ 이슈 ──
   const issues = data.issues || [];
+  _xs.issues = () => {
   putWide(`■ 이슈 · ${issues.length}건`);
   if(issues.length){
     put(['심각도','부서','내용']);
@@ -22136,13 +22393,17 @@ function buildReportSheet(reportDoc){
   } else {
     putWide('감지된 이슈 없음');
   }
-  putBlank();
+  putBlank(); };
 
-  // ── ■ AI 종합 브리핑 (문단별 행 분리 · 전 열 병합) ──
-  putWide('■ AI 종합 브리핑');
+  // ── ■ 자동 브리핑 (문단별 행 분리 · 전 열 병합 · ★ v0.38.0 라벨 + 선택 섹션 표기) ──
+  _xs.ai = () => {
+  putWide(`■ 자동 브리핑 · ${reportSectionLabel(secs)} (자동 생성 문장 · 수치는 표가 기준)`);
   const ai = String(data.ai_summary || '').trim();
   if(ai) ai.split(/\n+/).map(x => x.trim()).filter(Boolean).forEach(par => putWide(par));
-  else   putWide('— AI 요약 없음 (보고서 화면 [AI 요약 생성] 후 다시 내보내기)');
+  else   putWide('— 자동 브리핑 없음 (보고서 화면 [보고서 만들기] 또는 [브리핑 생성] 후 다시 내보내기)');
+  };
+
+  secs.filter(id => id !== 'kpi').forEach(id => { if(_xs[id]) _xs[id](); });
 
   // ── 조립: 결재란(상단 우측) → 본문 ──
   const ap        = buildApprovalRows();
@@ -22203,7 +22464,7 @@ function _reportExportXlsx(reportDoc){
   const ws = buildReportSheet(reportDoc);
   if(!ws || !data?.period){ toast('내보낼 데이터 없음','warn'); return; }
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, _REPORT_TITLES[data.scope] || 'AI 보고서');
+  XLSX.utils.book_append_sheet(wb, ws, _REPORT_TITLES[data.scope] || '보고서');
   XLSX.writeFile(wb, `보고서_${data.scope}_${data.period.label.replace(/[ ~]/g,'_')}.xlsx`);
   toast('엑셀 내보내기 완료','ok');
 }
@@ -22244,11 +22505,13 @@ function buildReportPpt(reportDoc){
   const data = doc ? doc.data : reportDoc;
   if(!data || !data.period) return null;
 
-  const t     = _REPORT_TITLES[data.scope] || 'AI 보고서';
+  const t     = _REPORT_TITLES[data.scope] || '보고서';
   const co    = getCompany();
   const coName= (co?.name && String(co.name).trim()) ? String(co.name).trim() : '';
   const genTs = doc?.ts || Date.now();
   const genBy = doc?.by || SESSION.user || 'system';
+  const secs  = reportSectionsFor(reportDoc);   // ★ v0.38.0 — 화면·엑셀과 같은 섹션 배열
+  const has   = id => secs.includes(id);
 
   const pptx = new window.PptxGenJS();
   pptx.layout = 'LAYOUT_16x9';
@@ -22346,9 +22609,10 @@ function buildReportPpt(reportDoc){
   sSum.addText('· 수치는 보고서 생성 시점 스냅샷입니다 (재계산 없음).',
     { x:0.5, y:3.0, w:9.0, h:0.3, fontSize:11, color:PPT_SUB, fontFace:PPT_FONT });
 
+  const _ps = {};   // ★ v0.38.0 — 슬라이드 빌더 맵 · secs 순서대로
   // ── ③ 생산부 ──
   const p = data.production || {};
-  deptSlide('prod',
+  _ps.prod = () => deptSlide('prod',
     [ { label:'계획',   value: ea(p.plan, 'ea') },
       { label:'실적',   value: ea(p.actual, 'ea'), color:'15803D' },
       { label:'달성률', value: `${(+p.pct||0).toFixed(1)} %`,
@@ -22362,7 +22626,7 @@ function buildReportPpt(reportDoc){
 
   // ── ④ 영업부 ──
   const s2 = data.sales || {};
-  deptSlide('sales',
+  _ps.sales = () => deptSlide('sales',
     [ { label:'신규 수주', value: ea(s2.newOrders, '건') },
       { label:'출하',      value: ea(s2.shipped, 'ea') },
       { label:'매출',      value: won(s2.revenue), color:'0369A1' },
@@ -22376,7 +22640,7 @@ function buildReportPpt(reportDoc){
 
   // ── ⑤ 구매·자재 ──
   const m = data.procurement || {};
-  deptSlide('pur',
+  _ps.pur = () => deptSlide('pur',
     [ { label:'소재 입고', value: ea(m.matInKg, 'kg') },
       { label:'매입액',    value: won(m.purchaseAmount) },
       { label:'외주 진행',  value: ea(m.osActive, '건') },
@@ -22400,7 +22664,7 @@ function buildReportPpt(reportDoc){
     qKpis.push({ label:'부적합 / 대기', value:`${(+q.ncCount||0)} / ${(+q.ncWaiting||0)}`, sub:'건 · 접수 상태',
       color:(+q.ncWaiting||0) > 0 ? 'B45309' : PPT_INK });
   }
-  deptSlide('qc', qKpis,
+  _ps.qc = () => deptSlide('qc', qKpis,
     ['부적합 유형','수량(ea)','건수'],
     (q.ncTopTypes||[]).map(x => [ x.name,
       { text: ea(x.qty), align:'right' },
@@ -22410,6 +22674,7 @@ function buildReportPpt(reportDoc){
   // ── ⑦ 경영·정산 (표 없음 — KPI 3 + 마감 안내) ──
   const f = data.finance || {};
   const finMeta = _DEPT_META.fin;
+  _ps.fin = () => {
   const sFin = frame(finMeta.name, finMeta.ink);
   sFin.addShape(pptx.ShapeType.rect, { x:0.5, y:1.06, w:0.9, h:0.26, fill:{ color:finMeta.ink } });
   sFin.addText(finMeta.name, { x:0.5, y:1.06, w:0.9, h:0.26, fontSize:10, bold:true, color:'FFFFFF',
@@ -22423,9 +22688,11 @@ function buildReportPpt(reportDoc){
   ], 1.46, 20);
   sFin.addText('· 미수·미지급은 해당 월 마감 확정 시에만 집계됩니다.',
     { x:0.5, y:2.78, w:9.0, h:0.3, fontSize:11, color:PPT_SUB, fontFace:PPT_FONT });
+  };
 
   // ── ⑧ 이슈 (부서 태그 · red/amber) ──
   const issues = data.issues || [];
+  _ps.issues = () => {
   const sIss = frame(`이슈 · ${issues.length}건`, issues.length ? 'B45309' : PPT_MINT);
   if(issues.length){
     table(sIss, ['심각도','부서','내용'],
@@ -22444,20 +22711,24 @@ function buildReportPpt(reportDoc){
   } else {
     sIss.addText('감지된 이슈 없음', { x:0.5, y:1.4, w:9.0, h:0.4, fontSize:14, color:PPT_SUB, fontFace:PPT_FONT });
   }
+  };
 
-  // ── ⑨ AI 종합 브리핑 (있을 때만) ──
+  // ── ⑨ 자동 브리핑 (있을 때만 · ★ v0.38.0 라벨 + 선택 섹션 표기) ──
+  _ps.ai = () => {
   const ai = String(data.ai_summary || '').trim();
   if(ai){
-    const sAi = frame('AI 종합 브리핑', PPT_MINT);
+    const sAi = frame(`자동 브리핑 · ${reportSectionLabel(secs)}`, PPT_MINT);
     const paras = ai.split(/\n+/).map(x => x.trim()).filter(Boolean);
     sAi.addText(paras.map((line, i) => ({
       text: line,
       options: { fontSize: 12, color: PPT_INK, breakLine: true, paraSpaceAfter: 6,
                  bold: /^\[총평\]/.test(line), fontFace: PPT_FONT },
     })), { x:0.5, y:1.16, w:9.0, h:3.8, valign:'top', fit:'shrink' });
-    sAi.addText('· 앱 수치 인용만 · 데이터 밖 생성 금지 프롬프트로 작성됨.',
+    sAi.addText('· 자동 생성 문장 · 수치는 표가 기준 · 앱 수치 인용만 · 데이터 밖 생성 금지 프롬프트로 작성됨.',
       { x:0.5, y:4.82, w:9.0, h:0.28, fontSize:9, color:PPT_SUB, fontFace:PPT_FONT });
   }
+  };
+  secs.filter(id => id !== 'kpi').forEach(id => { if(_ps[id]) _ps[id](); });
 
   return pptx;
 }
@@ -22472,15 +22743,17 @@ function _reportExportPpt(reportDoc){
   const data = (reportDoc && reportDoc.data) ? reportDoc.data : reportDoc;
   const pptx = buildReportPpt(reportDoc);
   if(!pptx || !data?.period){ toast('내보낼 데이터 없음','warn'); return; }
-  const fileName = _reportPptFileName(_REPORT_TITLES[data.scope] || 'AI 보고서', data.period.label);
+  const fileName = _reportPptFileName(_REPORT_TITLES[data.scope] || '보고서', data.period.label);
   Promise.resolve(pptx.writeFile({ fileName }))
     .then(() => toast('PPT 내보내기 완료','ok'))
     .catch(e => toast(`PPT 생성 실패 — ${e?.message || '알 수 없는 오류'}`,'err', 3200));
 }
 
 // 인쇄 — 기존 _openPrint 경유 (formKey:'report' · 기본 세로) + 결재란 미포함(엑셀만 결재)
-function _reportPrint(data){
-  const t = _REPORT_TITLES[data.scope] || 'AI 보고서';
+function _reportPrint(data, reportDoc){
+  const t = _REPORT_TITLES[data.scope] || '보고서';
+  const secs = reportSectionsFor(reportDoc || data);   // ★ v0.38.0 — 화면과 같은 섹션 배열
+  const has = id => secs.includes(id);
   const co = getCompany();
   const coHead = (co?.name && co.name.trim())
     ? `<span style="font-size:14px;font-weight:700">${_esc(co.name)}</span>${co.site?`<span style="color:#555;margin-left:6px;font-size:12px">${_esc(co.site)}</span>`:''}`
@@ -22489,6 +22762,51 @@ function _reportPrint(data){
   const kpiBlock = (rows) => `<table style="width:100%;border-collapse:collapse;margin-bottom:10px"><tbody>${rows.join('')}</tbody></table>`;
   const p = data.production, s = data.sales, m = data.procurement, q = data.quality, f = data.finance;
 
+  const _pr = {};   // ★ v0.38.0 — 인쇄 섹션 맵 · secs 순서대로
+  _pr.prod = `<h4 style="font-size:12px;color:#0a7a6a;margin:8px 0 4px">생산부</h4>
+    ${kpiBlock([
+      line('계획 / 실적', `${p.plan.toLocaleString()} / ${p.actual.toLocaleString()} ea`),
+      line('달성률', p.pct.toFixed(1)+' %'),
+      line('진행 LOT', p.activeLots + '개'),
+    ])}
+    ${p.byEquipment.length?`<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px"><thead><tr><th style="background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;text-align:left;padding:6px 8px">설비</th><th style="background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;text-align:right;padding:6px 8px">실적</th><th style="background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;text-align:right;padding:6px 8px">부하율</th></tr></thead><tbody>${p.byEquipment.map(e=>`<tr><td style="padding:6px 8px;border-bottom:1px solid #ddd">${_esc(e.name)}</td><td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right">${e.actual.toLocaleString()}</td><td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right">${e.loadPct.toFixed(0)}%</td></tr>`).join('')}</tbody></table>`:''}
+`;
+  _pr.sales = `<h4 style="font-size:12px;color:#0369a1;margin:8px 0 4px">영업부</h4>
+    ${kpiBlock([
+      line('신규 수주 / 출하', `${s.newOrders}건 / ${s.shipped.toLocaleString()} ea`),
+      line('매출', _wKr(s.revenue)),
+      line('수주 잔량', s.backlog.toLocaleString() + ' ea'),
+    ])}
+`;
+  _pr.pur = `<h4 style="font-size:12px;color:#a16207;margin:8px 0 4px">구매·자재</h4>
+    ${kpiBlock([
+      line('소재 입고', Math.round(m.matInKg).toLocaleString() + ' kg'),
+      line('매입액 / 외주비', `${_wKr(m.purchaseAmount)} / ${_wKr(m.osCost)}`),
+      line('외주 진행', m.osActive + '건'),
+    ])}
+`;
+  _pr.qc = `<h4 style="font-size:12px;color:#16a34a;margin:8px 0 4px">품질</h4>
+    ${kpiBlock([
+      line('불량률', q.defectRate.toFixed(2)+' %'),
+      line('불량 / 중단', `${q.defectQty} ea · ${q.stopCount}건`),
+      ...(((+q.ncCount||0) > 0 || (+q.ncWaiting||0) > 0) ? [
+        line('부적합 / 대기', `${(+q.ncCount||0)}건 · 대기 ${(+q.ncWaiting||0)}건`),
+        line('유형 상위', (q.ncTopTypes && q.ncTopTypes.length) ? q.ncTopTypes.map(t => `${t.name} ${t.qty}ea`).join(' · ') : '—'),
+      ] : []),
+    ])}
+`;
+  _pr.fin = `<h4 style="font-size:12px;color:#b91c1c;margin:8px 0 4px">경영·정산</h4>
+    ${kpiBlock([
+      line(`마감 매출 (${data.period.month})`, _wKr(f.salesClosing)),
+      line('미수 잔액',     f.unpaid    == null ? '미확정' : _wKr(f.unpaid)),
+      line('미지급',        f.unpayable == null ? '미확정' : _wKr(f.unpayable)),
+    ])}`;
+  _pr.issues = `<h3 style="font-size:13px;margin:14px 0 6px">③ 이슈 · ${data.issues.length}건</h3>
+    ${data.issues.length ? data.issues.map(iss => {
+      const c = iss.severity === 'red' ? '#dc2626' : '#d97706';
+      return `<div style="padding:6px 10px;border-left:3px solid ${c};background:#f7f7f9;margin-bottom:4px;font-size:11px"><b style="color:${c}">[${iss.dept}]</b> ${_esc(iss.text)}</div>`;
+    }).join('') : '<div style="color:#888;font-size:11px">감지된 이슈 없음</div>'}`;
+  _pr.ai = data.ai_summary ? `<h3 style="font-size:13px;margin:14px 0 6px">④ 자동 브리핑 · ${_esc(reportSectionLabel(secs))}</h3><div style="font-size:10.5px;color:#666;margin-bottom:4px">자동 생성 문장 · 수치는 표/계산 결과가 기준</div><div style="font-size:11.5px;line-height:1.7;padding:10px 12px;background:#f4f5f7;border-radius:6px;white-space:pre-wrap">${_esc(data.ai_summary)}</div>` : '';
   const body = `<div class="page">
     <div style="text-align:center;font-size:22px;font-weight:900;letter-spacing:8px;margin-bottom:6px">${_esc(t)}</div>
     <div style="height:1px;background:#9aa0a6;margin-bottom:10px"></div>
@@ -22504,48 +22822,9 @@ function _reportPrint(data){
       line('이슈', data.companyKPI.issueCount + '건'),
     ])}
     <h3 style="font-size:13px;margin:14px 0 6px">② 부서별</h3>
-    <h4 style="font-size:12px;color:#0a7a6a;margin:8px 0 4px">생산부</h4>
-    ${kpiBlock([
-      line('계획 / 실적', `${p.plan.toLocaleString()} / ${p.actual.toLocaleString()} ea`),
-      line('달성률', p.pct.toFixed(1)+' %'),
-      line('진행 LOT', p.activeLots + '개'),
-    ])}
-    ${p.byEquipment.length?`<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px"><thead><tr><th style="background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;text-align:left;padding:6px 8px">설비</th><th style="background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;text-align:right;padding:6px 8px">실적</th><th style="background:#f1f2f4;color:#16181d;border-bottom:1px solid #c9ccd2;text-align:right;padding:6px 8px">부하율</th></tr></thead><tbody>${p.byEquipment.map(e=>`<tr><td style="padding:6px 8px;border-bottom:1px solid #ddd">${_esc(e.name)}</td><td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right">${e.actual.toLocaleString()}</td><td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right">${e.loadPct.toFixed(0)}%</td></tr>`).join('')}</tbody></table>`:''}
-    <h4 style="font-size:12px;color:#0369a1;margin:8px 0 4px">영업부</h4>
-    ${kpiBlock([
-      line('신규 수주 / 출하', `${s.newOrders}건 / ${s.shipped.toLocaleString()} ea`),
-      line('매출', _wKr(s.revenue)),
-      line('수주 잔량', s.backlog.toLocaleString() + ' ea'),
-    ])}
-    <h4 style="font-size:12px;color:#a16207;margin:8px 0 4px">구매·자재</h4>
-    ${kpiBlock([
-      line('소재 입고', Math.round(m.matInKg).toLocaleString() + ' kg'),
-      line('매입액 / 외주비', `${_wKr(m.purchaseAmount)} / ${_wKr(m.osCost)}`),
-      line('외주 진행', m.osActive + '건'),
-    ])}
-    <h4 style="font-size:12px;color:#16a34a;margin:8px 0 4px">품질</h4>
-    ${kpiBlock([
-      line('불량률', q.defectRate.toFixed(2)+' %'),
-      line('불량 / 중단', `${q.defectQty} ea · ${q.stopCount}건`),
-      ...(((+q.ncCount||0) > 0 || (+q.ncWaiting||0) > 0) ? [
-        line('부적합 / 대기', `${(+q.ncCount||0)}건 · 대기 ${(+q.ncWaiting||0)}건`),
-        line('유형 상위', (q.ncTopTypes && q.ncTopTypes.length) ? q.ncTopTypes.map(t => `${t.name} ${t.qty}ea`).join(' · ') : '—'),
-      ] : []),
-    ])}
-    <h4 style="font-size:12px;color:#b91c1c;margin:8px 0 4px">경영·정산</h4>
-    ${kpiBlock([
-      line(`마감 매출 (${data.period.month})`, _wKr(f.salesClosing)),
-      line('미수 잔액',     f.unpaid    == null ? '미확정' : _wKr(f.unpaid)),
-      line('미지급',        f.unpayable == null ? '미확정' : _wKr(f.unpayable)),
-    ])}
-    <h3 style="font-size:13px;margin:14px 0 6px">③ 이슈 · ${data.issues.length}건</h3>
-    ${data.issues.length ? data.issues.map(iss => {
-      const c = iss.severity === 'red' ? '#dc2626' : '#d97706';
-      return `<div style="padding:6px 10px;border-left:3px solid ${c};background:#f7f7f9;margin-bottom:4px;font-size:11px"><b style="color:${c}">[${iss.dept}]</b> ${_esc(iss.text)}</div>`;
-    }).join('') : '<div style="color:#888;font-size:11px">감지된 이슈 없음</div>'}
-    ${data.ai_summary?`<h3 style="font-size:13px;margin:14px 0 6px">④ AI 종합 브리핑</h3><div style="font-size:11.5px;line-height:1.7;padding:10px 12px;background:#f4f5f7;border-radius:6px;white-space:pre-wrap">${_esc(data.ai_summary)}</div>`:''}
+    ${secs.filter(id => id !== 'kpi').map(id => _pr[id] || '').join('')}
     <div style="margin-top:20px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:10px;display:flex;justify-content:space-between">
-      <span>VELA SYSTEM · ${_esc(_REPORT_TITLES[data.scope]||'AI 보고서')}</span><span>${fmtDate(Date.now())} ${fmtTime(Date.now())}</span>
+      <span>VELA SYSTEM · ${_esc(_REPORT_TITLES[data.scope]||'보고서')}</span><span>${fmtDate(Date.now())} ${fmtTime(Date.now())}</span>
     </div>
   </div>`;
   const css = `
@@ -22554,7 +22833,7 @@ function _reportPrint(data){
     table td{padding:5px 8px;font-size:12px;border-bottom:1px solid #eee}
     h3{border-bottom:2px solid #16181d;padding-bottom:4px}
   `;
-  _openPrint(_REPORT_TITLES[data.scope] || 'AI 보고서', body, css, { formKey:'report' });
+  _openPrint(_REPORT_TITLES[data.scope] || '보고서', body, css, { formKey:'report' });
 }
 
 /* =================================================================================================
@@ -23564,7 +23843,7 @@ VIEWS.set = () => {
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <b style="font-size:12.5px">AI API 키 (Anthropic)</b>
           <span class="pill blue">개발자 전용</span>
-          <span class="tag">AI 보고서 브리핑용 · <code>vela_ai_key</code> 로컬 저장 · DB/서버 동기 안 함</span>
+          <span class="tag">보고서 자동 브리핑용 · <code>vela_ai_key</code> 로컬 저장 · DB/서버 동기 안 함</span>
         </div>
         <div class="grid g3" style="align-items:end">
           <div style="grid-column:span 2">
@@ -23579,7 +23858,7 @@ VIEWS.set = () => {
         </div>
         <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.6">
           · 저장 시 이 브라우저 <code>localStorage.${_esc(_AI_KEY_LS)}</code> 에만 기록 · 다른 기기·서버·백업에 절대 전송·저장하지 않음.<br>
-          · 키가 있으면 [AI 보고서]에 <b>AI 종합 브리핑</b> 블록 노출 · 실패 시 보고서 수치는 영향 없음.
+          · 키가 있으면 [보고서]에 <b>자동 브리핑</b>(선택한 섹션 기준 · 자동 생성 문장) 노출 · 실패 시 보고서 수치는 영향 없음.
         </div>
       </div>
 
