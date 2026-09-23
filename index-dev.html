@@ -6145,7 +6145,7 @@ function _permBlockWrite(col, id){
     if(typeof SESSION === 'undefined' || !SESSION.loggedIn) return false;   // 부팅·시드·마이그레이션
     if(SESSION.role === 'manager' || SESSION.role === 'vendor') return false;
     if(col === 'users') return false;                                        // last_login 등 시스템 기록
-    if(col === 'settings' && typeof id === 'string' && id.startsWith('prefs.')) return false;   // ★ v0.37.7 — 개인 설정(prefs) 은 보기 전용 화면에서도 저장 (원장 아님 · 표시 항목만)
+    if(col === 'settings' && SESSION.userId && id === 'prefs.' + SESSION.userId) return false;   // ★ v0.37.7 — 본인 개인 설정(prefs.{내 userId}) 만 보기 전용 화면에서도 저장 (원장 아님 · 표시 항목만 · 남의 prefs 는 예외 아님 · GPT 조건부 승인 2026-09-23)
     if(currentPagePerm() !== 'view') return false;
     const now = Date.now();
     if(now - _permToastTs > 1500){ _permToastTs = now; try { toast('보기 전용 권한 — 등록·수정할 수 없습니다','warn'); } catch(e){} }
@@ -6171,11 +6171,17 @@ const NAV_GROUPS = [
 const NAV_PRIMARY_DEFAULT = ['dash','so','plan','scan','perf','lot','qc','ship'];
 /* ★ v0.37.7 — 개인 설정 문서 settings/prefs.{userId} (users = 인증·역할·권한·기기 / prefs = 개인 취향 · GPT §5 권장)
    어댑터가 서브컬렉션을 지원하지 않아 문서 id 로 표현 · 신규 컬렉션 0 · 필드: menu_primary (v0.38.0 에서 dash_cards·report_sections·report_format 추가 예정) */
+const PREFS_FIELDS = ['menu_primary','dash_cards','report_sections','report_format'];   // 개인화 필드 화이트리스트 (v0.38.0 3개 예약) — 이 밖의 키는 setPrefs 가 버린다
 function _prefsId(userId){ return 'prefs.' + userId; }
 function getPrefs(userId){ const id = userId || SESSION.userId; if(!id) return null; return DB.get('settings', _prefsId(id)) || null; }
+/* 클라이언트 계약(GPT 조건부 승인 2026-09-23): ① 본인 문서만(SESSION.userId ≠ 대상 → 거부 · 관리자도 남의 prefs 편집 불가 — SPEC §7 범위 밖) ② PREFS_FIELDS 만 저장.
+   ⚠ 서버 강제 아님 — Firestore Rules v4 는 익명 인증만 확인(VELA userId 를 모름) · 사용자별 서버 격리는 계정제(Rules v5) 기술부채(CLAUDE.md §6). */
 function setPrefs(userId, patch){
   const id = userId || SESSION.userId; if(!id) return null;
-  return DB.set('settings', _prefsId(id), { ...(getPrefs(id) || {}), userId: id, ...patch, updated: Date.now() });
+  if(id !== SESSION.userId){ try { toast('개인 설정은 본인 계정만 저장할 수 있습니다','warn'); } catch(e){} return null; }
+  const clean = {}; Object.keys(patch || {}).forEach(k => { if(PREFS_FIELDS.includes(k)) clean[k] = patch[k]; });
+  if(!Object.keys(clean).length) return null;
+  return DB.set('settings', _prefsId(id), { ...(getPrefs(id) || {}), userId: id, ...clean, updated: Date.now() });
 }
 /* ★ v0.37.7 — 메뉴 노출 판정 1벌 (renderNav · 전체 메뉴 창 공통): 기능 플래그 ∧ MANAGER_ONLY(manager/vendor 만) ∧ 권한 ≠ none (v0.28.0 · 관리책임자·개발자 제외) */
 function menuCanSee(p, flags){
