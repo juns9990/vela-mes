@@ -1403,7 +1403,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.5';
+const APP_VERSION = 'v0.38.6';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -11653,7 +11653,7 @@ VIEWS.so = () => {
 
     <div class="card">
       <div class="tbl-wrap"><table>
-        <thead><tr><th>수주번호</th><th>고객사</th><th>품번</th><th class="num">잔량 / 수량</th><th>납기</th><th>상태</th></tr></thead>
+        <thead><tr><th>수주번호</th><th>고객사</th><th>품번</th><th class="num">잔량 / 수주수량</th><th>납기</th><th>상태</th></tr></thead>
         <tbody>${fRows.length? fRows.map(r => {
           const o = r.o;
           const plannedQty = soPlannedQty(o.id);
