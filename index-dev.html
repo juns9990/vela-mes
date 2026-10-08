@@ -45,7 +45,7 @@
    ============================================================ */
 :root{
   --bg:#08090b;--bg2:#0c0e11;--panel:#121419;--panel2:#161922;
-  --line:#23262f;--line2:#2c3038;--ink:#eef0f4;--sub:#8b909c;--dim:#5a5f6b;
+  --line:#23262f;--line2:#2c3038;--ink:#eef0f4;--sub:#8b909c;--dim:#7d8390;   /* ★ v0.38.3 — 다크 --dim #5a5f6b(패널 위 2.9:1) → #7d8390(4.5:1+) · 사용자 피드백: 어두운·밝은 화면 모두 시인성 */
   --cyan:#5eead4;--cyan-dim:#2dd4bf;--heat:#ff7a45;--heat2:#ffab40;
   --green:#4ade80;--red:#f87171;--amber:#fbbf24;--blue:#7dd3fc;
   /* ★ v0.32.0 — 디자인 리뉴얼 토큰: 그림자·주버튼 (다크=그림자 없음·밝은 주버튼) */
@@ -65,6 +65,8 @@ html[data-theme="light"]{
   --cyan:#0f766e; --cyan-dim:#0d9488;
   /* ★ v0.26.6 — 상태 포인트색 라이트 대비 보정 (흰 배경 4.5:1+ · 다크 :root 불변) */
   --green:#15803d; --blue:#0369a1; --amber:#b45309; --red:#dc2626;
+  /* ★ v0.38.3 — 열(熱) 포인트색도 라이트 대비 보정 (흰 배경 4.5:1+ · 사용자 피드백: 밝은 화면 시인성) */
+  --heat:#c2410c; --heat2:#b45309;
   /* ★ v0.32.0 — 그림자·주버튼 (라이트: 옅은 그림자 · 차콜 주버튼) */
   --sh:0 1px 2px rgba(16,24,40,.05);--sh2:0 4px 12px rgba(16,24,40,.06);
   --prim:#1a212e;--prim-ink:#ffffff;
@@ -509,6 +511,8 @@ tr.mst-off td{opacity:.45}
    대시보드 전용 클래스. 다른 화면 영향 없음.
    ============================================================ */
 :root{ --c1:#5eead4;--c2:#7dd3fc;--c3:#a5b4fc;--c4:#f0abfc;--c5:#86efac; --c6:#fbbf24; }
+/* ★ v0.38.3 — 차트 계열색 라이트 변형 (파스텔 → 700 계열 · 흰 배경 글자 4.5:1+ · 막대도 같은 색으로 진해짐) */
+html[data-theme="light"]{ --c1:#0f766e;--c2:#0369a1;--c3:#4338ca;--c4:#a21caf;--c5:#15803d; --c6:#b45309; }
 .dash-hint{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--cyan-dim);background:rgba(94,234,212,.06);border:1px solid rgba(94,234,212,.18);border-radius:9px;padding:8px 13px;margin:0 0 18px}
 .clk{cursor:pointer;position:relative;transition:.18s}
 .clk:hover{transform:translateY(-2px);border-color:var(--cyan-dim) !important}
@@ -776,7 +780,7 @@ html[data-theme="light"] .stage3 .s.done{color:#eafffb}
 .key.act{color:var(--red)}
 
 .submit-big{padding:17px;border-radius:14px;background:var(--cyan);color:#06201c;border:none;font-weight:800;font-size:15px;text-align:center;cursor:pointer;width:100%;font-family:inherit}
-.submit-big:disabled{background:var(--line2);color:var(--dim);cursor:not-allowed}
+.submit-big:disabled{background:var(--line2);color:var(--sub);cursor:not-allowed}   /* ★ v0.38.3 — 비활성 글자도 읽히게 */
 .submit-big.next{background:linear-gradient(90deg,var(--cyan),var(--cyan-dim))}
 
 .reason-input{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:13px;width:100%;color:var(--ink)}
@@ -852,7 +856,7 @@ html[data-theme="light"] .stage3 .s.done{color:#eafffb}
 .es-pgtitle{font-size:17px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .es-pgtitle .es-when{font-size:12px;color:var(--sub);font-weight:500}
 .eqcard{background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
-.eqcard.idle{opacity:.75}
+.eqcard.idle{background:var(--panel2)}   /* ★ v0.38.3 — 유휴 카드 opacity .75 폐지(라이트에서 회색 글자 대비 2.5:1) → 배경만 구분 */
 .eqhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:13px;border-bottom:1px solid var(--line);gap:14px;flex-wrap:wrap}
 .eqname{font-size:15px;font-weight:800;display:flex;align-items:center;gap:9px}
 .eqpill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px}
@@ -1155,6 +1159,8 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 .pln-row{display:flex;align-items:center;gap:12px;padding:8px 15px;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap}
 .pln-row.late{background:color-mix(in srgb,var(--red) 6%,transparent)}
 .pln-row .num{text-align:right}
+:root{--shift1:rgba(251,191,36,.10);--shift2:rgba(129,140,248,.10);--shift3:rgba(167,139,250,.10);--seq1:#3a4252}
+html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--seq1:var(--prim)}
 .pln-seq{display:inline-block;width:21px;height:21px;border-radius:7px;color:#fff;font-weight:800;font-size:11px;text-align:center;line-height:21px;font-family:'JetBrains Mono',monospace;flex:none}
 .pln-mv{margin-left:auto;display:inline-flex;flex-direction:column;gap:2px}
 .pln-gap{display:flex;align-items:center;gap:8px;padding:3px 15px 3px 46px;font-size:10.5px;color:var(--amber);border-bottom:1px solid var(--line)}
@@ -1397,7 +1403,7 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.3';
+const APP_VERSION = 'v0.38.4';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -6544,11 +6550,12 @@ function renderTrendSVG(pts){
   const xy = pts.map((p,i)=>({x: pad + i*stepX, y: H-pad - (p.good/max)*(H-pad*2)}));
   const pathD = xy.map((q,i)=>`${i===0?'M':'L'} ${q.x.toFixed(1)} ${q.y.toFixed(1)}`).join(' ');
   const fill  = `${pathD} L ${xy[xy.length-1].x.toFixed(1)} ${H-pad} L ${pad} ${H-pad} Z`;
-  const dots = xy.map(q=>`<circle cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="3" fill="#5eead4"/>`).join('');
-  const labels = pts.map((p,i)=>`<text x="${xy[i].x.toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="9" font-family="JetBrains Mono" fill="#5a5f6b">${p.label}</text>`).join('');
-  const vals = pts.map((p,i)=>p.good>0? `<text x="${xy[i].x.toFixed(1)}" y="${(xy[i].y-7).toFixed(1)}" text-anchor="middle" font-size="9" font-family="JetBrains Mono" font-weight="700" fill="#eef0f4">${p.good.toLocaleString()}</text>`:'').join('');
+  // ★ v0.38.3 — 고정색(#eef0f4 흰 글자 · #5eead4 민트) → 테마 변수 (라이트에서 값 라벨이 안 보이던 문제 · 사용자 캡처)
+  const dots = xy.map(q=>`<circle cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="3" style="fill:var(--cyan)"/>`).join('');
+  const labels = pts.map((p,i)=>`<text x="${xy[i].x.toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="9" font-family="JetBrains Mono" style="fill:var(--sub)">${p.label}</text>`).join('');
+  const vals = pts.map((p,i)=>p.good>0? `<text x="${xy[i].x.toFixed(1)}" y="${(xy[i].y-7).toFixed(1)}" text-anchor="middle" font-size="9" font-family="JetBrains Mono" font-weight="700" style="fill:var(--ink)">${p.good.toLocaleString()}</text>`:'').join('');
   return `<svg class="linechart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <defs><linearGradient id="trendG" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#5eead4" stop-opacity=".25"/><stop offset="100%" stop-color="#5eead4" stop-opacity="0"/></linearGradient></defs>
+    <defs><linearGradient id="trendG" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" style="stop-color:var(--cyan);stop-opacity:.22"/><stop offset="100%" style="stop-color:var(--cyan);stop-opacity:0"/></linearGradient></defs>
     <path d="${fill}" fill="url(#trendG)"/>
     <path d="${pathD}" stroke="var(--cyan)" stroke-width="2" fill="none"/>
     ${dots}${vals}${labels}
@@ -13820,7 +13827,8 @@ const PRINT_BASE_CSS = `
   @media print {
     /* ★ v0.38.2 — 인쇄 잘림 수정: 화면용 body 가 flex 컨테이너라 Chrome 이 flex 아이템의 page-break 를 무시 → 두 번째 장이 같은 페이지에 이어져 잘림(사용자 거래명세서 캡처).
        인쇄 시 body 를 block 으로 · .page 는 break-after:page + break-inside:avoid (전 양식 공통 1벌 — 거래명세서·발주서·반출증·작업지시서·이동표·단가합의서·보고서·부적합) */
-    body{background:#fff;padding:0;gap:0;display:block}
+    html{display:block}
+    body{background:#fff;padding:0;gap:0;display:block !important}
     /* ★ v0.23.4 — 여백 13mm · 양식 컨테이너 max-width 제거 · 페이지 흐름 정리
        ★ v0.23.5 — size 고정 제거 → 브라우저 인쇄 대화상자 방향 선택 복원.
                    양식별 방향(가로/세로)은 인쇄 직전 토글에서 A4 <orient> 동적 주입. */
@@ -13837,14 +13845,19 @@ const PRINT_BASE_CSS = `
       break-after:page;
       page-break-inside:avoid;
       break-inside:avoid;
+      display:block;
+      overflow:visible;
+      min-height:0 !important;   /* ★ v0.38.3 — 화면용 최소 높이(700px 등)가 인쇄 장 높이를 밀어 다음 장을 같은 쪽으로 끌어오지 않게 */
     }
+    .page + .page{page-break-before:always;break-before:page}   /* ★ v0.38.3 — 이중 안전장치: 둘째 장부터는 앞에서도 강제 넘김 */
     .page:last-child{page-break-after:auto;break-after:auto}
     /* 표 전폭 · 행 잘림 방지 */
     table{width:100% !important}
     tr, thead, tfoot{page-break-inside:avoid}
     /* 본문 12pt 상향 · 행 여유 · 헤더 11pt (제목·헤더는 개별 양식에서 유지) */
-    th, td{font-size:12pt !important;padding:9pt 8pt !important;line-height:1.4}
-    th{font-size:11pt !important;padding-top:7pt !important;padding-bottom:7pt !important}
+    /* ★ v0.38.3 — 9pt → 6pt: 발주서·반출증·식별표가 A4 세로 한 장 경계(99%)에 걸려 Windows 글꼴에서 다음 장으로 넘치던 여유 부족 해소 */
+    th, td{font-size:11.5pt !important;padding:6pt 7pt !important;line-height:1.35}
+    th{font-size:10.5pt !important;padding-top:5pt !important;padding-bottom:5pt !important}
     /* 코드류(WO·SO·LOT·PO 번호·날짜) 절대 줄바꿈 금지 — .mono 를 코드 규약으로 취급 */
     .mono{white-space:nowrap;word-break:keep-all}
     td.mono, th.mono, td.c.mono, td.r.mono, .r.mono, .c.mono{white-space:nowrap;word-break:keep-all}
@@ -13938,8 +13951,12 @@ function setFormPaper(formKey, paper){
 const V3210 = { pageW:210, pageH:297, cellW:99.06, cellH:93.11, cols:2, rows:3, left:5.94, top:8.84, perPage:6 };
 
 // 실제 인쇄창 오픈 — orient 있을 때만 @page size 를 A4 <orient> 로 주입 (브라우저 대화상자에서 재조정 가능)
+/* ★ v0.38.3 — 출력물 하단 「VELA SYSTEM」 옆에 생성 버전 표기 (어느 버전으로 뽑은 문서인지 종이에서 바로 확인 · 사용자 출력 잘림 재현 혼선 방지) */
+function _stampPrintVersion(html){ return String(html||'').replace(/>VELA SYSTEM<\/span>/g, `>VELA SYSTEM · ${APP_VERSION}</span>`); }
 function _openPrintWindow(title, bodyHTML, extraCSS, orient){
-  const orientCSS = orient ? `@media print{@page{size:A4 ${orient}}}` : '';
+  bodyHTML = _stampPrintVersion(bodyHTML);
+  // ★ v0.38.3 — 가로(Landscape) 인쇄: A4 가로는 높이 184mm 라 세로용 한 장 양식이 2쪽으로 넘쳐 잘려 보였다 → 한 장 양식(.page, 흐름 문서 .flow 제외)은 한 쪽에 맞춰 축소
+  const orientCSS = orient ? `@media print{@page{size:A4 ${orient}}${orient === 'landscape' ? ' .page:not(.flow){zoom:.66}' : ''}}` : '';
   const win = window.open('','_blank');
   if(!win){ toast('팝업 차단 — 인쇄창 열 수 없음','err'); return; }
   win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${_esc(title)}</title>
@@ -13968,6 +13985,7 @@ function _loadPdfLibs(){
   return _pdfLibsP;
 }
 async function _openPdf(title, bodyHTML, extraCSS, orient){
+  bodyHTML = _stampPrintVersion(bodyHTML);
   toast('PDF 생성 중…', 'ok', 2500);
   try { await _loadPdfLibs(); }
   catch(e){ toast('PDF 라이브러리 로드 실패 — 인터넷 연결 확인', 'err', 4500); return; }
@@ -13995,13 +14013,40 @@ async function _openPdf(title, bodyHTML, extraCSS, orient){
       let first = true;
       for(const el of units){
         el.style.boxShadow = 'none'; el.style.margin = '0';
-        const canvas = await html2canvas(el, { scale: 2, backgroundColor:'#ffffff', windowWidth: pageW });
-        const ratio = canvas.height / canvas.width;
-        let w = pdfW, h = pdfW * ratio;
-        if(h > pdfH){ h = pdfH; w = pdfH / ratio; }   // 긴 장 = 축소(잘림 0)
-        if(!first) pdf.addPage();
-        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', (pdfW - w) / 2, 0, w, h);
-        first = false;
+        const SC = 2;
+        const canvas = await html2canvas(el, { scale: SC, backgroundColor:'#ffffff', windowWidth: pageW });
+        const pageHpx = Math.floor(canvas.width * (pdfH / pdfW));
+        const isFlow = el.classList.contains('flow') || el.classList.contains('sheet');
+        if(canvas.height <= pageHpx * 1.04 || !isFlow){
+          // 한 장에 들어감 · 또는 한 장 양식(명세서·발주서 등)이 가로 등으로 조금 넘침 → 축소해 1장 = 1쪽 (양식이 두 쪽으로 갈리지 않게)
+          const ratio = canvas.height / canvas.width;
+          let w = pdfW, h = pdfW * ratio;
+          if(h > pdfH){ h = pdfH; w = pdfH / ratio; }
+          if(!first) pdf.addPage();
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', (pdfW - w) / 2, 0, w, h);
+          first = false;
+          continue;
+        }
+        // ★ v0.38.3 — A4 보다 긴 장(보고서·여러 건 작업지시서): 축소하지 않고 「행·문단 경계」에서만 나눈다 (글자 가운데 절단 0)
+        const top0 = el.getBoundingClientRect().top;
+        const cuts = [...el.querySelectorAll('tr, h1, h2, h3, h4, p, li, .card, .page > div, .page > table, .page > section')]
+          .map(n => Math.round((n.getBoundingClientRect().bottom - top0) * SC)).filter(v => v > 0 && v < canvas.height).sort((a,b) => a - b);
+        let y = 0;
+        while(y < canvas.height){
+          let end = Math.min(canvas.height, y + pageHpx);
+          if(end < canvas.height){
+            const fit = cuts.filter(c => c > y + pageHpx * 0.35 && c <= y + pageHpx);
+            if(fit.length) end = fit[fit.length - 1];
+          }
+          const sliceH = end - y;
+          const c2 = document.createElement('canvas');
+          c2.width = canvas.width; c2.height = sliceH;
+          const g2 = c2.getContext('2d'); g2.fillStyle = '#ffffff'; g2.fillRect(0, 0, c2.width, c2.height);
+          g2.drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+          if(!first) pdf.addPage();
+          pdf.addImage(c2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, sliceH * pdfW / canvas.width);
+          first = false; y = end;
+        }
       }
     } else {
       const canvas = await html2canvas(idoc.body, { scale: 2, backgroundColor:'#ffffff', windowWidth: pageW });
@@ -14343,7 +14388,7 @@ const printForm = {
         .item-strong .iname{font-size:10.5pt}
       }
     `;
-    const body = `<div class="page">
+    const body = `<div class="page flow">
       <div class="doc-title">작 업 지 시 서</div>
       <div class="rule"></div>
       <div class="head">
@@ -18786,8 +18831,8 @@ VIEWS.plan = () => {
     // ★ v0.35.0 — 일간 = 설비 레인 × 교대 밴드 × 순번 × 예상시간 (시안 v6+v7 확정 · planDayTimeline 1벌)
     const dayPlans = scoped.filter(p => p.date === state.anchor);
     const tl = planDayTimeline(state.anchor, dayPlans);
-    const shiftBg = i => ['#fefce8','#eef2ff','#f5f3ff'][i] || 'var(--panel2)';
-    const seqBg   = i => ['var(--prim)','#4c5b8f','#6d5b8f'][i] || 'var(--prim)';
+    const shiftBg = i => ['var(--shift1)','var(--shift2)','var(--shift3)'][i] || 'var(--panel2)';   // ★ v0.38.3 — 고정 밝은 배경 → 테마 토큰(다크에서 흰 글자가 안 보이던 문제)
+    const seqBg   = i => ['var(--seq1)','#4c5b8f','#6d5b8f'][i] || 'var(--seq1)';
     const laneHTML = tl.lanes.map(l => {
       let bands = l.shifts.map((so, siIdx) => {
         if(!so.entries.length) return '';
@@ -18827,7 +18872,7 @@ VIEWS.plan = () => {
     }).join('');
     const unassignedHTML = tl.unassigned.length ? `
       <div class="pln-lane" style="border-style:dashed">
-        <div class="pln-head" style="background:#fffbeb"><b style="color:var(--amber)">미배정</b><span class="muted" style="font-size:11px">설비 지정 필요 — ${tl.unassigned.length}건 · ${tl.unassigned.reduce((s,p)=>s+(+p.qty||0),0).toLocaleString()}ea</span></div>
+        <div class="pln-head" style="background:var(--shift1)"><b style="color:var(--amber)">미배정</b><span class="muted" style="font-size:11px">설비 지정 필요 — ${tl.unassigned.length}건 · ${tl.unassigned.reduce((s,p)=>s+(+p.qty||0),0).toLocaleString()}ea</span></div>
         ${tl.unassigned.map(p => { const it = DB.get('items', p.itemCode); return `
           <div class="pln-row">
             <span class="pln-seq" style="background:var(--line2);color:var(--sub)">—</span>
@@ -21602,7 +21647,7 @@ const _DEPT_META = {
   sales: { name:'영업부',       bg:'rgba(125,211,252,.12)', color:'var(--blue)',  ink:'0369A1' },
   pur:   { name:'구매·자재',    bg:'rgba(251,191,36,.12)',  color:'var(--amber)', ink:'A16207' },
   qc:    { name:'품질',         bg:'rgba(74,222,128,.12)',  color:'var(--green)', ink:'16A34A' },
-  fin:   { name:'경영·정산',    bg:'rgba(248,113,113,.10)', color:'#f0a8a8',      ink:'B91C1C' },
+  fin:   { name:'경영·정산',    bg:'rgba(248,113,113,.10)', color:'var(--red)',   ink:'B91C1C' },   // ★ v0.38.3 — 고정 분홍(#f0a8a8) → 테마 변수 (라이트 시인성)
 };
 function _deptName(dept){ return (_DEPT_META[dept] && _DEPT_META[dept].name) || dept || ''; }
 // 부서 배지 · 태그
@@ -22847,7 +22892,7 @@ function _reportPrint(data, reportDoc){
       return `<div style="padding:6px 10px;border-left:3px solid ${c};background:#f7f7f9;margin-bottom:4px;font-size:11px"><b style="color:${c}">[${iss.dept}]</b> ${_esc(iss.text)}</div>`;
     }).join('') : '<div style="color:#888;font-size:11px">감지된 이슈 없음</div>'}`;
   _pr.ai = data.ai_summary ? `<h3 style="font-size:13px;margin:14px 0 6px">④ 자동 브리핑 · ${_esc(reportSectionLabel(secs))}</h3><div style="font-size:10.5px;color:#666;margin-bottom:4px">자동 생성 문장 · 수치는 표/계산 결과가 기준</div><div style="font-size:11.5px;line-height:1.7;padding:10px 12px;background:#f4f5f7;border-radius:6px;white-space:pre-wrap">${_esc(data.ai_summary)}</div>` : '';
-  const body = `<div class="page">
+  const body = `<div class="page flow">
     <div style="text-align:center;font-size:22px;font-weight:900;letter-spacing:8px;margin-bottom:6px">${_esc(t)}</div>
     <div style="height:1px;background:#9aa0a6;margin-bottom:10px"></div>
     <div style="display:flex;justify-content:space-between;font-size:12px;color:#555;margin-bottom:12px">
