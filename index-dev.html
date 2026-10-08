@@ -1403,7 +1403,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.6';
+const APP_VERSION = 'v0.38.7';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -7155,7 +7155,7 @@ const DASH_CARDS = [
             <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--cyan-dim)"></span>출하완료</div><div class="slv" style="color:var(--cyan)">₩${Math.round(c.stages.done).toLocaleString()}</div></div>
             <div class="sl"><div class="slh"><span class="dot-sq" style="background:#f59e0b"></span>생산중</div><div class="slv" style="color:var(--amber)">₩${Math.round(c.stages.prog).toLocaleString()}</div></div>
             <div class="sl"><div class="slh"><span class="dot-sq" style="background:var(--line2)"></span>미착수</div><div class="slv" style="color:var(--sub)">₩${Math.round(c.stages.wait).toLocaleString()}</div></div>
-            <div class="sl" style="margin-left:auto;text-align:right"><div class="slh" style="justify-content:flex-end">총 수주 금액</div><div class="slv">₩${c.stages.total.toLocaleString()}</div></div>
+            <div class="sl" style="margin-left:auto;text-align:right"><div class="slh" style="justify-content:flex-end">총 수주 금액</div><div class="slv">₩${c.stages.total.toLocaleString()}</div>${c.stages.closedAmt>0?`<div style="font-size:10.5px;color:var(--sub)">종결 미출하 ₩${Math.round(c.stages.closedAmt).toLocaleString()} 제외</div>`:''}</div>
           </div>
         ` : '<div class="chart-empty" style="padding:40px 0"><div class="big">수집중</div><div class="sm">수주가 등록되면 출하완료·생산중·미착수 3단계로 분해됩니다</div></div>'}
       </div>` },
@@ -8697,8 +8697,8 @@ VIEWS._woNew = (pre) => {
   // 잔량 있는 live 수주 (잔량 = so.qty − Σ live shipments.qty)
   const today = fmtDate(Date.now());
   const soLive = DB.all('orders').map(o=>{
-    const shipped = DB.query('shipments', s=>s.so_id===o.id).reduce((s,r)=>s+(r.qty||0),0);
-    const remain  = Math.max(0, (o.qty||0) - shipped);
+    const shipped = soShippedQty(o);
+    const remain  = soOpenQty(o);   // ★ v0.38.7 — 유효 수주잔량 (종결 수주 = 후보 제외)
     return {o, remain, shipped};
   }).filter(x => x.remain>0).sort((a,b)=>(a.o.due||'').localeCompare(b.o.due||''));
 
@@ -8970,6 +8970,7 @@ VIEWS._woNew = (pre) => {
       }
       if(!plot) throw new Error('생산LOT 번호 입력');
       if(!qty || qty<=0) throw new Error('지시수량 입력');
+      assertSoOpen(so_id, '작업지시 발행');   // ★ v0.38.7 — 종결 수주 연결 차단 (저장 직전)
 
       // 계획 설비 수집 — 미지정(빈 값) 공정은 키 생략
       const plan_eq = {};
@@ -10102,8 +10103,7 @@ function soMaterialNeeds(){
   const poLinked = new Set();
   DB.all('purchase_orders').forEach(p => (p.items||[]).forEach(it => (it.so_ids||[]).forEach(sid => poLinked.add(sid))));
   return DB.all('orders').map(o => {
-    const shipped = DB.query('shipments', s => s.so_id===o.id).reduce((s,r)=>s+(r.qty||0),0);
-    const remain = Math.max(0, (o.qty||0) - shipped);
+    const remain = soOpenQty(o);   // ★ v0.38.7 — 유효 수주잔량 (종결 수주 소요 제외)
     const it = DB.get('items', o.itemCode);
     const w = +(it?.weight||0);
     return { o, it, remain, mat:(it?.mat||'').trim(), dia:+(it?.dia||0), needKg: remain * w, poLinked: poLinked.has(o.id) };
@@ -11584,23 +11584,131 @@ VIEWS.inv = () => {
 };
 
 /* -------------------- 수주 (v0.14.3: 3단 실적 블록 + 고객사별 표 보강) -------------------- */
+/* ★ v0.38.7 — 수주 종결 (SPEC 「수주 종결 v0.1」 · GPT 조건부 승인 2026-10-09)
+   사실값: 수주량 o.qty · 출하량 soShippedQty · 미출하 soUnshippedQty (종결해도 보존)
+   운영값: 유효 수주잔량 soOpenQty (부분종결·수주취소 = 0) — 수주잔·지연·소요·순소요·계획/지시 후보·보고서 수주잔은 이것만
+   저장 = orders.close 1필드 (DB.correct → _logs 감사) · 수주량·출하·LOT·작업지시·계획 무변 · 자동 취소/완료 0
+   write path = assertSoOpen (출하·작업지시·계획·수주 수정) + assertSoShipQty (수주 수량 초과 출하 차단 · 출하 저장 직전) */
+const SO_CLOSE_LABEL = { short:'부분종결', cancel:'수주취소' };
+function soShippedQty(o){ if(!o) return 0; return DB.query('shipments', s => s.so_id === o.id).reduce((s,r) => s + (r.qty||0), 0); }
+function soUnshippedQty(o){ return o ? Math.max(0, (o.qty||0) - soShippedQty(o)) : 0; }
+function soCloseInfo(o){ return (o && o.close && o.close.kind) ? o.close : null; }
+function soOpenQty(o){ return soCloseInfo(o) ? 0 : soUnshippedQty(o); }
+function assertSoOpen(so_id, action){
+  if(!so_id) return;
+  const c = soCloseInfo(DB.get('orders', so_id));   // 저장 직전 최신 문서
+  if(c) throw new Error(`${so_id} — ${SO_CLOSE_LABEL[c.kind]||'종결'}된 수주 · [재개] 후 ${action||'진행'} 가능`);
+}
+function assertSoShipQty(so_id, qty){
+  const o = DB.get('orders', so_id);
+  if(!o || o.void) throw new Error('수주 없음 — 출하할 수주를 선택하세요');
+  assertSoOpen(so_id, '출하');
+  const left = soUnshippedQty(o);
+  if((+qty||0) > left) throw new Error(`수주 수량 초과 출하 — ${so_id} 수주 ${(o.qty||0).toLocaleString()}ea · 출하 ${soShippedQty(o).toLocaleString()}ea · 남은 ${left.toLocaleString()}ea (요청 ${(+qty||0).toLocaleString()}ea)`);
+}
+function soClose(so_id, reason){
+  const o = DB.get('orders', so_id);
+  if(!o || o.void) throw new Error('수주 없음');
+  if(soCloseInfo(o)) throw new Error('이미 종결된 수주');
+  reason = String(reason||'').trim();
+  if(!reason) throw new Error('사유를 입력하세요');
+  const shipped = soShippedQty(o), unshipped = soUnshippedQty(o);
+  if(unshipped <= 0) throw new Error('출하완료 수주 — 종결 대상 아님');
+  const kind = shipped > 0 ? 'short' : 'cancel';
+  const r = DB.correct('orders', so_id, { close:{ kind, at:Date.now(), by:SESSION.user||'', byId:SESSION.userId||'', reason, shipped_at:shipped, unshipped_at:unshipped } }, `${SO_CLOSE_LABEL[kind]}: ${reason}`);
+  if(!r) throw new Error('저장 안 됨 — 수주 등록 권한 확인');
+  return r;
+}
+function soReopen(so_id, reason){
+  const o = DB.get('orders', so_id);
+  if(!o || !soCloseInfo(o)) throw new Error('종결된 수주가 아님');
+  reason = String(reason||'').trim();
+  if(!reason) throw new Error('사유를 입력하세요');
+  const r = DB.correct('orders', so_id, { close:null }, `수주 재개: ${reason}`);
+  if(!r) throw new Error('저장 안 됨 — 수주 등록 권한 확인');
+  return r;
+}
 /* ★ v0.35.7 — 수주 행 상태 계산 1벌 (수주 화면 스트립·표 + 대시보드 「오늘 이상」 공용 · 계산 이동만, 규칙 무변) */
 function calcSoRows(sos){
   const today = fmtDate(Date.now());
   const DAY7 = 7*86400000;
   return (sos || DB.all('orders')).map(o => {
-    const shipped = DB.query('shipments', s => s.so_id === o.id).reduce((s,r) => s+(r.qty||0), 0);
-    const remain  = Math.max(0, (o.qty||0) - shipped);
+    const shipped   = soShippedQty(o);
+    const unshipped = soUnshippedQty(o);          // 사실 · 종결해도 보존
+    const close     = soCloseInfo(o);
+    const remain    = soOpenQty(o);               // ★ v0.38.7 — 유효 수주잔량 (종결 = 0)
     const item    = DB.get('items', o.itemCode);
     const custNm  = DB.get('vendors', o.cust)?.name || o.cust || '';
     let status;
-    if(remain === 0)                status = { label:'출하완료', cls:'green' };
+    if(close)                       status = { label:SO_CLOSE_LABEL[close.kind]||'종결', cls:'gray' };
+    else if(remain === 0)           status = { label:'출하완료', cls:'green' };
     else if(o.due && today > o.due) status = { label:'지연',     cls:'red'   };
     else if(o.due && (new Date(o.due+'T00:00:00').getTime() - new Date(today+'T00:00:00').getTime()) <= DAY7) status = { label:'납기임박', cls:'amber' };
     else                            status = { label:'진행',     cls:'cyan'  };
-    return { o, item, custNm, shipped, remain, status };
+    return { o, item, custNm, shipped, remain, unshipped, close, status };
   });
 }
+/* ★ v0.38.7 — 수주 종결 확인 창 (바로 종결 X · 미출하·연결 작업 경고 · 사유 필수 · 자동 취소/완료 0) */
+VIEWS._soCloseModal = (soId) => {
+  const o = DB.get('orders', soId);
+  if(!o || o.void){ toast('수주를 찾을 수 없음','err'); return; }
+  if(soCloseInfo(o)){ toast('이미 종결된 수주','warn'); return; }
+  const shipped = soShippedQty(o), unshipped = soUnshippedQty(o);
+  if(unshipped <= 0){ toast('출하완료 수주 — 종결 대상 아님','warn'); return; }
+  const kind = shipped > 0 ? 'short' : 'cancel';
+  const title = kind === 'short' ? '수주 종결 (부분종결)' : '수주 취소';
+  const wos = DB.query('work_orders', w => w.so_id === o.id);
+  const plans = DB.query('production_plans', p => p.so_id === o.id);
+  const plansOpen = plans.filter(p => !p.wo_id);
+  const fin = itemFinishedStock(o.itemCode);
+  const custNm = DB.get('vendors', o.cust)?.name || o.cust || '';
+  openModal(`
+    <h2>${title} — ${_esc(o.id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        ${[['수주량',(o.qty||0),'var(--ink)'],['출하',shipped,'var(--green)'],['미출하 (기록 보존)',unshipped,'var(--amber)']].map(([l,v,c]) => `<div style="border:1px solid var(--line);border-radius:10px;padding:8px 10px"><div style="font-size:11px;color:var(--sub)">${l}</div><div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:${c}">${v.toLocaleString()}<span style="font-size:11px;color:var(--sub)"> ea</span></div></div>`).join('')}
+      </div>
+      <div style="font-size:12px;color:var(--sub);margin:8px 0">${_esc(custNm)} · ${_esc(itemLabel(o.itemCode))} · 납기 ${_esc(o.due||'—')}<br>
+        종결 후: 수주량·출하 기록은 그대로 · <b>미출하 ${unshipped.toLocaleString()}ea 는 기록으로 남고 추가 출하 대상은 0</b> · 이 수주로 신규 출하·작업지시·계획 등록 불가 · [재개] 로 되돌릴 수 있습니다.</div>
+      <div class="fl-warn" style="color:var(--amber);border-color:var(--amber)">연결 현황 — 자동으로 바뀌지 않습니다<br>
+        · 작업지시 ${wos.length}건${wos.length?` (지시 ${wos.reduce((a,w)=>a+(+w.qty||0),0).toLocaleString()}ea)`:''} — LOT·실적 그대로<br>
+        · 생산계획 ${plans.length}건${plansOpen.length?` (미발행 ${plansOpen.length}건 — 필요하면 계획 화면에서 직접 취소)`:''}<br>
+        · 이 품번 완제품 재고 ${fin.toLocaleString()}ea${fin>0?' — 다른 수주로 출하 가능':''}</div>
+      <div><label>사유 <span style="color:var(--red)">*</span></label>
+        <select id="soc-r"><option value="">선택…</option>${(kind==='short'?['고객 협의 감량','고객 취소','사양 변경','기타']:['고객 취소','사양 변경','중복 등록','기타']).map(x=>`<option>${x}</option>`).join('')}</select></div>
+      <div><label>상세 <span style="color:var(--dim);font-weight:400">— 기타 선택 시 필수</span></label><input id="soc-t" placeholder="예: 고객 요청으로 잔량 30ea 공급 종료 (담당자·일자)"></div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">닫기</button>
+        <button class="btn primary" id="soc-ok">${title.replace(/ \(.*\)/,'')}</button>
+      </div>
+    </div>`);
+  document.getElementById('soc-ok').onclick = () => {
+    const r = document.getElementById('soc-r').value, t = document.getElementById('soc-t').value.trim();
+    if(!r){ toast('사유를 선택하세요','warn'); return; }
+    if(r === '기타' && !t){ toast('기타 — 상세 사유를 입력하세요','warn'); return; }
+    try { soClose(o.id, t ? `${r} — ${t}` : r); toast(`${o.id} ${SO_CLOSE_LABEL[kind]} — 미출하 ${unshipped.toLocaleString()}ea 기록 보존`,'ok',4000); closeModal(); router(); }
+    catch(e){ toast(e.message,'err',4500); }
+  };
+};
+VIEWS._soReopenModal = (soId) => {
+  const o = DB.get('orders', soId); const c = soCloseInfo(o);
+  if(!c){ toast('종결된 수주가 아님','warn'); return; }
+  openModal(`
+    <h2>수주 재개 — ${_esc(o.id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="font-size:12.5px">${_esc(SO_CLOSE_LABEL[c.kind])} ${fmtDate(c.at||0)} · ${_esc(c.by||'—')} · ${_esc(c.reason||'')}<br>
+        재개하면 미출하 <b>${soUnshippedQty(o).toLocaleString()}ea</b> 가 다시 수주잔·출하 대상이 됩니다.</div>
+      <div><label>재개 사유 <span style="color:var(--red)">*</span></label><input id="sor-t" placeholder="예: 고객 추가 요청"></div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">닫기</button>
+        <button class="btn primary" id="sor-ok">재개</button>
+      </div>
+    </div>`);
+  document.getElementById('sor-ok').onclick = () => {
+    try { soReopen(o.id, document.getElementById('sor-t').value); toast(`${o.id} 재개`,'ok'); closeModal(); router(); }
+    catch(e){ toast(e.message,'warn',4000); }
+  };
+};
 VIEWS.so = () => {
   const sos = DB.all('orders').sort((a,b)=>(b.created||0)-(a.created||0));
   // v0.15.0 — 신규 수주 select: 활성 품번·활성 고객사만 (기존 수주 목록 표시는 이력 그대로)
@@ -11649,11 +11757,11 @@ VIEWS.so = () => {
     </div>
 
     <div class="msrch">🔍<input id="so-q" placeholder="검색 — 수주번호 · 고객사 · 품번 · 품명" value="${_esc(stF.q)}">
-      <select id="so-st"><option value="">상태 전체</option>${['지연','납기임박','진행','출하완료'].map(s=>`<option ${stF.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <select id="so-st"><option value="">상태 전체</option>${['지연','납기임박','진행','출하완료','부분종결','수주취소'].map(s=>`<option ${stF.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
 
     <div class="card">
       <div class="tbl-wrap"><table>
-        <thead><tr><th>수주번호</th><th>고객사</th><th>품번</th><th class="num">잔량 / 수주수량</th><th>납기</th><th>상태</th></tr></thead>
+        <thead><tr><th>수주번호</th><th>고객사</th><th>품번</th><th class="num">잔량 / 수주수량</th><th>납기</th><th>상태</th><th style="width:96px">작업</th></tr></thead>
         <tbody>${fRows.length? fRows.map(r => {
           const o = r.o;
           const plannedQty = soPlannedQty(o.id);
@@ -11666,25 +11774,27 @@ VIEWS.so = () => {
             <td><b class="mono">${_esc(o.id)}</b> <span class="lot-chev">▸</span></td>
             <td>${_esc(r.custNm)}</td>
             <td><b class="mono" style="font-size:11.5px">${_esc(itemLabel(o.itemCode))}</b></td>
-            <td class="num"><b style="color:${r.remain>0?'var(--amber)':'var(--dim)'}">${r.remain.toLocaleString()}</b> <span class="muted">/ ${(o.qty||0).toLocaleString()}</span></td>
+            <td class="num"><b style="color:${r.remain>0?'var(--amber)':'var(--dim)'}">${r.remain.toLocaleString()}</b> <span class="muted">/ ${(o.qty||0).toLocaleString()}</span>${r.close&&r.unshipped>0?`<div style="font-size:10.5px;color:var(--sub)">미출하 ${r.unshipped.toLocaleString()} 종결</div>`:''}</td>
             <td class="muted">${_esc(o.due||'—')}</td>
             <td><span class="pill ${r.status.cls}">${r.status.label}</span></td>
+            <td>${r.close ? `<button class="btn ghost" data-so-reopen="${_esc(o.id)}" style="font-size:10.5px;padding:3px 8px">재개</button>` : (r.remain>0 ? `<button class="btn" data-so-close="${_esc(o.id)}" style="font-size:10.5px;padding:3px 8px">수주 종결</button>` : '')}</td>
           </tr>
-          <tr class="mdet" data-so-det="${_esc(o.id)}" hidden><td colspan="6">
+          <tr class="mdet" data-so-det="${_esc(o.id)}" hidden><td colspan="7">
             <div class="dg">
               <div><span>품명</span><b>${_esc(r.item?.name||'—')}</b></div>
               <div><span>단가 · 금액</span><b>₩${(o.price||0).toLocaleString()} · ₩${((o.qty||0)*(o.price||0)).toLocaleString()}</b></div>
               <div><span>출하 누계</span><b style="color:${r.shipped>0?'var(--green)':'var(--dim)'}">${r.shipped.toLocaleString()}ea${shipCnt?` (${shipCnt}회)`:''}</b></div>
               <div><span>등록</span><b>${fmtDate(o.created||0)}</b></div>
               <div><span>계획 배정</span><b>${plannedQty>0?`${plannedQty.toLocaleString()}ea${planRemain>0?` (잔 ${planRemain.toLocaleString()})`:''}`:'미계획'}</b></div>
+              ${r.close?`<div style="grid-column:span 3"><span>${_esc(r.status.label)}</span><b style="color:var(--sub)">${fmtDate(r.close.at||0)} · ${_esc(r.close.by||'—')} · ${_esc(r.close.reason||'')} · 종결 시 미출하 ${(+r.close.unshipped_at||0).toLocaleString()}ea (현재 미출하 ${r.unshipped.toLocaleString()}ea · 추가 출하 0)</b></div>`:''}
               <div style="grid-column:span 3;display:flex;gap:6px;align-items:end;justify-content:flex-end">
                 ${planBtn}
-                <button class="btn ghost" data-so-edit="${_esc(o.id)}" style="font-size:10.5px">수정</button>
+                ${r.close?'':`<button class="btn ghost" data-so-edit="${_esc(o.id)}" style="font-size:10.5px">수정</button>`}
                 ${r.remain>0?`<button class="btn ghost" onclick="location.hash='#ship'" style="font-size:10.5px;color:var(--cyan)">출하 화면 ↗</button>`:''}
               </div>
             </div>
           </td></tr>`;
-        }).join('') : `<tr><td colspan="6" class="empty">${stF.q||stF.status?'검색 결과 없음':'수주 없음 — [새 수주]로 등록하세요'}</td></tr>`}</tbody>
+        }).join('') : `<tr><td colspan="7" class="empty">${stF.q||stF.status?'검색 결과 없음':'수주 없음 — [새 수주]로 등록하세요'}</td></tr>`}</tbody>
       </table></div>
     </div>
   `;
@@ -11698,14 +11808,17 @@ VIEWS.so = () => {
   let _soDeb = null;
   bindSearch('so-q', v => { stF.q = v; });   // ★ v0.35.9 — Search Contract
   document.getElementById('so-st').onchange = e => { stF.status = e.target.value; router(); };
+  // ★ v0.38.7 — 수주 종결 / 재개 (확인 창 → 사유 필수 → DB.correct 감사 · 자동 처리 0)
+  document.querySelectorAll('[data-so-close]').forEach(b => b.onclick = (e) => { e.stopPropagation(); VIEWS._soCloseModal(b.dataset.soClose); });
+  document.querySelectorAll('[data-so-reopen]').forEach(b => b.onclick = (e) => { e.stopPropagation(); VIEWS._soReopenModal(b.dataset.soReopen); });
   const _soMore = document.getElementById('so-more');
   if(_soMore) _soMore.onclick = (e) => { e.stopPropagation(); document.getElementById('so-more-menu').classList.toggle('open'); };
   // ★ v0.20.1 — 잔량 행 [계획] 바로가기 (계획 모달 프리필 오픈)
   document.querySelectorAll('[data-so-plan]').forEach(b => b.onclick = () => {
     const soId = b.dataset.soPlan;
     const o = DB.get('orders', soId); if(!o) return;
-    const shipped = DB.query('shipments', s => s.so_id===soId).reduce((s,r)=>s+(r.qty||0),0);
-    const remain = Math.max(0, (o.qty||0) - shipped);
+    const remain = soOpenQty(o);   // ★ v0.38.7 — 유효 수주잔량
+    if(remain <= 0){ toast(`${soId} — 계획 대상 잔량 없음`,'warn'); return; }
     // ★ v0.30.7 — 프리필 수량 = min(미출하 잔량, 미계획 수량) — 분할 계획 시 남은 계획분만 제안
     const planRemain = Math.max(0, (o.qty||0) - soPlannedQty(soId));
     VIEWS._planNew({ so_id: soId, itemCode: o.itemCode, qty: Math.min(remain, planRemain) || remain });
@@ -11716,7 +11829,8 @@ VIEWS.so = () => {
   document.querySelectorAll('[data-so-edit]').forEach(b => b.onclick = () => {
     const o = DB.get('orders', b.dataset.soEdit);
     if(!o){ toast('수주를 찾을 수 없음','err'); return; }
-    const shipped = DB.query('shipments', s => s.so_id===o.id).reduce((s,r)=>s+(r.qty||0),0);
+    if(soCloseInfo(o)){ toast(`${o.id} — 종결된 수주 · [재개] 후 수정`,'warn',4000); return; }   // ★ v0.38.7 (D2)
+    const shipped = soShippedQty(o);   // 사실값 (하한)
     openModal(`
       <h2>수주 수정 — ${_esc(o.id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
@@ -11746,6 +11860,7 @@ VIEWS.so = () => {
       if(qty <= 0){ toast('수량 입력','warn'); return; }
       if(qty < shipped){ toast(`수량은 이미 출하된 ${shipped.toLocaleString()}ea 미만으로 줄일 수 없습니다`,'err',4000); return; }
       if(qty === (o.qty||0) && price === (o.price||0) && due === (o.due||'')){ toast('변경 사항 없음','warn'); return; }
+      try { assertSoOpen(o.id, '수정'); } catch(e){ toast(e.message,'err',4500); return; }   // ★ v0.38.7 — 저장 직전 재검증
       DB.correct('orders', o.id, { qty, price, due }, '수주 수정 (화면)');
       toast(`수주 수정 — ${o.id}`,'ok'); closeModal(); router();
     };
@@ -12054,6 +12169,10 @@ VIEWS.ship = () => {
       const opt = soSel.selectedOptions[0];
       const itemCode = opt?.dataset.i;
       const qty = +qtyEl.value || 0;
+      { const _so = DB.get('orders', soSel.value);   // ★ v0.38.7 — 수주 종결·초과 안내 (저장 차단은 assertSoShipQty)
+        const _c = soCloseInfo(_so);
+        if(_c) head += `<div class="fl-warn" style="color:var(--red);border-color:var(--red)">⛔ ${SO_CLOSE_LABEL[_c.kind]} 수주 — 출하 불가 (수주 화면 [재개] 후 출하)</div>`;
+        else if(_so && qty > 0 && qty > soUnshippedQty(_so)) head += `<div class="fl-warn" style="color:var(--red);border-color:var(--red)">⛔ 수주 남은 수량 ${soUnshippedQty(_so).toLocaleString()}ea 초과 — 저장 시 차단</div>`; }
       if(!itemCode || qty <= 0){ warnEl.innerHTML = head; return; }
       const flow = calcItemFlow(itemCode);
       warnEl.innerHTML = head + ((qty > flow.finished)
@@ -12105,6 +12224,7 @@ VIEWS.ship = () => {
       if(!qty){ toast('수량 입력','warn'); return; }
       // 출하 = shipment 레코드 (출하 직전 공정의 품번별 양품 검증)
       try {
+        assertSoShipQty(so_id, qty);   // ★ v0.38.7 — 수주 종결 차단 + 수주 수량 초과 출하 차단 (저장 직전 최신 원장 기준)
         const lotObj = DB.get('production_lots', plot);
         if(!lotObj) throw new Error('LOT 없음');
         assertLotNotHeld(plot, '출하');   // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 출하 차단
@@ -17640,10 +17760,12 @@ function computeOrderStages(){
   if(!orders.length) return { total:0, done:0, prog:0, wait:0, hasData:false };
   // 품번별 집계 (주문은 같은 품번 여러 건 가능)
   const byItem = {};
+  let closedAmt = 0;   // ★ v0.38.7 (D3) — 종결 미출하 금액 (이력 표시 · 출하완료·생산중·미착수 어디에도 합산 안 함)
   orders.forEach(o=>{
     const code = o.itemCode;
     if(!byItem[code]) byItem[code] = { orderQty:0, price:0, shippedQty:0, producedQty:0 };
-    byItem[code].orderQty += o.qty||0;
+    if(soCloseInfo(o)){ const un = soUnshippedQty(o); byItem[code].orderQty += (o.qty||0) - un; closedAmt += un * (o.price||0); }
+    else byItem[code].orderQty += o.qty||0;
     if(o.price) byItem[code].price = o.price;
   });
   DB.all('shipments').forEach(sh=>{
@@ -17669,7 +17791,7 @@ function computeOrderStages(){
     prog += progQty * price;
     wait += (remainQty - progQty) * price;
   });
-  return { total, done, prog, wait, hasData: total>0 };
+  return { total, done, prog, wait, closedAmt, hasData: total>0 };
 }
 function computeEqStatus(period){
   const range = periodRange(period);
@@ -17752,8 +17874,7 @@ function computeNetDemand(itemCode){
   const orders = DB.query('orders', o=>o.itemCode===itemCode);
   let orderQty=0, earliestDue='';
   orders.forEach(o=>{
-    const ship = DB.query('shipments', x=>x.so_id===o.id).reduce((s,r)=>s+(r.qty||0),0);
-    const rem = Math.max(0, (o.qty||0) - ship);
+    const rem = soOpenQty(o);   // ★ v0.38.7 — 유효 수주잔량 (종결 수주 순소요 제외)
     orderQty += rem;
     if(rem>0 && o.due){
       if(!earliestDue || o.due < earliestDue) earliestDue = o.due;
@@ -18562,6 +18683,7 @@ function issueWoFromPlan(plan){
   if(qty <= 0)      return { ok:false, reason:'수량 0 이하' };
   const it = DB.get('items', plan.itemCode);
   if(!it)           return { ok:false, reason:`품번 미등록 (${plan.itemCode||'—'})` };
+  try { assertSoOpen(plan.so_id, '작업지시 발행'); } catch(e){ return { ok:false, reason:e.message }; }   // ★ v0.38.7
   try {
     const woId   = nextDocNo('WO');
     if(DB.get('work_orders', woId))    return { ok:false, reason:`지시번호 중복 — ${woId}` };
@@ -19340,8 +19462,8 @@ VIEWS._planNew = (prefill) => {
   //   계획 합계 < 수주 수량 → 같은 수주로 추가(분할) 계획 허용 · 충족(≥) 시에만 목록 제외+저장 차단.
   //   재고생산(so_id 없음)은 중복 무제한. 계획 취소(void) 시 그만큼 계획잔량 복원.
   const soAll = DB.all('orders').map(o => {
-    const shipped = DB.query('shipments', s=>s.so_id===o.id).reduce((s,r)=>s+(r.qty||0),0);
-    const remain  = Math.max(0, (o.qty||0) - shipped);
+    const shipped = soShippedQty(o);
+    const remain  = soOpenQty(o);   // ★ v0.38.7 — 유효 수주잔량 (종결 수주 = 후보 제외)
     const planned = soPlannedQty(o.id);
     const planRemain = Math.max(0, (o.qty||0) - planned);   // 아직 계획 안 잡힌 수량
     return {o, remain, shipped, planned, planRemain};
@@ -19542,6 +19664,7 @@ VIEWS._planNew = (prefill) => {
     // ★ v0.30.7 — 수량 기준 재검증 (다중 단말 대비): 계획 합계가 수주 수량을 충족(≥)한 수주만 차단.
     //   미충족이면 분할 계획 허용 · 재고생산(so_id 없음)은 무제한.
     if(so_id){
+      try { assertSoOpen(so_id, '계획 등록'); } catch(e){ toast(e.message,'err',5000); return; }   // ★ v0.38.7
       const _o = DB.get('orders', so_id);
       const _planned = soPlannedQty(so_id);
       if(_o && _planned >= (+_o.qty||0)){
@@ -21725,8 +21848,7 @@ function buildReportData(scope, baseDate){
   const revenue = shipsInPeriod.reduce((s,r)=>s+shipAmount(r), 0);
   let backlog = 0;
   DB.all('orders').forEach(o => {
-    const sQty = DB.query('shipments', x => x.so_id === o.id).reduce((sum,r)=>sum+(+r.qty||0), 0);
-    backlog += Math.max(0, (+o.qty||0) - sQty);
+    backlog += soOpenQty(o);   // ★ v0.38.7 — 유효 수주잔량
   });
   const custMap = {};
   shipsInPeriod.forEach(sh => {
@@ -21736,8 +21858,7 @@ function buildReportData(scope, baseDate){
     cx.revenue += shipAmount(sh);
   });
   DB.all('orders').forEach(o => {
-    const sQty = DB.query('shipments', x => x.so_id === o.id).reduce((sum,r)=>sum+(+r.qty||0), 0);
-    const remain = Math.max(0, (+o.qty||0) - sQty);
+    const remain = soOpenQty(o);   // ★ v0.38.7 — 유효 수주잔량
     if(remain <= 0) return;
     const cust = o.cust || '미지정';
     const cx = custMap[cust] = custMap[cust] || { cust, revenue:0, backlog:0, nextDue:'' };
@@ -21847,8 +21968,7 @@ function buildReportData(scope, baseDate){
     const dueMs = new Date(o.due + 'T00:00:00').getTime();
     const dDays = Math.round((dueMs - todayMs)/86400000);
     if(dDays > 14) return;
-    const sQty = DB.query('shipments', x => x.so_id === o.id).reduce((sum,r)=>sum+(+r.qty||0), 0);
-    const remain = Math.max(0, (+o.qty||0) - sQty);
+    const remain = soOpenQty(o);   // ★ v0.38.7 — 종결 수주는 납기 이슈 0
     if(remain <= 0) return;
     const custName = DB.get('vendors', o.cust)?.name || o.cust || '미지정';
     issues.push({ severity: dDays <= 7 ? 'red' : 'amber', dept:'sales',
