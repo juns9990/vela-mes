@@ -146,6 +146,16 @@ label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spaci
 .gate-sys{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:800;letter-spacing:7px;color:var(--cyan-dim);padding:3px 9px;border:1px solid var(--line2);border-radius:6px;background:rgba(94,234,212,.05)}
 .gate-co-name{font-size:18px;font-weight:700;color:var(--ink);letter-spacing:.2px}
 .gate-co-site{font-size:12px;color:var(--sub);margin-top:3px}
+/* ★ v0.38.9 — 진입 화면 사용업체 CI (로고 + 상호 + 사이트 · 설정 › 회사 정보) */
+.gate-ci{display:flex;align-items:center;gap:18px;padding:18px 20px;border:1px solid var(--line);border-radius:16px;background:var(--panel);box-shadow:var(--sh, none);max-width:520px}
+.gate-ci[hidden]{display:none}
+.gate-ci-logo{width:84px;height:84px;flex:none;border-radius:14px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.gate-ci-logo img{max-width:100%;max-height:100%;object-fit:contain}
+.gate-ci .gate-co-name{font-size:26px;font-weight:800;letter-spacing:.3px;line-height:1.2;word-break:keep-all}
+.gate-ci .gate-co-site{font-size:13.5px;margin-top:5px}
+.co-logo-box{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.co-logo-prev{width:72px;height:72px;border-radius:12px;border:1px dashed var(--line2);background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:11px;color:var(--dim)}
+.co-logo-prev img{max-width:100%;max-height:100%;object-fit:contain}
 .gate-clock{margin-top:0}
 .gate-t{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:38px;color:var(--cyan);letter-spacing:2px;line-height:1}
 .gate-d{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--sub);margin-top:6px;letter-spacing:1px}
@@ -204,6 +214,9 @@ label{display:block;font-size:11px;color:var(--sub);font-weight:600;letter-spaci
   .gate-wrap{flex-direction:column;width:100%;max-width:420px}
   .gate-left{flex:none;border-right:none;border-bottom:1px solid var(--line);padding:24px}
   .gate-brand .vela-mark{font-size:38px}
+  .gate-ci{padding:12px 14px;gap:12px}
+  .gate-ci-logo{width:60px;height:60px}
+  .gate-ci .gate-co-name{font-size:20px}
   .gate-t{font-size:30px}
   .gate-pin{width:100%;padding:26px 24px}
   .gate-reg{width:100%;border-left:none;border-top:1px dashed var(--line2);padding:22px 24px}
@@ -1300,9 +1313,12 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
         <span class="vela-mark primary">Ve<span class="accent">l</span>a</span>
         <span class="gate-sys">SYSTEM</span>
       </div>
-      <div class="gate-co">
-        <div class="gate-co-name" id="gt-co-name" hidden></div>
-        <div class="gate-co-site" id="gt-co-site" hidden></div>
+      <div class="gate-ci" id="gt-ci" hidden>
+        <div class="gate-ci-logo" id="gt-co-logo" hidden></div>
+        <div>
+          <div class="gate-co-name" id="gt-co-name" hidden></div>
+          <div class="gate-co-site" id="gt-co-site" hidden></div>
+        </div>
       </div>
       <div class="gate-clock">
         <div class="gate-t" id="gt-t">--:--:--</div>
@@ -1404,7 +1420,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.8';
+const APP_VERSION = 'v0.38.9';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -5566,7 +5582,8 @@ function enterStandby(){
     const co = DB.get('settings','company') || {};
     const ci = document.getElementById('sb-ci');
     const nm = (co.name || '').trim() || 'VELA MES';
-    ci.innerHTML = `${co.logo ? `<img src="${co.logo}" alt="CI">` : ''}<span class="sb-nm">${_esc(nm)}</span>`;
+    const _lg = companyLogoSrc(co);   // ★ v0.38.9 — 로고 검증 1벌
+    ci.innerHTML = `${_lg ? `<img src="${_lg}" alt="CI">` : ''}<span class="sb-nm">${_esc(nm)}</span>`;
   } catch(e){}
   const ver = document.getElementById('sb-ver');
   if(ver) ver.textContent = `${APP_VERSION} · MADE BY JUNS`;
@@ -5766,14 +5783,48 @@ function exportXlsx(rows, sheetName, fileName){
    ※ 클라이언트 게이트 단계로 PIN 평문 저장 — 백엔드 도입 시 해시로 전환 예정.
    ------------------------------------------------------------------------------------------------- */
 let _gateKeyHandler = null;
+/* ★ v0.38.9 — 회사 로고 1벌: 저장값 검증(이미지 data URL 만 · 그 외 문자열은 무시 = 속성 주입 차단) */
+function companyLogoSrc(co){
+  const v = String((co && co.logo) || '');
+  return /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : '';
+}
+/* 로고 파일 → 최대 240px 로 줄여 data URL (PNG — 투명 유지 · 160KB 초과 시 거부) */
+function companyLogoFromFile(file){
+  return new Promise((resolve, reject) => {
+    if(!file || !/^image\/(png|jpeg|webp|gif)$/.test(file.type)) return reject(new Error('PNG·JPG·WEBP 이미지만 가능'));
+    if(file.size > 5*1024*1024) return reject(new Error('5MB 이하 이미지만 가능'));
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error('파일을 읽을 수 없음'));
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('이미지를 열 수 없음'));
+      img.onload = () => {
+        const k = Math.min(1, 240 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        const url = c.toDataURL('image/png');
+        if(url.length > 160*1024) return reject(new Error('로고가 너무 큼 — 단순한 이미지로 다시 시도'));
+        resolve(url);
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
 function renderGate(){
   attemptRememberedLogin();   // ★ v0.37.2 — 기억된 기기(현장 작업자) 는 토큰 검증 후 자동 진입 (users 스냅샷 도착 시 재시도됨)
-  // 좌 패널 회사·버전 표시
-  const co = getCompany();
+  // 좌 패널 사용업체 CI·버전 표시 (★ v0.38.9 — 로고+상호+사이트 · 저장값만 · 기본값(가짜 상호) 표시 안 함 · 하나도 없으면 블록 숨김)
+  const co = DB.get('settings','company') || {};
   const nm = document.getElementById('gt-co-name');
   const st = document.getElementById('gt-co-site');
+  const lg = document.getElementById('gt-co-logo');
+  const ciBox = document.getElementById('gt-ci');
+  const logo = companyLogoSrc(co);
   if(co?.name && co.name.trim()){ nm.textContent = co.name; nm.hidden = false; } else { nm.hidden = true; }
   if(co?.site && co.site.trim()){ st.textContent = co.site; st.hidden = false; } else { st.hidden = true; }
+  if(lg){ if(logo){ lg.innerHTML = `<img src="${logo}" alt="">`; lg.hidden = false; } else { lg.innerHTML = ''; lg.hidden = true; } }
+  if(ciBox) ciBox.hidden = nm.hidden && st.hidden && !logo;
   const ver = document.getElementById('gt-ver'); if(ver) ver.textContent = APP_VERSION;
 
   // PIN 패드는 항상 렌더
@@ -23920,6 +23971,14 @@ VIEWS.set = () => {
           </div>
           ${(()=>{ const h=(DB.get('settings','pack_installs')||{}).installs||[]; const last=h[h.length-1]; return last?`<div style="font-size:10px;color:var(--dim);margin-top:3px">설치 이력: ${_esc(last.packVersion)} · ${fmtDate(last.installedAt)} · ${_esc(last.installedBy||'')}${h.length>1?` 외 ${h.length-1}건`:''}</div>`:''; })()}</div>
       </div>
+      <div style="margin-top:10px"><label>회사 로고 <span style="color:var(--dim);font-weight:400">— 진입 화면·대기 화면에 상호와 함께 표시 · PNG/JPG · 자동으로 240px 로 축소</span></label>
+        <div class="co-logo-box">
+          <div class="co-logo-prev" id="co-logo-prev">${companyLogoSrc(co) ? `<img src="${companyLogoSrc(co)}" alt="">` : '로고 없음'}</div>
+          <label class="btn" style="cursor:pointer;margin:0">${ico('plus')}이미지 선택<input type="file" id="co-logo-file" accept="image/png,image/jpeg,image/webp" hidden></label>
+          <button class="btn ghost" id="co-logo-clear" ${companyLogoSrc(co)?'':'hidden'}>로고 빼기</button>
+          <span style="font-size:11px;color:var(--sub)">선택 후 [저장] 을 눌러야 반영됩니다</span>
+        </div>
+      </div>
       <div class="grid g3" style="margin-top:10px">
         <div><label>사업자등록번호</label><input id="co-biz" value="${_esc(co.biz_no||'')}" placeholder="123-45-67890"></div>
         <div><label>대표자</label><input id="co-ceo" value="${_esc(co.ceo||'')}"></div>
@@ -24289,8 +24348,18 @@ VIEWS.set = () => {
     toast('교대 설정 저장', 'ok'); router();
   };
   // 회사
+  // ★ v0.38.9 — 로고 선택(미리보기 → [저장] 시 settings/company.logo 반영 · 빼기 = 빈 값)
+  let _coLogo = companyLogoSrc(co);
+  const _coPrev = document.getElementById('co-logo-prev'), _coClr = document.getElementById('co-logo-clear');
+  const _coShow = () => { _coPrev.innerHTML = _coLogo ? `<img src="${_coLogo}" alt="">` : '로고 없음'; _coClr.hidden = !_coLogo; };
+  document.getElementById('co-logo-file').onchange = async (e) => {
+    const f = e.target.files && e.target.files[0]; e.target.value = '';
+    try { _coLogo = await companyLogoFromFile(f); _coShow(); toast('로고 미리보기 — [저장] 을 눌러 반영','ok'); } catch(err){ toast(err.message,'warn',4000); }
+  };
+  _coClr.onclick = () => { _coLogo = ''; _coShow(); };
   document.getElementById('co-save').onclick = () => {
     const n = {
+      logo: _coLogo,   // ★ v0.38.9
       name: document.getElementById('co-name').value.trim(),
       site: document.getElementById('co-site').value.trim(),
       preset: document.getElementById('co-preset').value,
