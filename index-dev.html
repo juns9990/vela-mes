@@ -1397,11 +1397,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.2';
+const APP_VERSION = 'v0.38.3';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-10-08';
+const APP_DATE    = '2026-10-09';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1481,16 +1481,22 @@ const _LS_KEY = 'vela_mes_db_v1';
 const _BACKEND_CONFIG_KEY = 'vela_backend_config';   // ★ v0.21.0 — firebaseConfig 저장 (DB 밖 · 부팅 전 필요)
 
 /* ★ v0.22.0 — 데모 체험 모드 (영업용 · 실데이터·서버와 완전 격리)
-   플래그: localStorage 'vela_demo'='1' → 데모 부팅. 종료 시 플래그 제거하면 원래 모드 그대로 복귀.
+   플래그: sessionStorage 'vela_demo'='1'(★ v0.38.3 탭 단위) → 데모 부팅. 종료 시 플래그 제거하면 원래 모드 그대로 복귀.
    DB 키: 'vela_mes_demo_v1' (실 vela_mes_db_v1 과 완전 분리 · 읽기/쓰기 절대 교차 없음).
    백엔드: 강제 local (firestore SDK 로드 자체 안 함 — 서버 접속·비용 0).
    단말: 런타임 'D' 고정 (로컬 device 코드 키 미변경 — 데모 종료 후 원래 코드 복원). */
 const _DEMO_FLAG_KEY = 'vela_demo';
 const _DEMO_LS_KEY   = 'vela_mes_demo_v1';
+/* ★ v0.38.3 — 데모 진입 플래그를 탭 단위(sessionStorage)로 (사용자 피드백 2026-10-09: 일반 접속인데 DEMO 배지가 떠서 데모판으로 오해).
+   원인: 플래그가 localStorage 에 남아, 한 번 [데모 체험]을 누른 브라우저는 이후 정식 주소로 들어와도 게이트 없이 데모로 자동 부팅됐다
+   (index.html·index-dev.html 이 같은 출처라 공유). 이제 데모는 [데모 체험]을 누른 그 탭에서만 · 탭/앱을 닫으면 끝 · 새로 접속하면 항상 일반 게이트.
+   데모 데이터(vela_mes_demo_v1)·빈 상태 키는 그대로 localStorage — 다시 데모에 들어가면 이어서 보인다. 옛 localStorage 플래그는 부팅 시 제거(_clearLegacyDemoFlag). */
 function isDemoMode(){
-  try { return localStorage.getItem(_DEMO_FLAG_KEY) === '1'; }
+  try { return sessionStorage.getItem(_DEMO_FLAG_KEY) === '1'; }
   catch { return false; }
 }
+function _clearLegacyDemoFlag(){ try { localStorage.removeItem(_DEMO_FLAG_KEY); } catch(e){} }
+_clearLegacyDemoFlag();
 /* ★ v0.28.7 — 빈 상태 데모(시연·테스트 캔버스) 판정 1벌
    · 데모 격리(별도 키·서버 0) 그대로 재사용 · 차이는 시드뿐: 뼈대(공정 템플릿·계정과목)만, 데이터 0
    · 단말 고유값 원칙 — 플래그는 localStorage (DB 밖) */
@@ -6081,13 +6087,14 @@ function onDemoClick(){
       vela_mes_db_v1 / vela_backend_config / vela_m_session / vela_remember — v0.37.2) 는 절대 건드리지 않음 · 재부팅 후 부팅 자가 점검이 잔재 검증.
       데모 세션은 별도 키 vela_demo_m_session (데모 종료 후 잔재는 무해 — 데모 재진입 시 userId 검증). */
 function enterDemoMode(){
-  try { localStorage.setItem(_DEMO_FLAG_KEY, '1'); } catch(e){ console.warn('[VELA] enterDemoMode 플래그 저장 실패', e); }
+  try { sessionStorage.setItem(_DEMO_FLAG_KEY, '1'); } catch(e){ console.warn('[VELA] enterDemoMode 플래그 저장 실패', e); }   // ★ v0.38.3 — 이 탭에서만
   // 배지 즉시 노출(재부팅 전 시각 잔재 방지 · 실키에는 아무 것도 쓰지 않음)
   const b = document.getElementById('demo-badge'); if(b) b.hidden = false;
   location.reload();
 }
 function exitDemoMode(){
-  try { localStorage.removeItem(_DEMO_FLAG_KEY); } catch(e){ console.warn('[VELA] exitDemoMode 플래그 제거 실패', e); }
+  try { sessionStorage.removeItem(_DEMO_FLAG_KEY); } catch(e){ console.warn('[VELA] exitDemoMode 플래그 제거 실패', e); }
+  _clearLegacyDemoFlag();   // ★ v0.38.3
   // 배지 즉시 소등(재부팅 전 시각 잔재 방지) · 세션 리셋(데모 사용자 잔재 클리어)
   const b = document.getElementById('demo-badge'); if(b) b.hidden = true;
   SESSION.userId = null; SESSION.user = 'OP-001'; SESSION.role = null; SESSION.loggedIn = false;
