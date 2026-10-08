@@ -1403,7 +1403,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.4';
+const APP_VERSION = 'v0.38.5';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -7711,7 +7711,8 @@ function renderSessionSetup(prefill){
     });
     document.querySelectorAll('[data-pick-eq]').forEach(b=>b.onclick=()=>{
       const id = b.dataset.pickEq;
-      const e = DB.get('equipment', id);
+      // ★ v0.38.5 — 목록 = buildEquipmentList(마스터 우선) → 같은 목록에서 찾는다 (구 equipment 문서가 없는 설비도 선택)
+      const e = eqs.find(x => x.id === id) || DB.get('equipment', id);
       if(e){ sel.equipment = {id:e.id, name:e.name, proc:e.proc, hourly_capa:e.hourly_capa}; openList=null; render(); }
     });
     // 작업자 검색
@@ -8397,7 +8398,8 @@ function resolveScanEquipment(parsed, session){
 /* 설비 QR 매칭 1벌 (세션 설정 화면의 설비 QR 과 같은 규칙: equipment 문서 id / qr / name) */
 function matchEquipmentQr(txt){
   const t = String(txt||'').trim(); if(!t) return null;
-  const e = DB.get('equipment', t) || DB.all('equipment').find(x => x.qr === t || x.name === t);
+  const e = DB.get('equipment', t) || DB.all('equipment').find(x => x.qr === t || x.name === t)
+         || buildEquipmentList().find(x => x.id === t || x.qr === t || x.name === t);   // ★ v0.38.5 — 마스터에만 있는 설비도 매칭
   if(!e) return null;
   return { id: e.id, name: e.name, proc: e.proc, hourly_capa: e.hourly_capa };
 }
