@@ -1397,11 +1397,11 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.1';
+const APP_VERSION = 'v0.38.2';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-09-23';
+const APP_DATE    = '2026-10-08';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -13811,7 +13811,9 @@ const PRINT_BASE_CSS = `
   body{background:#5a5d66;padding:30px;font-family:'Noto Sans KR','Malgun Gothic',sans-serif;display:flex;flex-direction:column;align-items:center;gap:24px;color:#16181d}
   .mono{font-family:'JetBrains Mono','Consolas',monospace;font-weight:600}
   @media print {
-    body{background:#fff;padding:0;gap:0}
+    /* ★ v0.38.2 — 인쇄 잘림 수정: 화면용 body 가 flex 컨테이너라 Chrome 이 flex 아이템의 page-break 를 무시 → 두 번째 장이 같은 페이지에 이어져 잘림(사용자 거래명세서 캡처).
+       인쇄 시 body 를 block 으로 · .page 는 break-after:page + break-inside:avoid (전 양식 공통 1벌 — 거래명세서·발주서·반출증·작업지시서·이동표·단가합의서·보고서·부적합) */
+    body{background:#fff;padding:0;gap:0;display:block}
     /* ★ v0.23.4 — 여백 13mm · 양식 컨테이너 max-width 제거 · 페이지 흐름 정리
        ★ v0.23.5 — size 고정 제거 → 브라우저 인쇄 대화상자 방향 선택 복원.
                    양식별 방향(가로/세로)은 인쇄 직전 토글에서 A4 <orient> 동적 주입. */
@@ -13825,8 +13827,11 @@ const PRINT_BASE_CSS = `
       min-width:0 !important;
       max-width:none !important;
       page-break-after:always;
+      break-after:page;
+      page-break-inside:avoid;
+      break-inside:avoid;
     }
-    .page:last-child{page-break-after:auto}
+    .page:last-child{page-break-after:auto;break-after:auto}
     /* 표 전폭 · 행 잘림 방지 */
     table{width:100% !important}
     tr, thead, tfoot{page-break-inside:avoid}
@@ -13972,20 +13977,38 @@ async function _openPdf(title, bodyHTML, extraCSS, orient){
       </head><body>${bodyHTML}</body></html>`);
     idoc.close();
     await new Promise(r => setTimeout(r, 450));   // 렌더·폰트 안착
-    const canvas = await html2canvas(idoc.body, { scale: 2, backgroundColor:'#ffffff', windowWidth: pageW });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: landscape ? 'l' : 'p', unit:'mm', format:'a4' });
     const pdfW = landscape ? 297 : 210, pdfH = landscape ? 210 : 297;
-    const pageHpx = Math.floor(canvas.width * (pdfH / pdfW));
-    let y = 0, first = true;
-    while(y < canvas.height){
-      const sliceH = Math.min(pageHpx, canvas.height - y);
-      const c2 = document.createElement('canvas');
-      c2.width = canvas.width; c2.height = sliceH;
-      c2.getContext('2d').drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-      if(!first) pdf.addPage();
-      pdf.addImage(c2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, sliceH * pdfW / canvas.width);
-      first = false; y += sliceH;
+    // ★ v0.38.2 — 잘림 수정: 양식(.page / .lp / .sheet) 단위로 1장 = PDF 1쪽 (픽셀 높이로 자르지 않음). 한 장이 A4 보다 길면 비율 유지 축소.
+    //   양식 컨테이너가 없는 문서는 종전처럼 높이 기준 분할.
+    idoc.body.style.cssText = 'background:#fff;margin:0;padding:0;display:block;width:' + pageW + 'px';
+    const units = [...idoc.querySelectorAll('.page, .lp, .sheet')].filter(el => !el.closest('.page .page'));
+    if(units.length){
+      let first = true;
+      for(const el of units){
+        el.style.boxShadow = 'none'; el.style.margin = '0';
+        const canvas = await html2canvas(el, { scale: 2, backgroundColor:'#ffffff', windowWidth: pageW });
+        const ratio = canvas.height / canvas.width;
+        let w = pdfW, h = pdfW * ratio;
+        if(h > pdfH){ h = pdfH; w = pdfH / ratio; }   // 긴 장 = 축소(잘림 0)
+        if(!first) pdf.addPage();
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', (pdfW - w) / 2, 0, w, h);
+        first = false;
+      }
+    } else {
+      const canvas = await html2canvas(idoc.body, { scale: 2, backgroundColor:'#ffffff', windowWidth: pageW });
+      const pageHpx = Math.floor(canvas.width * (pdfH / pdfW));
+      let y = 0, first = true;
+      while(y < canvas.height){
+        const sliceH = Math.min(pageHpx, canvas.height - y);
+        const c2 = document.createElement('canvas');
+        c2.width = canvas.width; c2.height = sliceH;
+        c2.getContext('2d').drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        if(!first) pdf.addPage();
+        pdf.addImage(c2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, sliceH * pdfW / canvas.width);
+        first = false; y += sliceH;
+      }
     }
     const fname = `${String(title).replace(/[\\/:*?"<>|\s]+/g,'_')}_${fmtDate(Date.now())}.pdf`;
     pdf.save(fname);
@@ -14307,7 +14330,8 @@ const printForm = {
         .doc-title{font-size:22pt !important;letter-spacing:14px}
         /* thead 인라인 폭보다 우선 · 라우트를 40% 로 확장, 품번·명 을 축소 (auto layout 힌트) */
         th:nth-child(3){width:13% !important}    /* 품번·품명 */
-        th:nth-child(6){width:40% !important;min-width:40% !important}    /* 공정 라우트 */
+        th:nth-child(6){width:9% !important}     /* 실 수량(수기) — ★ v0.38.2 색인 보정: 종전 6번째(실 수량)에 40% 가 가서 라우트가 한 글자씩 줄바꿈되던 잘림 수정 */
+        th:nth-child(7){width:36% !important;min-width:36% !important}    /* 공정 라우트 (7번째) */
         td.route{min-width:40% !important;font-size:11.5pt !important;line-height:1.5;color:#222}
         .item-strong .iname{font-size:10.5pt}
       }
@@ -17448,7 +17472,7 @@ function _doPrintQuote(qid, opts){
   const win = window.open('','_blank');
   win.document.write(`
     <html><head><title>견적서 ${q.id}</title>
-    <style>body{font-family:'Malgun Gothic',sans-serif;padding:20mm;color:#000} h1{text-align:center;letter-spacing:8px;margin-bottom:14px;border-bottom:3px double #000;padding-bottom:8px}
+    <style>body{font-family:'Malgun Gothic',sans-serif;padding:20mm;color:#000;display:block} .sheet{break-inside:avoid;page-break-inside:avoid} tr{break-inside:avoid;page-break-inside:avoid} h1{text-align:center;letter-spacing:8px;margin-bottom:14px;border-bottom:3px double #000;padding-bottom:8px}
     table{width:100%;border-collapse:collapse;margin-top:14px} th,td{border:1px solid #444;padding:8px;font-size:13px} th{background:#eee}
     .total{font-size:20px;font-weight:800;text-align:right;padding:10px;margin-top:10px;border-top:3px double #000}
     .terms{font-size:11px;color:#444;margin-top:14px;line-height:1.7}</style></head><body>
@@ -22841,6 +22865,8 @@ function _reportPrint(data, reportDoc){
     .v{font-weight:700;font-family:'JetBrains Mono','Consolas',monospace;font-size:13px}
     table td{padding:5px 8px;font-size:12px;border-bottom:1px solid #eee}
     h3{border-bottom:2px solid #16181d;padding-bottom:4px}
+    /* ★ v0.38.2 — 여러 장으로 넘어가는 보고서: 제목 뒤·표·이슈 줄 한가운데서 쪽이 갈리지 않게 */
+    @media print{ .page{break-inside:auto;page-break-inside:auto} h3,h4{break-after:avoid-page;page-break-after:avoid} table,.page > div[style*="border-left"]{break-inside:avoid;page-break-inside:avoid} }
   `;
   _openPrint(_REPORT_TITLES[data.scope] || '보고서', body, css, { formKey:'report' });
 }
