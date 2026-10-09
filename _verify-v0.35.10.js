@@ -51,7 +51,7 @@ const expose = `
 try { win.eval(scripts.join('\n;\n') + expose); record('boot: eval inline scripts', true, `${scripts.length} block(s)`); }
 catch (e) { record('boot: eval inline scripts', false, e.message); finish(); }
 record('boot: no jsdomErrors during eval', consoleErrors.length === 0, consoleErrors.slice(0,3).join(' | '));
-record('version: APP_VERSION == v0.38.17', win.APP_VERSION === 'v0.38.22', win.APP_VERSION);
+record('version: APP_VERSION == v0.38.17', win.APP_VERSION === 'v0.38.23', win.APP_VERSION);
 record('version: APP_DATE == 2026-10-09', win.APP_DATE === '2026-10-09', win.APP_DATE);
 
 // ── v0.31.4 빈 상태 데모 (테스트 모드) ──
@@ -400,7 +400,7 @@ record('po312: 일괄 삭제 — 체크만 제거·건수 토스트·버튼 비�
 // ── v0.31.4 문서 PDF 저장 (발주서·반출증 등 전 양식 — 인쇄 모달 [PDF 저장] · 한글 렌더 방식) ──
 record('pdf313: 헬퍼 1벌 (_loadPdfLibs/_openPdf — 지연 로드·캐시)', (html.match(/function _loadPdfLibs\(/g)||[]).length === 1 && (html.match(/async function _openPdf\(/g)||[]).length === 1 && /_pdfLibsP = null; throw e;/.test(html));
 record('pdf313: cdnjs 버전 고정 (html2canvas 1.4.1 · jspdf 2.5.1)', /cdnjs\.cloudflare\.com\/ajax\/libs\/html2canvas\/1\.4\.1\/html2canvas\.min\.js/.test(html) && /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf\/2\.5\.1\/jspdf\.umd\.min\.js/.test(html));
-record('pdf313: 인쇄 모달에 [PDF 저장] — 방향 설정 공유', /id="prt-pdf"/.test(html) && /_openPdf\(title, bodyHTML, extraCSS, orient\)/.test(html));
+record('pdf313: 인쇄 모달에 [PDF 저장] — 방향 설정 공유', /id="prt-pdf"/.test(html) && /_openPdf\(title, bodyHTML, extraCSS, orient(, fitSel)?\)/.test(html));   // v0.38.23 — 글자 맞춤 인자 추가
 record('pdf313: A4 분할 (96dpi 794/1123 · mm 210×297 · 다중 페이지 addPage)', /landscape \? 1123 : 794/.test(html) && /landscape \? 297 : 210/.test(html) && /pdf\.addPage\(\)/.test(html));
 record('pdf313: 파일명 규칙 + 메일 첨부 안내 + 실패 정직 안내', /\.pdf`;/.test(html) && /메일 첨부용/.test(html) && /PDF 라이브러리 로드 실패 — 인터넷 연결 확인/.test(html));
 record('pdf313: 숨은 iframe 격리 렌더 (앱 스타일 오염 없음·정리 finally)', /position:fixed;left:-12000px/.test(html) && /finally \{ ifr\.remove\(\); \}/.test(html));

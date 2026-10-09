@@ -99,7 +99,7 @@ const body = `
     // ── 7. 폰 현장 화면 무변 ──
     SESSION.userId = 'U-DEMO'; SESSION.role = 'manager';
     P('F1 CSS — #app.m-mode #nav 숨김 유지 · 구 .nav-more CSS 0 · .nav-grp{display:none}(nav321 정적) 유지', /#app\\.m-mode #nav, #app\\.m-mode \\.foot\\{display:none\\}/.test(document.documentElement.outerHTML) && !/\\.tabnav \\.nav-more\\{/.test(document.documentElement.outerHTML) && /\\.nav-grp\\{display:none\\}/.test(document.documentElement.outerHTML), '');
-    P('버전 v0.38.22 · 2026-10-09', APP_VERSION === 'v0.38.22' && APP_DATE === '2026-10-09', APP_VERSION + ' ' + APP_DATE);
+    P('버전 v0.38.23 · 2026-10-09', APP_VERSION === 'v0.38.23' && APP_DATE === '2026-10-09', APP_VERSION + ' ' + APP_DATE);
   } catch(e){ window.__T.push({ n:'FATAL', ok:false, note: e.stack || e.message }); }
 })();`;
 win.eval(scripts.join('\n;\n') + body);

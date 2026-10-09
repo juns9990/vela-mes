@@ -1426,7 +1426,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.22';
+const APP_VERSION = 'v0.38.23';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -12771,10 +12771,12 @@ VIEWS.ship = () => {
     <div class="card">
       <h3>출하 내역</h3>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>일시</th><th>SO</th><th>품번</th><th class="num">수량</th><th class="num">금액</th><th>LOT</th><th></th></tr></thead>
+        <thead><tr><th>일시</th><th>SO</th><th>품번</th><th>품명</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th><th>LOT</th><th></th></tr></thead>
         <tbody>${ships.length? ships.map(s=>{
           const so = DB.get('orders', s.so_id);
-          const amt = (s.qty||0) * (so?.price||0);
+          const _it = DB.get('items', s.itemCode) || {};
+          const unitPrice = so?.price || _it.price || 0;   // ★ v0.38.23 — 단가 = 수주 단가(없으면 품번 단가) · shipAmount 와 같은 규칙
+          const amt = (s.qty||0) * unitPrice;
           // ★ v0.16.0 — void 표시 + 취소/복원
           const isVoid = !!s.void;
           const rowStyle = isVoid ? 'opacity:.5;background:rgba(248,113,113,.04)' : '';
@@ -12783,15 +12785,17 @@ VIEWS.ship = () => {
             ? `<button class="btn ghost" data-sh-unvoid="${_esc(s.id)}" style="color:var(--cyan)">${ico('save')}복원</button>`
             : `${docEditBtn('shipments', s.id)} <button class="btn ghost" onclick="VIEWS._printStmt('${s.id}')">${ico('print')}명세서</button> ${clToggleBtn('shipments', s)} <button class="btn ghost" data-sh-void="${_esc(s.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
           return `<tr style="${rowStyle}">
-            <td class="muted">${fmtDate(s.ts)} ${fmtTime(s.ts)}${voidBadge}${clBadge(s)}</td>
-            <td>${s.so_id||'―'}</td>
-            <td>${s.itemCode}</td>
+            <td class="muted" style="white-space:nowrap">${fmtDate(s.ts)} ${fmtTime(s.ts)}${voidBadge}${clBadge(s)}</td>
+            <td style="white-space:nowrap">${s.so_id||'―'}</td>
+            <td style="white-space:nowrap">${_esc(s.itemCode||'')}</td>
+            <td>${_esc(_it.name||'')}</td>
             <td class="num">${(s.qty||0).toLocaleString()}${(s.qty_hist||[]).length ? ` <span style="color:var(--amber);cursor:help;font-size:11px" title="${_esc((s.qty_hist||[]).map(h => `${h.from} → ${h.to} ea · ${fmtDate(h.ts)} ${h.by} · ${h.reason}`).join('\n'))}">✎ 정정</span>` : ''}</td>
+            <td class="num">${unitPrice ? '₩' + unitPrice.toLocaleString() : '<span class="muted">—</span>'}</td>
             <td class="num">₩${amt.toLocaleString()}</td>
-            <td><span class="pill cyan">${s.plot_no}</span></td>
-            <td>${actionBtns}</td>
+            <td style="white-space:nowrap"><span class="pill cyan">${s.plot_no}</span></td>
+            <td style="white-space:nowrap">${actionBtns}</td>
           </tr>`;
-        }).join('') : '<tr><td colspan="7" class="empty">출하 없음</td></tr>'}</tbody>
+        }).join('') : '<tr><td colspan="9" class="empty">출하 없음</td></tr>'}</tbody>
       </table></div>
     </div>
   `;
@@ -14827,7 +14831,27 @@ const V3210 = { pageW:210, pageH:297, cellW:99.06, cellH:93.11, cols:2, rows:3, 
 // 실제 인쇄창 오픈 — orient 있을 때만 @page size 를 A4 <orient> 로 주입 (브라우저 대화상자에서 재조정 가능)
 /* ★ v0.38.3 — 출력물 하단 「VELA SYSTEM」 옆에 생성 버전 표기 (어느 버전으로 뽑은 문서인지 종이에서 바로 확인 · 사용자 출력 잘림 재현 혼선 방지) */
 function _stampPrintVersion(html){ return String(html||'').replace(/>VELA SYSTEM<\/span>/g, `>VELA SYSTEM · ${APP_VERSION}</span>`); }
-function _openPrintWindow(title, bodyHTML, extraCSS, orient){
+/* ★ v0.38.23 — 인쇄물 칸 글자 자동 맞춤 1벌 (사용자 요청: 거래명세서 글자 크기 자동 · 줄바꿈 금지)
+   대상 = sel 로 지정한 칸(white-space:nowrap 전제) · 칸 폭을 넘으면 0.5px 씩 줄임(최소 6px) · 인라인 !important 로 인쇄용 글자 크기 규칙보다 우선
+   인쇄 폭(A4 − 여백 ≈ 695px)이 화면 폭(706px)보다 약간 좁아 4% 여유를 둔다 · 인쇄창·PDF 공용(문서 객체만 받음) */
+function printFitCells(doc, sel){
+  if(!doc || !sel) return 0;
+  let n = 0;
+  doc.querySelectorAll(sel).forEach(el => {
+    if(!el.textContent.trim()) return;
+    const d = el.ownerDocument, win = d.defaultView || window;
+    const cs = win.getComputedStyle(el);
+    const avail = el.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    if(!(avail > 0)) return;
+    const textW = () => { const r = d.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; };   // 글자 실제 폭 (칸 폭과 무관)
+    let fs = parseFloat(cs.fontSize) || 12, guard = 60;
+    while(textW() > avail * 0.96 && fs > 6 && guard-- > 0){
+      fs = Math.max(6, fs - 0.5); el.style.setProperty('font-size', fs + 'px', 'important'); n++;
+    }
+  });
+  return n;
+}
+function _openPrintWindow(title, bodyHTML, extraCSS, orient, fitSel){
   bodyHTML = _stampPrintVersion(bodyHTML);
   // ★ v0.38.3 — 가로(Landscape) 인쇄: A4 가로는 높이 184mm 라 세로용 한 장 양식이 2쪽으로 넘쳐 잘려 보였다 → 한 장 양식(.page, 흐름 문서 .flow 제외)은 한 쪽에 맞춰 축소
   const orientCSS = orient ? `@media print{@page{size:A4 ${orient}}${orient === 'landscape' ? ' .page:not(.flow){zoom:.66}' : ''}}` : '';
@@ -14835,7 +14859,8 @@ function _openPrintWindow(title, bodyHTML, extraCSS, orient){
   if(!win){ toast('팝업 차단 — 인쇄창 열 수 없음','err'); return; }
   win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${_esc(title)}</title>
     <style>${PRINT_BASE_CSS}${orientCSS}${extraCSS||''}</style></head><body>${bodyHTML}
-    <scr`+`ipt>window.addEventListener('load',()=>setTimeout(()=>window.print(), 300));</scr`+`ipt>
+    <scr`+`ipt>${fitSel ? `const __fit = ${printFitCells.toString()}; const __fitSel = ${JSON.stringify(fitSel)};` : ''}
+    window.addEventListener('load',()=>{ ${fitSel ? 'try { __fit(document, __fitSel); } catch(e){}' : ''} setTimeout(()=>window.print(), 300); });</scr`+`ipt>
     </body></html>`);
   win.document.close();
 }
@@ -14858,7 +14883,7 @@ function _loadPdfLibs(){
     .catch(e => { _pdfLibsP = null; throw e; });
   return _pdfLibsP;
 }
-async function _openPdf(title, bodyHTML, extraCSS, orient){
+async function _openPdf(title, bodyHTML, extraCSS, orient, fitSel){
   bodyHTML = _stampPrintVersion(bodyHTML);
   toast('PDF 생성 중…', 'ok', 2500);
   try { await _loadPdfLibs(); }
@@ -14876,6 +14901,7 @@ async function _openPdf(title, bodyHTML, extraCSS, orient){
       </head><body>${bodyHTML}</body></html>`);
     idoc.close();
     await new Promise(r => setTimeout(r, 450));   // 렌더·폰트 안착
+    if(fitSel) printFitCells(idoc, fitSel);   // ★ v0.38.23 — 칸 글자 자동 맞춤 (인쇄창과 같은 함수)
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: landscape ? 'l' : 'p', unit:'mm', format:'a4' });
     const pdfW = landscape ? 297 : 210, pdfH = landscape ? 210 : 297;
@@ -14948,7 +14974,8 @@ async function _openPdf(title, bodyHTML, extraCSS, orient){
 // opts.formKey 있으면 방향 선택 모달 표시 → 저장 → 주입 후 인쇄. 없으면 이전 동작(브라우저 방향).
 function _openPrint(title, bodyHTML, extraCSS, opts){
   const formKey = opts && opts.formKey;
-  if(!formKey){ _openPrintWindow(title, bodyHTML, extraCSS, null); return; }
+  const fitSel = opts && opts.fit;
+  if(!formKey){ _openPrintWindow(title, bodyHTML, extraCSS, null, fitSel); return; }
   const cur = getFormOrient(formKey);
   openModal(`
     <h2>인쇄 방향 선택 <span style="color:var(--dim);font-size:12px;font-weight:400;margin-left:8px">${_esc(title)}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
@@ -14977,14 +15004,14 @@ function _openPrint(title, bodyHTML, extraCSS, opts){
     const orient = _orientSel();
     if(orient !== cur) setFormOrient(formKey, orient);
     closeModal();
-    _openPrintWindow(title, bodyHTML, extraCSS, orient);
+    _openPrintWindow(title, bodyHTML, extraCSS, orient, fitSel);
   };
   // ★ v0.31.3 — PDF 저장 (같은 양식·같은 방향 설정 재사용 · 전 양식 공통)
   document.getElementById('prt-pdf').onclick = () => {
     const orient = _orientSel();
     if(orient !== cur) setFormOrient(formKey, orient);
     closeModal();
-    _openPdf(title, bodyHTML, extraCSS, orient);
+    _openPdf(title, bodyHTML, extraCSS, orient, fitSel);
   };
 }
 
@@ -15543,7 +15570,8 @@ const printForm = {
         const lotCell  = sh.plot_no ? `<b class="mono">${_esc(sh.plot_no)}</b>` : dash;
         const pltCell  = (sh.pallets!=null && +sh.pallets>0) ? `${(+sh.pallets).toLocaleString()} PLT` : dash;
         return `<tr>
-          <td class="b"><b>${_esc(sh.itemCode)}</b> ${_esc(item.name||'')}</td>
+          <td class="mono"><b>${_esc(sh.itemCode)}</b></td>
+          <td class="b">${_esc(item.name||'')}</td>
           <td class="c">${lotCell}</td>
           <td class="c mono">${(sh.qty||0).toLocaleString()}</td>
           <td class="c">${pkgCell}</td>
@@ -15554,7 +15582,7 @@ const printForm = {
       }).join('');
       // 빈 줄 채움 (총 8줄 — compact 헤더로 확보한 공간)
       const blanks = Math.max(0, 8 - group.ships.length);
-      const blankRows = Array(blanks).fill('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
+      const blankRows = Array(blanks).fill('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
       const payload = JSON.stringify({type:'tx', no:txNo, cust:group.custCode});
       const qr = qrDataURL(payload, {cell:3, margin:4});
 
@@ -15577,14 +15605,15 @@ const printForm = {
           </div>
           <img src="${qr}">
         </div>
-        <table>
+        <table class="fit-tbl">
           <thead><tr>
-            <th style="width:26%">품명</th>
-            <th class="c" style="width:13%">LOT</th>
-            <th class="c" style="width:9%">수량</th>
-            <th class="c" style="width:14%">포장내역</th>
-            <th class="r" style="width:11%">단가</th>
-            <th class="r" style="width:15%">공급가액</th>
+            <th style="width:11%">품번</th>
+            <th style="width:25%">품명</th>
+            <th class="c" style="width:14%">LOT</th>
+            <th class="c" style="width:7%">수량</th>
+            <th class="c" style="width:13%">포장내역</th>
+            <th class="r" style="width:9%">단가</th>
+            <th class="r" style="width:13%">공급가액</th>
             <th class="c" style="width:8%">파렛트</th>
           </tr></thead>
           <tbody>${lineRows}${blankRows}</tbody>
@@ -15629,20 +15658,27 @@ const printForm = {
       .total-row .tt{color:#555;font-size:11.5px;align-self:center}
       .total-row .tv{font-family:'JetBrains Mono','Consolas',monospace;font-size:17px}
       .foot{margin-top:14px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between}
+      /* ★ v0.38.23 — 8컬럼(품번·품명 분리) · 칸 안 줄바꿈 금지 + 글자 자동 맞춤(printFitCells) · 고정 폭 표 */
+      table.fit-tbl{table-layout:fixed}
+      .fit-tbl th, .fit-tbl td{white-space:nowrap;overflow:hidden;text-overflow:clip;font-size:11.5pt;padding:6pt 7pt;word-break:keep-all}
+      .fit-tbl th{font-size:10.5pt}
+      .party .pr .v{white-space:nowrap;overflow:hidden;min-width:0}
+      .parties .party{min-width:0}   /* 긴 주소가 칸을 밀어내지 않게 — 두 칸 같은 폭 */
       /* ★ v0.23.4 — 인쇄 폭 재배분 (7컬럼 구조·합계 불변 · 폭·글자만) */
       @media print{
         .doc-title{font-size:22pt !important;letter-spacing:8px}
         .total-row{font-size:14pt !important;padding:12pt 10pt}
         .total-row .tt{font-size:11.5pt !important}
         .total-row .tv{font-size:16pt !important}
-        /* 품명 넓게, 코드류 nowrap 은 base 규칙 활용 */
-        th:nth-child(1){width:28% !important}    /* 품명 (가변) */
-        th:nth-child(2){width:12% !important}    /* LOT (nowrap) */
-        th:nth-child(3){width:9%  !important}    /* 수량 (nowrap) */
-        th:nth-child(4){width:14% !important}    /* 포장내역 */
-        th:nth-child(5){width:10% !important}    /* 단가 (nowrap) */
-        th:nth-child(6){width:15% !important}    /* 공급가액 (nowrap) */
-        th:nth-child(7){width:12% !important}    /* 파렛트 (nowrap) */
+        /* ★ v0.38.23 — 8컬럼 폭 = 화면과 동일 (글자 맞춤 계산이 인쇄에도 맞도록) */
+        .fit-tbl th:nth-child(1){width:11% !important}   /* 품번 */
+        .fit-tbl th:nth-child(2){width:25% !important}   /* 품명 */
+        .fit-tbl th:nth-child(3){width:14% !important}   /* LOT */
+        .fit-tbl th:nth-child(4){width:7%  !important}   /* 수량 */
+        .fit-tbl th:nth-child(5){width:13% !important}   /* 포장내역 */
+        .fit-tbl th:nth-child(6){width:9%  !important}   /* 단가 */
+        .fit-tbl th:nth-child(7){width:13% !important}   /* 공급가액 */
+        .fit-tbl th:nth-child(8){width:8%  !important}   /* 파렛트 */
       }
     `;
     // 거래처별로 1세트(2장: 공급자 보관용 + 공급받는자용)
@@ -15652,7 +15688,7 @@ const printForm = {
       pages.push(page(g, '공급자 보관용', txNo));
       pages.push(page(g, '공급받는자용', txNo));
     });
-    _openPrint(`거래명세서 ${ships.length}건`, pages.join(''), css, { formKey:'tx' });
+    _openPrint(`거래명세서 ${ships.length}건`, pages.join(''), css, { formKey:'tx', fit:'.fit-tbl td, .fit-tbl th, .party .pr .v' });
   },
 
   /* ===== ⑥ 발주서 (form-po.html) — A4, 발신(자사) · 수신(거래처) · 품목표 · 합계 · 납기 · 발주번호 — v0.16.6 ===== */

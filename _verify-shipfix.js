@@ -124,7 +124,7 @@ P('G3 (GPT ②) 감사 › 「원장 정합성 · LOT 출하 초과」 단락(�
 const L1 = X(`JSON.stringify(['shipments','records','production_lots','orders'].map(c => DB.allRaw(c).length))`);
 const b = JSON.parse(L0), a = JSON.parse(L1);
 P('F11 출하 문서 = 픽스처 6건만 증가(정정으로 새 출하 0) · 실적·LOT 무변', a[0] - b[0] === 6 && a[1] === b[1] && a[2] === b[2] && a[3] - b[3] === 2, L0 + ' → ' + L1);
-P('버전 v0.38.22', X(`APP_VERSION`) === 'v0.38.22', X(`APP_VERSION`));
+P('버전 v0.38.23', X(`APP_VERSION`) === 'v0.38.23', X(`APP_VERSION`));
 if(R.length !== 17) R.push({ n:`항목 수 ${R.length} ≠ 기대 17`, ok:false });
 const fail = R.filter(x => !x.ok).length;
 console.log(`\nSHIPFIX TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
