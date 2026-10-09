@@ -1416,7 +1416,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.15';
+const APP_VERSION = 'v0.38.16';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -12293,7 +12293,121 @@ VIEWS.so = () => {
 };
 
 /* -------------------- 출하 -------------------- */
+/* =================================================================================================
+   ★ v0.38.16 — 납기준수율 (PART 1 · GPT 개발 착수 승인 2026-10-09 · 사용자 결정 U1·U2)
+   평가 단위 = 수주 1건(= 품목 1개 · VELA 수주 구조) · 기준 = **출하일**(고객 도착일 데이터 없음)
+   · 평가 대상: 조회 기간 [from, to] 에 납기(due)가 있고 오늘까지 납기가 지난(도래한) 수주
+   · 제외(이력 유지 · 별도 카운트): 수주취소(출하 0 종결 · U1) — 그중 「납기 지난 뒤 취소」 따로 · 납기 미등록 · 납기 미도래
+   · 납기 = 현재(최종) 납기 (U2) · 변경 이력은 _logs 에서 보존·표시만
+   · 납기 내 출하 = 살아 있는 출하(void 제외) 중 출하일 ≤ 납기일 23:59:59
+   · 건수 기준: 납기 내 출하 ≥ 수주량 이면 준수 · 수량 기준: Σ 납기 내 출하(수주량 상한) / Σ 수주량
+   · 부분종결: 분모 = 원 수주량 그대로 (70/100 = 미준수 · 수량 70%)
+   · 원장 쓰기 0 · 계산 1벌 → 출하 메뉴 · (다음 단계) 보고서 블록 · 대시보드 공용
+   ================================================================================================= */
+function _dueEndTs(due){ const [y,m,d] = String(due||'').split('-').map(Number); return (y && m && d) ? new Date(y, m-1, d, 23, 59, 59, 999).getTime() : null; }
+function soDueChanges(o){
+  return ((o && o._logs) || []).filter(l => l && l.op === 'correct' && l.prev && l.next && ('due' in l.prev) && l.prev.due !== l.next.due)
+    .map(l => ({ from: l.prev.due || '', to: l.next.due || '', at: l.ts, by: l.by || '', reason: l.reason || '' }));
+}
+function calcOnTime(opt){
+  opt = opt || {};
+  const today = opt.today || fmtDate(Date.now());
+  const from = opt.from || '0000-01-01', to = opt.to || today;
+  const ex = { cancel:0, lateCancel:0, noDue:0, notDue:0 };
+  const rows = [];
+  DB.all('orders').forEach(o => {
+    if(opt.cust && o.cust !== opt.cust) return;
+    if(opt.itemCode && o.itemCode !== opt.itemCode) return;
+    if(!o.due){ if(!(soCloseInfo(o) && soCloseInfo(o).kind === 'cancel')) ex.noDue++; return; }   // 기간과 무관한 전체 건수 (입력 누락 확인용)
+    if(o.due < from || o.due > to) return;
+    const c = soCloseInfo(o);
+    if(c && c.kind === 'cancel'){ ex.cancel++; if((+c.at||0) > _dueEndTs(o.due)) ex.lateCancel++; return; }
+    if(o.due > today){ ex.notDue++; return; }
+    const end = _dueEndTs(o.due);
+    const ships = DB.query('shipments', s => s.so_id === o.id).sort((a,b) => (a.ts||0) - (b.ts||0));
+    const qty = +o.qty || 0;
+    const onTimeRaw = ships.filter(s => (+s.ts||0) <= end).reduce((a,s) => a + (+s.qty||0), 0);
+    const onTime = Math.min(qty, onTimeRaw);
+    const shipped = ships.reduce((a,s) => a + (+s.qty||0), 0);
+    const ok = qty > 0 && onTimeRaw >= qty;
+    // 지연일: 수주량을 채운 출하일 − 납기 (아직 못 채웠으면 오늘 − 납기)
+    let cum = 0, fillTs = null; for(const s of ships){ cum += (+s.qty||0); if(cum >= qty){ fillTs = +s.ts||0; break; } }
+    const refTs = ok ? null : (fillTs || (c ? (+c.at||Date.now()) : _dueEndTs(today)));
+    const delayDays = ok ? 0 : Math.max(1, Math.ceil((refTs - end) / 86400000));
+    const status = ok ? '준수' : (c && c.kind === 'short') ? '부분종결' : (shipped >= qty ? '지연 출하' : shipped > 0 ? '일부 출하' : '미출하');
+    rows.push({ o, id:o.id, cust:o.cust||'', itemCode:o.itemCode||'', due:o.due, qty, onTime, shipped, ok, status, delayDays, dueChanged: soDueChanges(o) });
+  });
+  const agg = list => {
+    const lines = list.length, okLines = list.filter(r => r.ok).length;
+    const qty = list.reduce((a,r) => a + r.qty, 0), onTime = list.reduce((a,r) => a + r.onTime, 0);
+    return { lines, okLines, rateLines: lines ? okLines / lines * 100 : null, qty, onTime, rateQty: qty ? onTime / qty * 100 : null };
+  };
+  const group = keyFn => { const m = {}; rows.forEach(r => { const k = keyFn(r); (m[k] = m[k] || []).push(r); }); return Object.entries(m).map(([k, list]) => ({ key:k, ...agg(list) })).sort((a,b) => (a.rateLines ?? 101) - (b.rateLines ?? 101) || b.lines - a.lines); };
+  return { from, to, today, rows, total: agg(rows), byCust: group(r => r.cust), byItem: group(r => r.itemCode), byCustItem: group(r => r.cust + '|' + r.itemCode), excluded: ex };
+}
+VIEWS._shipOtd = () => {
+  const today = fmtDate(Date.now());
+  const st = (window._otdFilter = window._otdFilter || { from: today.slice(0,7) + '-01', to: today, cust:'', item:'' });
+  const r = calcOnTime({ from: st.from, to: st.to, cust: st.cust || undefined, itemCode: st.item || undefined });
+  const pct = v => v == null ? '—' : `${v.toFixed(1)}%`;
+  const vName = c => DB.get('vendors', c)?.name || c || '미지정';
+  const iName = c => (typeof itemLabel === 'function') ? itemLabel(c) : c;
+  const custs = [...new Set(DB.all('orders').map(o => o.cust).filter(Boolean))].sort((a,b) => vName(a).localeCompare(vName(b)));
+  const items = [...new Set(DB.all('orders').map(o => o.itemCode).filter(Boolean))].sort();
+  const rateColor = v => v == null ? 'var(--dim)' : v >= 95 ? 'var(--green)' : v >= 85 ? 'var(--amber)' : 'var(--red)';
+  const grpTable = (title, list, label) => `
+    <div class="card"><h3>${title} <span class="tag">준수율 낮은 순</span></h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>${label}</th><th class="num">평가 수주</th><th class="num">준수</th><th class="num">건수 기준</th><th class="num">수량 기준</th></tr></thead>
+        <tbody>${list.length ? list.map(g => `<tr><td>${_esc(g.key)}</td><td class="num">${g.lines}</td><td class="num">${g.okLines}</td><td class="num"><b style="color:${rateColor(g.rateLines)}">${pct(g.rateLines)}</b></td><td class="num">${pct(g.rateQty)}</td></tr>`).join('') : `<tr><td colspan="5" class="empty">평가 대상 없음</td></tr>`}</tbody>
+      </table></div></div>`;
+  const late = r.rows.filter(x => !x.ok).sort((a,b) => b.delayDays - a.delayDays);
+  document.getElementById('view').innerHTML = `
+    <div class="pghead">
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('ship')}</svg>출하 · 납기 실적 <span class="pill cyan">${APP_VERSION}</span></div>
+      <div class="pgtools">
+        <button class="btn" id="otd-back">출하 목록</button>
+        <button class="btn" id="otd-xlsx">${ico('excel')}엑셀</button>
+      </div>
+    </div>
+    <div class="msrch" style="flex-wrap:wrap;gap:8px">기간
+      <input type="date" id="otd-from" value="${_esc(st.from)}" style="max-width:160px"> ~ <input type="date" id="otd-to" value="${_esc(st.to)}" style="max-width:160px">
+      <select id="otd-cust" style="max-width:200px"><option value="">고객사 전체</option>${custs.map(c => `<option value="${_esc(c)}" ${st.cust===c?'selected':''}>${_esc(vName(c))}</option>`).join('')}</select>
+      <select id="otd-item" style="max-width:220px"><option value="">품목 전체</option>${items.map(c => `<option value="${_esc(c)}" ${st.item===c?'selected':''}>${_esc(iName(c))}</option>`).join('')}</select>
+    </div>
+    <div class="mstrip">
+      <div class="mk"><div class="l">납기준수율 (건수)</div><div class="v" style="color:${rateColor(r.total.rateLines)}">${pct(r.total.rateLines)}</div><div class="s">준수 ${r.total.okLines} / 평가 ${r.total.lines}건</div></div>
+      <div class="mk"><div class="l">납기 내 출하율 (수량)</div><div class="v">${pct(r.total.rateQty)}</div><div class="s">${r.total.onTime.toLocaleString()} / ${r.total.qty.toLocaleString()} ea</div></div>
+      <div class="mk"><div class="l" style="color:var(--red)">지연·미출하</div><div class="v" style="color:${late.length?'var(--red)':'var(--ink)'}">${late.length}건</div><div class="s">부분종결 ${r.rows.filter(x=>x.status==='부분종결').length}건 포함</div></div>
+      <div class="mk"><div class="l">집계 제외</div><div class="v" style="font-size:18px">${r.excluded.cancel + r.excluded.notDue}건</div><div class="s">수주취소 ${r.excluded.cancel}${r.excluded.lateCancel?` (납기 후 취소 ${r.excluded.lateCancel})`:''} · 미도래 ${r.excluded.notDue} · 납기 미등록(전체) ${r.excluded.noDue}</div></div>
+    </div>
+    <div style="font-size:11px;color:var(--sub);margin:-4px 0 12px">기준: <b>출하일</b>(고객 도착일 아님) · 납기 = 현재(최종) 납기 · 건수 기준 = 납기일까지 수주량 전량 출하 · 수량 기준 = 납기일까지 출하량 ÷ 수주량 · 수주취소(출하 0)는 제외 · 부분종결은 원 수주량으로 평가</div>
+    <div class="grid g2" style="align-items:start">
+      ${grpTable('고객사별', r.byCust.map(g => ({...g, key: vName(g.key)})), '고객사')}
+      ${grpTable('품목별', r.byItem.map(g => ({...g, key: iName(g.key)})), '품목')}
+    </div>
+    <div class="card"><h3>지연·미출하 수주 <span class="tag">지연일 큰 순 · 납기 변경 = ✎</span></h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>수주번호</th><th>고객사</th><th>품목</th><th>납기</th><th class="num">수주량</th><th class="num">납기 내</th><th class="num">총 출하</th><th class="num">지연일</th><th>상태</th></tr></thead>
+        <tbody>${late.length ? late.map(x => `<tr>
+          <td class="mono">${_esc(x.id)}</td><td>${_esc(vName(x.cust))}</td><td>${_esc(iName(x.itemCode))}</td>
+          <td>${_esc(x.due)}${x.dueChanged.length ? ` <span title="${_esc(x.dueChanged.map(c => `${c.from||'—'} → ${c.to} (${fmtDate(c.at||0)} ${c.by})`).join('\n'))}" style="color:var(--amber);cursor:help">✎</span>` : ''}</td>
+          <td class="num">${x.qty.toLocaleString()}</td><td class="num">${x.onTime.toLocaleString()}</td><td class="num">${x.shipped.toLocaleString()}</td>
+          <td class="num"><b style="color:var(--red)">${x.delayDays}</b></td><td><span class="pill ${x.status==='부분종결'?'gray':'red'}">${x.status}</span></td></tr>`).join('') : `<tr><td colspan="9" class="empty">지연 없음</td></tr>`}</tbody>
+      </table></div></div>`;
+  const re = () => router();
+  document.getElementById('otd-back').onclick = () => { window._shTab = 'list'; router(); };
+  document.getElementById('otd-from').onchange = e => { st.from = e.target.value || st.from; re(); };
+  document.getElementById('otd-to').onchange = e => { st.to = e.target.value || st.to; re(); };
+  document.getElementById('otd-cust').onchange = e => { st.cust = e.target.value; re(); };
+  document.getElementById('otd-item').onchange = e => { st.item = e.target.value; re(); };
+  document.getElementById('otd-xlsx').onclick = () => exportXlsx(r.rows.map(x => ({
+    수주번호:x.id, 고객사:vName(x.cust), 품번:x.itemCode, 납기:x.due, 수주량:x.qty, 납기내출하:x.onTime, 총출하:x.shipped,
+    준수: x.ok ? 'O' : 'X', 상태:x.status, 지연일:x.delayDays, 납기변경: x.dueChanged.map(c => `${c.from}→${c.to}`).join(' / ') })), '납기실적', `납기실적_${st.from}_${st.to}.xlsx`);
+};
+
 VIEWS.ship = () => {
+  if(window._shTab === 'otd') return VIEWS._shipOtd();   // ★ v0.38.16 — 납기 실적 탭
   // ★ v0.16.0 — voidView 토글
   const shState = (window._shipVoidView = window._shipVoidView || { voidView:false });
   const ships = (shState.voidView ? DB.allRaw('shipments') : DB.all('shipments')).sort((a,b)=>b.ts-a.ts);
@@ -12326,6 +12440,7 @@ VIEWS.ship = () => {
       <div class="pgtools">
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${shState.voidView?'rgba(248,113,113,.08)':'var(--bg2)'}"><input type="checkbox" id="ship-void-view" ${shState.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
         <button class="btn" onclick="exportXlsx(DB.all('shipments'),'SHIP','출하_${fmtDate(Date.now())}.xlsx')">${ico('excel')}엑셀</button>
+        <button class="btn" id="btn-ship-otd">납기 실적</button>
         <button class="btn primary" id="btn-ship-new">${ico('plus')}새 출하</button>
       </div>
     </div>
@@ -12404,6 +12519,7 @@ VIEWS.ship = () => {
       </table></div>
     </div>
   `;
+  document.getElementById('btn-ship-otd').onclick = () => { window._shTab = 'otd'; router(); };   // ★ v0.38.16
   document.getElementById('btn-ship-new').onclick = () => {
     const lots = DB.all('production_lots');
     openModal(`

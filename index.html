@@ -1416,7 +1416,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.14';
+const APP_VERSION = 'v0.38.15';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -9971,7 +9971,7 @@ VIEWS.po = () => {
     const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(p.void.reason||'')} · ${fmtDate(p.void.ts)}">「취소」</span>` : '';
     const actBtns = isVoid
       ? `<button class="btn ghost" data-po-unvoid="${_esc(p.id)}" style="color:var(--cyan)">${ico('save')}복원</button>`
-      : `<button class="btn ghost" onclick="VIEWS._printPo('${_esc(p.id)}')">${ico('print')}발주서</button> <button class="btn ghost" data-po-void="${_esc(p.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
+      : `${docEditBtn('purchase_orders', p.id)} <button class="btn ghost" onclick="VIEWS._printPo('${_esc(p.id)}')">${ico('print')}발주서</button> <button class="btn ghost" data-po-void="${_esc(p.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
     return `<tr style="${rowStyle}">
       <td><b>${_esc(p.id)}</b>${voidBadge}<div style="font-size:10px;color:var(--dim)">${fmtDate(p.ts)}</div></td>
       <td>${_esc(v?.name||p.vendor||'—')}</td>
@@ -10468,6 +10468,277 @@ VIEWS._poNew = () => {
   };
 };
 
+/* =================================================================================================
+   ★ v0.38.15 — 등록 후 수정 1차 (SPEC 「등록 후 수정 v0.1」 · GPT D1~D4 확정 2026-10-09)
+   범위: 속성 수정(구매·소재 입고·구매 입고·외주 반출/입고·출하) + 발주(PO) 품목 수량(입고량 이상)
+   · 수정 안 함(2차·C): 입고 kg/수량 · 외주 반출/입고 수량 · 출하 수량(D3 = 취소 후 재등록) · LOT·Heat·수주·품번·공정·외주처·파렛트
+   · 마감 월 = 차단(D2 · 경고 아님) — 바꾸기 전 월·바꾼 뒤 월 둘 다 · 출하는 계산서 발행 월도 차단
+   · 저장 = DB.correct 1회 (원본 보존 · _logs 에 변경 전/후·처리자·사유) · 정정 실패 = 저장 0 (원본·연동 문서 불변)
+   · 발주 품목 이름·규격은 입고 연결 키(_poItemKey) — 입고 있는 품목은 잠금
+   ================================================================================================= */
+function _editClosedMonth(type, months){
+  return [...new Set((months||[]).filter(Boolean))].find(m => getClosing(type, m)) || null;
+}
+function _editAssertOpenMonths(type, months, what){
+  const hit = _editClosedMonth(type, months);
+  if(hit) throw new Error(`${hit} 은(는) 마감된 월 — ${what} 수정 불가 (마감 취소 후 수정)`);
+}
+function _tsWithDate(ts, dateStr){
+  const d0 = new Date(ts || Date.now());
+  const [y, m, d] = String(dateStr||'').split('-').map(Number);
+  if(!y || !m || !d) return ts;
+  return new Date(y, m-1, d, d0.getHours(), d0.getMinutes(), d0.getSeconds()).getTime();
+}
+function _poReceivedByKey(poId){
+  const by = {};
+  DB.query('material_receipts', r => r.po_id === poId).forEach(r => { const k = r.po_item_key || ''; by[k] = (by[k]||0) + (+r.kg||0); });
+  DB.query('purchase_receipts', r => r.po_id === poId).forEach(r => { const k = r.po_item_key || ''; by[k] = (by[k]||0) + (+r.qty||0); });
+  return by;
+}
+function _poLinkedReceipts(poId, key){
+  return [...DB.query('material_receipts', r => r.po_id === poId && (key == null || r.po_item_key === key)),
+          ...DB.query('purchase_receipts', r => r.po_id === poId && (key == null || r.po_item_key === key))];
+}
+
+/* 발주 수정 검증 1벌 (화면·회귀 공용) — 통과 시 저장할 patch 반환, 위반 시 throw */
+function poEditValidate(po, next){
+  if(!po || po.void) throw new Error('발주 없음');
+  const recv = _poReceivedByKey(po.id);
+  const linkedAll = _poLinkedReceipts(po.id);
+  if(next.vendor !== po.vendor && linkedAll.length) throw new Error(`입고 ${linkedAll.length}건 연결 — 거래처 변경 불가 (입고 취소 후 변경)`);
+  const items = next.items || [];
+  if(!items.length) throw new Error('품목 1건 이상 필요');
+  const seen = new Set();
+  const oldByKey = {}; (po.items||[]).forEach(it => { oldByKey[_poItemKey(it.name, it.spec)] = it; });
+  items.forEach((it, i) => {
+    const name = String(it.name||'').trim(); if(!name) throw new Error(`${i+1}행 — 품명 입력`);
+    const key = _poItemKey(name, (it.spec||'').trim());
+    if(seen.has(key)) throw new Error(`품목 중복 — ${name} ${it.spec||''}`); seen.add(key);
+    const q = +it.qty; if(!(q > 0)) throw new Error(`${name} — 수량은 0 초과`);
+    const r = recv[key] || 0;
+    if(q < r) throw new Error(`${name} — 이미 입고 ${r.toLocaleString()} 보다 적게 줄일 수 없음`);
+    if(it.price != null && it.price !== '' && !(+it.price >= 0)) throw new Error(`${name} — 단가 확인`);
+  });
+  // 입고 있는 기존 품목은 이름·규격(연결 키)·단위 잠금 · 빠지면 안 됨
+  (po.items||[]).forEach(old => {
+    const key = _poItemKey(old.name, old.spec);
+    if(!(recv[key] > 0)) return;
+    const now = items.find(it => _poItemKey(String(it.name||'').trim(), String(it.spec||'').trim()) === key);
+    if(!now) throw new Error(`${old.name} — 입고 연결 품목은 이름·규격 변경·삭제 불가`);
+    if((now.unit||'') !== (old.unit||'')) throw new Error(`${old.name} — 입고 연결 품목은 단위 변경 불가`);
+  });
+  // 단가 변경 → 그 품목에 연결된 입고의 귀속 월이 마감이면 차단 (매입 마감 금액이 바뀜)
+  items.forEach(it => {
+    const key = _poItemKey(String(it.name||'').trim(), String(it.spec||'').trim());
+    const old = oldByKey[key]; if(!old) return;
+    const pOld = (old.price == null || old.price === '') ? null : +old.price;
+    const pNew = (it.price == null || it.price === '') ? null : +it.price;
+    if(pOld === pNew) return;
+    _editAssertOpenMonths('purchase', _poLinkedReceipts(po.id, key).map(getClMonth), `${it.name} 단가`);
+  });
+  return {
+    vendor: next.vendor, due: next.due || '',
+    items: items.map(it => {
+      const key = _poItemKey(String(it.name||'').trim(), String(it.spec||'').trim());
+      const base = oldByKey[key] || {};
+      return { ...base, kind: it.kind === 'gen' ? 'gen' : (it.kind || base.kind || 'mat'), name: String(it.name||'').trim(), spec: String(it.spec||'').trim(),
+               unit: it.unit || base.unit || 'ea', qty: +it.qty, price: (it.price === '' || it.price == null) ? null : +it.price };
+    }),
+  };
+}
+VIEWS._poEdit = (id) => {
+  const po = DB.get('purchase_orders', id);
+  if(!po || po.void){ toast('발주를 찾을 수 없음','err'); return; }
+  const recv = _poReceivedByKey(po.id);
+  const linkedN = _poLinkedReceipts(po.id).length;
+  const vendors = DB.query('vendors', v => (v.type==='sup' || v.type==='out') && (v.active !== false || v.code === po.vendor)).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const draft = (po.items||[]).map(it => ({ ...it, _recv: recv[_poItemKey(it.name, it.spec)] || 0, _old: true }));
+  const paintRows = () => {
+    document.getElementById('poe-rows').innerHTML = draft.map((it, i) => {
+      const lockKey = it._old && it._recv > 0;
+      const dis = lockKey ? 'disabled style="border-style:dashed;color:var(--dim)"' : '';
+      return `<tr>
+        <td><input data-pe="${i}|name" value="${_esc(it.name||'')}" ${dis}></td>
+        <td><input data-pe="${i}|spec" value="${_esc(it.spec||'')}" ${dis}></td>
+        <td><input data-pe="${i}|unit" value="${_esc(it.unit||'ea')}" style="width:56px${lockKey?';border-style:dashed;color:var(--dim)':''}" ${lockKey?'disabled':''}></td>
+        <td class="num"><input data-pe="${i}|qty" type="number" min="${it._recv||0}" value="${it.qty??''}" style="width:90px;text-align:right"></td>
+        <td class="num"><input data-pe="${i}|price" type="number" min="0" value="${it.price ?? ''}" placeholder="—" style="width:100px;text-align:right"></td>
+        <td class="num" style="font-size:11.5px;color:var(--sub)">${(it._recv||0).toLocaleString()}</td>
+        <td>${it._old ? (lockKey ? '<span style="font-size:10.5px;color:var(--dim)">입고 연결</span>' : '') : `<button class="btn ghost" data-pe-del="${i}" style="color:var(--red)">${ico('x')}</button>`}</td>
+      </tr>`;
+    }).join('');
+    document.querySelectorAll('[data-pe]').forEach(el => el.oninput = () => { const [i, k] = el.dataset.pe.split('|'); draft[+i][k] = el.value; paintSum(); });
+    document.querySelectorAll('[data-pe-del]').forEach(b => b.onclick = () => { draft.splice(+b.dataset.peDel, 1); paintRows(); });
+    paintSum();
+  };
+  const paintSum = () => {
+    const amt = draft.reduce((s, it) => s + ((it.price === '' || it.price == null) ? 0 : (+it.qty||0) * (+it.price||0)), 0);
+    const ord = draft.reduce((s, it) => s + (+it.qty||0), 0), rc = draft.reduce((s, it) => s + Math.min(+it.qty||0, it._recv||0), 0);
+    const el = document.getElementById('poe-sum'); if(el) el.innerHTML = `수정 후 발주액 <b>₩${Math.round(amt).toLocaleString()}</b> · 발주 ${ord.toLocaleString()} · 입고 ${rc.toLocaleString()} · 잔량 <b>${Math.max(0, ord - rc).toLocaleString()}</b>`;
+  };
+  openModal(`
+    <h2>발주 수정 — ${_esc(po.id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div class="grid g2">
+        <div><label>거래처 ${linkedN ? `<span style="color:var(--dim);font-weight:400">— 입고 ${linkedN}건 연결 · 변경 불가</span>` : ''}</label>
+          <select id="poe-v" ${linkedN ? 'disabled' : ''}>${vendors.map(v => `<option value="${_esc(v.code)}" ${v.code===po.vendor?'selected':''}>${_esc(v.name||v.code)}</option>`).join('')}</select></div>
+        <div><label>납기</label><input id="poe-due" type="date" value="${_esc(po.due||'')}"></div>
+      </div>
+      <div class="tbl-wrap" style="margin-top:10px"><table style="font-size:12px">
+        <thead><tr><th>품명</th><th>규격</th><th>단위</th><th class="num">수량</th><th class="num">단가</th><th class="num">입고</th><th></th></tr></thead>
+        <tbody id="poe-rows"></tbody>
+      </table></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px">
+        <button class="btn ghost" id="poe-add">${ico('plus')}품목 추가</button>
+        <span id="poe-sum" style="font-size:12px;color:var(--sub)"></span>
+      </div>
+      <div style="font-size:11px;color:var(--sub);margin-top:6px">수량은 입고량 아래로 줄일 수 없습니다 · 입고 연결 품목은 이름·규격·단위 잠금 · 단가는 연결 입고가 마감된 월이면 잠금 · 기존 품목 삭제는 [취소] 로</div>
+      <div style="margin-top:8px"><label>수정 사유 <span style="color:var(--red)">*</span></label><input id="poe-r" placeholder="예: 공급처 요청으로 수량 조정"></div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">닫기</button>
+        <button class="btn primary" id="poe-ok">${ico('save')}수정 저장</button>
+      </div>
+    </div>`, { width:'860px' });
+  paintRows();
+  document.getElementById('poe-add').onclick = () => { draft.push({ kind:'gen', name:'', spec:'', unit:'ea', qty:'', price:'', _recv:0, _old:false }); paintRows(); };
+  document.getElementById('poe-ok').onclick = () => {
+    const reason = document.getElementById('poe-r').value.trim();
+    try {
+      const patch = poEditValidate(po, { vendor: document.getElementById('poe-v').value, due: document.getElementById('poe-due').value, items: draft });
+      const same = JSON.stringify({ v: po.vendor, d: po.due||'', i: po.items }) === JSON.stringify({ v: patch.vendor, d: patch.due, i: patch.items });
+      if(same){ toast('변경 사항 없음','warn'); return; }
+      if(!reason){ toast('수정 사유를 입력하세요','warn'); return; }
+      const r = DB.correct('purchase_orders', po.id, patch, `발주 수정: ${reason}`);
+      if(!r){ toast('저장 안 됨 — 권한 확인','err'); return; }
+      toast(`발주 수정 — ${po.id}`,'ok'); closeModal(); router();
+    } catch(e){ toast(e.message,'err',5000); }
+  };
+};
+
+/* 속성 수정 1벌 (소재 입고·구매 입고·외주 반출·외주 입고·출하) — 필드 정의 + 검증 + DB.correct */
+const DOC_EDIT_SPEC = {
+  material_receipts: { title:'소재 입고', clType:'purchase',
+    locked: d => [['Heat', d.heat], ['재질 · Ø', `${d.mat||''} Ø${d.dia||''}`], ['입고량', `${(+d.kg||0).toLocaleString()} kg`], ['발주 연결', d.po_id || '—']],
+    fields: d => [
+      { k:'vendor', label:'공급처', type:'vendor', vtypes:['sup','out'], impact:true, lock: d.po_id ? '발주 연결 — 발주 거래처 고정' : '' },
+      { k:'date', label:'입고일', type:'date', impact:true, lock: d.cl_month ? '건별 이월 적용 중 — 이월 해제 후' : '' },
+      { k:'memo', label:'비고', type:'text' } ] },
+  purchase_receipts: { title:'구매 입고', clType:'purchase',
+    locked: d => [['수량', `${(+d.qty||0).toLocaleString()} ${d.unit||''}`], ['발주 연결', d.po_id || '—']],
+    fields: d => [
+      { k:'name', label:'품명', type:'text', impact:true, lock: d.po_id ? '발주 연결 품목 — 고정' : '' },
+      { k:'spec', label:'규격', type:'text', impact:true, lock: d.po_id ? '발주 연결 품목 — 고정' : '' },
+      { k:'unit', label:'단위', type:'text', impact:true, lock: d.po_id ? '발주 연결 품목 — 고정' : '' },
+      { k:'price', label:'단가', type:'number', impact:true },
+      { k:'vendor', label:'공급처', type:'vendor', vtypes:['sup','out'], impact:true, lock: d.po_id ? '발주 연결 — 발주 거래처 고정' : '' },
+      { k:'date', label:'입고일', type:'date', impact:true, lock: d.cl_month ? '건별 이월 적용 중 — 이월 해제 후' : '' },
+      { k:'memo', label:'비고', type:'text' } ] },
+  os_dispatches: { title:'외주 반출', clType:null,
+    locked: d => [['LOT · 공정', `${d.plot_no||''} · ${DB.get('processes', d.proc)?.name || d.proc || ''}`], ['외주처', DB.get('vendors', d.vendor)?.name || d.vendor || ''], ['수량 · 파렛트', `${(+d.qty||0).toLocaleString()} · ${+d.pallets||0}`]],
+    fields: d => [
+      { k:'date', label:'반출일', type:'date', impact:true },
+      { k:'memo', label:'비고', type:'text' } ] },
+  os_receipts: { title:'외주 입고', clType:'outsource',
+    locked: d => [['양품 · 불량', `${(+d.good||0).toLocaleString()} · ${(+d.defect||0).toLocaleString()}`], ['입고일', fmtDate(d.ts||0) + ' (실적 연동 — 2차)']],
+    fields: d => [ { k:'memo', label:'비고', type:'text' } ] },
+  shipments: { title:'출하', clType:'sales',
+    locked: d => [['수주 · LOT', `${d.so_id||''} · ${d.plot_no||''}`], ['출하 수량', `${(+d.qty||0).toLocaleString()} ea — 바꾸려면 [취소] 후 재등록`], ['파렛트', `${+d.pallets||0}`]],
+    fields: d => [
+      { k:'date', label:'출하일', type:'date', impact:true, lock: d.cl_month ? '건별 이월 적용 중 — 이월 해제 후' : '' },
+      { k:'pack_qty_actual', label:'실제 포장수량 (ea/포장)', type:'number' },
+      { k:'memo', label:'비고', type:'text' } ] },
+};
+function _docEditCur(col, d, k){
+  if(k === 'date') return d.date || fmtDate(d.ts || 0);
+  const v = d[k]; return v == null ? '' : String(v);
+}
+/* 수정 검증 1벌 — 통과 시 patch 반환 · 위반 시 throw (화면·회귀 공용) */
+function docEditValidate(col, id, input){
+  const spec = DOC_EDIT_SPEC[col]; if(!spec) throw new Error('수정 대상 아님');
+  const d = DB.get(col, id); if(!d || d.void) throw new Error('문서 없음 (취소된 문서는 수정 불가)');
+  const patch = {}; let impact = false;
+  spec.fields(d).forEach(f => {
+    if(!(f.k in input)) return;
+    const nv = String(input[f.k] ?? '').trim(), ov = _docEditCur(col, d, f.k);
+    if(nv === ov) return;
+    if(f.lock) throw new Error(`${f.label} — ${f.lock}`);
+    if(f.type === 'number'){ if(nv !== '' && !(+nv >= 0)) throw new Error(`${f.label} 확인`); patch[f.k] = nv === '' ? null : +nv; }
+    else if(f.type === 'date'){ if(!/^\d{4}-\d{2}-\d{2}$/.test(nv)) throw new Error(`${f.label} 형식 (YYYY-MM-DD)`); patch.ts = _tsWithDate(d.ts, nv); if('date' in d || col === 'material_receipts' || col === 'purchase_receipts') patch.date = nv; }
+    else patch[f.k] = nv;
+    if(f.impact) impact = true;
+  });
+  if(!Object.keys(patch).length) return { patch, impact:false, empty:true };
+  if(col === 'shipments' && patch.pack_qty_actual != null && !(patch.pack_qty_actual >= 1)) throw new Error('실제 포장수량은 1 이상');
+  // 마감 월 차단 (D2) — 금액·귀속 월에 영향 주는 변경: 바꾸기 전 월 + 바꾼 뒤 월
+  if(impact && spec.clType){
+    const m0 = getClMonth(d), m1 = patch.ts ? _tsMonth(patch.ts) : m0;
+    _editAssertOpenMonths(spec.clType, [m0, m1], spec.title);
+  }
+  // 출하: 계산서 발행 월 차단 · 날짜는 바꾼 뒤 월에도 계산서가 있으면 차단
+  if(col === 'shipments' && impact){
+    const cust = DB.get('orders', d.so_id)?.cust || '';
+    const ms = [getClMonth(d), patch.ts ? _tsMonth(patch.ts) : null].filter(Boolean);
+    const inv = DB.all('acct_invoices').find(v => v.vendor === cust && ms.includes(v.month));
+    if(inv) throw new Error(`${inv.month} 계산서 발행됨(${inv.id}) — 출하 수정 불가 (계산서 정정 후)`);
+  }
+  // 외주 반출일은 그 반출의 외주 입고보다 늦을 수 없음
+  if(col === 'os_dispatches' && patch.ts){
+    const first = DB.query('os_receipts', r => r.dispatch_id === id).map(r => +r.ts||0).filter(Boolean).sort((a,b)=>a-b)[0];
+    if(first && patch.ts > first) throw new Error(`반출일은 첫 외주 입고(${fmtDate(first)})보다 늦을 수 없음`);
+  }
+  return { patch, impact, empty:false };
+}
+function docEditSave(col, id, input, reason){
+  const v = docEditValidate(col, id, input);
+  if(v.empty) return { ok:false, empty:true };
+  reason = String(reason||'').trim();
+  if(v.impact && !reason) throw new Error('수정 사유를 입력하세요 (날짜·거래처·단가 등)');
+  const r = DB.correct(col, id, v.patch, `${DOC_EDIT_SPEC[col].title} 수정: ${reason || '비고·포장'}`);
+  if(!r) throw new Error('저장 안 됨 — 권한 확인');
+  return { ok:true, doc:r };
+}
+VIEWS._docEdit = (col, id) => {
+  if(col === 'purchase_orders') return VIEWS._poEdit(id);
+  const spec = DOC_EDIT_SPEC[col]; const d = DB.get(col, id);
+  if(!spec || !d || d.void){ toast('수정할 문서를 찾을 수 없음','err'); return; }
+  const fields = spec.fields(d);
+  const fieldHTML = f => {
+    const cur = _docEditCur(col, d, f.k);
+    const dis = f.lock ? 'disabled style="border-style:dashed;color:var(--dim)"' : '';
+    const lab = `<label>${_esc(f.label)}${f.lock ? ` <span style="color:var(--dim);font-weight:400">— ${_esc(f.lock)}</span>` : ''}</label>`;
+    if(f.type === 'vendor'){
+      const vs = DB.query('vendors', v => f.vtypes.includes(v.type) && (v.active !== false || v.code === cur)).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+      return `<div>${lab}<select data-de="${f.k}" ${dis}>${vs.some(v=>v.code===cur)?'':`<option value="${_esc(cur)}">${_esc(cur||'—')}</option>`}${vs.map(v => `<option value="${_esc(v.code)}" ${v.code===cur?'selected':''}>${_esc(v.name||v.code)}</option>`).join('')}</select></div>`;
+    }
+    return `<div>${lab}<input data-de="${f.k}" type="${f.type==='number'?'number':f.type==='date'?'date':'text'}" value="${_esc(cur)}" ${dis}></div>`;
+  };
+  const closed = spec.clType ? _editClosedMonth(spec.clType, [getClMonth(d)]) : null;
+  openModal(`
+    <h2>${_esc(spec.title)} 수정 — ${_esc(id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;font-size:12px">
+        ${spec.locked(d).map(([l, v]) => `<div style="border:1px dashed var(--line2);border-radius:9px;padding:7px 9px"><div style="color:var(--dim);font-size:10.5px">${_esc(l)} · 고정</div><b>${_esc(String(v))}</b></div>`).join('')}
+      </div>
+      ${closed ? `<div class="fl-warn" style="color:var(--amber);border-color:var(--amber)">${_esc(closed)} 마감된 월 — 날짜·거래처·단가는 수정 불가 (비고만 가능)</div>` : ''}
+      <div class="grid g2">${fields.map(fieldHTML).join('')}</div>
+      <div><label>수정 사유 <span style="color:var(--dim);font-weight:400">— 날짜·거래처·단가 등을 바꾸면 필수</span></label><input id="de-r" placeholder="예: 입고일 오입력 정정"></div>
+      <div style="font-size:11px;color:var(--sub)">고정 항목(수량·LOT·Heat·수주 등)은 [취소] 후 다시 등록하세요 · 수정 전/후 값은 변경 이력에 남습니다</div>
+      <div class="actions">
+        <button class="btn" onclick="closeModal()">닫기</button>
+        <button class="btn primary" id="de-ok">${ico('save')}수정 저장</button>
+      </div>
+    </div>`);
+  document.getElementById('de-ok').onclick = () => {
+    const input = {}; document.querySelectorAll('[data-de]').forEach(el => { input[el.dataset.de] = el.value; });
+    try {
+      const r = docEditSave(col, id, input, document.getElementById('de-r').value);
+      if(r.empty){ toast('변경 사항 없음','warn'); return; }
+      toast(`${spec.title} 수정 — ${id}`,'ok'); closeModal(); router();
+    } catch(e){ toast(e.message,'err',5000); }
+  };
+};
+function docEditBtn(col, id){ return `<button class="btn ghost" data-doc-edit="${_esc(col)}|${_esc(id)}">${ico('save')}수정</button>`; }
+
 VIEWS._printPo = (id) => { printForm.po([id]); };
 
 /* =================================================================================================
@@ -10592,7 +10863,7 @@ VIEWS._matinMaterial = () => {
               const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(r.void.reason||'')} · ${fmtDate(r.void.ts)}">「취소」</span>` : '';
               const actBtn = isVoid
                 ? `<button class="btn ghost" data-mr-unvoid="${_esc(r.id)}" style="color:var(--cyan)">${ico('save')}복원</button>`
-                : `${clToggleBtn('material_receipts', r)} <button class="btn ghost" data-mr-void="${_esc(r.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
+                : `${docEditBtn('material_receipts', r.id)} ${clToggleBtn('material_receipts', r)} <button class="btn ghost" data-mr-void="${_esc(r.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
               const chkCell = isVoid ? '<td></td>' : `<td><input type="checkbox" class="matin-chk" data-rid="${_esc(r.id)}" style="width:auto;margin:0"></td>`;
               const ven = DB.get('vendors', r.vendor);
               return `<tr style="${rowStyle}">
@@ -11081,7 +11352,7 @@ VIEWS._matinBuy = () => {
               const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(r.void.reason||'')} · ${fmtDate(r.void.ts)}">「취소」</span>` : '';
               const actBtn = isVoid
                 ? `<button class="btn ghost" data-pr-unvoid="${_esc(r.id)}" style="color:var(--cyan)">${ico('save')}복원</button>`
-                : `${clToggleBtn('purchase_receipts', r)} <button class="btn ghost" data-pr-void="${_esc(r.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
+                : `${docEditBtn('purchase_receipts', r.id)} ${clToggleBtn('purchase_receipts', r)} <button class="btn ghost" data-pr-void="${_esc(r.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
               const chkCell = isVoid ? '<td></td>' : `<td><input type="checkbox" class="mbuy-chk" data-rid="${_esc(r.id)}" style="width:auto;margin:0"></td>`;
               const ven = DB.get('vendors', r.vendor);
               const hasPrice = r.price != null && !isNaN(+r.price);
@@ -12119,7 +12390,7 @@ VIEWS.ship = () => {
           const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(s.void.reason||'')} · ${fmtDate(s.void.ts)}">「취소」</span>` : '';
           const actionBtns = isVoid
             ? `<button class="btn ghost" data-sh-unvoid="${_esc(s.id)}" style="color:var(--cyan)">${ico('save')}복원</button>`
-            : `<button class="btn ghost" onclick="VIEWS._printStmt('${s.id}')">${ico('print')}명세서</button> ${clToggleBtn('shipments', s)} <button class="btn ghost" data-sh-void="${_esc(s.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
+            : `${docEditBtn('shipments', s.id)} <button class="btn ghost" onclick="VIEWS._printStmt('${s.id}')">${ico('print')}명세서</button> ${clToggleBtn('shipments', s)} <button class="btn ghost" data-sh-void="${_esc(s.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
           return `<tr style="${rowStyle}">
             <td class="muted">${fmtDate(s.ts)} ${fmtTime(s.ts)}${voidBadge}${clBadge(s)}</td>
             <td>${s.so_id||'―'}</td>
@@ -12513,7 +12784,7 @@ VIEWS.os = () => {
           const canVoidDisp = liveRecvs.length===0 && !isVoid;
           const dispVoidBtn = isVoid
             ? `<button class="btn ghost" data-od-unvoid="${_esc(d.id)}" style="color:var(--cyan)">${ico('save')}복원</button>`
-            : (canVoidDisp ? `<button class="btn ghost" data-od-void="${_esc(d.id)}" style="color:var(--red)">${ico('x')}취소</button>` : '');
+            : (docEditBtn('os_dispatches', d.id) + (canVoidDisp ? ` <button class="btn ghost" data-od-void="${_esc(d.id)}" style="color:var(--red)">${ico('x')}취소</button>` : ''));
           return `<tr style="${rowStyle}">
             <td><b>${_esc(d.id)}</b>${voidBadge}<div class="muted" style="font-size:10px">${fmtDate(d.ts)}</div></td>
             <td>${_esc(v?.name||d.vendor)} · ${_esc(pc?.name||d.proc)}</td>
@@ -12543,7 +12814,7 @@ VIEWS.os = () => {
             const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(r.void.reason||'')}">「취소」</span>` : '';
             const btn = isVoid
               ? `<button class="btn ghost" data-or-unvoid="${_esc(r.id)}" style="color:var(--cyan)">${ico('save')}복원</button>`
-              : `${clToggleBtn('os_receipts', r)} <button class="btn ghost" data-or-void="${_esc(r.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
+              : `${docEditBtn('os_receipts', r.id)} ${clToggleBtn('os_receipts', r)} <button class="btn ghost" data-or-void="${_esc(r.id)}" style="color:var(--red)">${ico('x')}취소</button>`;
             return `<tr style="${rowStyle}">
               <td><b>${_esc(r.id)}</b>${voidBadge}${clBadge(r)}</td>
               <td class="muted">${_esc(r.dispatch_id||'')}</td>
@@ -25221,6 +25492,14 @@ function bindUserWorkerCards(){
    §초기화
    ------------------------------------------------------------------------------------------------- */
 document.getElementById('ver-foot').textContent = `VELA SYSTEM · ${APP_VERSION} · ${APP_DATE}`;
+// ★ v0.38.15 — [수정] 버튼 위임 1벌 (구매·입고·외주·출하 목록 공통 · 행 클릭 토글과 분리)
+document.addEventListener('click', e => {
+  const b = e.target && e.target.closest && e.target.closest('[data-doc-edit]');
+  if(!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const [col, id] = b.dataset.docEdit.split('|');
+  VIEWS._docEdit(col, id);
+}, true);
 // v0.9.0 — 업체명: 설정에 회사명 있을 때만 표시 (없으면 hidden 유지)
 renderBrandCompany();   // ★ v0.38.11 — 1벌 (서버 스냅샷 도착 시에도 다시 호출됨)
 
