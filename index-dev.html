@@ -1426,7 +1426,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.18';
+const APP_VERSION = 'v0.38.19';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -6472,7 +6472,7 @@ function router(){
    · 끄기 = 제목 옆 스위치 → 화면에서만 숨김 (DOM·계산 그대로) / 켜기 = 화면 머리 [단락 n/m] → 목록에서 선택
    · 저장 = settings/prefs.{userId}.sec_off { "화면id:제목": true } — 사람마다 · 본인 문서만(setPrefs 계약) · ⚠ 서버 강제 아님(§6)
    · 안전 신호 단락은 끌 수 없음 (GPT 원칙 「안전 신호 은폐 금지」)
-   ★ v0.38.18 (GPT 재판정 결정 1) — 잠금 1순위 = 명시 표식 `data-sec-lock="safety"` (HOLD·품질 판정·동시성 사고·원장 정합성 단락에 코드로 지정)
+   ★ v0.38.18 (GPT 재판정 결정 1) — 잠금 1순위 = 명시 표식 `data-sec-lock="safety"` (HOLD·품질 판정·동시성 사고·원장 정합성 단락에 코드로 지정 — v0.38.19 전수 조사: 부적합 목록 · 동시성 사고 · 생산 LOT(HOLD 배지) · 그 밖의 차단·저장 실패 알림은 단락 밖(배너·토스트·동기화 표시)이라 숨김 대상 아님)
      · 제목 키워드(SEC_LOCK_RE)는 보조 방어 · 단락 키 = `data-sec-id`(명시 · 제목이 바뀌어도 유지) → 없으면 제목 · 같은 화면 같은 키는 #2·#3 로 분리
      · 화면의 마지막 보이는 단락은 끌 수 없음 (빈 화면 방지) */
 const SEC_LOCK_RE = /이상|사고|HOLD|격리|주의|경고|보류|판정 대기|정합성/;
@@ -9640,7 +9640,7 @@ VIEWS.lot = () => {
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" data-sec-id="lot-list" data-sec-lock="safety">
       <h3>생산 LOT <span class="tag">행 클릭 → 공정 스텝·실적 상세 (전 공정 수량은 상세에서)</span></h3>
       <div class="tbl-wrap"><table>
         <thead><tr><th>LOT</th><th>품번</th><th>진행 위치</th><th class="num">잔량</th><th>heat</th><th>상태</th><th></th></tr></thead>
