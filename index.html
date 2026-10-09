@@ -1323,7 +1323,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
       <div class="gate-status">
         <span class="gs-dot"></span>
         <span>가동중</span><span class="gs-sep">·</span>
-        <span>저장소 로컬 DB</span><span class="gs-sep">·</span>
+        <span id="gt-store">저장소 로컬 DB</span><span class="gs-sep">·</span>
         <span id="gt-ver"></span>
       </div>
     </aside>
@@ -1416,7 +1416,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.10';
+const APP_VERSION = 'v0.38.11';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -1983,6 +1983,7 @@ async function _bootFirestore(){
             _FS_STATE.snapshotRoundsDone++;
             // 첫 스냅샷 라운드 완료 → 리렌더
             try {
+              try { renderBrandCompany(); } catch(e){}   // ★ v0.38.11 — 서버 데이터 도착 → 헤더 회사명 갱신
               if(SESSION.loggedIn){ renderNav(); router(); }
               else if(typeof renderGate === 'function'){ renderGate(); }   // PIN 게이트 (users 스냅샷 반영)
             } catch(e){ console.warn('[VELA] 스냅샷 후 리렌더 실패', e); }
@@ -1990,6 +1991,7 @@ async function _bootFirestore(){
         } else {
           // 증분 반영 — 현재 화면 리렌더 (모달 DOM 은 미터치)
           try {
+            try { if(col === 'settings') renderBrandCompany(); } catch(e){}   // ★ v0.38.11
             if(SESSION.loggedIn) router();
             else if(typeof renderGate === 'function') renderGate();
           } catch(e){}
@@ -2508,7 +2510,17 @@ function isLocked(k){
    §회사 설정 / 공정 템플릿
    ------------------------------------------------------------------------------------------------- */
 function getCompany(){
-  return DB.get('settings','company') || {name:'대성단조', site:'창원공장', logo:'', seal:'', preset:'forging'};
+  return DB.get('settings','company') || {name:'', site:'', logo:'', seal:'', preset:'forging'};   // ★ v0.38.11 — 미설정 시 빈 값 (예시 상호 노출 금지)
+}
+/* ★ v0.38.11 — 상단 헤더 회사명 1벌 (부팅·서버 스냅샷 도착·회사정보 저장 시 호출)
+   이전엔 부팅 때 1번만 그려서, 서버(Firestore) 모드에서는 데이터가 늦게 도착해 F5 후 헤더가 저장값을 못 보여줬음 */
+function renderBrandCompany(){
+  const el = document.getElementById('brand-co');
+  if(!el) return;
+  const co = DB.get('settings','company') || {};
+  const nm = String(co.name||'').trim(), st = String(co.site||'').trim();
+  if(nm){ el.hidden = false; el.innerHTML = `· <b>${_esc(nm)}</b>${st ? ` <span style="color:var(--dim)">${_esc(st)}</span>` : ''}`; }
+  else { el.hidden = true; el.innerHTML = ''; }
 }
 /* ★ v0.35.0 — 교대 설정 (생산계획 시간축 · Customer Profile) — 1~3교대 · 시간/휴게. 기본 = 1교대(기존 가정과 동일). */
 const SHIFT_PRESETS = {
@@ -5820,6 +5832,9 @@ function renderGate(){
   if(lg){ if(logo){ lg.innerHTML = `<img src="${logo}" alt="">`; lg.hidden = false; } else { lg.innerHTML = ''; lg.hidden = true; } }
   if(ciBox) ciBox.hidden = nm.hidden && !logo;
   const ver = document.getElementById('gt-ver'); if(ver) ver.textContent = APP_VERSION;
+  // ★ v0.38.11 — 저장소 표시 = 실제 연결 (이전엔 서버 모드에서도 「로컬 DB」 고정 문구)
+  const _gst = document.getElementById('gt-store');
+  if(_gst) _gst.textContent = isDemoMode() ? '데모 저장소' : (_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' ? '저장소 서버 DB' : '저장소 로컬 DB');
 
   // PIN 패드는 항상 렌더
   renderPinPad();
@@ -24366,17 +24381,8 @@ VIEWS.set = () => {
       biz_item: document.getElementById('co-bi').value.trim(),
       tel:      document.getElementById('co-tel').value.trim(),
     };
-    DB.set('settings','company', {...co, ...n});
-    // v0.9.0 — 헤더 브랜드 영역 동적 갱신 (회사명 비어있으면 숨김)
-    const _bco = document.getElementById('brand-co');
-    if(_bco){
-      if(n.name && n.name.trim()){
-        _bco.hidden = false;
-        _bco.innerHTML = `· <b>${n.name}</b>${n.site? ` <span style="color:var(--dim)">${n.site}</span>`:''}`;
-      } else {
-        _bco.hidden = true;
-      }
-    }
+    if(!DB.set('settings','company', {...co, ...n})) return;   // ★ v0.38.11 — 권한 등으로 저장 안 되면 「저장」 토스트도 안 띄움
+    renderBrandCompany();   // ★ v0.38.11 — 헤더 회사명 1벌
     toast('회사정보 저장','ok');
   };
   // ★ v0.23.1 — 문서 · 출력 · 엑셀 결재란 편집 (settings/documents.approval)
@@ -25178,17 +25184,7 @@ VIEWS.set = () => {
    ------------------------------------------------------------------------------------------------- */
 document.getElementById('ver-foot').textContent = `VELA SYSTEM · ${APP_VERSION} · ${APP_DATE}`;
 // v0.9.0 — 업체명: 설정에 회사명 있을 때만 표시 (없으면 hidden 유지)
-(function brandCompany(){
-  const co = getCompany();
-  const el = document.getElementById('brand-co');
-  if(!el) return;
-  if(co?.name && co.name.trim()){
-    el.hidden = false;
-    el.innerHTML = `· <b>${co.name}</b>${co.site? ` <span style="color:var(--dim)">${co.site}</span>`:''}`;
-  } else {
-    el.hidden = true;
-  }
-})();
+renderBrandCompany();   // ★ v0.38.11 — 1벌 (서버 스냅샷 도착 시에도 다시 호출됨)
 
 /* -------------------------------------------------------------------------------------------------
    v0.14.0 — 스플래시 → 게이트 부트스트랩
