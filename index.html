@@ -1416,7 +1416,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.12';
+const APP_VERSION = 'v0.38.14';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -1986,6 +1986,8 @@ async function _bootFirestore(){
         });
         if(!seen.has(col)){
           seen.add(col);
+          // ★ v0.38.14 — 회사정보·사용자 문서가 오면 전체 라운드(약 45개 컬렉션)를 기다리지 않고 진입 화면 즉시 갱신
+          if((col === 'settings' || col === 'users') && !SESSION.loggedIn && seen.size !== expected){ try { renderGate(); renderBrandCompany(); } catch(e){} }
           if(seen.size === expected){
             _FS_STATE.snapshotRoundsDone++;
             // 첫 스냅샷 라운드 완료 → 리렌더
@@ -5827,10 +5829,23 @@ function companyLogoFromFile(file){
     fr.readAsDataURL(file);
   });
 }
+/* ★ v0.38.14 — 진입 화면 CI 단말 캐시 (회사별 = 연결된 저장소별 키 · 서버 데이터 도착 전 F5 직후에도 즉시 표시)
+   · 원본은 항상 settings/company — 캐시는 표시용 사본(로그인 전 화면에 원래 보이는 상호·로고만) · 서버 문서가 오면 덮어씀 */
+function _gateCiKey(){
+  try {
+    if(isDemoMode()) return 'vela_gate_ci:demo';
+    if(_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore'){ const c = loadFirestoreConfig(); return 'vela_gate_ci:fs:' + ((c && c.projectId) || 'default'); }
+  } catch(e){}
+  return 'vela_gate_ci:local';
+}
+function _gateCiRead(){ try { const v = JSON.parse(localStorage.getItem(_gateCiKey()) || 'null'); return (v && typeof v === 'object') ? v : null; } catch(e){ return null; } }
+function _gateCiWrite(co){ try { localStorage.setItem(_gateCiKey(), JSON.stringify({ name: String(co.name||''), logo: companyLogoSrc(co) })); } catch(e){} }
 function renderGate(){
   attemptRememberedLogin();   // ★ v0.37.2 — 기억된 기기(현장 작업자) 는 토큰 검증 후 자동 진입 (users 스냅샷 도착 시 재시도됨)
   // 좌 패널 사용업체 CI·버전 표시 (★ v0.38.9 — 로고+상호+사이트 · 저장값만 · 기본값(가짜 상호) 표시 안 함 · 하나도 없으면 블록 숨김)
-  const co = DB.get('settings','company') || {};
+  const _coDoc = DB.get('settings','company');
+  if(_coDoc) _gateCiWrite(_coDoc);                  // ★ v0.38.14 — 서버/로컬 원본이 있으면 캐시 갱신
+  const co = _coDoc || _gateCiRead() || {};          //            원본 도착 전이면 이 단말 캐시로 즉시 표시
   const nm = document.getElementById('gt-co-name');
   const lg = document.getElementById('gt-co-logo');   // ★ v0.38.9b — 진입 화면 = 로고+상호만 (사이트 표시 안 함 · 사용자 요청)
   const ciBox = document.getElementById('gt-ci');
@@ -5878,7 +5893,7 @@ function renderRegisterForm(){
     </div>
     <div class="pw-err" id="rf-err"></div>
     <button class="reg-btn" id="rf-save">등록하고 입장</button>
-    <div class="fr-note"><b>이 카드는 최초 1회만 표시</b> — 첫 관리자 등록 후 영구 소멸<br>이후 직원 비밀번호 발급·관리는 설정 › 사용자 관리에서</div>
+    <div class="fr-note"><b>이 카드는 최초 1회만 표시</b> — 첫 관리자 등록 후 영구 소멸<br>이후 직원 비밀번호 발급·관리는 기준정보 › 사용자 · 비밀번호 관리에서</div>
   `;
   const pwEl = document.getElementById('rf-pw');
   const pw2El = document.getElementById('rf-pw2');
@@ -7689,11 +7704,11 @@ function renderSessionSetup(prefill){
             <div class="pc-ic"><svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/></svg></div>
             <div>${sel.worker
               ? `<div class="pc-name">${sel.worker.name}</div><div class="pc-sub">${sel.worker.emp_no||sel.worker.id||''}${sel.worker.dept?` · ${sel.worker.dept}`:''}</div>`
-              : `<div class="pc-none">${noWorkers? '작업자 미등록 — 설정에서 추가' : '선택 안 됨'}</div>`}
+              : `<div class="pc-none">${noWorkers? '작업자 미등록 — 기준정보에서 추가' : '선택 안 됨'}</div>`}
             </div>
           </div>
           ${noWorkers
-            ? `<div class="pick-actions"><button class="pa-btn list" onclick="location.hash='#set'">설정 → 작업자 마스터로</button></div>`
+            ? `<div class="pick-actions"><button class="pa-btn list" onclick="location.hash='#masters'">기준정보 → 작업자 마스터로</button></div>`
             : `<div class="pick-actions"><button class="pa-btn list" data-toggle="worker"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>${openList==='worker'?'목록 닫기':'생산부 직원 선택'}</button></div>`
           }
           ${openList==='worker' ? `
@@ -20603,7 +20618,10 @@ VIEWS.masters = () => {
       </div>
     </div>
     ` : ''}
+
+    ${_userWorkerCardsHTML()}
   `;
+  bindUserWorkerCards();   // ★ v0.38.13 — 사용자·비밀번호 / 작업자 마스터 (설정에서 이동)
 
   // 검색·필터 이벤트 (재고 화면과 동일 패턴)
   let vqT, iqT;
@@ -24215,30 +24233,8 @@ VIEWS.set = () => {
       <div style="font-size:10.5px;color:var(--dim);margin-top:8px">각 버튼 → [템플릿 다운로드]로 형식 확인 · 공정 템플릿(절단·단조 등)은 공정 템플릿 화면에서 먼저 구성</div>
     </div>
 
-    <!-- ★ v0.15.2 — 사용자·PIN 관리 (인증) ※ 작업자 마스터(생산부 직원)와 별개 — users/workers 통합 아님 -->
-    <div class="card">
-      <h3>사용자 · 비밀번호 관리 <span class="tag">v0.16.22 · 이름(식별자) + 비밀번호(6자리) · 초기 000000 자동 부여</span></h3>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>이름</th><th>비밀번호</th><th>구분</th><th>최근 로그인</th><th style="text-align:right">관리</th></tr></thead>
-        <tbody id="usr-rows"></tbody>
-      </table></div>
-      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;line-height:1.7;flex:1;min-width:280px">
-          <b style="color:var(--amber)">가드</b> 관리책임자 최소 1명 유지 — 마지막 관리책임자는 퇴사·강등 불가(후임 승격 먼저). 물리 삭제 없음: 퇴사=비활성(increment-only, 과거 실적 이력 보존·재활성 가능). 비밀번호 평문 비노출 · 이름은 식별자이므로 <b>동명이인 등록 불가</b> · 분실 시 [PIN 재설정]으로 000000 초기화.<br>
-          <b style="color:var(--cyan)">현장 작업자</b>(v0.37.2) = 로그인하면 바로 현장 화면(출근 → QR → 실적) · 권한은 일반과 동일 · 이름을 작업자 마스터와 같게 등록하면 출근 화면에서 자동 매칭 · 📱 = 자동 로그인이 켜진 기기 수([기기 해제]로 전부 해제).
-        </div>
-        <button class="btn primary" id="usr-add">${ico('plus')}사용자 등록</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>작업자 마스터 <span class="tag">v0.11.0 · 생산부 직원 · 실적 등록 세션에서 선택</span></h3>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>사번</th><th>이름</th><th>부서</th><th>활성</th><th></th></tr></thead>
-        <tbody id="wk-rows"></tbody>
-      </table></div>
-      <div style="margin-top:10px;display:flex;gap:8px"><button class="btn" id="wk-import">${ico('excel')}엑셀 임포트</button><button class="btn primary" id="wk-add">${ico('plus')}작업자 추가</button></div>
-    </div>
+    <!-- ★ v0.38.13 — 사용자·비밀번호 관리 / 작업자 마스터 → 기준정보로 이동 (사용자 요청) · 기준정보 모듈이 꺼진 업체만 여기서 표시(관리 경로 상실 방지) -->
+    ${flags.masters ? `<div class="card"><h3>사용자 · 작업자</h3><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span style="font-size:12px;color:var(--sub)">사용자 · 비밀번호 관리와 작업자 마스터는 <b>기준정보</b> 화면으로 옮겼습니다.</span><button class="btn primary" onclick="location.hash='#masters'">기준정보 열기 →</button></div></div>` : _userWorkerCardsHTML()}
 
     ${SESSION.role === 'vendor' ? `
     <!-- ★ v0.15.4 — 기능 플래그 카드는 개발자(벤더) 전용 (DOM 미생성). 클라이언트 게이트는
@@ -24889,6 +24885,43 @@ VIEWS.set = () => {
     renderMenuOrderList();
   }
 
+  if(!flags.masters) bindUserWorkerCards();   // ★ v0.38.13 — 기준정보 모듈 OFF 업체만 설정에서 관리
+  // ★ v0.28.5 — 데이터 이관 허브 버튼
+  document.querySelectorAll('[data-mig-import]').forEach(b => b.onclick = () => VIEWS._mstImport(b.dataset.migImport));
+};
+
+/* ★ v0.38.13 — 사용자 · 비밀번호 관리 + 작업자 마스터 (기준정보 화면 · 기준정보 모듈 OFF 시 설정 화면) — 카드 HTML·바인딩 1벌
+   로직은 v0.15.2~v0.37.2 설정 화면 코드 그대로 이동 (users/workers 통합 금지 원칙 유지) */
+function _userWorkerCardsHTML(){
+  return `
+    <!-- ★ v0.15.2 — 사용자·PIN 관리 (인증) ※ 작업자 마스터(생산부 직원)와 별개 — users/workers 통합 아님 -->
+    <div class="card">
+      <h3>사용자 · 비밀번호 관리 <span class="tag">v0.16.22 · 이름(식별자) + 비밀번호(6자리) · 초기 000000 자동 부여</span></h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>이름</th><th>비밀번호</th><th>구분</th><th>최근 로그인</th><th style="text-align:right">관리</th></tr></thead>
+        <tbody id="usr-rows"></tbody>
+      </table></div>
+      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;line-height:1.7;flex:1;min-width:280px">
+          <b style="color:var(--amber)">가드</b> 관리책임자 최소 1명 유지 — 마지막 관리책임자는 퇴사·강등 불가(후임 승격 먼저). 물리 삭제 없음: 퇴사=비활성(increment-only, 과거 실적 이력 보존·재활성 가능). 비밀번호 평문 비노출 · 이름은 식별자이므로 <b>동명이인 등록 불가</b> · 분실 시 [PIN 재설정]으로 000000 초기화.<br>
+          <b style="color:var(--cyan)">현장 작업자</b>(v0.37.2) = 로그인하면 바로 현장 화면(출근 → QR → 실적) · 권한은 일반과 동일 · 이름을 작업자 마스터와 같게 등록하면 출근 화면에서 자동 매칭 · 📱 = 자동 로그인이 켜진 기기 수([기기 해제]로 전부 해제).
+        </div>
+        <button class="btn primary" id="usr-add">${ico('plus')}사용자 등록</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>작업자 마스터 <span class="tag">v0.11.0 · 생산부 직원 · 실적 등록 세션에서 선택</span></h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>사번</th><th>이름</th><th>부서</th><th>활성</th><th></th></tr></thead>
+        <tbody id="wk-rows"></tbody>
+      </table></div>
+      <div style="margin-top:10px;display:flex;gap:8px"><button class="btn" id="wk-import">${ico('excel')}엑셀 임포트</button><button class="btn primary" id="wk-add">${ico('plus')}작업자 추가</button></div>
+    </div>
+  `;
+}
+function bindUserWorkerCards(){
+  if(!document.getElementById('usr-rows')) return;
   /* ★ v0.15.2 — 사용자·PIN 관리 (인증 계정) — increment-only, PIN 평문 비노출
      ※ 인증 흐름(renderGate/showRecognition/enterAsUser) 로직은 수정 금지 — 별도 CRUD 카드로 관리.
      ※ users(인증)와 workers(작업자 마스터)는 통합 금지 — 통합은 백엔드 설계에서 검토. */
@@ -25179,12 +25212,10 @@ VIEWS.set = () => {
     };
   }
   document.getElementById('wk-add').onclick = ()=>editWorker(null);
-  // ★ v0.28.5 — 데이터 이관 허브 버튼
-  document.querySelectorAll('[data-mig-import]').forEach(b => b.onclick = () => VIEWS._mstImport(b.dataset.migImport));
   const wkImp = document.getElementById('wk-import');
   if(wkImp) wkImp.onclick = ()=>VIEWS._mstImport('workers');   // ★ v0.28.4
   renderWorkers();
-};
+}
 
 /* -------------------------------------------------------------------------------------------------
    §초기화
