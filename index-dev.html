@@ -1426,7 +1426,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.23';
+const APP_VERSION = 'v0.38.24';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -14835,19 +14835,28 @@ function _stampPrintVersion(html){ return String(html||'').replace(/>VELA SYSTEM
    대상 = sel 로 지정한 칸(white-space:nowrap 전제) · 칸 폭을 넘으면 0.5px 씩 줄임(최소 6px) · 인라인 !important 로 인쇄용 글자 크기 규칙보다 우선
    인쇄 폭(A4 − 여백 ≈ 695px)이 화면 폭(706px)보다 약간 좁아 4% 여유를 둔다 · 인쇄창·PDF 공용(문서 객체만 받음) */
 function printFitCells(doc, sel){
+  // ★ v0.38.24 (사용자 요청: 글자 크기 동일) — sel 이 배열이면 그룹마다 「한 크기」 로 통일: 각 칸이 들어가는 크기를 구한 뒤 그룹 최솟값을 전 칸에 적용
   if(!doc || !sel) return 0;
+  const groups = Array.isArray(sel) ? sel : [sel];
+  const uniform = Array.isArray(sel);
   let n = 0;
-  doc.querySelectorAll(sel).forEach(el => {
-    if(!el.textContent.trim()) return;
-    const d = el.ownerDocument, win = d.defaultView || window;
-    const cs = win.getComputedStyle(el);
-    const avail = el.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
-    if(!(avail > 0)) return;
-    const textW = () => { const r = d.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; };   // 글자 실제 폭 (칸 폭과 무관)
-    let fs = parseFloat(cs.fontSize) || 12, guard = 60;
-    while(textW() > avail * 0.96 && fs > 6 && guard-- > 0){
-      fs = Math.max(6, fs - 0.5); el.style.setProperty('font-size', fs + 'px', 'important'); n++;
-    }
+  groups.forEach(g => {
+    const els = [...doc.querySelectorAll(g)];
+    let gmin = Infinity;
+    els.forEach(el => {
+      if(!el.textContent.trim()) return;
+      const d = el.ownerDocument, win = d.defaultView || window;
+      const cs = win.getComputedStyle(el);
+      const avail = el.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+      if(!(avail > 0)) return;
+      const textW = () => { const r = d.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; };   // 글자 실제 폭 (칸 폭과 무관)
+      let fs = parseFloat(cs.fontSize) || 12, guard = 60;
+      while(textW() > avail * 0.96 && fs > 6 && guard-- > 0){
+        fs = Math.max(6, fs - 0.5); el.style.setProperty('font-size', fs + 'px', 'important'); n++;
+      }
+      gmin = Math.min(gmin, fs);
+    });
+    if(uniform && isFinite(gmin)) els.forEach(el => { el.style.setProperty('font-size', gmin + 'px', 'important'); el.querySelectorAll('*').forEach(c => c.style.setProperty('font-size', 'inherit', 'important')); });
   });
   return n;
 }
@@ -15554,7 +15563,7 @@ const printForm = {
     function page(group, copyTag, txNo){
       const cust = DB.get('vendors', group.custCode) || {};
       let total = 0;
-      // ★ v0.16.23 — 7컬럼: 품명 | LOT | 수량 | 포장내역 | 단가 | 공급가액 | 파렛트
+      // ★ v0.38.24 — 8컬럼: 품번 | 품명 | LOT | 수량 | 단가 | 공급가액 | 포장내역 | 파렛트 (사용자 요청: 포장·파렛트 맨 뒤) · (구) v0.16.23 7컬럼
       //              규격 컬럼 제거(폭 확보) · 포장내역 = "N ea × M포장"(pack_qty_actual 있을 때만)
       //              수량 밑 소자 제거(포장내역 컬럼과 중복 방지)
       const dash = '<span style="color:#bbb">—</span>';
@@ -15574,9 +15583,9 @@ const printForm = {
           <td class="b">${_esc(item.name||'')}</td>
           <td class="c">${lotCell}</td>
           <td class="c mono">${(sh.qty||0).toLocaleString()}</td>
-          <td class="c">${pkgCell}</td>
           <td class="r mono">${price.toLocaleString()}</td>
           <td class="r mono">${amt.toLocaleString()}</td>
+          <td class="c">${pkgCell}</td>
           <td class="c mono">${pltCell}</td>
         </tr>`;
       }).join('');
@@ -15607,14 +15616,14 @@ const printForm = {
         </div>
         <table class="fit-tbl">
           <thead><tr>
-            <th style="width:11%">품번</th>
-            <th style="width:25%">품명</th>
-            <th class="c" style="width:14%">LOT</th>
+            <th style="width:12%">품번</th>
+            <th style="width:18%">품명</th>
+            <th class="c" style="width:17%">LOT</th>
             <th class="c" style="width:7%">수량</th>
-            <th class="c" style="width:13%">포장내역</th>
             <th class="r" style="width:9%">단가</th>
             <th class="r" style="width:13%">공급가액</th>
-            <th class="c" style="width:8%">파렛트</th>
+            <th class="c" style="width:15%">포장내역</th>
+            <th class="c" style="width:9%">파렛트</th>
           </tr></thead>
           <tbody>${lineRows}${blankRows}</tbody>
         </table>
@@ -15671,14 +15680,14 @@ const printForm = {
         .total-row .tt{font-size:11.5pt !important}
         .total-row .tv{font-size:16pt !important}
         /* ★ v0.38.23 — 8컬럼 폭 = 화면과 동일 (글자 맞춤 계산이 인쇄에도 맞도록) */
-        .fit-tbl th:nth-child(1){width:11% !important}   /* 품번 */
-        .fit-tbl th:nth-child(2){width:25% !important}   /* 품명 */
-        .fit-tbl th:nth-child(3){width:14% !important}   /* LOT */
-        .fit-tbl th:nth-child(4){width:7%  !important}   /* 수량 */
-        .fit-tbl th:nth-child(5){width:13% !important}   /* 포장내역 */
-        .fit-tbl th:nth-child(6){width:9%  !important}   /* 단가 */
-        .fit-tbl th:nth-child(7){width:13% !important}   /* 공급가액 */
-        .fit-tbl th:nth-child(8){width:8%  !important}   /* 파렛트 */
+        .fit-tbl th:nth-child(1){width:12% !important}   /* 품번 */
+        .fit-tbl th:nth-child(2){width:18% !important}   /* 품명 */
+        .fit-tbl th:nth-child(3){width:17% !important}   /* LOT */
+        .fit-tbl th:nth-child(4){width:7% !important}   /* 수량 */
+        .fit-tbl th:nth-child(5){width:9% !important}   /* 단가 */
+        .fit-tbl th:nth-child(6){width:13% !important}   /* 공급가액 */
+        .fit-tbl th:nth-child(7){width:15% !important}   /* 포장내역 */
+        .fit-tbl th:nth-child(8){width:9% !important}   /* 파렛트 */
       }
     `;
     // 거래처별로 1세트(2장: 공급자 보관용 + 공급받는자용)
@@ -15688,7 +15697,7 @@ const printForm = {
       pages.push(page(g, '공급자 보관용', txNo));
       pages.push(page(g, '공급받는자용', txNo));
     });
-    _openPrint(`거래명세서 ${ships.length}건`, pages.join(''), css, { formKey:'tx', fit:'.fit-tbl td, .fit-tbl th, .party .pr .v' });
+    _openPrint(`거래명세서 ${ships.length}건`, pages.join(''), css, { formKey:'tx', fit:['.fit-tbl td, .fit-tbl th', '.party .pr .v'] });   // ★ v0.38.24 — 그룹별 한 크기(표 전체 = 머리글·본문 같은 크기 · 거래처 칸)
   },
 
   /* ===== ⑥ 발주서 (form-po.html) — A4, 발신(자사) · 수신(거래처) · 품목표 · 합계 · 납기 · 발주번호 — v0.16.6 ===== */
