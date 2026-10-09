@@ -1134,6 +1134,16 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 @media print{.lot-steps-row{display:none}}
 
 /* ★ v0.32.4 — 규칙·가드 안내 접기 (기본 1줄 · 클릭 펼침 · 인쇄 전체 펼침) */
+/* ★ v0.38.17 — 화면 단락 켜기/끄기 */
+.sec-off{display:none !important}
+.sec-x{display:inline-flex;align-items:center;width:30px;height:16px;border-radius:99px;background:var(--green);border:0;padding:2px;margin:0 auto 0 10px;cursor:pointer;flex:none;opacity:.75;transition:opacity .15s}
+.sec-x:hover{opacity:1}
+.sec-x i{display:block;width:12px;height:12px;border-radius:50%;background:#fff;margin-left:auto;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.sec-x.off{background:var(--line2)}
+.sec-x.off i{margin-left:0}
+.sec-pick{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);font-size:13px}
+.sec-pick .t{flex:1}
+.sec-pick .lk{font-size:11px;color:var(--dim)}
 .rule-note{max-height:40px;overflow:hidden;cursor:pointer;position:relative;padding-right:70px !important;transition:max-height .18s ease}
 .rule-note::after{content:'펼치기 ▾';position:absolute;top:9px;right:12px;font-size:10px;color:var(--cyan);font-weight:700;background:inherit;padding-left:6px}
 .rule-note.open{max-height:400px}
@@ -1416,7 +1426,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.16';
+const APP_VERSION = 'v0.38.17';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -6297,7 +6307,7 @@ const NAV_GROUPS = [
 const NAV_PRIMARY_DEFAULT = ['dash','so','plan','scan','perf','lot','qc','ship'];
 /* ★ v0.37.7 — 개인 설정 문서 settings/prefs.{userId} (users = 인증·역할·권한·기기 / prefs = 개인 취향 · GPT §5 권장)
    어댑터가 서브컬렉션을 지원하지 않아 문서 id 로 표현 · 신규 컬렉션 0 · 필드: menu_primary (v0.38.0 에서 dash_cards·report_sections·report_format 추가 예정) */
-const PREFS_FIELDS = ['menu_primary','dash_cards','report_sections','report_format'];   // 개인화 필드 화이트리스트 (v0.38.0 3개 예약) — 이 밖의 키는 setPrefs 가 버린다
+const PREFS_FIELDS = ['menu_primary','dash_cards','report_sections','report_format','sec_off'];   // 개인화 필드 화이트리스트 (v0.38.0 3개 예약) — 이 밖의 키는 setPrefs 가 버린다 · ★ v0.38.17 sec_off = 화면 단락 끄기 {화면id:제목 → true}
 function _prefsId(userId){ return 'prefs.' + userId; }
 function getPrefs(userId){ const id = userId || SESSION.userId; if(!id) return null; return DB.get('settings', _prefsId(id)) || null; }
 /* 클라이언트 계약(GPT 조건부 승인 2026-09-23): ① 본인 문서만(SESSION.userId ≠ 대상 → 거부 · 관리자도 남의 prefs 편집 불가 — SPEC §7 범위 밖) ② PREFS_FIELDS 만 저장.
@@ -6454,6 +6464,98 @@ function router(){
   try { _calEnhance(document.getElementById('view')); } catch(e){}
   // ★ v0.32.4 — 규칙·가드 상주 안내문 접기 (디자인 리뉴얼 — 텍스트 보존 · 기본 1줄 · 클릭 펼침)
   try { _ruleNoteEnhance(); } catch(e){}
+  // ★ v0.38.17 — 단락 켜기/끄기 (렌더 후 부착 · 전 메뉴 공통)
+  try { _secToggleEnhance(); } catch(e){ console.warn('[VELA] 단락 토글', e); }
+}
+/* ★ v0.38.17 — 화면 단락(하위 섹션) 켜기/끄기 1벌 (사용자 요청 2026-10-09 · 「개인화 v0.1」 원칙: 표시만 · 계산·원장·권한·write path 무변)
+   · 단락 = #view 안 .card 중 머리글 h3 가 있는 것 — 마크업 무수정 · 렌더 후 부착 → 전 메뉴 자동 (대시보드 = 카드 Picker 별도 · 현장 모드 제외)
+   · 끄기 = 제목 옆 스위치 → 화면에서만 숨김 (DOM·계산 그대로) / 켜기 = 화면 머리 [단락 n/m] → 목록에서 선택
+   · 저장 = settings/prefs.{userId}.sec_off { "화면id:제목": true } — 사람마다 · 본인 문서만(setPrefs 계약) · ⚠ 서버 강제 아님(§6)
+   · 안전 신호 단락(이상·사고·HOLD·격리·주의·경고·보류·판정 대기)은 끌 수 없음 (GPT 원칙 「안전 신호 은폐 금지」) */
+const SEC_LOCK_RE = /이상|사고|HOLD|격리|주의|경고|보류|판정 대기/;
+function _secPage(){ return ((location.hash || '#dash').replace('#','').split(/[/?]/)[0]) || 'dash'; }
+function _secTitle(h){
+  const t = [...h.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').trim() || (h.textContent || '');
+  return t.replace(/[\d,.%]+/g, '').replace(/\s+/g, ' ').trim();
+}
+function secList(){
+  const page = _secPage(), seen = {};
+  return [...document.querySelectorAll('#view .card')].map(card => {
+    if(card.parentElement && card.parentElement.closest('#view .card')) return null;   // 카드 안 카드 = 상위 단락에 포함
+    const h = card.querySelector(':scope > h3, :scope > div > h3'); if(!h) return null;
+    const title = _secTitle(h); if(!title) return null;
+    let key = page + ':' + title; seen[key] = (seen[key] || 0) + 1; if(seen[key] > 1) key += '#' + seen[key];
+    return { card, h, title, key, locked: card.hasAttribute('data-sec-lock') || SEC_LOCK_RE.test(title) };   // 판정 = 제목만 (설명 태그 문구 무관)
+  }).filter(Boolean);
+}
+function secOffMap(){ const p = getPrefs(); return (p && p.sec_off && typeof p.sec_off === 'object') ? p.sec_off : {}; }
+function secSetOff(key, off){
+  const m = { ...secOffMap() }; if(off) m[key] = true; else delete m[key];
+  return setPrefs(SESSION.userId, { sec_off: m });
+}
+function _secToggleEnhance(){
+  if(!SESSION.loggedIn || _secPage() === 'dash' || isMobileHash()) return;
+  const list = secList(); if(!list.length) return;
+  const off = secOffMap();
+  list.forEach(s => {
+    const isOff = !s.locked && !!off[s.key];
+    s.card.classList.toggle('sec-off', isOff);
+    s.card.dataset.secKey = s.key;
+    const ex = s.h.querySelector(':scope > .sec-x');
+    if(ex && (ex._secBound || s.locked)) { if(s.locked) ex.remove(); return; }
+    if(ex) ex.remove();   // 직렬화로 복제된(핸들러 없는) 스위치
+    if(s.locked) return;
+    const b = document.createElement('button'); b._secBound = true;
+    b.type = 'button'; b.className = 'sec-x'; b.title = '이 단락 끄기 — 다시 켜려면 화면 위 [단락] 버튼'; b.setAttribute('role','switch'); b.setAttribute('aria-checked','true');
+    b.innerHTML = '<i></i>';
+    b.onclick = e => { e.stopPropagation(); secSetOff(s.key, true); _secToggleEnhance(); toast(`「${s.title}」 단락 끔 — [단락] 에서 다시 켤 수 있습니다`, 'ok'); };
+    const firstEl = [...s.h.children].find(c => !c.classList.contains('sec-x'));
+    firstEl ? s.h.insertBefore(b, firstEl) : s.h.appendChild(b);
+  });
+  // 화면 머리 [단락 켜진 수/전체] 버튼 (끌 수 있는 단락이 있을 때만)
+  const can = list.filter(s => !s.locked), nOff = can.filter(s => off[s.key]).length;
+  let btn = document.getElementById('sec-pick-btn');
+  if(btn && !btn._secBound){ btn.remove(); btn = null; }
+  if(!can.length){ btn && btn.remove(); return; }
+  if(!btn){
+    btn = document.createElement('button'); btn._secBound = true; btn.id = 'sec-pick-btn'; btn.type = 'button'; btn.className = 'btn';
+    btn.onclick = () => openSecPicker();
+    const tools = document.querySelector('#view .pghead .pgtools') || document.querySelector('#view .pghead');
+    if(tools) tools.insertBefore(btn, tools.firstChild);
+    else { const bar = document.createElement('div'); bar.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:10px'; bar.appendChild(btn); document.getElementById('view').prepend(bar); }
+  }
+  btn.textContent = `단락 ${list.length - nOff}/${list.length}`;
+  btn.title = nOff ? `꺼진 단락 ${nOff}개 — 눌러서 켜기` : '이 화면 단락 켜기/끄기';
+  btn.classList.toggle('primary', false);
+  btn.style.borderColor = nOff ? 'var(--amber)' : '';
+  btn.style.color = nOff ? 'var(--amber)' : '';
+}
+function openSecPicker(){
+  const draw = () => {
+    const list = secList(), off = secOffMap();
+    return list.map(s => `<div class="sec-pick"><span class="t">${_esc(s.title)}</span>${s.locked
+      ? '<span class="lk">항상 표시 · 안전 신호</span>'
+      : `<button type="button" class="sec-x ${off[s.key] ? 'off' : ''}" style="margin:0" role="switch" aria-checked="${off[s.key] ? 'false' : 'true'}" data-sec-key="${_esc(s.key)}" title="${off[s.key] ? '켜기' : '끄기'}"><i></i></button>`}</div>`).join('');
+  };
+  openModal(`
+    <h2>이 화면 단락 켜기/끄기 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="font-size:11.5px;color:var(--sub)">끈 단락은 <b>내 화면에서만</b> 안 보입니다 — 데이터·계산·다른 사람 화면은 그대로 · 이상·HOLD 같은 안전 신호 단락은 끌 수 없습니다</div>
+      <div id="sec-pick-list">${draw()}</div>
+      <div class="actions">
+        <button class="btn" id="sec-all-on">모두 켜기</button>
+        <button class="btn primary" onclick="closeModal()">닫기</button>
+      </div>
+    </div>`);
+  const bind = () => document.querySelectorAll('#sec-pick-list [data-sec-key]').forEach(b => b.onclick = () => {
+    const k = b.dataset.secKey; secSetOff(k, !secOffMap()[k]); _secToggleEnhance();
+    document.getElementById('sec-pick-list').innerHTML = draw(); bind();
+  });
+  bind();
+  document.getElementById('sec-all-on').onclick = () => {
+    const page = _secPage() + ':'; const m = { ...secOffMap() }; Object.keys(m).forEach(k => { if(k.startsWith(page)) delete m[k]; });
+    setPrefs(SESSION.userId, { sec_off: m }); _secToggleEnhance(); document.getElementById('sec-pick-list').innerHTML = draw(); bind();
+  };
 }
 /* ★ v0.32.4 — 규칙·가드 안내 접기 1벌 (사용자 판정: 상주 안내문 정리 — 시안 확정 방향)
    마크업 무수정: 렌더 후 '규칙'/'가드' 표머리 박스를 찾아 접힘 클래스만 부여 → 전 화면 자동 적용.
@@ -6482,6 +6584,11 @@ function _secScrollEnhance(){
   });
 }
 window.addEventListener('hashchange', router);
+// ★ v0.38.17 — 화면이 router 밖에서 다시 그려져도(innerHTML 교체) 단락 토글 재부착
+(function(){ try {
+  const v = document.getElementById('view'); if(!v || typeof MutationObserver === 'undefined') return;
+  let q = false; new MutationObserver(() => { if(q) return; q = true; Promise.resolve().then(() => { q = false; try { _secToggleEnhance(); } catch(e){} }); }).observe(v, { childList:true });
+} catch(e){} })();
 
 /* ★ v0.20.0 — 우상단 동기화 상태 pill (2막 STEP 1 · 자리만 · 로컬 문구)
    ★ v0.21.0 — firestore 모드: online·동기화됨(green) / offline·오프라인(amber) / config 없음·초기화 실패(red). */
@@ -10688,11 +10795,24 @@ function docEditValidate(col, id, input){
   }
   return { patch, impact, empty:false };
 }
+/* ★ v0.38.16-r1 (GPT Gate C) — 출하일 수정이 그 수주의 납기준수 판정을 바꾸는지 (가정 평가 · 저장 0) */
+function otdShipDateImpact(shipId, newTs){
+  const sh = DB.get('shipments', shipId); const o = sh && DB.get('orders', sh.so_id);
+  if(!sh || !o || !o.due || !newTs) return null;
+  const today = _kstDate(Date.now());
+  const ships = DB.query('shipments', s => s.so_id === o.id);
+  const lab = r => r.skip ? ({ cancel:'집계 제외(취소)', notDue:'미도래', dueToday:'평가 대기', noDue:'납기 미등록' }[r.skip] || r.skip) : r.status;
+  const b = lab(otdEvalOrder(o, today, ships));
+  const a = lab(otdEvalOrder(o, today, ships.map(s => s.id === shipId ? { ...s, ts:newTs } : s)));
+  return { so:o.id, due:o.due, before:b, after:a, changed: a !== b };
+}
 function docEditSave(col, id, input, reason){
   const v = docEditValidate(col, id, input);
   if(v.empty) return { ok:false, empty:true };
   reason = String(reason||'').trim();
   if(v.impact && !reason) throw new Error('수정 사유를 입력하세요 (날짜·거래처·단가 등)');
+  const otd = (col === 'shipments' && v.patch.ts) ? otdShipDateImpact(id, v.patch.ts) : null;
+  if(otd && otd.changed) reason += ` · 납기준수 영향: ${otd.so} ${otd.before} → ${otd.after}`;   // 감사 이력(_logs reason)에 영향 기록
   const r = DB.correct(col, id, v.patch, `${DOC_EDIT_SPEC[col].title} 수정: ${reason || '비고·포장'}`);
   if(!r) throw new Error('저장 안 됨 — 권한 확인');
   return { ok:true, doc:r };
@@ -10721,6 +10841,7 @@ VIEWS._docEdit = (col, id) => {
       </div>
       ${closed ? `<div class="fl-warn" style="color:var(--amber);border-color:var(--amber)">${_esc(closed)} 마감된 월 — 날짜·거래처·단가는 수정 불가 (비고만 가능)</div>` : ''}
       <div class="grid g2">${fields.map(fieldHTML).join('')}</div>
+      ${col === 'shipments' ? `<div id="de-otd" class="fl-warn" style="display:none;color:var(--amber);border-color:var(--amber)"></div>` : ''}
       <div><label>수정 사유 <span style="color:var(--dim);font-weight:400">— 날짜·거래처·단가 등을 바꾸면 필수</span></label><input id="de-r" placeholder="예: 입고일 오입력 정정"></div>
       <div style="font-size:11px;color:var(--sub)">고정 항목(수량·LOT·Heat·수주 등)은 [취소] 후 다시 등록하세요 · 수정 전/후 값은 변경 이력에 남습니다</div>
       <div class="actions">
@@ -10728,6 +10849,13 @@ VIEWS._docEdit = (col, id) => {
         <button class="btn primary" id="de-ok">${ico('save')}수정 저장</button>
       </div>
     </div>`);
+  const deDate = col === 'shipments' && document.querySelector('[data-de="date"]');
+  if(deDate) deDate.addEventListener('change', () => {
+    const box = document.getElementById('de-otd'); if(!box) return;
+    const nv = deDate.value; const im = /^\d{4}-\d{2}-\d{2}$/.test(nv) ? otdShipDateImpact(id, _tsWithDate(d.ts, nv)) : null;
+    box.style.display = (im && im.changed) ? '' : 'none';
+    if(im && im.changed) box.textContent = `납기준수 판정이 바뀝니다 — 수주 ${im.so} (납기 ${im.due}) : ${im.before} → ${im.after} · 저장하면 변경 이력에 함께 기록됩니다`;
+  });
   document.getElementById('de-ok').onclick = () => {
     const input = {}; document.querySelectorAll('[data-de]').forEach(el => { input[el.dataset.de] = el.value; });
     try {
@@ -12304,49 +12432,68 @@ VIEWS.so = () => {
    · 부분종결: 분모 = 원 수주량 그대로 (70/100 = 미준수 · 수량 70%)
    · 원장 쓰기 0 · 계산 1벌 → 출하 메뉴 · (다음 단계) 보고서 블록 · 대시보드 공용
    ================================================================================================= */
-function _dueEndTs(due){ const [y,m,d] = String(due||'').split('-').map(Number); return (y && m && d) ? new Date(y, m-1, d, 23, 59, 59, 999).getTime() : null; }
+// ★ v0.38.16-r1 (GPT Gate A) — 업무 날짜 = Asia/Seoul 고정 (단말 시간대와 무관) · 납기 마감 = 납기일 23:59:59.999 KST
+function _kstDate(ts){
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date(+ts)); }
+  catch(e){ return fmtDate(ts); }
+}
+function _dueEndTs(due){ const [y,m,d] = String(due||'').split('-').map(Number); return (y && m && d) ? Date.UTC(y, m-1, d, 23, 59, 59, 999) - 9*3600000 : null; }
+// ★ v0.38.16-r1 (GPT Gate D) — 수주 수량 단위 (수주 → 품목 → 기본 ea) · 단위가 섞이면 수량 기준을 합산하지 않는다
+function soUnit(o){ return String((o && o.unit) || DB.get('items', o && o.itemCode)?.unit || 'ea').trim().toLowerCase() || 'ea'; }
 function soDueChanges(o){
   return ((o && o._logs) || []).filter(l => l && l.op === 'correct' && l.prev && l.next && ('due' in l.prev) && l.prev.due !== l.next.due)
     .map(l => ({ from: l.prev.due || '', to: l.next.due || '', at: l.ts, by: l.by || '', reason: l.reason || '' }));
 }
+/* ★ v0.38.16-r1 — 수주 1건 평가 1벌 (calcOnTime · 출하일 수정 영향 확인 공용)
+   ships 를 넘기면 그 출하 목록으로 가정 평가 (저장 0). 반환 = 행 | { skip:'noDue'|'cancel'|'notDue'|'dueToday', lateCancel } */
+function otdEvalOrder(o, today, ships){
+  if(!o.due) return { skip:'noDue', cancelled: !!(soCloseInfo(o) && soCloseInfo(o).kind === 'cancel') };
+  const c = soCloseInfo(o);
+  const end = _dueEndTs(o.due);
+  ships = (ships || DB.query('shipments', s => s.so_id === o.id)).slice().sort((a,b) => (a.ts||0) - (b.ts||0));
+  const shipped = ships.reduce((a,s) => a + (+s.qty||0), 0);
+  // GPT Gate B — 집계 제외 = 수주취소(close.kind==='cancel') ∧ 살아 있는 출하 0 만. 출하 0 인 미출하·부분종결은 제외하지 않는다
+  if(c && c.kind === 'cancel' && shipped === 0) return { skip:'cancel', lateCancel: (+c.at||0) > end };
+  if(o.due > today) return { skip:'notDue' };
+  const qty = +o.qty || 0;
+  const onTimeRaw = ships.filter(s => (+s.ts||0) <= end).reduce((a,s) => a + (+s.qty||0), 0);
+  const ok = qty > 0 && onTimeRaw >= qty;
+  // GPT Gate A — 납기 당일: 이미 전량 출하했으면 준수로 집계 · 아니면 평가 대기 (당일 종료 후부터 미준수)
+  if(o.due === today && !ok) return { skip:'dueToday' };
+  const onTime = Math.min(qty, onTimeRaw);
+  // 지연일: 수주량을 채운 출하일 − 납기 (아직 못 채웠으면 오늘 끝 − 납기)
+  let cum = 0, fillTs = null; for(const s of ships){ cum += (+s.qty||0); if(cum >= qty){ fillTs = +s.ts||0; break; } }
+  const refTs = ok ? null : (fillTs || (c ? (+c.at||Date.now()) : _dueEndTs(today)));
+  const delayDays = ok ? 0 : Math.max(1, Math.ceil((refTs - end) / 86400000));
+  const status = ok ? '준수' : c ? '부분종결' : (shipped >= qty ? '지연 출하' : shipped > 0 ? '일부 출하' : '미출하');
+  return { o, id:o.id, cust:o.cust||'', itemCode:o.itemCode||'', due:o.due, qty, unit: soUnit(o), onTime, shipped, ok, status, delayDays, dueChanged: soDueChanges(o) };
+}
 function calcOnTime(opt){
   opt = opt || {};
-  const today = opt.today || fmtDate(Date.now());
+  const today = opt.today || _kstDate(Date.now());
   const from = opt.from || '0000-01-01', to = opt.to || today;
-  const ex = { cancel:0, lateCancel:0, noDue:0, notDue:0 };
+  const ex = { cancel:0, lateCancel:0, noDue:0, notDue:0, dueToday:0 };
   const rows = [];
   DB.all('orders').forEach(o => {
     if(opt.cust && o.cust !== opt.cust) return;
     if(opt.itemCode && o.itemCode !== opt.itemCode) return;
-    if(!o.due){ if(!(soCloseInfo(o) && soCloseInfo(o).kind === 'cancel')) ex.noDue++; return; }   // 기간과 무관한 전체 건수 (입력 누락 확인용)
+    if(!o.due){ if(!(soCloseInfo(o) && soCloseInfo(o).kind === 'cancel')) ex.noDue++; return; }   // 기간과 무관한 전체 건수 (입력 누락 확인용 · 고객사·품목 필터는 적용)
     if(o.due < from || o.due > to) return;
-    const c = soCloseInfo(o);
-    if(c && c.kind === 'cancel'){ ex.cancel++; if((+c.at||0) > _dueEndTs(o.due)) ex.lateCancel++; return; }
-    if(o.due > today){ ex.notDue++; return; }
-    const end = _dueEndTs(o.due);
-    const ships = DB.query('shipments', s => s.so_id === o.id).sort((a,b) => (a.ts||0) - (b.ts||0));
-    const qty = +o.qty || 0;
-    const onTimeRaw = ships.filter(s => (+s.ts||0) <= end).reduce((a,s) => a + (+s.qty||0), 0);
-    const onTime = Math.min(qty, onTimeRaw);
-    const shipped = ships.reduce((a,s) => a + (+s.qty||0), 0);
-    const ok = qty > 0 && onTimeRaw >= qty;
-    // 지연일: 수주량을 채운 출하일 − 납기 (아직 못 채웠으면 오늘 − 납기)
-    let cum = 0, fillTs = null; for(const s of ships){ cum += (+s.qty||0); if(cum >= qty){ fillTs = +s.ts||0; break; } }
-    const refTs = ok ? null : (fillTs || (c ? (+c.at||Date.now()) : _dueEndTs(today)));
-    const delayDays = ok ? 0 : Math.max(1, Math.ceil((refTs - end) / 86400000));
-    const status = ok ? '준수' : (c && c.kind === 'short') ? '부분종결' : (shipped >= qty ? '지연 출하' : shipped > 0 ? '일부 출하' : '미출하');
-    rows.push({ o, id:o.id, cust:o.cust||'', itemCode:o.itemCode||'', due:o.due, qty, onTime, shipped, ok, status, delayDays, dueChanged: soDueChanges(o) });
+    const r = otdEvalOrder(o, today);
+    if(r.skip){ ex[r.skip]++; if(r.lateCancel) ex.lateCancel++; return; }
+    rows.push(r);
   });
   const agg = list => {
     const lines = list.length, okLines = list.filter(r => r.ok).length;
     const qty = list.reduce((a,r) => a + r.qty, 0), onTime = list.reduce((a,r) => a + r.onTime, 0);
-    return { lines, okLines, rateLines: lines ? okLines / lines * 100 : null, qty, onTime, rateQty: qty ? onTime / qty * 100 : null };
+    const units = [...new Set(list.map(r => r.unit || 'ea'))], mixedUnit = units.length > 1;   // GPT Gate D — 단위 혼합 = 수량 기준 미산출
+    return { lines, okLines, rateLines: lines ? okLines / lines * 100 : null, qty: mixedUnit ? null : qty, onTime: mixedUnit ? null : onTime, unit: mixedUnit ? '' : (units[0] || 'ea'), mixedUnit, rateQty: (!mixedUnit && qty) ? onTime / qty * 100 : null };
   };
   const group = keyFn => { const m = {}; rows.forEach(r => { const k = keyFn(r); (m[k] = m[k] || []).push(r); }); return Object.entries(m).map(([k, list]) => ({ key:k, ...agg(list) })).sort((a,b) => (a.rateLines ?? 101) - (b.rateLines ?? 101) || b.lines - a.lines); };
   return { from, to, today, rows, total: agg(rows), byCust: group(r => r.cust), byItem: group(r => r.itemCode), byCustItem: group(r => r.cust + '|' + r.itemCode), excluded: ex };
 }
 VIEWS._shipOtd = () => {
-  const today = fmtDate(Date.now());
+  const today = _kstDate(Date.now());
   const st = (window._otdFilter = window._otdFilter || { from: today.slice(0,7) + '-01', to: today, cust:'', item:'' });
   const r = calcOnTime({ from: st.from, to: st.to, cust: st.cust || undefined, itemCode: st.item || undefined });
   const pct = v => v == null ? '—' : `${v.toFixed(1)}%`;
@@ -12359,7 +12506,7 @@ VIEWS._shipOtd = () => {
     <div class="card"><h3>${title} <span class="tag">준수율 낮은 순</span></h3>
       <div class="tbl-wrap"><table>
         <thead><tr><th>${label}</th><th class="num">평가 수주</th><th class="num">준수</th><th class="num">건수 기준</th><th class="num">수량 기준</th></tr></thead>
-        <tbody>${list.length ? list.map(g => `<tr><td>${_esc(g.key)}</td><td class="num">${g.lines}</td><td class="num">${g.okLines}</td><td class="num"><b style="color:${rateColor(g.rateLines)}">${pct(g.rateLines)}</b></td><td class="num">${pct(g.rateQty)}</td></tr>`).join('') : `<tr><td colspan="5" class="empty">평가 대상 없음</td></tr>`}</tbody>
+        <tbody>${list.length ? list.map(g => `<tr><td>${_esc(g.key)}</td><td class="num">${g.lines}</td><td class="num">${g.okLines}</td><td class="num"><b style="color:${rateColor(g.rateLines)}">${pct(g.rateLines)}</b></td><td class="num">${g.mixedUnit ? '<span style="color:var(--dim)" title="단위 혼합 — 합산 안 함">단위 혼합</span>' : pct(g.rateQty)}</td></tr>`).join('') : `<tr><td colspan="5" class="empty">평가 대상 없음</td></tr>`}</tbody>
       </table></div></div>`;
   const late = r.rows.filter(x => !x.ok).sort((a,b) => b.delayDays - a.delayDays);
   document.getElementById('view').innerHTML = `
@@ -12375,13 +12522,14 @@ VIEWS._shipOtd = () => {
       <select id="otd-cust" style="max-width:200px"><option value="">고객사 전체</option>${custs.map(c => `<option value="${_esc(c)}" ${st.cust===c?'selected':''}>${_esc(vName(c))}</option>`).join('')}</select>
       <select id="otd-item" style="max-width:220px"><option value="">품목 전체</option>${items.map(c => `<option value="${_esc(c)}" ${st.item===c?'selected':''}>${_esc(iName(c))}</option>`).join('')}</select>
     </div>
-    <div class="mstrip">
-      <div class="mk"><div class="l">납기준수율 (건수)</div><div class="v" style="color:${rateColor(r.total.rateLines)}">${pct(r.total.rateLines)}</div><div class="s">준수 ${r.total.okLines} / 평가 ${r.total.lines}건</div></div>
-      <div class="mk"><div class="l">납기 내 출하율 (수량)</div><div class="v">${pct(r.total.rateQty)}</div><div class="s">${r.total.onTime.toLocaleString()} / ${r.total.qty.toLocaleString()} ea</div></div>
+    <div class="mstrip" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+      <div class="mk"><div class="l">납기준수율 (건수 · 주지표)</div><div class="v" style="color:${rateColor(r.total.rateLines)}">${pct(r.total.rateLines)}</div><div class="s">준수 ${r.total.okLines} / 조회 기간 평가 대상 ${r.total.lines}건</div></div>
+      <div class="mk"><div class="l">납기 내 출하율 (수량)</div><div class="v">${r.total.mixedUnit ? '—' : pct(r.total.rateQty)}</div><div class="s">${r.total.mixedUnit ? '단위 혼합 — 합산 안 함 (품목별 표 참고)' : `${r.total.onTime.toLocaleString()} / ${r.total.qty.toLocaleString()} ${_esc(r.total.unit)} · 보조지표`}</div></div>
       <div class="mk"><div class="l" style="color:var(--red)">지연·미출하</div><div class="v" style="color:${late.length?'var(--red)':'var(--ink)'}">${late.length}건</div><div class="s">부분종결 ${r.rows.filter(x=>x.status==='부분종결').length}건 포함</div></div>
-      <div class="mk"><div class="l">집계 제외</div><div class="v" style="font-size:18px">${r.excluded.cancel + r.excluded.notDue}건</div><div class="s">수주취소 ${r.excluded.cancel}${r.excluded.lateCancel?` (납기 후 취소 ${r.excluded.lateCancel})`:''} · 미도래 ${r.excluded.notDue} · 납기 미등록(전체) ${r.excluded.noDue}</div></div>
+      <div class="mk"><div class="l">조회 기간 집계 제외</div><div class="v" style="font-size:18px">${r.excluded.cancel + r.excluded.notDue + r.excluded.dueToday}건</div><div class="s">수주취소 ${r.excluded.cancel}${r.excluded.lateCancel?` (납기 후 취소 ${r.excluded.lateCancel})`:''} · 미도래 ${r.excluded.notDue} · 오늘 납기 대기 ${r.excluded.dueToday}</div></div>
+      <div class="mk"><div class="l" style="color:var(--amber)">납기 미등록 · 전체기간</div><div class="v" style="font-size:18px;color:${r.excluded.noDue?'var(--amber)':'var(--ink)'}">${r.excluded.noDue}건</div><div class="s">${(st.cust||st.item) ? `선택한 ${[st.cust?'고객사':'', st.item?'품목':''].filter(Boolean).join('·')} 기준` : '전사 기준'} · 준수율 분모 미포함</div></div>
     </div>
-    <div style="font-size:11px;color:var(--sub);margin:-4px 0 12px">기준: <b>출하일</b>(고객 도착일 아님) · 납기 = 현재(최종) 납기 · 건수 기준 = 납기일까지 수주량 전량 출하 · 수량 기준 = 납기일까지 출하량 ÷ 수주량 · 수주취소(출하 0)는 제외 · 부분종결은 원 수주량으로 평가</div>
+    <div style="font-size:11px;color:var(--sub);margin:-4px 0 12px">기준: <b>출하일</b>(고객 도착일 아님) · 날짜 = 한국 시간(KST) · 납기 = 현재(최종) 납기 — 납기·출하일이 바뀌면 지난 기간 값도 다시 계산됨(저장된 보고서 스냅샷은 그대로) · 건수 기준 = 납기일까지 수주량 전량 출하 · 수량 기준 = 납기일까지 출하량 ÷ 수주량(단위가 섞이면 합산 안 함) · 오늘 납기는 전량 출하 전까지 평가 대기 · 수주취소(출하 0)는 제외 · 부분종결은 원 수주량으로 평가</div>
     <div class="grid g2" style="align-items:start">
       ${grpTable('고객사별', r.byCust.map(g => ({...g, key: vName(g.key)})), '고객사')}
       ${grpTable('품목별', r.byItem.map(g => ({...g, key: iName(g.key)})), '품목')}
@@ -12402,7 +12550,7 @@ VIEWS._shipOtd = () => {
   document.getElementById('otd-cust').onchange = e => { st.cust = e.target.value; re(); };
   document.getElementById('otd-item').onchange = e => { st.item = e.target.value; re(); };
   document.getElementById('otd-xlsx').onclick = () => exportXlsx(r.rows.map(x => ({
-    수주번호:x.id, 고객사:vName(x.cust), 품번:x.itemCode, 납기:x.due, 수주량:x.qty, 납기내출하:x.onTime, 총출하:x.shipped,
+    수주번호:x.id, 고객사:vName(x.cust), 품번:x.itemCode, 납기:x.due, 수주량:x.qty, 단위:x.unit, 납기내출하:x.onTime, 총출하:x.shipped,
     준수: x.ok ? 'O' : 'X', 상태:x.status, 지연일:x.delayDays, 납기변경: x.dueChanged.map(c => `${c.from}→${c.to}`).join(' / ') })), '납기실적', `납기실적_${st.from}_${st.to}.xlsx`);
 };
 
@@ -12861,6 +13009,7 @@ VIEWS.os = () => {
       <div class="pgtools">
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${osState.voidView?'rgba(248,113,113,.08)':'var(--bg2)'}"><input type="checkbox" id="os-void-view" ${osState.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
         <button class="btn" id="os-xlsx">${ico('excel')}엑셀</button>
+        ${flags.closing && menuCanSee(PAGES.find(p => p.id === 'closing')) ? `<button class="btn ghost" id="os-goto-closing" title="외주처 월 정산 = 마감 › 외주 탭 (전월 이월·건별 이월 반영)">외주 정산 → 마감</button>` : ''}
         <button class="btn primary" id="btn-disp">${ico('plus')}외주 반출</button>
       </div>
     </div>
@@ -12944,8 +13093,8 @@ VIEWS.os = () => {
       </table></div>
     </div>
 
-    <!-- ★ v0.16.5 — 월별 외주처 정산 카드 -->
-    <div class="card">
+    <!-- ★ v0.16.5 — 월별 외주처 정산 카드 · ★ v0.38.17 마감 모듈 ON 이면 표시 안 함 (정산 확정 = 마감 › 외주 · 계산 1벌 calcClosing) -->
+    ${flags.closing ? '' : `<div class="card">
       <h3>월별 외주처 정산 <span class="tag">live os_receipts × outsource_rates · 취소 실적 자동 제외</span></h3>
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
         <label style="font-size:11px;color:var(--sub);font-weight:600">정산월</label>
@@ -12982,11 +13131,13 @@ VIEWS.os = () => {
         </tbody>
       </table></div>
       ${settleHasMissing? '<div style="font-size:11px;color:var(--red);margin-top:8px">요율 미등록 외주 공정이 있어 총 정산액을 부분합으로 위장하지 않습니다 — 원가관리 → 단가표 편집에서 등록하세요.</div>':''}
-    </div>
+    </div>`}
   `;
-  // ★ v0.16.5 — 정산 카드 이벤트
-  document.getElementById('os-settle-month').onchange = e => { settleState.month = e.target.value; router(); };
-  document.getElementById('os-settle-xlsx').onclick = ()=>{
+  // ★ v0.38.17 — 외주 정산은 마감 › 외주 탭에서 (마감 모듈 ON 일 때 바로 가기)
+  document.getElementById('os-goto-closing')?.addEventListener('click', () => { if(window._closingState) window._closingState.type = 'outsource'; else window._closingState = { type:'outsource', month: fmtDate(Date.now()).slice(0,7), paidDraft:{}, startDraft:{} }; location.hash = '#closing'; });
+  // ★ v0.16.5 — 정산 카드 이벤트 (마감 모듈 OFF 일 때만 존재)
+  if(document.getElementById('os-settle-month')) document.getElementById('os-settle-month').onchange = e => { settleState.month = e.target.value; router(); };
+  if(document.getElementById('os-settle-xlsx')) document.getElementById('os-settle-xlsx').onclick = ()=>{
     const xrows = settleRows.map(g=>({
       외주처: DB.get('vendors',g.vendor)?.name||g.vendor,
       공정: DB.get('processes',g.proc)?.name||g.proc,
