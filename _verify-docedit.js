@@ -82,7 +82,7 @@ const p6 = X(`(()=>{
   const r2 = T(() => docEditValidate('material_receipts', 'MR-T', { heat:'H-X', kg: 1 }));
   const keys = Object.keys(DOC_EDIT_SPEC).flatMap(c => DOC_EDIT_SPEC[c].fields({}).map(f => c + '.' + f.k));
   const forbidden = keys.filter(k => /\\.(qty|kg|good|defect|plot_no|heat|so_id|itemCode|proc|pallets|mat|dia|po_id)$/.test(k));
-  setFlag('ship_qty_fix', true); const forbiddenOn = Object.keys(DOC_EDIT_SPEC).flatMap(c => DOC_EDIT_SPEC[c].fields({}).map(f => c + '.' + f.k)).filter(k => /\\.(qty|kg|good|defect|plot_no|heat|so_id|itemCode|proc|pallets|mat|dia|po_id)$/.test(k)); setFlag('ship_qty_fix', flag0);
+  setFlag('ship_qty_fix', true); sessionStorage.setItem('vela_demo','1'); const forbiddenOn = Object.keys(DOC_EDIT_SPEC).flatMap(c => DOC_EDIT_SPEC[c].fields({}).map(f => c + '.' + f.k)).filter(k => /\\.(qty|kg|good|defect|plot_no|heat|so_id|itemCode|proc|pallets|mat|dia|po_id)$/.test(k)); setFlag('ship_qty_fix', flag0); sessionStorage.removeItem('vela_demo');   // v0.38.22 — 수량 정정은 데모(시험)에서만 열림
   return { emptyShip: r1 && r1.empty === true, emptyMr: r2 && r2.empty === true, forbidden, forbiddenOn, same: JSON.stringify(DB.get('shipments', sh.id)) === sh0 };
   function T(f){ try { return f(); } catch(e){ return 'ERR ' + e.message; } }
 })()`);

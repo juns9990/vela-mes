@@ -72,7 +72,7 @@ const m1 = X(`(()=>{ location.hash='#qc'; router(); const s = secList().find(x =
 P('10b 명시 표식 data-sec-lock: 부적합 목록(HOLD·판정)·동시성 사고 = 잠금 1순위(mark) · 스위치 없음 · 저장값 있어도 표시', m1.found && m1.lockBy === 'mark' && !m1.sw && !m1.off && m1.audit === 'mark', JSON.stringify(m1));
 const m2 = X(`(()=>{ const v = document.getElementById('view');
   v.insertAdjacentHTML('beforeend', '<div class="card" data-sec-lock="safety" data-sec-id="t-plain"><h3>평범한 제목</h3><div>x</div></div><div class="card"><h3>원장 정합성 경고</h3><div>y</div></div>');
-  _secToggleEnhance(); const l = secList(); const a = l.find(x => x.key.endsWith(':t-plain')), b = l.find(x => /정합성/.test(x.title));
+  _secToggleEnhance(); const l = secList(); const a = l.find(x => x.key.endsWith(':t-plain')), b = l.find(x => x.title === '원장 정합성 경고');
   return { a: a && a.lockBy, aSw: a && !!a.h.querySelector('.sec-x'), b: b && b.lockBy }; })()`);
 P('10c 키워드 없는 제목이라도 표식이 있으면 잠금 · 표식 없는 단락은 제목 키워드가 보조 방어(정합성 등)', m2.a === 'mark' && !m2.aSw && m2.b === 'keyword', JSON.stringify(m2));
 const m3 = X(`(()=>{ location.hash='#plan'; router(); const k1 = (secList().find(x => x.card.dataset.secId === 'plan-day') || {}).key;

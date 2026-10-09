@@ -118,7 +118,7 @@ const body = `
     // 12 표준 시뮬·기존 하네스 승계는 별도 파일(_verify-sim-standard·2tab·lock-live·correct-guard) — 여기서는 J1′ 함수 자체
     const v = verifyLotInvariant(PL2);
     P('12 J1′ verifyLotInvariant: PL-Q60-C 전 공정 err 0 · pending 0 → ok', v.ok && v.checks.every(c => c.err === 0 && c.pending === 0), JSON.stringify(v.checks.map(c=>[c.proc,c.accepted,c.pending,c.bal])));
-    P('버전 v0.38.21', APP_VERSION === 'v0.38.21', APP_VERSION);
+    P('버전 v0.38.22', APP_VERSION === 'v0.38.22', APP_VERSION);
   } catch(e){ window.__T.push({ n:'FATAL', ok:false, note: e.stack || e.message }); }
 })();`;
 win.eval(scripts.join('\n;\n') + body);

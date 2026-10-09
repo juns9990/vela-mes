@@ -1426,7 +1426,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.21';
+const APP_VERSION = 'v0.38.22';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2507,6 +2507,10 @@ const FEATURE_DEPS = {
 };
 /* ★ v0.38.21 — 시험 기능(실운영 활성화 전 Gate 남음): 기본 끔 · 풀옵션 프리셋 제외 · 데모(풀옵션 시연)에서는 켜짐 */
 const EXPERIMENTAL_FLAGS = ['ship_qty_fix'];
+/* ★ v0.38.22 (GPT v0.38.21 판정 ①) — 서버 Gate: 서버 권한·동시성·원자성 검증 전에는 실데이터에서 플래그를 켜도 저장 차단 (데모만 시험)
+   Gate 통과 시 이 값을 true 로 바꾸는 것은 별도 SPEC·GPT 판정·사용자 승인 후 */
+const SERVER_GATES = { ship_qty_fix: false };
+function shipQtyFixEnabled(){ return !!getFlags().ship_qty_fix && (isDemoMode() || SERVER_GATES.ship_qty_fix === true); }
 function defaultFlags(){
   const f={};
   MODULE_DEFS.forEach(m=>m.items.forEach(([k,_,def])=>{f[k]=!!def}));
@@ -9478,6 +9482,7 @@ function lotTimeline(plot_no){
   DB.allRaw('concurrency_incidents').filter(c => c.plot_no === plot_no).forEach(c => {
     ev.push({ ts:+c.ts||0, kind:'사고', text: c.pending != null ? `동시성 사고 ${c.id} 감지 — ${c.proc} 초과 ${c.pending}ea 보류 (충돌 실적 ${(c.conflict_records||[]).length}건 · 인정분은 진행)` : `동시성 사고 ${c.id} 감지 — ${c.proc} 잔량 ${c.balance}ea (충돌 실적 ${(c.conflict_records||[]).length}건)`, by:c.detected_by||'' });
     (c.judgments||[]).forEach(j => ev.push({ ts:+j.ts||0, kind:'사고', text:`동시성 사고 ${c.id} 판정 Case ${j.case} — ${j.reason}`, by:j.by||'' }));   // ★ v0.36.0
+    (c.pending_log||[]).filter(x => x.kind === 'ship').forEach(x => shipQtyFixEvents(x.ref_id).forEach(e => ev.push({ ts:+e.ts||0, kind:'사고', text:`동시성 사고 ${c.id} 관련 출하 수량 정정 ${e.from} → ${e.to}ea — ${x.ref_id}`, by:e.by||'' })));
     (c.pending_log||[]).forEach(x => ev.push({ ts:+x.ts||0, kind:'사고', text: x.kind === 'ship-correct' ? `동시성 사고 ${c.id} 관련 출하 수량 정정 ${x.qty_before} → ${x.qty_after}ea — ${x.ref_id}` : `동시성 사고 ${c.id} 보류 중 인정분 ${x.kind==='ship'?'출하':'반출'} ${x.qty}ea — ${x.ref_id}`, by:x.by||'' }));
     if(c.resolved?.ts) ev.push({ ts:+c.resolved.ts, kind:'사고', text:`동시성 사고 ${c.id} 해제 — J1′ 재검증 통과 (보류 0)`, by:c.resolved.by||'' });
   });
@@ -10766,8 +10771,8 @@ const DOC_EDIT_SPEC = {
     locked: d => [['양품 · 불량', `${(+d.good||0).toLocaleString()} · ${(+d.defect||0).toLocaleString()}`], ['입고일', fmtDate(d.ts||0) + ' (실적 연동 — 2차)']],
     fields: d => [ { k:'memo', label:'비고', type:'text' } ] },
   shipments: { title:'출하', clType:'sales',
-    locked: d => [['수주 · LOT', `${d.so_id||''} · ${d.plot_no||''}`]].concat(getFlags().ship_qty_fix ? [] : [['출하 수량', `${(+d.qty||0).toLocaleString()} ea — 바꾸려면 [취소] 후 재등록`]]).concat([['파렛트', `${+d.pallets||0} — 수량 정정과 무관 (파렛트 화면에서 조정)`]]),
-    fields: d => (getFlags().ship_qty_fix ? [{ k:'qty', label:`출하 수량 (ea) — 오타 정정 · ${(d.qty_hist||[]).length}/${SHIP_QTY_FIX_MAX}회`, type:'number', impact:true }] : []).concat([
+    locked: d => [['수주 · LOT', `${d.so_id||''} · ${d.plot_no||''}`]].concat(shipQtyFixEnabled() ? [] : [['출하 수량', `${(+d.qty||0).toLocaleString()} ea — 바꾸려면 [취소] 후 재등록${getFlags().ship_qty_fix ? ' (수량 정정 = 시험 기능 · 데모에서만)' : ''}`]]).concat([['파렛트', `${+d.pallets||0} — 수량 정정과 무관 (파렛트 화면에서 조정)`]]),
+    fields: d => (shipQtyFixEnabled() ? [{ k:'qty', label:`출하 수량 (ea) — 오타 정정 · ${(d.qty_hist||[]).length}/${SHIP_QTY_FIX_MAX}회`, type:'number', impact:true }] : []).concat([
       { k:'date', label:'출하일', type:'date', impact:true, lock: d.cl_month ? '건별 이월 적용 중 — 이월 해제 후' : '' },
       { k:'pack_qty_actual', label:'실제 포장수량 (ea/포장)', type:'number' },
       { k:'memo', label:'비고', type:'text' } ]) },
@@ -10786,15 +10791,18 @@ const SHIP_QTY_FIX_MAX = 5;
 
 function shipQtyFixCheck(id, newQty){
   if(!getFlags().ship_qty_fix) throw new Error('출하 수량 정정 기능이 꺼져 있습니다 (설정 › 기능)');
+  if(!shipQtyFixEnabled()) throw new Error('실데이터에서는 서버 권한·동시성 검증 전까지 수량 정정 저장이 차단됩니다 (데모에서만 시험 가능)');
   const d = DB.get('shipments', id); if(!d || d.void) throw new Error('출하 없음 (취소된 출하는 정정 불가)');
   const q = +newQty;
   if(!(Number.isInteger(q) && q >= 1)) throw new Error('출하 수량은 1 이상 정수(ea)');
   const old = +d.qty || 0;
   if(q === old) return { old, next:q, delta:0, pending:[], incidents:[], warn:[] };
   if((d.qty_hist || []).length >= SHIP_QTY_FIX_MAX) throw new Error(`수량 정정은 출하 1건당 ${SHIP_QTY_FIX_MAX}회까지 — 이후는 [취소] 후 재등록`);
+  if(!d.so_id || !d.plot_no) throw new Error('출하의 수주·LOT 연결이 비어 있음 — 정정 불가 ([취소] 후 재등록)');   // ★ v0.38.22 P1 — 필수 연결 누락 차단
   const o = DB.get('orders', d.so_id); if(!o || o.void) throw new Error('연결 수주 없음 — 정정 불가');
   const lot = DB.get('production_lots', d.plot_no); if(!lot) throw new Error('연결 LOT 없음 — 정정 불가');
-  if(lot.itemCode && o.itemCode && lot.itemCode !== o.itemCode) throw new Error(`LOT 품번(${lot.itemCode}) ≠ 수주 품번(${o.itemCode}) — 정정 불가`);
+  if(!lot.itemCode || !o.itemCode) throw new Error('수주 또는 LOT 의 품번이 비어 있음 — 정정 불가');
+  if(lot.itemCode !== o.itemCode) throw new Error(`LOT 품번(${lot.itemCode}) ≠ 수주 품번(${o.itemCode}) — 정정 불가`);
   assertSoOpen(o.id, '출하 수량 정정');   // 종결 수주 = 재개 후
   const delta = q - old, warn = [];
   const soOthers = DB.query('shipments', x => x.so_id === o.id && x.id !== id).reduce((a,x) => a + (+x.qty||0), 0);
@@ -10812,6 +10820,8 @@ function shipQtyFixCheck(id, newQty){
     const avail = bal - lotOthers - old;
     incidents = assertWithinAccepted(d.plot_no, delta, '출하 수량 정정', avail).incidents || [];
     pending = assertQuarantine(d.plot_no, delta, '출하 수량 정정', avail).pending || [];
+    // ★ v0.38.22 (GPT P0) — 정정은 출하 문서 1건만 쓴다(단일 문서 = 원자적). 증가분이 판정 대기·동시성 보류에 걸리면 별도 문서 기록이 필요해지므로 차단
+    if(pending.length || incidents.length) throw new Error(`판정 대기·동시성 보류 중인 LOT 은 증가 정정 불가 (${[...pending, ...incidents].map(x => x.id).join(', ')}) — 판정·해제 후 정정하거나 새 출하로 등록`);
   }
   return { old, next:q, delta, pending, incidents, warn };
 }
@@ -10892,20 +10902,22 @@ function docEditSave(col, id, input, reason, opts){
   }
   const r = DB.correct(col, id, v.patch, `${DOC_EDIT_SPEC[col].title} 수정: ${reason || '비고·포장'}`);
   if(!r) throw new Error('저장 안 됨 — 권한 확인');
-  if(sf) shipQtyFixTrace(id, sf, reason);
+  // ★ v0.38.22 (GPT P0) — 품질·사고 문서에 추가 쓰기 없음: 정정 추적은 출하 문서의 qty_hist 가 유일한 권위 · NC·사고 화면은 qty_hist 를 읽어 파생 표시
   return { ok:true, doc:r };
 }
-/* ★ v0.38.21 — 품질·동시성 추적 정합: 이 출하를 참조한 NC pending_out · 사고 pending_log 는 원본 그대로 두고 「정정」 항목을 추가
-   (원래 수량 = 원본 항목 · 현재 유효 수량 = 마지막 정정 항목 / 출하 문서) · 증가분이 판정 대기·보류 중이면 그 증가분을 새로 기록 */
-function shipQtyFixTrace(id, sf, reason){
-  const ent = { kind:'ship-correct', ref_id:id, qty_before:sf.old, qty_after:sf.next, qty: sf.next, ts:Date.now(), by:SESSION.user || 'system', reason:reason || '' };
-  DB.all('nc_records').filter(n => (n.pending_out || []).some(o => o.ref_id === id)).forEach(n => DB.set('nc_records', n.id, { pending_out: (n.pending_out || []).concat([ent]) }));
-  DB.all('concurrency_incidents').filter(c => (c.pending_log || []).some(o => o.ref_id === id)).forEach(c => DB.set('concurrency_incidents', c.id, { pending_log: (c.pending_log || []).concat([ent]) }));
-  if(sf.delta > 0){
-    const fresh = (list, col, key) => (list || []).filter(x => !((DB.get(col, x.id) || {})[key] || []).some(o => o.ref_id === id));
-    if(sf.pending.length) ncRecordPendingOut(fresh(sf.pending, 'nc_records', 'pending_out'), 'ship', id, sf.delta);
-    if(sf.incidents.length) ciRecordPendingOut(fresh(sf.incidents, 'concurrency_incidents', 'pending_log'), 'ship', id, sf.delta);
-  }
+/* ★ v0.38.22 — 출하 정정 이력 파생 표시 1벌 (NC 상세 · 사고 이력 · LOT 생애 공용 · 저장 0) */
+function shipQtyFixEvents(ref_id){
+  const sh = DB.allRaw('shipments').find(x => x.id === ref_id);
+  return ((sh && sh.qty_hist) || []).map(h => ({ ts:h.ts, by:h.by, from:h.from, to:h.to, reason:h.reason, cur: +sh.qty || 0, void: !!sh.void }));
+}
+/* ★ v0.38.22 (GPT ②) — 원장 정합성: LOT 출하 합이 인정양품을 넘는 상태(레거시·외부 이관 등) — 파생 · 정상 원장으로 판정하지 않음 */
+function lotShipOverage(plot){
+  const lot = DB.get('production_lots', plot); if(!lot) return null;
+  const r = getRoute(lot.itemCode); if(!r.length) return null;
+  const lp = r.length > 1 ? r[r.length-2] : r[0];
+  const good = LOT.acceptedGood(plot, lp.proc);
+  const shipped = DB.query('shipments', x => x.plot_no === plot).reduce((a,x) => a + (+x.qty||0), 0);
+  return { plot, proc: lp.proc, good, shipped, over: Math.max(0, shipped - good) };
 }
 VIEWS._docEdit = (col, id) => {
   if(col === 'purchase_orders') return VIEWS._poEdit(id);
@@ -10958,7 +10970,7 @@ VIEWS._docEdit = (col, id) => {
         + ` · 매출 ${amt >= 0 ? '+' : '−'}₩${Math.abs(Math.round(amt)).toLocaleString()} · 수주 잔량 ${-sf.delta > 0 ? '+' : ''}${(-sf.delta).toLocaleString()} · LOT 남은 양품 ${-sf.delta > 0 ? '+' : ''}${(-sf.delta).toLocaleString()}`
         + (im && im.changed ? `<br>납기준수: ${_esc(im.before)} → ${_esc(im.after)}` : '')
         + (sf.warn.length ? `<br><span style="color:var(--amber)">⚠ ${_esc(sf.warn.join(' / '))} (감소 정정은 허용 · 이력에 기록)</span>` : '')
-        + (sf.pending.length || sf.incidents.length ? `<br><span style="color:var(--amber)">증가분이 판정 대기·보류 중 수량에 걸림 — 기록이 함께 남습니다</span>` : '')
+
         + `<br><span style="color:var(--amber)">거래명세서를 이미 발행·전달했다면 정정 내용으로 다시 발행하고 거래처(${_esc(DB.get('vendors', o?.cust)?.name || o?.cust || '')})에 알려 주세요</span>`
         + `<br><span style="color:var(--sub)">파렛트 ${+d.pallets||0}개는 그대로 — 필요하면 파렛트 화면에서 조정</span>`;
     } catch(e){ box.style.color = 'var(--red)'; box.textContent = '저장 불가 — ' + e.message; }
@@ -19019,6 +19031,16 @@ VIEWS.audit = () => {
       : `<div class="empty" style="padding:14px">감지된 동시성 사고 없음 — 두 단말이 같은 공정에 가용을 넘겨 등록하면 초과분이 보류로 기록됩니다 (인정분은 진행)</div>`}
     </div>
 
+    <div class="card" data-sec-id="audit-ship-overage" data-sec-lock="safety">
+      ${(() => {
+        // ★ v0.38.22 (GPT v0.38.21 판정 ②) — 원장 정합성: LOT 출하 합 > 인정양품 (파생 · 저장 0 · 정상 원장으로 판정하지 않음)
+        const rows = [...new Set(DB.all('shipments').map(x => x.plot_no).filter(Boolean))].map(lotShipOverage).filter(x => x && x.over > 0).sort((a,b) => b.over - a.over);
+        return `<h3>원장 정합성 · LOT 출하 초과 <span class="pill ${rows.length ? 'amber' : 'green'}" style="font-size:10px">${rows.length ? `미해결 ${rows.length} LOT` : '0건'}</span></h3>
+        ${rows.length ? `<div class="tbl-wrap"><table><thead><tr><th>LOT</th><th>기준 공정</th><th class="num">인정양품</th><th class="num">출하 합</th><th class="num">초과</th></tr></thead><tbody>${rows.map(x => `<tr><td class="mono">${_esc(x.plot)}</td><td>${_esc(x.proc)}</td><td class="num">${x.good.toLocaleString()}</td><td class="num">${x.shipped.toLocaleString()}</td><td class="num"><b style="color:var(--amber)">${x.over.toLocaleString()}</b></td></tr>`).join('')}</tbody></table></div>
+        <div style="font-size:11px;color:var(--sub);margin-top:7px">출하 등록 가드 이전·이관 데이터 등으로 출하 합이 LOT 인정양품을 넘은 상태 — 증가 출하·증가 정정은 차단 · 감소 정정은 허용(이력에 「확인 필요」) · 실적 누락 보정 또는 출하 정정으로 해소</div>` : `<div class="empty" style="padding:14px">출하 합이 인정양품을 넘는 LOT 없음</div>`}`;
+      })()}
+    </div>
+
     <div class="card">
       <h3>LOT 생애주기 <span class="tag">원장 연결 — 생성 → 실적 → 보정 → 품질 HOLD/해제 → 사고 잠금/해제 → 반출 → 출하</span></h3>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
@@ -24084,6 +24106,7 @@ VIEWS._qcDetail = (nc_id) => {
   }
   // ★ v0.35.9-B — HOLD 설정/해제 · 판정 대기 중 출하/반출 이력 (Audit: NC 문서 hold_log/pending_out + _logs)
   (nc.hold_log || []).forEach(h => timeline.push({ ts: h.ts, by: h.by, label: h.on ? `🔴 로트 불량 HOLD 설정${h.reason?` · ${h.reason}`:''}` : `⚠ HOLD 해제 → 불량 수량만 격리${h.reason?` · ${h.reason}`:''}` }));
+  (nc.pending_out || []).filter(o => o.kind === 'ship').forEach(o => shipQtyFixEvents(o.ref_id).forEach(e => timeline.push({ ts: e.ts, by: e.by, label: `✎ 출하 수량 정정 · ${o.ref_id} · ${(+e.from).toLocaleString()} → ${(+e.to).toLocaleString()}ea (현재 유효 ${e.void ? '취소됨' : e.cur.toLocaleString() + 'ea'})` })));
   (nc.pending_out || []).forEach(o => timeline.push({ ts: o.ts, by: o.by, label: o.kind === 'ship-correct' ? `✎ 출하 수량 정정 · ${o.ref_id} · ${(+o.qty_before||0).toLocaleString()} → ${(+o.qty_after||0).toLocaleString()}ea (현재 유효 ${(+(DB.get('shipments', o.ref_id)||{}).qty||0).toLocaleString()}ea)` : `⚠ 판정 대기 중 ${o.kind === 'ship' ? '출하' : '외주 반출'} · ${o.ref_id} · ${(+o.qty||0).toLocaleString()}ea` }));
   timeline.sort((a,b) => (a.ts||0) - (b.ts||0));
   if(isVoid){

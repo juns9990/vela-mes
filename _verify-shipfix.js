@@ -1,4 +1,4 @@
-// ★ v0.38.21 — 출하 수량 정정 회귀 (SPEC 「등록 후 수정 v0.3」 · GPT D5~D10 · 기본 끔 기능 플래그 ship_qty_fix)
+// ★ v0.38.21/22 — 출하 수량 정정 회귀 (v0.38.22 = GPT 판정 반영: 서버 Gate · 단일 문서 · 필수 연결 · 정합성 표시) (SPEC 「등록 후 수정 v0.3」 · GPT D5~D10 · 기본 끔 기능 플래그 ship_qty_fix)
 // Usage: node _verify-shipfix.js   (VELA_FILE=index-dev.html 지원)
 const fs = require('fs'), path = require('path');
 const { JSDOM, VirtualConsole } = require(path.join(__dirname, 'node_modules/jsdom'));
@@ -32,7 +32,12 @@ const A = () => X(`({ qty: DB.get('shipments','SH-FX').qty, hist: (DB.get('shipm
 const f0 = X(`(()=>{ const demoOn = getFlags().ship_qty_fix; setFlag('ship_qty_fix', false); const flagDefault = defaultFlags().ship_qty_fix || EXPERIMENTAL_FLAGS.indexOf('ship_qty_fix') < 0; const fields = DOC_EDIT_SPEC.shipments.fields(DB.get('shipments','SH-FX')).map(f=>f.k); const v = docEditValidate('shipments','SH-FX',{ qty:'30' });
   let thr = ''; try { shipQtyFixCheck('SH-FX', 30); } catch(e){ thr = e.message; } return { demoOn, flagDefault, fields, patch: v.patch, empty: v.empty, thr, deps: JSON.stringify(FEATURE_DEPS.ship_qty_fix) }; })()`);
 P('F0 실데이터 기본 = 꺼짐(시험 기능 · 풀옵션 프리셋 제외 · 데모만 켜짐) · 끄면 수량 칸 없음 · 수량 입력 무시 · 검사 함수 거부 · 의존성 ship', f0.demoOn === true && f0.flagDefault === false && !f0.fields.includes('qty') && f0.empty === true && /꺼져/.test(f0.thr) && f0.deps === '{"needs":["ship"],"breaks":[]}', JSON.stringify(f0));
+// G1 (GPT v0.38.21 ①) 실데이터(데모 아님) = 플래그를 켜도 저장 차단 · 수량 칸 없음
 X(`setFlag('ship_qty_fix', true); 1`);
+const g1 = X(`(()=>{ const demo = isDemoMode(); const fields = DOC_EDIT_SPEC.shipments.fields(DB.get('shipments','SH-FX')).map(f=>f.k); const locked = DOC_EDIT_SPEC.shipments.locked(DB.get('shipments','SH-FX')).map(x=>x.join(':')).join('|');
+  let e=''; try { shipQtyFixCheck('SH-FX', 30); } catch(x){ e = x.message; } const v = docEditValidate('shipments','SH-FX',{ qty:'30' }); return { demo, fields, locked, e, empty: v.empty, gate: SERVER_GATES.ship_qty_fix }; })()`);
+P('G1 실데이터(데모 아님): 플래그 켜도 수량 칸 없음 · 저장 차단(서버 Gate) · 입력 무시 · SERVER_GATES=false', g1.demo === false && !g1.fields.includes('qty') && /데모에서만/.test(g1.locked) && /서버 권한·동시성/.test(g1.e) && g1.empty === true && g1.gate === false, JSON.stringify(g1));
+X(`sessionStorage.setItem('vela_demo','1'); 1`);   // 이후 = 데모(시험) 환경
 const a0 = A();
 // F1 감소 정정
 const r1 = E(`docEditSave('shipments','SH-FX',{ qty:'30' }, '수량 오타')`);
@@ -54,16 +59,26 @@ const h = X(`(()=>{ const n = qcRegisterNc({ lot_id: window.__fx.plot, item_code
   let down = 'OK'; try { docEditSave('shipments','SH-FX',{ qty:'59' }, 'HOLD 중 감소'); } catch(e){ down = e.message; }
   voidDoc('nc_records', n.id, '검증'); return { up, down, qty: DB.get('shipments','SH-FX').qty }; })()`);
 P('F5 품질 HOLD LOT: 증가 정정 차단 · 감소 정정은 허용', /HOLD/.test(h.up) && h.down === 'OK' && h.qty === 59, JSON.stringify(h));
-// F6 판정 대기(격리) 추적: 기존 참조 출하 → 정정 항목 추가(원본 유지) · 증가분 새 기록
+// F6 (GPT P0) 단일 문서 쓰기: NC·사고 문서 무변 · NC 상세는 qty_hist 파생 표시 · 판정 대기 LOT 증가 정정 차단
 const q = X(`(()=>{
   const n = qcRegisterNc({ lot_id: window.__fx.plot, item_code: window.__fx.item, defect_type: (DB.all('defect_types')[0]||{}).code || 'D', qty: 1, hold: false });
   DB.set('nc_records', n.id, { pending_out: [{ kind:'ship', ref_id:'SH-FX', qty:59, ts:Date.now(), by:'검증' }] });
+  const nc0 = JSON.stringify(DB.get('nc_records', n.id));
   docEditSave('shipments','SH-FX',{ qty:'55' }, '추적 정정');
-  const po = DB.get('nc_records', n.id).pending_out;
+  const same = JSON.stringify(DB.get('nc_records', n.id)) === nc0;
+  let up = 'OK'; try { docEditSave('shipments','SH-FX',{ qty:'56' }, '판정 대기 중 증가'); } catch(e){ up = e.message; }
   VIEWS._qcDetail(n.id); const tl = document.getElementById('modal').textContent; closeModal();
   voidDoc('nc_records', n.id, '검증');
-  return { n: po.length, first: po[0], last: po[po.length-1], tl: /출하 수량 정정 · SH-FX · 59 → 55ea \\(현재 유효 55ea\\)/.test(tl) }; })()`);
-P('F6 판정 대기 NC 추적: 원본 항목(59) 그대로 + 「정정 59 → 55」 항목 추가 · NC 상세에 현재 유효 수량 표시', q.n === 2 && q.first.qty === 59 && q.first.kind === 'ship' && q.last.kind === 'ship-correct' && q.last.qty_before === 59 && q.last.qty_after === 55 && q.tl, JSON.stringify(q));
+  return { same, up, tl: /출하 수량 정정 · SH-FX · 59 → 55ea \\(현재 유효 55ea\\)/.test(tl), qty: DB.get('shipments','SH-FX').qty }; })()`);
+P('F6 (GPT P0) 정정 = 출하 문서 1건만 쓰기 · NC 문서 무변 · NC 상세는 qty_hist 파생 「59 → 55ea (현재 유효 55ea)」 · 판정 대기 LOT 증가 정정 차단', q.same && /판정 대기·동시성 보류/.test(q.up) && q.tl && q.qty === 55, JSON.stringify(q));
+// G2 (GPT P1) 필수 연결 누락 차단
+const g2 = X(`(()=>{ const out = {};
+  DB.set('shipments','SH-FXN',{ id:'SH-FXN', so_id:'SO-FX', itemCode:window.__fx.item, plot_no:'', qty:1, pallets:0, ts:Date.now(), by:'검증' });
+  try { shipQtyFixCheck('SH-FXN', 2); out.noPlot = 'OK'; } catch(e){ out.noPlot = e.message; }
+  const it = DB.get('orders','SO-FX').itemCode; DB.set('orders','SO-FX',{ itemCode:'' });
+  try { shipQtyFixCheck('SH-FX', 54); out.noItem = 'OK'; } catch(e){ out.noItem = e.message; }
+  DB.set('orders','SO-FX',{ itemCode: it }); voidDoc('shipments','SH-FXN','검증'); return out; })()`);
+P('G2 (GPT P1) 수주·LOT 연결 비어 있음 · 품번 비어 있음 → 정정 차단 (불일치 검사 우회 없음)', /연결이 비어/.test(g2.noPlot) && /품번이 비어/.test(g2.noItem), JSON.stringify(g2));
 // F7 마감 월 · 계산서 월 · 종결 수주 · 취소 문서
 const m = X(`_tsMonth(Date.now())`);
 const e7a = X(`(()=>{ DB.set('closings', _closingId('sales','${m}'), { id:_closingId('sales','${m}'), type:'sales', month:'${m}', ts:Date.now() }); let e='OK'; try { docEditSave('shipments','SH-FX',{ qty:'54' }, '마감 중'); } catch(x){ e = x.message; } DB.set('closings', _closingId('sales','${m}'), { void:{ ts:Date.now(), reason:'검증 해제' } }); return e; })()`);
@@ -100,12 +115,17 @@ const ov = X(`(()=>{ const K = Date.now();
   const l = (DB.get('shipments','SH-FXO')._logs||[]).filter(x=>x.op==='correct').pop() || {}; voidDoc('shipments','SH-FXO','검증');
   return { up, down, reason: l.reason }; })()`);
 P('F10b 기존 초과 원장(레거시): 증가 정정 차단 · 감소 정정 허용 + 「⚠ 정정 후에도 … 초과 — 확인 필요」 감사 기록', /초과/.test(ov.up) && ov.down === 'OK' && /⚠ .*확인 필요/.test(ov.reason || ''), JSON.stringify(ov));
+// G3 (GPT ②) 원장 정합성 화면: LOT 출하 초과 = 감사 화면 잠금 단락에 계속 표시
+const g3 = X(`(()=>{ DB.set('shipments','SH-FXO2',{ id:'SH-FXO2', so_id:'SO-FX', itemCode:window.__fx.item, plot_no:window.__fx.plot, qty: window.__fx.bal + 7, pallets:0, ts:Date.now(), by:'검증' });
+  const ov = lotShipOverage(window.__fx.plot); location.hash = '#audit'; router(); const s = secList().find(x => x.key === 'audit:audit-ship-overage');
+  const listed = s && s.card.textContent.includes(window.__fx.plot); voidDoc('shipments','SH-FXO2','검증'); return { over: ov.over > 0, lockBy: s && s.lockBy, listed }; })()`);
+P('G3 (GPT ②) 감사 › 「원장 정합성 · LOT 출하 초과」 단락(안전 잠금)에 미해결 초과 LOT 표시 · 파생(저장 0)', g3.over && g3.lockBy === 'mark' && g3.listed, JSON.stringify(g3));
 // F11 원장 무변 (출하 정정은 새 문서를 만들지 않음)
 const L1 = X(`JSON.stringify(['shipments','records','production_lots','orders'].map(c => DB.allRaw(c).length))`);
 const b = JSON.parse(L0), a = JSON.parse(L1);
-P('F11 출하 문서 = 픽스처 4건만 증가(정정으로 새 출하 0) · 실적·LOT 무변', a[0] - b[0] === 4 && a[1] === b[1] && a[2] === b[2] && a[3] - b[3] === 2, L0 + ' → ' + L1);
-P('버전 v0.38.21', X(`APP_VERSION`) === 'v0.38.21', X(`APP_VERSION`));
-if(R.length !== 14) R.push({ n:`항목 수 ${R.length} ≠ 기대 14`, ok:false });
+P('F11 출하 문서 = 픽스처 6건만 증가(정정으로 새 출하 0) · 실적·LOT 무변', a[0] - b[0] === 6 && a[1] === b[1] && a[2] === b[2] && a[3] - b[3] === 2, L0 + ' → ' + L1);
+P('버전 v0.38.22', X(`APP_VERSION`) === 'v0.38.22', X(`APP_VERSION`));
+if(R.length !== 17) R.push({ n:`항목 수 ${R.length} ≠ 기대 17`, ok:false });
 const fail = R.filter(x => !x.ok).length;
 console.log(`\nSHIPFIX TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
 process.exit(fail ? 1 : 0);
