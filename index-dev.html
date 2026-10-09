@@ -966,8 +966,8 @@ html[data-theme="light"] .stage3 .s.done{color:#eafffb}
 @keyframes sb-drift{from{transform:translate(-12%,-8%)}to{transform:translate(12%,8%)}}
 .sb-wrap{position:relative;text-align:center;display:flex;flex-direction:column;align-items:center;animation:sb-shift 120s linear infinite alternate}
 @keyframes sb-shift{from{transform:translate(-14px,-10px)}to{transform:translate(14px,10px)}}
-.sb-ci{display:flex;align-items:center;gap:16px;margin-bottom:26px}
-.sb-ci img{width:58px;height:58px;border-radius:14px;object-fit:contain;border:1px solid #2a3648;background:rgba(94,234,212,.07)}
+.sb-ci{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:26px}
+.sb-ci img{width:76px;height:76px;object-fit:contain}   /* ★ v0.38.12 — 진입 화면과 같은 규칙: 테두리·배경 없이 로고+상호 */
 .sb-ci .sb-nm{font-size:clamp(22px,3.4vw,34px);font-weight:800;letter-spacing:2px;color:#dbe4f0}
 .sb-date{font-size:clamp(20px,3.4vw,34px);color:#8b98ab;letter-spacing:3px}
 .sb-date b{color:#5eead4}
@@ -1416,7 +1416,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.11';
+const APP_VERSION = 'v0.38.12';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -1706,6 +1706,13 @@ function isDefaultFirebaseConfig(){
   const raw = localStorage.getItem(_BACKEND_CONFIG_KEY);
   return !raw || !raw.trim();
 }
+/* ★ v0.38.12 — 서버 저장 거부 알림 (권한 규칙·인증 만료 등 · 이전엔 콘솔에만 남고 화면은 「저장」 으로 보여 F5 후 사라진 것처럼 보였음) */
+let _fsRejTs = 0;
+function _fsWriteRejected(col, id, e){
+  console.warn('[VELA] 서버 저장 거부', col, id, e);
+  const now = Date.now(); if(now - _fsRejTs < 4000) return; _fsRejTs = now;
+  try { toast(`⚠ 서버 저장 실패 — ${col}/${id} (${(e && (e.code || e.message)) || '알 수 없음'}) · 새로고침하면 이 변경은 사라집니다`, 'err', 8000); } catch(_){}
+}
 const _FIRESTORE_ADAPTER = {
   name: 'firestore',
   _state: null,
@@ -1735,7 +1742,7 @@ const _FIRESTORE_ADAPTER = {
       return;
     }
     try {
-      this._fs.collection(col).doc(String(id)).set(doc, { merge: true });
+      this._fs.collection(col).doc(String(id)).set(doc, { merge: true }).catch(e => _fsWriteRejected(col, id, e));   // ★ v0.38.12 — 서버 거부(비동기)도 알림
     } catch(e){
       console.warn('[VELA] firestore write failed', col, id, e);
       // 큐잉 (재접속 시 SDK 자체 재송 — 우리 재시도는 pending fallback)
@@ -1954,7 +1961,7 @@ async function _bootFirestore(){
     pending.forEach(({col,id,doc,_op}) => {
       try {
         if(_op === 'delete'){ fs.collection(col).doc(String(id)).delete().catch(e=>console.warn('[VELA] flush delete fail', col, id, e)); }  // ★ v0.28.9
-        else fs.collection(col).doc(String(id)).set(doc, { merge:true });
+        else fs.collection(col).doc(String(id)).set(doc, { merge:true }).catch(e => _fsWriteRejected(col, id, e));   // ★ v0.38.12
       }
       catch(e){ console.warn('[VELA] flush write fail', col, id, e); }
     });
