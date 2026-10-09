@@ -1426,11 +1426,11 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.25';
+const APP_VERSION = 'v0.38.26';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-10-09';
+const APP_DATE    = '2026-10-10';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -3834,16 +3834,18 @@ function seedDemoExtension(){
   const report = { moved:[], lotsCreated:[], orders:0, plans:0, pos:0, prs:0 };
   // ① 정합성 정리
   const plots = [...new Set(DB.all('shipments').map(x => x.plot_no).filter(Boolean))].sort();
-  let seq = 0;
   plots.forEach(plot => {
     const ov = lotShipOverage(plot);
     if(!ov || ov.over <= 0) return;
     const lot = DB.get('production_lots', plot); if(!lot) return;
+    if(lot.demo_synthetic) return;   // 합성 이력 LOT 은 다시 옮기지 않음
     const ships = DB.query('shipments', x => x.plot_no === plot).sort((a,b) => (a.ts||0) - (b.ts||0));
     const total = ships.reduce((a,x) => a + (+x.qty||0), 0);
-    seq++;
-    const nx = `PL-2026-X${String(seq).padStart(2,'0')}`;
-    if(!DB.get('production_lots', nx)){
+    // ★ v0.38.26 (GPT G2) — 이력 LOT id = 원래 LOT id 에서 결정(순번 아님) → 데이터가 늘거나 재시드해도 다른 LOT 와 섞이지 않음 · 기존 문서가 다른 원본이면 건너뜀
+    const nx = 'PL-2026-X' + String(plot).replace(/^PL-\d{4}-/, '');
+    const ex = DB.get('production_lots', nx);
+    if(ex && ex.demo_src_plot !== plot){ console.warn('[demo8] 이력 LOT id 충돌 — 건너뜀', nx, ex.demo_src_plot, plot); return; }
+    if(!ex){
       try {
         LOT.create({ plot_no:nx, itemCode:lot.itemCode, materialLots:(lot.material_lot_ids||[]).slice(0,1), qty_initial: total });
         const route = getRoute(lot.itemCode).filter(r => r.proc !== 'SHIP');
@@ -3851,13 +3853,13 @@ function seedDemoExtension(){
         route.forEach((r, i) => {
           const eq = { CUT:'절단기 1호', FORGE:'프레스 1호', SHOT:'쇼트기', COIN:'코이닝프레스' }[r.proc] || (r.mode === 'out' ? '외주' : null);
           const rec = LOT.registerRecord({ plot_no:nx, proc:r.proc, equipment:eq, good: total, type: r.mode === 'out' ? 'out' : 'in', shift:'day', vendor: r.mode === 'out' ? 'V001' : null, worker:{ emp_no:'OP-014', name:'홍길동' } });
-          DB.set('records', rec.id, { ts: t0 + i * DAY });
+          DB.set('records', rec.id, { ts: t0 + i * DAY, demo_synthetic: true });
         });
-        DB.set('production_lots', nx, { created: t0, demo_note:`출하 정합성 정리 — 원래 ${plot} 로 기록된 출하 ${ships.length}건의 생산 이력` });
+        DB.set('production_lots', nx, { created: t0, demo_synthetic: true, demo_src_plot: plot, demo_note:`합성 데모 이력 — 시연 데이터 정합성 정리용(실제 생산 이력 아님) · 원래 ${plot} 로 기록된 출하 ${ships.length}건` });
         report.lotsCreated.push(nx);
       } catch(e){ console.warn('[demo8] 이력 LOT 생성 실패', nx, e.message); return; }
     }
-    ships.forEach(x => { DB.set('shipments', x.id, { plot_no: nx }); report.moved.push(x.id); });
+    ships.forEach(x => { DB.set('shipments', x.id, { plot_no: nx, demo_plot_from: plot }); report.moved.push(x.id); });
   });
   // ② 올해 말까지 수주 (오늘 이후 납기만 · 품번 단가·고객 사용)
   const items = DB.all('items').filter(i => i.active !== false && i.cust && (+i.price||0) > 0).sort((a,b) => a.code.localeCompare(b.code)).slice(0, 8);
@@ -6981,10 +6983,14 @@ function prPoCapCheck(ref, newQty, opts){
   if(!po || po.void) throw new Error(`연결 발주 ${ref.po_id} 없음(취소됨) — 발주 연결 입고는 정정·등록 불가`);
   const it = (po.items || []).find(i => _poItemKey(i.name, i.spec) === ref.po_item_key);
   if(!it) throw new Error(`발주 ${po.id} 에 연결 품목이 없음 — 정정 불가`);
-  const pu = String(it.unit||'').trim().toLowerCase(), ru = String(ref.unit||'').trim().toLowerCase();
-  if(pu && ru && pu !== ru) throw new Error(`단위 불일치 — 발주 ${it.unit} · 입고 ${ref.unit} (다른 단위끼리 합산하지 않음)`);
-  const others = DB.query('purchase_receipts', r => r.po_id === po.id && r.po_item_key === ref.po_item_key && r.id !== opts.excludeId).reduce((a,r) => a + (+r.qty||0), 0)
-               + DB.query('material_receipts', r => r.po_id === po.id && r.po_item_key === ref.po_item_key).reduce((a,r) => a + (+r.kg||0), 0);
+  const pu = _poUnitNorm(it.unit), ru = _poUnitNorm(ref.unit);
+  // ★ v0.38.26 (GPT G1·G3) — 단위가 비어 있으면 비교를 건너뛰지 않고 차단 · 다른 입고에 단위 충돌이 있으면 합계를 신뢰하지 않고 차단
+  if(!pu) throw new Error(`발주 ${po.id} 「${it.name||''}」 단위가 비어 있음 — 발주 수정에서 단위를 먼저 입력`);
+  if(!ru) throw new Error('입고 단위가 비어 있음 — 단위를 선택하세요');
+  if(pu !== ru) throw new Error(`단위 불일치 — 발주 ${it.unit} · 입고 ${ref.unit} (다른 단위끼리 합산하지 않음)`);
+  const ag = poItemRecvAgg(it, _poRecvScan(po.id, opts.excludeId));
+  if(ag.conflicts.length) throw new Error(`단위 확인 필요 — 발주 ${po.id} 「${it.name||''}」 입고 합계를 신뢰할 수 없음 (${ag.conflicts.slice(0,2).join(' · ')}${ag.conflicts.length > 2 ? ` 외 ${ag.conflicts.length - 2}` : ''}) · 해당 입고를 정정·취소한 뒤 다시 시도`);
+  const others = ag.sum;
   const ordered = +it.qty || 0, before = others + (+opts.oldQty || 0), after = others + (+newQty || 0);
   const warn = [];
   if(after > ordered + 1e-9){
@@ -7356,33 +7362,42 @@ function calcDayLoad(date, equipmentName, extras, excludeId){
    반환: { items:[{ordered, received, remain}], totalOrdered, totalReceived, state, uniformUnit }
    state: 입고0 → '대기' / 완료 → '입고완료' / 납기 지남+미완 → '지연' / 그 외 부분 → '부분입고' */
 function _poItemKey(name, spec){ return `${name||''}|${spec||''}`; }
+/* ★ v0.38.26 (GPT G3) — 발주 품목 입고 합산 1벌 (calcPoStatus · prPoCapCheck 공용)
+   합산 대상 = 같은 발주·같은 품목 키의 구매 입고(qty) + 소재 입고(kg). 단위 정책: 구매 입고 단위 = 발주 단위(대소문자 무시) · 소재 입고 = 발주 단위가 kg 일 때만 ·
+   발주/입고 단위가 비어 있으면 = 충돌. 충돌이 하나라도 있으면 그 합계는 신뢰하지 않는다 → 등록·정정 차단(prPoCapCheck) · 화면 「단위 확인」 표시(calcPoStatus).
+   합계 숫자 자체는 기존과 같은 규칙으로 계산(정상 데이터 = 결과 무변). */
+function _poUnitNorm(u){ return String(u == null ? '' : u).trim().toLowerCase(); }
+function _poRecvScan(poId, excludeId){
+  return { pr: DB.query('purchase_receipts', r => r.po_id === poId && r.id !== excludeId), mr: DB.query('material_receipts', r => r.po_id === poId) };
+}
+function poItemRecvAgg(it, scan){
+  const key = _poItemKey(it.name, it.spec), pu = _poUnitNorm(it.unit);
+  let sum = 0; const conflicts = [];
+  scan.pr.forEach(r => { if(r.po_item_key !== key) return; sum += +r.qty || 0; const ru = _poUnitNorm(r.unit);
+    if(!pu) conflicts.push(`${r.id}: 발주 품목 단위 비어 있음`); else if(!ru) conflicts.push(`${r.id}: 입고 단위 비어 있음`); else if(ru !== pu) conflicts.push(`${r.id}: 입고 ${r.unit} ≠ 발주 ${it.unit}`); });
+  scan.mr.forEach(r => { if(r.po_item_key !== key) return; sum += +r.kg || 0;
+    if(pu !== 'kg') conflicts.push(`${r.id}: 소재 입고(kg) ≠ 발주 ${it.unit || '단위 없음'}`); });
+  return { key, sum, conflicts };
+}
 function calcPoStatus(po){
-  if(!po){ return { items:[], totalOrdered:0, totalReceived:0, state:'대기', uniformUnit:null }; }
+  if(!po){ return { items:[], totalOrdered:0, totalReceived:0, state:'대기', uniformUnit:null, unitConflict:false }; }
   const items = po.items || [];
-  // 미리 live 입고를 한 번씩만 스캔 → 키별 합계 맵 (재계산 비용 절감)
-  const mrByKey = {};
-  DB.query('material_receipts', r => r.po_id===po.id).forEach(r => {
-    const k = r.po_item_key || '';
-    mrByKey[k] = (mrByKey[k]||0) + (+r.kg||0);
-  });
-  const prByKey = {};
-  DB.query('purchase_receipts', r => r.po_id===po.id).forEach(r => {
-    const k = r.po_item_key || '';
-    prByKey[k] = (prByKey[k]||0) + (+r.qty||0);
-  });
-  let totalOrdered=0, totalReceived=0;
+  const scan = _poRecvScan(po.id);   // live 입고 1회 스캔
+  let totalOrdered=0, totalReceived=0, anyConflict = false;
   const rows = items.map(it => {
-    const key = _poItemKey(it.name, it.spec);
+    const ag = poItemRecvAgg(it, scan);
     const ordered = +it.qty||0;
-    const received = (mrByKey[key]||0) + (prByKey[key]||0);
+    const received = ag.sum;
     const remain = Math.max(0, ordered - received);
     totalOrdered  += ordered;
     totalReceived += Math.min(received, ordered);   // 잔량 계산과 정합 (초과분은 총합에서 잘라냄)
-    return { name:it.name, spec:it.spec||'', unit:it.unit||'', ordered, received, remain };
+    if(ag.conflicts.length) anyConflict = true;
+    return { name:it.name, spec:it.spec||'', unit:it.unit||'', ordered, received, remain, unitConflict: ag.conflicts };
   });
   const today = fmtDate(Date.now());
   let state;
-  if(totalOrdered<=0)                            state = '대기';
+  if(anyConflict)                                state = '단위 확인';   // ★ v0.38.26 — 합계 신뢰 불가 (등록·정정 차단)
+  else if(totalOrdered<=0)                       state = '대기';
   else if(totalReceived >= totalOrdered)         state = '입고완료';
   else if(po.due && today > po.due)              state = '지연';
   else if(totalReceived > 0)                     state = '부분입고';
@@ -7390,7 +7405,7 @@ function calcPoStatus(po){
   // 단위 통일 여부 (표시용) — 전 행 동일 단위면 그 단위, 아니면 null → '건' 표기
   const units = [...new Set(items.map(i=>i.unit).filter(Boolean))];
   const uniformUnit = units.length===1 ? units[0] : null;
-  return { items:rows, totalOrdered, totalReceived, state, uniformUnit };
+  return { items:rows, totalOrdered, totalReceived, state, uniformUnit, unitConflict: anyConflict };
 }
 
 /* ★ v0.38.0 — 고르는 창 1벌 openPickerModal (SPEC 「개인화 v0.1」 §2 · 내 대시보드·내 보고서 공유)
@@ -9813,7 +9828,7 @@ VIEWS.lot = () => {
             ? `<button class="btn ghost" data-lot-unvoid="${_esc(l.plot_no)}" style="color:var(--cyan)">${ico('save')}복원</button>`
             : `<button class="btn ghost" onclick="VIEWS._lotHistory('${l.plot_no}')">${ico('eye')}</button> <button class="btn ghost" data-lot-void="${_esc(l.plot_no)}" style="color:var(--red)">${ico('x')}취소</button>`;
           return `<tr style="${rowStyle}" data-lot-row="${_esc(l.plot_no)}">
-            <td><b class="lot-no-link" data-lot-steps="${_esc(l.plot_no)}" title="클릭 → 공정 스텝·실적 상세">${l.plot_no} <span class="lot-chev">▸</span></b>${voidBadge}${forkBadge}</td>
+            <td><b class="lot-no-link" data-lot-steps="${_esc(l.plot_no)}" title="클릭 → 공정 스텝·실적 상세">${l.plot_no} <span class="lot-chev">▸</span></b>${voidBadge}${forkBadge}${l.demo_synthetic ? ` <span class="pill amber" style="font-size:9px" title="${_esc(l.demo_note || '')}">합성 데모 이력</span>` : ''}</td>
             <td><b class="mono" style="font-size:11.5px">${l.itemCode}</b> <span class="muted" style="font-size:10.5px">초기 ${(l.qty_initial||0).toLocaleString()}</span></td>
             <td>${posCell}</td>
             <td class="num">${balCell}</td>
@@ -10213,7 +10228,7 @@ VIEWS.po = () => {
     const rxDisp = st.uniformUnit
       ? `${Math.round(st.totalReceived).toLocaleString()} / ${Math.round(st.totalOrdered).toLocaleString()}<span style="color:var(--dim);font-size:10px">${_esc(st.uniformUnit)}</span>`
       : `${st.items.filter(r=>r.received>=r.ordered).length} / ${items.length}<span style="color:var(--dim);font-size:10px">건</span>`;
-    const badgeCls = st.state==='입고완료'?'green':st.state==='부분입고'?'cyan':st.state==='지연'?'red':'gray';
+    const badgeCls = st.state==='입고완료'?'green':st.state==='부분입고'?'cyan':st.state==='지연'?'red':st.state==='단위 확인'?'amber':'gray';
     const isVoid = !!p.void;
     const rowStyle = isVoid ? 'opacity:.5;background:rgba(248,113,113,.04)' : '';
     const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px" title="${_esc(p.void.reason||'')} · ${fmtDate(p.void.ts)}">「취소」</span>` : '';
@@ -11431,7 +11446,7 @@ VIEWS._matinMaterial = () => {
       (p.items||[]).forEach((it, i) => {
         const kind = it.kind || ((it.unit||'')==='kg' ? 'mat' : 'gen');
         if(kind !== 'mat') return;
-        const r = st.items[i]; if(!r || r.remain<=0) return;
+        const r = st.items[i]; if(!r || r.remain<=0 || (r.unitConflict||[]).length || _poUnitNorm(it.unit) !== 'kg') return;   // ★ v0.38.26 — 단위 충돌·kg 아닌 품목은 소재 입고 연결 제외
         const vName = DB.get('vendors', p.vendor)?.name || p.vendor || '';
         poOptions.push({
           key: `${p.id}::${i}`,
@@ -11626,6 +11641,10 @@ VIEWS._matinMaterial = () => {
       const po_item_key = poOpt?.dataset.poitem || null;
       if(!heat){ toast('Heat No. 입력','warn'); return; }
       if(kg<=0){ toast('입고량(kg) 입력','warn'); return; }
+      // ★ v0.38.26 (GPT G3) — 발주 연결 소재 입고도 같은 단위 정책: 발주 품목 kg 아님 · 기존 입고 단위 충돌 → 등록 차단 (발주량 초과 정책은 기존 그대로 — 소재 공차 납품)
+      if(po_id){ const po = DB.get('purchase_orders', po_id); const it = po && (po.items||[]).find(i => _poItemKey(i.name, i.spec) === po_item_key);
+        if(it && _poUnitNorm(it.unit) !== 'kg'){ toast(`발주 ${po_id} 「${it.name||''}」 단위가 kg 아님(${it.unit||'비어 있음'}) — 소재 입고(kg)로 연결 불가`,'warn',4500); return; }
+        if(it){ const ag = poItemRecvAgg(it, _poRecvScan(po_id)); if(ag.conflicts.length){ toast(`단위 확인 필요 — 발주 ${po_id} 입고 합계를 신뢰할 수 없음 (${ag.conflicts[0]})`,'warn',4500); return; } } }
       const mrNo = resolveDocNo('mr-id', 'MR');
       if(mrNo.dup){ toast(`입고번호 중복 — ${mrNo.id}`,'err'); return; }
       const id = mrNo.id;
@@ -11885,7 +11904,7 @@ VIEWS._matinBuy = () => {
       const st = calcPoStatus(p);
       (p.items||[]).forEach((it, i) => {
         if(it.kind === 'mat') return;
-        const r = st.items[i]; if(!r || r.remain<=0) return;
+        const r = st.items[i]; if(!r || r.remain<=0 || (r.unitConflict||[]).length) return;   // ★ v0.38.26 — 단위 충돌 품목은 연결 제외
         const vName = DB.get('vendors', p.vendor)?.name || p.vendor || '';
         poOptions.push({
           key: `${p.id}::${i}`,
