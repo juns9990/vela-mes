@@ -1426,7 +1426,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.17';
+const APP_VERSION = 'v0.38.18';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -6471,8 +6471,11 @@ function router(){
    · 단락 = #view 안 .card 중 머리글 h3 가 있는 것 — 마크업 무수정 · 렌더 후 부착 → 전 메뉴 자동 (대시보드 = 카드 Picker 별도 · 현장 모드 제외)
    · 끄기 = 제목 옆 스위치 → 화면에서만 숨김 (DOM·계산 그대로) / 켜기 = 화면 머리 [단락 n/m] → 목록에서 선택
    · 저장 = settings/prefs.{userId}.sec_off { "화면id:제목": true } — 사람마다 · 본인 문서만(setPrefs 계약) · ⚠ 서버 강제 아님(§6)
-   · 안전 신호 단락(이상·사고·HOLD·격리·주의·경고·보류·판정 대기)은 끌 수 없음 (GPT 원칙 「안전 신호 은폐 금지」) */
-const SEC_LOCK_RE = /이상|사고|HOLD|격리|주의|경고|보류|판정 대기/;
+   · 안전 신호 단락은 끌 수 없음 (GPT 원칙 「안전 신호 은폐 금지」)
+   ★ v0.38.18 (GPT 재판정 결정 1) — 잠금 1순위 = 명시 표식 `data-sec-lock="safety"` (HOLD·품질 판정·동시성 사고·원장 정합성 단락에 코드로 지정)
+     · 제목 키워드(SEC_LOCK_RE)는 보조 방어 · 단락 키 = `data-sec-id`(명시 · 제목이 바뀌어도 유지) → 없으면 제목 · 같은 화면 같은 키는 #2·#3 로 분리
+     · 화면의 마지막 보이는 단락은 끌 수 없음 (빈 화면 방지) */
+const SEC_LOCK_RE = /이상|사고|HOLD|격리|주의|경고|보류|판정 대기|정합성/;
 function _secPage(){ return ((location.hash || '#dash').replace('#','').split(/[/?]/)[0]) || 'dash'; }
 function _secTitle(h){
   const t = [...h.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').trim() || (h.textContent || '');
@@ -6484,8 +6487,9 @@ function secList(){
     if(card.parentElement && card.parentElement.closest('#view .card')) return null;   // 카드 안 카드 = 상위 단락에 포함
     const h = card.querySelector(':scope > h3, :scope > div > h3'); if(!h) return null;
     const title = _secTitle(h); if(!title) return null;
-    let key = page + ':' + title; seen[key] = (seen[key] || 0) + 1; if(seen[key] > 1) key += '#' + seen[key];
-    return { card, h, title, key, locked: card.hasAttribute('data-sec-lock') || SEC_LOCK_RE.test(title) };   // 판정 = 제목만 (설명 태그 문구 무관)
+    let key = page + ':' + (card.dataset.secId || title); seen[key] = (seen[key] || 0) + 1; if(seen[key] > 1) key += '#' + seen[key];
+    const lockBy = card.hasAttribute('data-sec-lock') ? 'mark' : SEC_LOCK_RE.test(title) ? 'keyword' : '';   // 1순위 명시 표식 · 2순위 제목 키워드(보조)
+    return { card, h, title, key, locked: !!lockBy, lockBy };
   }).filter(Boolean);
 }
 function secOffMap(){ const p = getPrefs(); return (p && p.sec_off && typeof p.sec_off === 'object') ? p.sec_off : {}; }
@@ -6493,7 +6497,14 @@ function secSetOff(key, off){
   const m = { ...secOffMap() }; if(off) m[key] = true; else delete m[key];
   return setPrefs(SESSION.userId, { sec_off: m });
 }
+function secCanTurnOff(key){
+  const list = secList(), off = secOffMap();
+  const s = list.find(x => x.key === key); if(!s || s.locked) return false;
+  return list.some(x => x.key !== key && (x.locked || !off[x.key]));   // 끈 뒤에도 보이는 단락이 1개 이상 남아야
+}
+let _secEnhanceRuns = 0;   // 회귀용 계측 (MutationObserver 반복 실행 감시)
 function _secToggleEnhance(){
+  _secEnhanceRuns++;
   if(!SESSION.loggedIn || _secPage() === 'dash' || isMobileHash()) return;
   const list = secList(); if(!list.length) return;
   const off = secOffMap();
@@ -6508,7 +6519,7 @@ function _secToggleEnhance(){
     const b = document.createElement('button'); b._secBound = true;
     b.type = 'button'; b.className = 'sec-x'; b.title = '이 단락 끄기 — 다시 켜려면 화면 위 [단락] 버튼'; b.setAttribute('role','switch'); b.setAttribute('aria-checked','true');
     b.innerHTML = '<i></i>';
-    b.onclick = e => { e.stopPropagation(); secSetOff(s.key, true); _secToggleEnhance(); toast(`「${s.title}」 단락 끔 — [단락] 에서 다시 켤 수 있습니다`, 'ok'); };
+    b.onclick = e => { e.stopPropagation(); if(!secCanTurnOff(s.key)){ toast('화면의 마지막 단락은 끌 수 없습니다','warn'); return; } secSetOff(s.key, true); _secToggleEnhance(); toast(`「${s.title}」 단락 끔 — [단락] 에서 다시 켤 수 있습니다`, 'ok'); };
     const firstEl = [...s.h.children].find(c => !c.classList.contains('sec-x'));
     firstEl ? s.h.insertBefore(b, firstEl) : s.h.appendChild(b);
   });
@@ -6534,7 +6545,7 @@ function openSecPicker(){
   const draw = () => {
     const list = secList(), off = secOffMap();
     return list.map(s => `<div class="sec-pick"><span class="t">${_esc(s.title)}</span>${s.locked
-      ? '<span class="lk">항상 표시 · 안전 신호</span>'
+      ? `<span class="lk">항상 표시 · 안전 신호${s.lockBy === 'keyword' ? ' (제목)' : ''}</span>`
       : `<button type="button" class="sec-x ${off[s.key] ? 'off' : ''}" style="margin:0" role="switch" aria-checked="${off[s.key] ? 'false' : 'true'}" data-sec-key="${_esc(s.key)}" title="${off[s.key] ? '켜기' : '끄기'}"><i></i></button>`}</div>`).join('');
   };
   openModal(`
@@ -6548,7 +6559,9 @@ function openSecPicker(){
       </div>
     </div>`);
   const bind = () => document.querySelectorAll('#sec-pick-list [data-sec-key]').forEach(b => b.onclick = () => {
-    const k = b.dataset.secKey; secSetOff(k, !secOffMap()[k]); _secToggleEnhance();
+    const k = b.dataset.secKey; const turnOff = !secOffMap()[k];
+    if(turnOff && !secCanTurnOff(k)){ toast('화면의 마지막 단락은 끌 수 없습니다','warn'); return; }
+    secSetOff(k, turnOff); _secToggleEnhance();
     document.getElementById('sec-pick-list').innerHTML = draw(); bind();
   });
   bind();
@@ -10801,10 +10814,15 @@ function otdShipDateImpact(shipId, newTs){
   if(!sh || !o || !o.due || !newTs) return null;
   const today = _kstDate(Date.now());
   const ships = DB.query('shipments', s => s.so_id === o.id);
-  const lab = r => r.skip ? ({ cancel:'집계 제외(취소)', notDue:'미도래', dueToday:'평가 대기', noDue:'납기 미등록' }[r.skip] || r.skip) : r.status;
-  const b = lab(otdEvalOrder(o, today, ships));
-  const a = lab(otdEvalOrder(o, today, ships.map(s => s.id === shipId ? { ...s, ts:newTs } : s)));
-  return { so:o.id, due:o.due, before:b, after:a, changed: a !== b };
+  // ★ v0.38.18 (GPT 소스 검토 P1) — 상태 문자열만이 아니라 skip·ok·납기 내 수량·지연일까지 비교 (일부 출하 → 일부 출하라도 납기 내 수량이 바뀌면 영향)
+  const lab = r => r.skip ? ({ cancel:'집계 제외(취소)', notDue:'미도래', dueToday:'오늘 납기(내일 평가)', noDue:'납기 미등록' }[r.skip] || r.skip) : r.status;
+  const sig = r => r.skip ? { skip:r.skip, ok:null, onTime:null, delay:null } : { skip:'', ok:r.ok, onTime:r.onTime, delay:r.delayDays };
+  const rb = otdEvalOrder(o, today, ships), ra = otdEvalOrder(o, today, ships.map(s => s.id === shipId ? { ...s, ts:newTs } : s));
+  const sb = sig(rb), sa = sig(ra);
+  const b = lab(rb) + (sb.onTime != null ? ` (납기 내 ${sb.onTime}/${rb.qty})` : '');
+  const a = lab(ra) + (sa.onTime != null ? ` (납기 내 ${sa.onTime}/${ra.qty})` : '');
+  const changed = sb.skip !== sa.skip || sb.ok !== sa.ok || sb.onTime !== sa.onTime || sb.delay !== sa.delay;
+  return { so:o.id, due:o.due, before:b, after:a, changed, diff:{ before:sb, after:sa } };
 }
 function docEditSave(col, id, input, reason){
   const v = docEditValidate(col, id, input);
@@ -12458,8 +12476,9 @@ function otdEvalOrder(o, today, ships){
   const qty = +o.qty || 0;
   const onTimeRaw = ships.filter(s => (+s.ts||0) <= end).reduce((a,s) => a + (+s.qty||0), 0);
   const ok = qty > 0 && onTimeRaw >= qty;
-  // GPT Gate A — 납기 당일: 이미 전량 출하했으면 준수로 집계 · 아니면 평가 대기 (당일 종료 후부터 미준수)
-  if(o.due === today && !ok) return { skip:'dueToday' };
+  // ★ v0.38.18 (GPT 재판정 결정 2) — 오늘 납기 = 전량 출하 여부와 무관하게 당일엔 공식 준수율 분자·분모 모두 제외 (선택 편향 방지)
+  //   별도 표시만(오늘 납기 전체 · 정시 출하 완료 · 미완료) · 다음 날부터 자동으로 공식 평가 대상
+  if(o.due === today) return { skip:'dueToday', done: ok };
   const onTime = Math.min(qty, onTimeRaw);
   // 지연일: 수주량을 채운 출하일 − 납기 (아직 못 채웠으면 오늘 끝 − 납기)
   let cum = 0, fillTs = null; for(const s of ships){ cum += (+s.qty||0); if(cum >= qty){ fillTs = +s.ts||0; break; } }
@@ -12472,7 +12491,7 @@ function calcOnTime(opt){
   opt = opt || {};
   const today = opt.today || _kstDate(Date.now());
   const from = opt.from || '0000-01-01', to = opt.to || today;
-  const ex = { cancel:0, lateCancel:0, noDue:0, notDue:0, dueToday:0 };
+  const ex = { cancel:0, lateCancel:0, noDue:0, notDue:0, dueToday:0, dueTodayDone:0 };
   const rows = [];
   DB.all('orders').forEach(o => {
     if(opt.cust && o.cust !== opt.cust) return;
@@ -12480,7 +12499,7 @@ function calcOnTime(opt){
     if(!o.due){ if(!(soCloseInfo(o) && soCloseInfo(o).kind === 'cancel')) ex.noDue++; return; }   // 기간과 무관한 전체 건수 (입력 누락 확인용 · 고객사·품목 필터는 적용)
     if(o.due < from || o.due > to) return;
     const r = otdEvalOrder(o, today);
-    if(r.skip){ ex[r.skip]++; if(r.lateCancel) ex.lateCancel++; return; }
+    if(r.skip){ ex[r.skip]++; if(r.lateCancel) ex.lateCancel++; if(r.skip === 'dueToday' && r.done) ex.dueTodayDone++; return; }
     rows.push(r);
   });
   const agg = list => {
@@ -12523,13 +12542,14 @@ VIEWS._shipOtd = () => {
       <select id="otd-item" style="max-width:220px"><option value="">품목 전체</option>${items.map(c => `<option value="${_esc(c)}" ${st.item===c?'selected':''}>${_esc(iName(c))}</option>`).join('')}</select>
     </div>
     <div class="mstrip" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
-      <div class="mk"><div class="l">납기준수율 (건수 · 주지표)</div><div class="v" style="color:${rateColor(r.total.rateLines)}">${pct(r.total.rateLines)}</div><div class="s">준수 ${r.total.okLines} / 조회 기간 평가 대상 ${r.total.lines}건</div></div>
+      <div class="mk"><div class="l">납기준수율 (건수 · 주지표)</div><div class="v" style="color:${rateColor(r.total.rateLines)}">${pct(r.total.rateLines)}</div><div class="s">준수 ${r.total.okLines} / 평가 대상 ${r.total.lines}건 · 어제까지 납기 확정분</div></div>
       <div class="mk"><div class="l">납기 내 출하율 (수량)</div><div class="v">${r.total.mixedUnit ? '—' : pct(r.total.rateQty)}</div><div class="s">${r.total.mixedUnit ? '단위 혼합 — 합산 안 함 (품목별 표 참고)' : `${r.total.onTime.toLocaleString()} / ${r.total.qty.toLocaleString()} ${_esc(r.total.unit)} · 보조지표`}</div></div>
       <div class="mk"><div class="l" style="color:var(--red)">지연·미출하</div><div class="v" style="color:${late.length?'var(--red)':'var(--ink)'}">${late.length}건</div><div class="s">부분종결 ${r.rows.filter(x=>x.status==='부분종결').length}건 포함</div></div>
-      <div class="mk"><div class="l">조회 기간 집계 제외</div><div class="v" style="font-size:18px">${r.excluded.cancel + r.excluded.notDue + r.excluded.dueToday}건</div><div class="s">수주취소 ${r.excluded.cancel}${r.excluded.lateCancel?` (납기 후 취소 ${r.excluded.lateCancel})`:''} · 미도래 ${r.excluded.notDue} · 오늘 납기 대기 ${r.excluded.dueToday}</div></div>
+      <div class="mk"><div class="l">오늘 납기 · 진행 중</div><div class="v" style="font-size:18px">${r.excluded.dueToday}건</div><div class="s">정시 출하 완료 ${r.excluded.dueTodayDone} · 미완료 ${r.excluded.dueToday - r.excluded.dueTodayDone} · 공식 준수율엔 내일 반영</div></div>
+      <div class="mk"><div class="l">조회 기간 집계 제외</div><div class="v" style="font-size:18px">${r.excluded.cancel + r.excluded.notDue}건</div><div class="s">수주취소 ${r.excluded.cancel}${r.excluded.lateCancel?` (납기 후 취소 ${r.excluded.lateCancel})`:''} · 미도래 ${r.excluded.notDue}</div></div>
       <div class="mk"><div class="l" style="color:var(--amber)">납기 미등록 · 전체기간</div><div class="v" style="font-size:18px;color:${r.excluded.noDue?'var(--amber)':'var(--ink)'}">${r.excluded.noDue}건</div><div class="s">${(st.cust||st.item) ? `선택한 ${[st.cust?'고객사':'', st.item?'품목':''].filter(Boolean).join('·')} 기준` : '전사 기준'} · 준수율 분모 미포함</div></div>
     </div>
-    <div style="font-size:11px;color:var(--sub);margin:-4px 0 12px">기준: <b>출하일</b>(고객 도착일 아님) · 날짜 = 한국 시간(KST) · 납기 = 현재(최종) 납기 — 납기·출하일이 바뀌면 지난 기간 값도 다시 계산됨(저장된 보고서 스냅샷은 그대로) · 건수 기준 = 납기일까지 수주량 전량 출하 · 수량 기준 = 납기일까지 출하량 ÷ 수주량(단위가 섞이면 합산 안 함) · 오늘 납기는 전량 출하 전까지 평가 대기 · 수주취소(출하 0)는 제외 · 부분종결은 원 수주량으로 평가</div>
+    <div style="font-size:11px;color:var(--sub);margin:-4px 0 12px">기준: <b>출하일</b>(고객 도착일 아님) · 날짜 = 한국 시간(KST) · 납기 = 현재(최종) 납기 — 납기·출하일이 바뀌면 지난 기간 값도 다시 계산됨(저장된 보고서 스냅샷은 그대로) · 건수 기준 = 납기일까지 수주량 전량 출하 · 수량 기준 = 납기일까지 출하량 ÷ 수주량(단위가 섞이면 합산 안 함) · 오늘 납기는 출하 여부와 관계없이 당일엔 공식 준수율에서 빼고 별도 표시(다음 날부터 평가) · 수주취소(출하 0)는 제외 · 부분종결은 원 수주량으로 평가</div>
     <div class="grid g2" style="align-items:start">
       ${grpTable('고객사별', r.byCust.map(g => ({...g, key: vName(g.key)})), '고객사')}
       ${grpTable('품목별', r.byItem.map(g => ({...g, key: iName(g.key)})), '품목')}
@@ -13003,13 +13023,16 @@ VIEWS.os = () => {
   const palIn  = DB.query('pallet_moves', m=>m.type==='in'  && m.ref?.kind==='os').reduce((s,m)=>s+(m.qty||0),0);
   const palMiss= Math.max(0, palOut - palIn);
 
+  // ★ v0.38.17/18 — 정산 확정 = 마감 › 외주 (마감 모듈 ON ∧ 이 사용자가 마감 화면을 열 수 있을 때만 외주 화면 카드 제거)
+  //   마감 권한이 없는 사용자는 기존처럼 외주 화면에서 정산 조회 유지 (GPT 소스 검토 P1 — 업무 접근성 회귀 방지)
+  const _osSettleViaClosing = !!flags.closing && menuCanSee(PAGES.find(p => p.id === 'closing'));
   document.getElementById('view').innerHTML = `
     <div class="pghead">
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${PAGES.find(p=>p.id==='os').icon}</svg>외주 <span class="pill cyan">${APP_VERSION} · 파렛트 연동</span></div>
       <div class="pgtools">
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${osState.voidView?'rgba(248,113,113,.08)':'var(--bg2)'}"><input type="checkbox" id="os-void-view" ${osState.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
         <button class="btn" id="os-xlsx">${ico('excel')}엑셀</button>
-        ${flags.closing && menuCanSee(PAGES.find(p => p.id === 'closing')) ? `<button class="btn ghost" id="os-goto-closing" title="외주처 월 정산 = 마감 › 외주 탭 (전월 이월·건별 이월 반영)">외주 정산 → 마감</button>` : ''}
+        ${_osSettleViaClosing ? `<button class="btn ghost" id="os-goto-closing" title="외주처 월 정산 = 마감 › 외주 탭 (전월 이월·건별 이월 반영)">외주 정산 → 마감</button>` : ''}
         <button class="btn primary" id="btn-disp">${ico('plus')}외주 반출</button>
       </div>
     </div>
@@ -13094,8 +13117,8 @@ VIEWS.os = () => {
     </div>
 
     <!-- ★ v0.16.5 — 월별 외주처 정산 카드 · ★ v0.38.17 마감 모듈 ON 이면 표시 안 함 (정산 확정 = 마감 › 외주 · 계산 1벌 calcClosing) -->
-    ${flags.closing ? '' : `<div class="card">
-      <h3>월별 외주처 정산 <span class="tag">live os_receipts × outsource_rates · 취소 실적 자동 제외</span></h3>
+    ${_osSettleViaClosing ? '' : `<div class="card">
+      <h3>월별 외주처 정산 <span class="tag">live os_receipts × outsource_rates · 취소 실적 자동 제외${flags.closing ? ' · 참고용(확정 금액 = 마감 › 외주 · 이월 반영)' : ''}</span></h3>
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
         <label style="font-size:11px;color:var(--sub);font-weight:600">정산월</label>
         <select id="os-settle-month" style="width:140px">
@@ -18871,7 +18894,7 @@ VIEWS.audit = () => {
       ${rows.length>st.cap ? `<div style="margin-top:8px"><button class="btn" id="au-more">더 보기 (+100)</button></div>` : ''}
     </div>
 
-    <div class="card">
+    <div class="card" data-sec-id="audit-incident" data-sec-lock="safety">
       <h3>동시성 사고 <span class="pill ${openN ? 'red' : 'green'}" style="font-size:10px">${openN ? `미해결 ${openN}건 — 초과분 보류 중 (인정분은 진행)` : '미해결 0건'}</span>
         <span class="tag">탐지 → 보류(인정분만 진행) → 관리자 판정 Case A 보정 / B 취소 / C 보류 유지 → J1′ 재검증 → 해제 · 시스템은 승자를 고르지 않습니다</span></h3>
       ${incidents.length ? `<div class="tbl-wrap"><table>
@@ -19628,7 +19651,7 @@ VIEWS.plan = () => {
           </div>`; }).join('')}
       </div>` : '';
     body = `
-      <div class="card" style="padding-bottom:10px">
+      <div class="card" style="padding-bottom:10px" data-sec-id="plan-day">
         <h3>일간 · ${_esc(state.anchor)} <span class="tag">${dayPlans.length}건 · ${getShifts().length}교대 · 예상시간 = 능력 기준(교체 포함) "경" 단위</span>
           <span style="margin-left:auto;display:inline-flex;gap:6px">
             <button class="btn" style="font-size:11px;padding:5px 10px" onclick="VIEWS._planSheetPrint('${_esc(state.anchor)}')">🖨 생산계획서</button>
@@ -24302,7 +24325,7 @@ VIEWS.qc = () => {
       <div class="kpi-mini"><div class="lab">재작업 복귀량</div><div class="val" style="color:var(--blue)">${reworkReturned.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">연결 실적 양품 합</div></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-sec-id="qc-nc-list" data-sec-lock="safety">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <h3 style="margin:0">부적합 목록 <span class="tag">${ncFiltered.length}건 / 전체 ${ncAll.length}건 · 최신 위</span></h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
