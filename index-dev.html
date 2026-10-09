@@ -1426,7 +1426,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.24';
+const APP_VERSION = 'v0.38.25';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2395,7 +2395,8 @@ const MODULE_DEFS = [
     items:[
       ['so',     '수주(SO)',       true, false],
       ['ship',   '출하',           true, false],
-      ['ship_qty_fix', '출하 수량 정정 (시험 — 서버 동시성 검증 전 · 기본 끔)', false, false],   // ★ v0.38.21 SPEC 등록 후 수정 v0.3 · GPT D5 조건부 승인 · 실운영 활성화는 서버 Gate 후
+      ['ship_qty_fix', '출하 수량 정정 (시험 — 서버 동시성 검증 전 · 기본 끔)', false, false],
+      ['pr_qty_fix', '구매 입고 수량 정정 (시험 — 서버 동시성 검증 전 · 기본 끔)', false, false],   // ★ v0.38.25 SPEC v0.4 · GPT D11~D14   // ★ v0.38.21 SPEC 등록 후 수정 v0.3 · GPT D5 조건부 승인 · 실운영 활성화는 서버 Gate 후
       ['cust',   '거래처 마스터',  true, false],
       ['quote',  '견적(RFQ)',     false, false],  // v1.5
     ]},
@@ -2496,6 +2497,7 @@ const FEATURE_DEPS = {
   os_consigned:{ needs:['os_dispatch'], breaks:[] },
   ship:       { needs:[], breaks:['so'] },
   ship_qty_fix:{ needs:['ship'], breaks:[] },
+  pr_qty_fix:  { needs:['purchase'], breaks:[] },
   so:         { needs:[], breaks:['ship','quote'] },
   quote:      { needs:['so'], breaks:[] },                   // v0.7 — cost 권장(필수 아님)
   cost:       { needs:['pl_bom'], breaks:[] },               // v0.7 — 원가는 BOM 필수
@@ -2506,11 +2508,13 @@ const FEATURE_DEPS = {
   q_inspect:  { needs:[], breaks:['q_capa'] },
 };
 /* ★ v0.38.21 — 시험 기능(실운영 활성화 전 Gate 남음): 기본 끔 · 풀옵션 프리셋 제외 · 데모(풀옵션 시연)에서는 켜짐 */
-const EXPERIMENTAL_FLAGS = ['ship_qty_fix'];
+const EXPERIMENTAL_FLAGS = ['ship_qty_fix', 'pr_qty_fix'];
 /* ★ v0.38.22 (GPT v0.38.21 판정 ①) — 서버 Gate: 서버 권한·동시성·원자성 검증 전에는 실데이터에서 플래그를 켜도 저장 차단 (데모만 시험)
    Gate 통과 시 이 값을 true 로 바꾸는 것은 별도 SPEC·GPT 판정·사용자 승인 후 */
-const SERVER_GATES = { ship_qty_fix: false };
-function shipQtyFixEnabled(){ return !!getFlags().ship_qty_fix && (isDemoMode() || SERVER_GATES.ship_qty_fix === true); }
+const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false };
+function experimentalEnabled(k){ return !!getFlags()[k] && (isDemoMode() || SERVER_GATES[k] === true); }
+function shipQtyFixEnabled(){ return experimentalEnabled('ship_qty_fix'); }
+function prQtyFixEnabled(){ return experimentalEnabled('pr_qty_fix'); }
 function defaultFlags(){
   const f={};
   MODULE_DEFS.forEach(m=>m.items.forEach(([k,_,def])=>{f[k]=!!def}));
@@ -3818,6 +3822,82 @@ function seedDemoData(){
   })();
 
   console.log('[VELA] seedDemoData complete');
+}
+/* ★ v0.38.25 — 데모 확장 시드 (DEMO_SEED_VER 8 · 야간 묶음 · 사용자 요청: 데모 데이터 정리 + 확충 + 올해 말까지 수주)
+   seedDemoData(기준 시드 · 회귀 기준값) 는 그대로 두고 데모 진입 때만 이어서 실행 — 멱등(고정 id · 존재 가드)
+   ① 정합성 정리: 출하 합 > LOT 인정양품 인 LOT 의 출하를 「완료 이력 LOT(PL-2026-X..)」 로 옮김 — 전 공정 실적을 갖춘 LOT 를 새로 만들고 출하의 plot_no 만 바꿈
+      (출하 번호·수주·수량·일자·금액 무변 → 매출·마감·계산서·납기준수 수치 동일)
+   ② 올해 말(12월)까지 수주 · 앞으로 3주 생산계획 · 구매 발주/입고(단위·발주 초과 시험용) */
+function seedDemoExtension(){
+  const now = Date.now(), DAY = 86400000;
+  const fmt = ts => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+  const report = { moved:[], lotsCreated:[], orders:0, plans:0, pos:0, prs:0 };
+  // ① 정합성 정리
+  const plots = [...new Set(DB.all('shipments').map(x => x.plot_no).filter(Boolean))].sort();
+  let seq = 0;
+  plots.forEach(plot => {
+    const ov = lotShipOverage(plot);
+    if(!ov || ov.over <= 0) return;
+    const lot = DB.get('production_lots', plot); if(!lot) return;
+    const ships = DB.query('shipments', x => x.plot_no === plot).sort((a,b) => (a.ts||0) - (b.ts||0));
+    const total = ships.reduce((a,x) => a + (+x.qty||0), 0);
+    seq++;
+    const nx = `PL-2026-X${String(seq).padStart(2,'0')}`;
+    if(!DB.get('production_lots', nx)){
+      try {
+        LOT.create({ plot_no:nx, itemCode:lot.itemCode, materialLots:(lot.material_lot_ids||[]).slice(0,1), qty_initial: total });
+        const route = getRoute(lot.itemCode).filter(r => r.proc !== 'SHIP');
+        const t0 = (ships[0].ts || now) - (route.length + 2) * DAY;
+        route.forEach((r, i) => {
+          const eq = { CUT:'절단기 1호', FORGE:'프레스 1호', SHOT:'쇼트기', COIN:'코이닝프레스' }[r.proc] || (r.mode === 'out' ? '외주' : null);
+          const rec = LOT.registerRecord({ plot_no:nx, proc:r.proc, equipment:eq, good: total, type: r.mode === 'out' ? 'out' : 'in', shift:'day', vendor: r.mode === 'out' ? 'V001' : null, worker:{ emp_no:'OP-014', name:'홍길동' } });
+          DB.set('records', rec.id, { ts: t0 + i * DAY });
+        });
+        DB.set('production_lots', nx, { created: t0, demo_note:`출하 정합성 정리 — 원래 ${plot} 로 기록된 출하 ${ships.length}건의 생산 이력` });
+        report.lotsCreated.push(nx);
+      } catch(e){ console.warn('[demo8] 이력 LOT 생성 실패', nx, e.message); return; }
+    }
+    ships.forEach(x => { DB.set('shipments', x.id, { plot_no: nx }); report.moved.push(x.id); });
+  });
+  // ② 올해 말까지 수주 (오늘 이후 납기만 · 품번 단가·고객 사용)
+  const items = DB.all('items').filter(i => i.active !== false && i.cust && (+i.price||0) > 0).sort((a,b) => a.code.localeCompare(b.code)).slice(0, 8);
+  const y = new Date(now).getFullYear(), today = fmt(now);
+  let k = 0;
+  for(let m = new Date(now).getMonth() + 1; m <= 12; m++){
+    items.forEach((it, i) => {
+      const day = Math.min(28, 5 + ((i * 3 + m) % 22));
+      const due = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      if(due <= today) return;
+      k++;
+      const id = `SO-${y}-E${String(k).padStart(2,'0')}`;
+      if(!DB.get('orders', id)) DB.set('orders', id, { id, cust: it.cust, itemCode: it.code, qty: 200 + ((i * 37 + m * 11) % 8) * 50, price: +it.price, due, created: now - (20 - (k % 10)) * DAY, demo_ext: true });
+      report.orders++;
+    });
+  }
+  // ③ 앞으로 3주 생산계획 (가까운 납기 순 · 평일)
+  const eOrders = DB.query('orders', o => o.demo_ext).sort((a,b) => a.due.localeCompare(b.due)).slice(0, 12);
+  const eqs = ['프레스 1호','프레스 2호','절단기 1호','쇼트기'];
+  let dOff = 1;
+  eOrders.forEach((o, i) => {
+    let d = new Date(now + dOff * DAY); while([0,6].includes(d.getDay())){ dOff++; d = new Date(now + dOff * DAY); }
+    const id = `PP-${y}-E${String(i+1).padStart(2,'0')}`;
+    if(!DB.get('production_plans', id)) DB.set('production_plans', id, { id, plan_type:'board', so_id:o.id, itemCode:o.itemCode, qty:o.qty, date: fmt(d.getTime()), equipment: eqs[i % eqs.length], note:'', wo_id:null, ts:now, by:'데모' });
+    report.plans++; dOff += (i % 2) + 1;
+  });
+  // ④ 구매 발주·입고 (구매 입고 수량 정정 시험용: ea·L 단위 · 정상 · 기존 초과 입고)
+  const poA = 'PO-2026-E01', poB = 'PO-2026-E02';
+  if(!DB.get('purchase_orders', poA)) DB.set('purchase_orders', poA, { id:poA, vendor:'S001', due: fmt(now + 7*DAY), items:[
+    { name:'절삭유', spec:'20L', unit:'L', qty:100, price:4500, kind:'gen' },
+    { name:'초경 인서트', spec:'CNMG120408', unit:'ea', qty:200, price:3800, kind:'gen' } ], ts: now - 10*DAY, by:'데모' });
+  if(!DB.get('purchase_orders', poB)) DB.set('purchase_orders', poB, { id:poB, vendor:'S002', due: fmt(now - 2*DAY), items:[
+    { name:'방청유', spec:'18L', unit:'L', qty:50, price:6200, kind:'gen' } ], ts: now - 15*DAY, by:'데모' });
+  report.pos = 2;
+  const pr = (id, po, name, spec, unit, qty, price, dAgo) => { if(DB.get('purchase_receipts', id)) return; DB.set('purchase_receipts', id, { id, name, spec, unit, qty, price, vendor: DB.get('purchase_orders', po).vendor, po_id: po, po_item_key: _poItemKey(name, spec), date: fmt(now - dAgo*DAY), ts: now - dAgo*DAY, by:'데모' }); report.prs++; };
+  pr('PR-DEMO-E01', poA, '절삭유', '20L', 'L', 40.5, 4500, 3);
+  pr('PR-DEMO-E02', poA, '초경 인서트', 'CNMG120408', 'ea', 120, 3800, 2);
+  pr('PR-DEMO-E03', poB, '방청유', '18L', 'L', 60, 6200, 1);   // 기존 초과 입고(60 > 50) — 감소 정정만 허용되는 사례
+  console.log('[VELA] seedDemoExtension complete', JSON.stringify({ moved: report.moved.length, lots: report.lotsCreated.length, orders: report.orders, plans: report.plans }));
+  return report;
 }
 
 function defaultCostRates(){
@@ -6216,7 +6296,7 @@ function resetDemoData(){
 // 데모 자동 로그인 — 데모 사용자('데모' manager) 진입. 없으면 seedDemoData() 가 만든다.
 /* ★ v0.32.6 — 데모 시드 버전 (시드 확장 시 +1 → 기존 데모 저장소도 자동 보강 — 수동 초기화 불필요)
    seedDemoData 는 고정 id 멱등이라 재실행해도 중복·유실 없음 (LOT 는 존재 가드 · DB.set 동일값 덮어씀). */
-const DEMO_SEED_VER = 7;   // ★ v0.37.2 — 현장 작업자 데모 사용자 추가
+const DEMO_SEED_VER = 8;   // ★ v0.38.25 — 데모 확장(seedDemoExtension): 출하 정합성 정리 · 올해 말까지 수주 · 계획 · 구매 입고 시험 데이터 (v7 = 현장 작업자)
 function autoLoginDemo(){
   let u = DB.query('users', x => x.name === '데모')[0];
   if(!u){
@@ -6224,14 +6304,14 @@ function autoLoginDemo(){
     // ★ v0.28.7 — 빈 상태 데모(시연·테스트)는 샘플 시드 없이 시작: seedDemoData 스킵
     //   (아래 폴백이 U-DEMO 사용자를 만들고, seedIfEmpty 가 뼈대 — 공정·계정과목·설정 — 만 시드)
     if(!isEmptyDemo()){
-      try { seedDemoData(); DB.set('settings','demo_seed_ver', { ver: DEMO_SEED_VER }); } catch(e){ console.error('[VELA] seedDemoData failed', e); }
+      try { seedDemoData(); seedDemoExtension(); DB.set('settings','demo_seed_ver', { ver: DEMO_SEED_VER }); } catch(e){ console.error('[VELA] seedDemoData failed', e); }
       u = DB.query('users', x => x.name === '데모')[0];
     }
   } else if(!isEmptyDemo()){
     // ★ v0.32.6 — 구버전 데모 저장소 자동 보강 (재진입 시 1회 — 시드 버전 불일치면 멱등 재시드)
     const sv = DB.get('settings','demo_seed_ver');
     if(!sv || sv.ver !== DEMO_SEED_VER){
-      try { seedDemoData(); DB.set('settings','demo_seed_ver', { ver: DEMO_SEED_VER }); toast('데모 샘플 데이터가 최신으로 보강되었습니다','ok',3500); } catch(e){ console.warn('[VELA] demo seed sync failed', e); }
+      try { seedDemoData(); seedDemoExtension(); DB.set('settings','demo_seed_ver', { ver: DEMO_SEED_VER }); toast('데모 샘플 데이터가 최신으로 보강되었습니다','ok',3500); } catch(e){ console.warn('[VELA] demo seed sync failed', e); }
     }
   }
   // ★ v0.27.3 — 데모 = 풀옵션 시연 원칙: 재진입 시에도 기능 플래그를 현재 MODULE_DEFS 전체 ON 으로 동기화.
@@ -6874,6 +6954,46 @@ function _closingPoUnitPrice(r){
   const it = po?.items?.find(i => _poItemKey(i.name, i.spec) === r.po_item_key);
   return (it && it.price!=null && +it.price>0) ? +it.price : null;
 }
+/* ★ v0.38.25 — 구매 입고 단가 규칙 1벌 (마감 집계 · 수량 정정 미리보기 공용): 발주 품목 단가 → 입고 단가 → 없음(null = 금액 계산 불가) */
+function prClosingUnitPrice(r){
+  let price = _closingPoUnitPrice(r);
+  if(price==null && r && r.price!=null && +r.price>0) price = +r.price;
+  return price;
+}
+/* ★ v0.38.25 (GPT D11) — 구매 입고 수량 형식 1벌 (신규 등록 · 수량 정정 공용)
+   개수 단위(ea·개·통·box·세트·기타·그 밖의 미등록 단위) = 1 이상 정수 / 계량 단위(kg·L·m·g·t·ml) = 0 초과 · 소수 최대 3자리 */
+const PR_MEASURE_UNITS = ['kg','l','m','g','t','ml','mm','cm'];
+function prUnitKind(unit){ return PR_MEASURE_UNITS.includes(String(unit||'').trim().toLowerCase()) ? 'measure' : 'count'; }
+function prQtyFormatCheck(unit, qty){
+  const q = typeof qty === 'string' ? (qty.trim() === '' ? NaN : Number(qty)) : Number(qty);
+  if(!Number.isFinite(q) || q <= 0) throw new Error('수량은 0 보다 큰 숫자');
+  if(prUnitKind(unit) === 'count'){ if(!Number.isInteger(q)) throw new Error(`${unit||'개수'} 단위는 정수만 (예: 3)`); }
+  else if(Math.abs(Math.round(q * 1000) - q * 1000) > 1e-6) throw new Error(`${unit} 단위는 소수 셋째 자리까지 (예: 12.375)`);
+  return q;
+}
+/* ★ v0.38.25 (GPT D12) — 발주 연결 입고의 발주량 검사 1벌 (신규 등록 · 수량 정정 공용 · 자기 제외)
+   발주·품목·단위 확인 → 다른 입고 합(구매 입고 + 같은 키 소재 입고 kg — calcPoStatus 와 같은 합산) + 새 수량 ≤ 발주량
+   정정에서 이미 초과인 상태를 줄이는 감소는 허용 + 경고 · 그 밖의 초과 발생·악화 = 차단 (발주 수량을 먼저 늘리세요) */
+function prPoCapCheck(ref, newQty, opts){
+  opts = opts || {};
+  if(!ref || !ref.po_id) return { linked:false, warn:[] };
+  const po = DB.get('purchase_orders', ref.po_id);
+  if(!po || po.void) throw new Error(`연결 발주 ${ref.po_id} 없음(취소됨) — 발주 연결 입고는 정정·등록 불가`);
+  const it = (po.items || []).find(i => _poItemKey(i.name, i.spec) === ref.po_item_key);
+  if(!it) throw new Error(`발주 ${po.id} 에 연결 품목이 없음 — 정정 불가`);
+  const pu = String(it.unit||'').trim().toLowerCase(), ru = String(ref.unit||'').trim().toLowerCase();
+  if(pu && ru && pu !== ru) throw new Error(`단위 불일치 — 발주 ${it.unit} · 입고 ${ref.unit} (다른 단위끼리 합산하지 않음)`);
+  const others = DB.query('purchase_receipts', r => r.po_id === po.id && r.po_item_key === ref.po_item_key && r.id !== opts.excludeId).reduce((a,r) => a + (+r.qty||0), 0)
+               + DB.query('material_receipts', r => r.po_id === po.id && r.po_item_key === ref.po_item_key).reduce((a,r) => a + (+r.kg||0), 0);
+  const ordered = +it.qty || 0, before = others + (+opts.oldQty || 0), after = others + (+newQty || 0);
+  const warn = [];
+  if(after > ordered + 1e-9){
+    const decreasingOver = opts.oldQty != null && newQty < opts.oldQty && before > ordered;
+    if(!decreasingOver) throw new Error(`발주량 초과 — ${po.id} ${it.name||''} 발주 ${ordered.toLocaleString()}${it.unit||''} · 다른 입고 ${others.toLocaleString()} · 가능 최대 ${Math.max(0, ordered - others).toLocaleString()}${it.unit||''} (초과 납품이면 발주 수량을 먼저 수정)`);
+    warn.push(`정정 후에도 발주 ${po.id} 입고 합 ${after.toLocaleString()} > 발주량 ${ordered.toLocaleString()} (초과 ${(after-ordered).toLocaleString()}) — 확인 필요`);
+  }
+  return { linked:true, po, item:it, ordered, others, before, after, remainBefore: Math.max(0, ordered - before), remainAfter: Math.max(0, ordered - after), overBefore: Math.max(0, before - ordered), overAfter: Math.max(0, after - ordered), warn };
+}
 function calcClosing(type, month){
   if(!month) return { byParty:{}, missingCount:0, outflow:0, inflow:0 };
   const byParty = {};
@@ -6916,8 +7036,7 @@ function calcClosing(type, month){
       return [r.vendor, (+r.kg||0) * price];
     });
     process(DB.all('purchase_receipts'), r => {
-      let price = _closingPoUnitPrice(r);
-      if(price==null && r.price!=null && +r.price>0) price = +r.price;
+      const price = prClosingUnitPrice(r);   // ★ v0.38.25 — 단가 규칙 1벌 (정정 미리보기와 공용)
       if(price==null) return null;
       return [r.vendor, (+r.qty||0) * price];
     });
@@ -10753,15 +10872,15 @@ const DOC_EDIT_SPEC = {
       { k:'date', label:'입고일', type:'date', impact:true, lock: d.cl_month ? '건별 이월 적용 중 — 이월 해제 후' : '' },
       { k:'memo', label:'비고', type:'text' } ] },
   purchase_receipts: { title:'구매 입고', clType:'purchase',
-    locked: d => [['수량', `${(+d.qty||0).toLocaleString()} ${d.unit||''}`], ['발주 연결', d.po_id || '—']],
-    fields: d => [
+    locked: d => (prQtyFixEnabled() ? [] : [['수량', `${(+d.qty||0).toLocaleString()} ${d.unit||''}${getFlags().pr_qty_fix ? ' (수량 정정 = 시험 기능 · 데모에서만)' : ''}`]]).concat([['발주 연결', d.po_id || '—']]),
+    fields: d => (prQtyFixEnabled() ? [{ k:'qty', label:`수량 (${d.unit||''}) — 오타 정정 · ${(d.qty_hist||[]).length}/${PR_QTY_FIX_MAX}회`, type:'number', impact:true }] : []).concat([
       { k:'name', label:'품명', type:'text', impact:true, lock: d.po_id ? '발주 연결 품목 — 고정' : '' },
       { k:'spec', label:'규격', type:'text', impact:true, lock: d.po_id ? '발주 연결 품목 — 고정' : '' },
       { k:'unit', label:'단위', type:'text', impact:true, lock: d.po_id ? '발주 연결 품목 — 고정' : '' },
       { k:'price', label:'단가', type:'number', impact:true },
       { k:'vendor', label:'공급처', type:'vendor', vtypes:['sup','out'], impact:true, lock: d.po_id ? '발주 연결 — 발주 거래처 고정' : '' },
       { k:'date', label:'입고일', type:'date', impact:true, lock: d.cl_month ? '건별 이월 적용 중 — 이월 해제 후' : '' },
-      { k:'memo', label:'비고', type:'text' } ] },
+      { k:'memo', label:'비고', type:'text' } ]) },
   os_dispatches: { title:'외주 반출', clType:null,
     locked: d => [['LOT · 공정', `${d.plot_no||''} · ${DB.get('processes', d.proc)?.name || d.proc || ''}`], ['외주처', DB.get('vendors', d.vendor)?.name || d.vendor || ''], ['수량 · 파렛트', `${(+d.qty||0).toLocaleString()} · ${+d.pallets||0}`]],
     fields: d => [
@@ -10788,6 +10907,20 @@ function _docEditCur(col, d, k){
    ⑦ 증가분만: HOLD · 동시성 잠금(assertWithinAccepted) · 격리(assertQuarantine) — 등록과 같은 함수
    마감 월·계산서 월 차단은 docEditValidate 공통 경로(impact) 가 담당 · 파렛트·명세서 출력 기록은 바꾸지 않음 */
 const SHIP_QTY_FIX_MAX = 5;
+const PR_QTY_FIX_MAX = 5;
+/* ★ v0.38.25 — 구매 입고 수량 정정 검사 1벌 (SPEC v0.4 · GPT D11~D13) — 단일 문서(purchase_receipts) · 저장 직전 최신 원장 · 자기 제외 */
+function prQtyFixCheck(id, newQty, unitOverride){
+  if(!getFlags().pr_qty_fix) throw new Error('구매 입고 수량 정정 기능이 꺼져 있습니다 (설정 › 기능)');
+  if(!prQtyFixEnabled()) throw new Error('실데이터에서는 서버 권한·동시성 검증 전까지 수량 정정 저장이 차단됩니다 (데모에서만 시험 가능)');
+  const d = DB.get('purchase_receipts', id); if(!d || d.void) throw new Error('구매 입고 없음 (취소된 입고는 정정 불가)');
+  const unit = unitOverride != null ? unitOverride : d.unit;
+  const q = prQtyFormatCheck(unit, newQty);
+  const old = +d.qty || 0;
+  if(q === old) return { old, next:q, delta:0, warn:[], cap:null, unit };
+  if((d.qty_hist || []).length >= PR_QTY_FIX_MAX) throw new Error(`수량 정정은 입고 1건당 ${PR_QTY_FIX_MAX}회까지 — 이후는 [취소] 후 재등록`);
+  const cap = prPoCapCheck({ po_id:d.po_id, po_item_key:d.po_item_key, unit }, q, { excludeId:id, oldQty:old });
+  return { old, next:q, delta: q - old, warn: cap.warn || [], cap, unit };
+}
 
 function shipQtyFixCheck(id, newQty){
   if(!getFlags().ship_qty_fix) throw new Error('출하 수량 정정 기능이 꺼져 있습니다 (설정 › 기능)');
@@ -10796,7 +10929,7 @@ function shipQtyFixCheck(id, newQty){
   const q = +newQty;
   if(!(Number.isInteger(q) && q >= 1)) throw new Error('출하 수량은 1 이상 정수(ea)');
   const old = +d.qty || 0;
-  if(q === old) return { old, next:q, delta:0, pending:[], incidents:[], warn:[] };
+  if(q === old) return { old, next:q, delta:0, pending:[], incidents:[], warn:[], unit:'ea' };
   if((d.qty_hist || []).length >= SHIP_QTY_FIX_MAX) throw new Error(`수량 정정은 출하 1건당 ${SHIP_QTY_FIX_MAX}회까지 — 이후는 [취소] 후 재등록`);
   if(!d.so_id || !d.plot_no) throw new Error('출하의 수주·LOT 연결이 비어 있음 — 정정 불가 ([취소] 후 재등록)');   // ★ v0.38.22 P1 — 필수 연결 누락 차단
   const o = DB.get('orders', d.so_id); if(!o || o.void) throw new Error('연결 수주 없음 — 정정 불가');
@@ -10823,7 +10956,7 @@ function shipQtyFixCheck(id, newQty){
     // ★ v0.38.22 (GPT P0) — 정정은 출하 문서 1건만 쓴다(단일 문서 = 원자적). 증가분이 판정 대기·동시성 보류에 걸리면 별도 문서 기록이 필요해지므로 차단
     if(pending.length || incidents.length) throw new Error(`판정 대기·동시성 보류 중인 LOT 은 증가 정정 불가 (${[...pending, ...incidents].map(x => x.id).join(', ')}) — 판정·해제 후 정정하거나 새 출하로 등록`);
   }
-  return { old, next:q, delta, pending, incidents, warn };
+  return { old, next:q, delta, pending, incidents, warn, unit:'ea' };
 }
 /* 수정 검증 1벌 — 통과 시 patch 반환 · 위반 시 throw (화면·회귀 공용) */
 function docEditValidate(col, id, input){
@@ -10843,7 +10976,9 @@ function docEditValidate(col, id, input){
   if(!Object.keys(patch).length) return { patch, impact:false, empty:true };
   if(col === 'shipments' && patch.pack_qty_actual != null && !(patch.pack_qty_actual >= 1)) throw new Error('실제 포장수량은 1 이상');
   let shipFix = null;
-  if(col === 'shipments' && 'qty' in patch) shipFix = shipQtyFixCheck(id, patch.qty);   // ★ v0.38.21 — 출하 수량 정정 검사 1벌 (자기 제외 · 증가/감소 공통 무결성)
+  if(col === 'shipments' && 'qty' in patch) shipFix = shipQtyFixCheck(id, patch.qty);
+  if(col === 'purchase_receipts' && 'qty' in patch) shipFix = prQtyFixCheck(id, patch.qty, patch.unit);
+  else if(col === 'purchase_receipts' && 'unit' in patch) prQtyFormatCheck(patch.unit, d.qty);   // ★ v0.38.25 (GPT D11) — 단위만 바꿔도 기존 수량이 새 단위 형식에 맞아야 (예: 1.5 kg → ea 거부)   // ★ v0.38.25 — 구매 입고 수량 정정 (같은 qtyFix 경로)   // ★ v0.38.21 — 출하 수량 정정 검사 1벌 (자기 제외 · 증가/감소 공통 무결성)
   // 마감 월 차단 (D2) — 금액·귀속 월에 영향 주는 변경: 바꾸기 전 월 + 바꾼 뒤 월
   if(impact && spec.clType){
     const m0 = getClMonth(d), m1 = patch.ts ? _tsMonth(patch.ts) : m0;
@@ -10896,7 +11031,7 @@ function docEditSave(col, id, input, reason, opts){
   const otd = (col === 'shipments' && (v.patch.ts || sf)) ? otdShipPatchImpact(id, { ts: v.patch.ts, qty: sf ? sf.next : undefined }) : null;
   if(otd && otd.changed) reason += ` · 납기준수 영향: ${otd.so} ${otd.before} → ${otd.after}`;   // 감사 이력(_logs reason)에 영향 기록
   if(sf){
-    reason = `수량 정정 ${sf.old} → ${sf.next} ea · ` + reason + (sf.warn.length ? ` · ⚠ ${sf.warn.join(' / ')}` : '');
+    reason = `수량 정정 ${sf.old} → ${sf.next} ${sf.unit || 'ea'} · ` + reason + (sf.warn.length ? ` · ⚠ ${sf.warn.join(' / ')}` : '');
     // 감사 이력 = qty_hist (추가 전용 · _logs 50 상한과 별개 · 정정 횟수 상한 SHIP_QTY_FIX_MAX)
     v.patch.qty_hist = (DB.get(col, id).qty_hist || []).concat([{ from: sf.old, to: sf.next, by: SESSION.user || 'system', byId: SESSION.userId || '', ts: Date.now(), reason }]);
   }
@@ -10943,10 +11078,10 @@ VIEWS._docEdit = (col, id) => {
       </div>
       ${closed ? `<div class="fl-warn" style="color:var(--amber);border-color:var(--amber)">${_esc(closed)} 마감된 월 — 날짜·거래처·단가는 수정 불가 (비고만 가능)</div>` : ''}
       <div class="grid g2">${fields.map(fieldHTML).join('')}</div>
-      ${col === 'shipments' && getFlags().ship_qty_fix ? `<div id="de-qfix" class="fl-warn" style="display:none;border-color:var(--amber)"></div>` : ''}
+      ${(col === 'shipments' && shipQtyFixEnabled()) || (col === 'purchase_receipts' && prQtyFixEnabled()) ? `<div id="de-qfix" class="fl-warn" style="display:none;border-color:var(--amber)"></div>` : ''}
       ${col === 'shipments' ? `<div id="de-otd" class="fl-warn" style="display:none;color:var(--amber);border-color:var(--amber)"></div>` : ''}
       <div><label>수정 사유 <span style="color:var(--dim);font-weight:400">— 날짜·거래처·단가 등을 바꾸면 필수</span></label><input id="de-r" placeholder="예: 입고일 오입력 정정"></div>
-      <div style="font-size:11px;color:var(--sub)">${col === 'shipments' && getFlags().ship_qty_fix ? '수량 오타는 위에서 정정 · 수주·LOT 를 잘못 잡았으면 [취소] 후 다시 등록하세요' : '고정 항목(수량·LOT·Heat·수주 등)은 [취소] 후 다시 등록하세요'} · 수정 전/후 값은 변경 이력에 남습니다</div>
+      <div style="font-size:11px;color:var(--sub)">${(col === 'shipments' && shipQtyFixEnabled()) ? '수량 오타는 위에서 정정 · 수주·LOT 를 잘못 잡았으면 [취소] 후 다시 등록하세요' : (col === 'purchase_receipts' && prQtyFixEnabled()) ? '수량 오타는 위에서 정정 · 발주 연결을 잘못 잡았으면 [취소] 후 다시 등록하세요' : '고정 항목(수량·LOT·Heat·수주 등)은 [취소] 후 다시 등록하세요'} · 수정 전/후 값은 변경 이력에 남습니다</div>
       <div class="actions">
         <button class="btn" onclick="closeModal()">닫기</button>
         <button class="btn primary" id="de-ok">${ico('save')}수정 저장</button>
@@ -10954,6 +11089,25 @@ VIEWS._docEdit = (col, id) => {
     </div>`);
   const _openUpdated = d._updated || 0;   // ★ v0.38.21 — 창을 연 시점 (다른 곳 변경 감지)
   // ★ v0.38.21 — 출하 수량 정정 미리보기 (저장 0 · 검사 함수 1벌 shipQtyFixCheck 그대로)
+  // ★ v0.38.25 — 구매 입고 수량 정정 미리보기 (GPT: 마감 단가 규칙 재사용 · 단가 없으면 계산 불가 · 발주 잔량 전후 + 실제 초과량)
+  const prQty = col === 'purchase_receipts' && document.querySelector('[data-de="qty"]');
+  if(prQty) prQty.addEventListener('input', () => {
+    const box = document.getElementById('de-qfix'); if(!box) return;
+    const nv = prQty.value.trim();
+    if(nv === '' || +nv === (+d.qty||0)){ box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    try {
+      const sf = prQtyFixCheck(id, nv);
+      const u = d.unit || '';
+      const price = prClosingUnitPrice(d);
+      const amtTxt = price == null ? '매입 금액: 단가 미등록 — 금액 영향 계산 불가' : `매입 금액 ${sf.delta >= 0 ? '+' : '−'}₩${Math.abs(Math.round(sf.delta * price)).toLocaleString()} (단가 ₩${price.toLocaleString()})`;
+      const c = sf.cap;
+      const poTxt = c && c.linked ? `발주 ${c.po.id} 잔량 ${c.remainBefore.toLocaleString()} → ${c.remainAfter.toLocaleString()}${u}${(c.overBefore || c.overAfter) ? ` · 초과 입고 ${c.overBefore.toLocaleString()} → ${c.overAfter.toLocaleString()}${u}` : ''}` : '발주 미연결 입고';
+      box.style.color = 'var(--ink)';
+      box.innerHTML = `<b>${sf.old.toLocaleString()} → ${sf.next.toLocaleString()} ${_esc(u)}</b> (${sf.delta > 0 ? '+' : ''}${(+sf.delta.toFixed(3)).toLocaleString()})<br>${_esc(amtTxt)}<br>${_esc(poTxt)}`
+        + (sf.warn.length ? `<br><span style="color:var(--amber)">⚠ ${_esc(sf.warn.join(' / '))} (감소 정정은 허용 · 이력에 기록)</span>` : '');
+    } catch(e){ box.style.color = 'var(--red)'; box.textContent = '저장 불가 — ' + e.message; }
+  });
   const deQty = col === 'shipments' && document.querySelector('[data-de="qty"]');
   if(deQty) deQty.addEventListener('input', () => {
     const box = document.getElementById('de-qfix'); if(!box) return;
@@ -11616,7 +11770,7 @@ VIEWS._matinBuy = () => {
                 <td><b>${_esc(r.name||'—')}</b>${voidBadge}${clBadge(r)}</td>
                 <td>${_esc(r.spec||'—')}</td>
                 <td>${_esc(r.unit||'—')}</td>
-                <td class="num" style="color:var(--cyan);font-weight:700">${(+r.qty||0).toLocaleString()}</td>
+                <td class="num" style="color:var(--cyan);font-weight:700">${(+r.qty||0).toLocaleString()}${(r.qty_hist||[]).length ? ` <span style="color:var(--amber);cursor:help;font-size:11px;font-weight:400" title="${_esc((r.qty_hist||[]).map(h => `${h.from} → ${h.to} ${r.unit||''} · ${fmtDate(h.ts)} ${h.by} · ${h.reason}`).join('\n'))}">✎ 정정</span>` : ''}</td>
                 <td class="num">${hasPrice? Math.round(+r.price).toLocaleString():'<span class="muted">—</span>'}</td>
                 <td class="num">${hasPrice? Math.round(amt).toLocaleString():'<span class="muted">—</span>'}</td>
                 <td style="font-size:11px;color:var(--sub)">${_esc(ven?.name||r.vendor||'—')}</td>
@@ -11770,13 +11924,14 @@ VIEWS._matinBuy = () => {
               <option value="ea">ea</option>
               <option value="kg">kg</option>
               <option value="L">L</option>
+              <option value="m">m</option>
               <option value="통">통</option>
               <option value="box">box</option>
               <option value="세트">세트</option>
               <option value="기타">기타</option>
             </select>
           </div>
-          <div><label>수량</label><input id="pr-qty" type="number" min="0.001" step="any" placeholder="예: 2"></div>
+          <div><label>수량 <span id="pr-qty-rule" style="color:var(--dim);font-weight:400;font-size:10.5px">정수</span></label><input id="pr-qty" type="number" min="0.001" step="any" placeholder="예: 2"></div>
           <div><label>단가 (선택)</label><input id="pr-price" type="number" min="0" step="any" placeholder="선택"></div>
         </div>
         <div class="grid g2">
@@ -11795,6 +11950,9 @@ VIEWS._matinBuy = () => {
       </div>
     `);
     // 발주 선택 시 품명·규격·단위·거래처 자동 채움 (mockup 시안 ③)
+    // ★ v0.38.25 — 단위별 수량 형식 안내 (개수 = 정수 · 계량 = 소수 3자리)
+    const _prRule = () => { const u = document.getElementById('pr-unit').value; const k = prUnitKind(u); document.getElementById('pr-qty-rule').textContent = k === 'count' ? '정수' : '소수 3자리까지'; document.getElementById('pr-qty').step = k === 'count' ? '1' : '0.001'; };
+    document.getElementById('pr-unit').addEventListener('change', _prRule); _prRule();
     document.getElementById('pr-po').onchange = (e)=>{
       const opt = e.target.selectedOptions[0]; if(!opt) return;
       const nm = opt.dataset.name||'';
@@ -11805,7 +11963,9 @@ VIEWS._matinBuy = () => {
       if(sp) document.getElementById('pr-spec').value = sp;
       if(un){
         const uSel = document.getElementById('pr-unit');
-        if([...uSel.options].some(o=>o.value===un)) uSel.value = un;
+        // ★ v0.38.25 (GPT P1) — 발주 단위가 목록에 없으면 임의로 ea 처리하지 않고 그 단위를 추가해 선택
+        if(![...uSel.options].some(o=>o.value===un)) uSel.insertAdjacentHTML('beforeend', `<option value="${_esc(un)}">${_esc(un)} (발주 단위)</option>`);
+        uSel.value = un; uSel.dispatchEvent(new Event('change'));
       }
       if(ven){
         const vSel = document.getElementById('pr-vendor');
@@ -11816,7 +11976,7 @@ VIEWS._matinBuy = () => {
       const name = document.getElementById('pr-name').value.trim();
       const spec = document.getElementById('pr-spec').value.trim();
       const unit = document.getElementById('pr-unit').value;
-      const qty  = +document.getElementById('pr-qty').value || 0;
+      const qtyRaw = document.getElementById('pr-qty').value;
       const priceRaw = document.getElementById('pr-price').value.trim();
       const price = priceRaw==='' ? null : (+priceRaw||0);
       const vendor = document.getElementById('pr-vendor').value || null;
@@ -11826,7 +11986,10 @@ VIEWS._matinBuy = () => {
       const po_id = poOpt?.dataset.poid || null;
       const po_item_key = poOpt?.dataset.poitem || null;
       if(!name){ toast('품명 입력','warn'); return; }
-      if(qty<=0){ toast('수량 입력','warn'); return; }
+      // ★ v0.38.25 (GPT D11·D12) — 신규 등록도 정정과 같은 검증 함수: 단위별 수량 형식 + 발주 연결 시 발주량 초과 차단(자기 없음)
+      let qty;
+      try { qty = prQtyFormatCheck(unit, qtyRaw); prPoCapCheck({ po_id, po_item_key, unit }, qty); }
+      catch(e){ toast(e.message, 'warn', 4500); return; }
       const prNo = resolveDocNo('pr-id', 'PR');
       if(prNo.dup){ toast(`입고번호 중복 — ${prNo.id}`,'err'); return; }
       const id = prNo.id;
@@ -19081,6 +19244,7 @@ VIEWS.audit = () => {
         // ★ v0.38.22 (GPT v0.38.21 판정 ②) — 원장 정합성: LOT 출하 합 > 인정양품 (파생 · 저장 0 · 정상 원장으로 판정하지 않음)
         const rows = [...new Set(DB.all('shipments').map(x => x.plot_no).filter(Boolean))].map(lotShipOverage).filter(x => x && x.over > 0).sort((a,b) => b.over - a.over);
         return `<h3>원장 정합성 · LOT 출하 초과 <span class="pill ${rows.length ? 'amber' : 'green'}" style="font-size:10px">${rows.length ? `미해결 ${rows.length} LOT` : '0건'}</span></h3>
+        ${isDemoMode() && rows.length ? `<div style="font-size:11.5px;color:var(--sub);background:var(--bg2);border:1px dashed var(--line2);border-radius:8px;padding:8px 11px;margin-bottom:10px">ⓘ 데모: 표시되는 초과 LOT 에는 시연용 데이터에 포함된 사례가 있습니다 — 실제 운영 데이터와 무관하며, 원장 정합성 검증 기능을 보여주기 위해 표시됩니다</div>` : ''}
         ${rows.length ? `<div class="tbl-wrap"><table><thead><tr><th>LOT</th><th>기준 공정</th><th class="num">인정양품</th><th class="num">출하 합</th><th class="num">초과</th></tr></thead><tbody>${rows.map(x => `<tr><td class="mono">${_esc(x.plot)}</td><td>${_esc(x.proc)}</td><td class="num">${x.good.toLocaleString()}</td><td class="num">${x.shipped.toLocaleString()}</td><td class="num"><b style="color:var(--amber)">${x.over.toLocaleString()}</b></td></tr>`).join('')}</tbody></table></div>
         <div style="font-size:11px;color:var(--sub);margin-top:7px">출하 등록 가드 이전·이관 데이터 등으로 출하 합이 LOT 인정양품을 넘은 상태 — 증가 출하·증가 정정은 차단 · 감소 정정은 허용(이력에 「확인 필요」) · 실적 누락 보정 또는 출하 정정으로 해소</div>` : `<div class="empty" style="padding:14px">출하 합이 인정양품을 넘는 LOT 없음</div>`}`;
       })()}

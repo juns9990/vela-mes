@@ -1,1171 +1,69 @@
-VELA MES v0.38.24 — 검증 묶음 (GPT 독립 검토용 · 이 파일 1개에 검증 스크립트 원본 + 실행 로그 전부)
-생성: 2026-10-09T08:23:32Z · index-dev.html SHA-256 = 499d00aadc78784435a2fa1e43c722bfbf1f48a6030abe4ada592cc5769f7188
+VELA MES v0.38.25 — 검증 묶음 (GPT 독립 검토용 · 이 파일 1개에 검증 스크립트 원본 + 실행 로그 전부)
+생성: 2026-10-09T13:47:29Z · index-dev.html SHA-256 = 7becadb336b09ab7554a4499403ca3b0d83ffdfc23e24b6f036a31d9c97e4bc5
 재현: 아래 각 ===== FILE: 블록을 같은 이름 파일로 저장 → npm i jsdom → VELA_FILE=index-dev.html node <파일> (VELA_FILE 미지원 하네스는 index-dev.html 을 vela-mes-prototype.html 로 복사)
 
 ########## 목차
 - _snapshot-compare-3324.js  sha256=81fa4b07b5673df3
-- _verify-2tab-local.js  sha256=6d386fa151e05df1
+- _verify-2tab-local.js  sha256=b427cebbfbd12840
 - _verify-correct-guard.js  sha256=ddcc0949b3324096
 - _verify-dash357.js  sha256=b4ddb1e25e98bc48
-- _verify-docedit.js  sha256=fa2526ca07d895d8
+- _verify-demo8.js  sha256=829be659e01bd073
+- _verify-docedit.js  sha256=ddb9b0cbe6fff4a7
 - _verify-forms358.js  sha256=2200a3dde46ac0a0
-- _verify-hold3.js  sha256=67423001e8aa685c
+- _verify-hold3.js  sha256=9e9eceedf49c60d7
 - _verify-lock-live.js  sha256=18aa7790ccb01b69
-- _verify-mobile.js  sha256=d8cbee836b82799b
-- _verify-nav377.js  sha256=847ad0c52f6ffe70
+- _verify-mobile.js  sha256=7fe51f78ff583a2d
+- _verify-nav377.js  sha256=6456d8e140137a83
 - _verify-otd.js  sha256=091e24a53291bfe9
-- _verify-personal.js  sha256=55f32b68a16ca030
+- _verify-personal.js  sha256=17d00b564056308f
 - _verify-pilot359.js  sha256=3c712c08acbc8359
-- _verify-q60.js  sha256=56ac38aacbf9dc02
+- _verify-prfix.js  sha256=c06555eead1a38da
+- _verify-q60.js  sha256=e8709f3e95f8b803
 - _verify-r4-bottleneck.js  sha256=369c5210366f0186
 - _verify-recid.js  sha256=e0800b8c989805a5
 - _verify-sec.js  sha256=7b32e36d46ed7f31
-- _verify-shipfix.js  sha256=370fa0ed1dfb7485
+- _verify-shipfix.js  sha256=0eaa4092c8b5cdb2
 - _verify-sim-standard.js  sha256=9b8c125b83d77ee0
 - _verify-soclose.js  sha256=613fe729c7614125
-- _verify-tx23.js  sha256=f5c3de4cfb1ca9d8
-- _verify-v0.35.10.js  sha256=a4d847953421c2aa
+- _verify-tx23.js  sha256=79ca296bd1209c42
+- _verify-v0.35.10.js  sha256=23a8760452b35dd9
 - _verify-v21-exec.js  sha256=37430071f4532cd8
 
 ########## 실행 로그
-VELA MES v0.38.24 검증 로그 · 2026-10-09T08:23:32Z · 대상 SHA-256 499d00aadc78784435a2fa1e43c722bfbf1f48a6030abe4ada592cc5769f7188 · 23개 전부 exit 0
+VELA MES v0.38.25 전수 회귀 — 2026-10-09 13:47:27
+_snapshot-compare-3324.js.log        exit=0 | RESULT: IDENTICAL — 원장·집계 무변 증명
+_verify-2tab-local.js.log            exit=0 | 2TAB TOTAL 26 · PASS 26 · FAIL 0
+_verify-correct-guard.js.log         exit=0 | CORRECT-GUARD TOTAL 12 · PASS 12 · FAIL 0
+_verify-dash357.js.log               exit=0 | DASH357 TOTAL 22 · PASS 22 · FAIL 0
+_verify-demo8.js.log                 exit=0 | DEMO8 TOTAL 14 · PASS 14 · FAIL 0
+_verify-docedit.js.log               exit=0 | DOCEDIT TOTAL 11 · PASS 11 · FAIL 0
+_verify-forms358.js.log              exit=0 | FORMS358 TOTAL 26 · PASS 26 · FAIL 0
+_verify-hold3.js.log                 exit=0 | HOLD3 TOTAL 47 · PASS 47 · FAIL 0
+_verify-lock-live.js.log             exit=0 | LOCK-LIVE TOTAL 18 · PASS 18 · FAIL 0
+_verify-mobile.js.log                exit=0 | MOBILE TOTAL 39 · PASS 39 · FAIL 0
+_verify-nav377.js.log                exit=0 | NAV377 TOTAL 32 · PASS 32 · FAIL 0
+_verify-otd.js.log                   exit=0 | OTD TOTAL 28 · PASS 28 · FAIL 0
+_verify-personal.js.log              exit=0 | PERSONAL TOTAL 41 · PASS 41 · FAIL 0
+_verify-pilot359.js.log              exit=0 | PILOT359 TOTAL 29 · PASS 29 · FAIL 0
+_verify-prfix.js.log                 exit=0 | PRFIX TOTAL 18 · PASS 18 · FAIL 0
+_verify-q60.js.log                   exit=0 | Q60 TOTAL 18 · PASS 18 · FAIL 0
+_verify-r4-bottleneck.js.log         exit=0 | R4 TOTAL 7 · PASS 7 · FAIL 0
+_verify-recid.js.log                 exit=0 | RECID TOTAL 15 · PASS 15 · FAIL 0
+_verify-sec.js.log                   exit=0 | SEC TOTAL 24 · PASS 24 · FAIL 0
+_verify-shipfix.js.log               exit=0 | SHIPFIX TOTAL 17 · PASS 17 · FAIL 0
+_verify-sim-standard.js.log          exit=0 | TOTAL 11 · PASS 11 · FAIL 0
+_verify-soclose.js.log               exit=0 | SOCLOSE TOTAL 15 · PASS 15 · FAIL 0
+_verify-tx23.js.log                  exit=0 | TX23 TOTAL 4 · PASS 4 · FAIL 0
+_verify-v0.35.10.js.log              exit=0 | TOTAL 499 · PASS 499 · FAIL 0
+_verify-v21-exec.js.log              exit=0 | [PASS] O7 — Gate ④⑤ J1 자동 재검증(오차 0) 통과 → 잠금 해제·정상 �
+dev-_verify-demo8.js.log             exit=0 | DEMO8 TOTAL 14 · PASS 14 · FAIL 0
+dev-_verify-otd.js.log               exit=0 | OTD TOTAL 28 · PASS 28 · FAIL 0
+dev-_verify-prfix.js.log             exit=0 | PRFIX TOTAL 18 · PASS 18 · FAIL 0
+dev-_verify-sec.js.log               exit=0 | SEC TOTAL 24 · PASS 24 · FAIL 0
+dev-_verify-shipfix.js.log           exit=0 | SHIPFIX TOTAL 17 · PASS 17 · FAIL 0
+dev-_verify-tx23.js.log              exit=0 | TX23 TOTAL 4 · PASS 4 · FAIL 0
 
-==================== _snapshot-compare-3324.js
-key | v0.33.2 | v0.33.4 | same
-counts.orders | 42 | 42 | ✓
-counts.work_orders | 32 | 32 | ✓
-counts.production_lots | 32 | 32 | ✓
-counts.records | 84 | 84 | ✓
-counts.shipments | 52 | 52 | ✓
-counts.purchase_orders | 12 | 12 | ✓
-counts.nc_records | 14 | 14 | ✓
-counts.quotes | 16 | 16 | ✓
-counts.acct_receipts | 19 | 19 | ✓
-counts.acct_expenses | 36 | 36 | ✓
-counts.items | 25 | 25 | ✓
-counts.vendors | 16 | 16 | ✓
-counts.workers | 17 | 17 | ✓
-good_total | 34112 | 34112 | ✓
-defect_total | 0 | 0 | ✓
-ship_qty_total | 12760 | 12760 | ✓
-monthSales | 1698000 | 1698000 | ✓
-yearSales | 49289000 | 49289000 | ✓
-so_total | 89018000 | 89018000 | ✓
-so_done | 49289000 | 49289000 | ✓
-so_prog | 8342300 | 8342300 | ✓
-so_wait | 31386700 | 31386700 | ✓
-so_identity_err | 0 | 0 | ✓
-sample.h01_bal_ship | 300 | 300 | ✓
-sample.h01_qty | 300 | 300 | ✓
-sample.first_order | SO-2026-D001 | SO-2026-D001 | ✓
-sample.first_ship | SH-DEMO-01 | SH-DEMO-01 | ✓
-
-RESULT: IDENTICAL — 원장·집계 무변 증명
-exit=0
-
-==================== _verify-2tab-local.js
-[PASS] S0 시드 후 localStorage 문서 수 = 메모리 (records)  — mem 84 · ls 84
-[PASS] S0 시드 후 localStorage 컬렉션 수 = 메모리(문서 1개 이상)  — ls 34 · mem 34
-[PASS] S1 탭B 부팅 잔량 200
-[PASS] S1 탭A 150 등록 성공
-[PASS] S1 탭A 쓰기 후 localStorage records 85
-[PASS] S1 storage 이벤트 수신 → 탭B 메모리 병합 (records 85 · 잔량 50)  — rec 85 bal 50
-[PASS] S1 탭B 150 등록 → 초과 등록 차단 (예방)  — 초과 등록 차단 — 잔량 50ea, 등록 150ea
-[PASS] S1 탭B 50 등록은 허용
-[PASS] S1 두 탭 실적 모두 보존 (records 86)
-[PASS] S1 탭A 역방향 병합 → 잔량 0
-[PASS] S1 정합: 사고 0 · 잠금 없음
-[PASS] S2 탭A 150 등록
-[PASS] S2 탭B(stale) 150 등록 성공 (자기 메모리 기준 잔량 200)
-[PASS] S2 ★ 유실 없음 — localStorage records 86 (구 방식 85)  — records 86
-[PASS] S2 새 부팅 진실: 보류 100(잔량 0) · 사고 ≥1 · 사고 LOT 집합 true (★ v0.36.0 Q6-0 승계)  — pend 100 inc 1 lock true
-[PASS] S2 탭A 도 storage 병합으로 보류 100 인지 (새로고침 없이)
-[PASS] S2 탭A LOT 추적 진입 → 사고 생성·사고 LOT 집합 true
-[PASS] S2 사고 공정 신규 실적 → 잔량 0 초과 등록 차단 (Lock 의 수량 차단을 balance 가 흡수)  — 초과 등록 차단 — 잔량 0ea, 등록 10ea
-[PASS] S2 차단 시도 후 records 불변 (O-3)
-[PASS] S3 set 후 localStorage 에 SO-TMP-1
-[PASS] S3 restore(전체 쓰기) 후 SO-TMP-1 사라짐 · records 84
-[PASS] S3 remove 문서 단위 삭제 반영 (타 문서 무손상)
-[PASS] S3 flush() 동기 강제 반영
-[PASS] S4 자기 쓰기 에코(동일 문자열) 무시 — 리렌더 0
-[PASS] S4 모달 열림 중 수신 → 데이터 병합(86) · 리렌더 보류(0)
-[PASS] S4 모달 닫힌 뒤 수신 → 리렌더 1
-
-2TAB TOTAL 26 · PASS 26 · FAIL 0
-exit=0
-
-==================== _verify-correct-guard.js
-[PASS] 준비: 등록 2건 성공 · 첫 공정 잔량 = 이전−100  — bal0 200→100 · bal1 40
-[PASS] T1 잔량 초과 보정 차단 (등록과 동일 규율)  — 보정 차단 — 단조 보류 0ea → 1ea (잔량 초과 · 등록과 동일 규율) · 수량을 줄이거나 다른 실적을 먼저 정정하세요
-[PASS] T1 차단 후 원장 무변 (레코드 수량·잔량 그대로)
-[PASS] T2 한도 내 증가 보정 허용 (잔량 0 까지)  — bal 0
-[PASS] T3 하류 공정 음수 유발 감소 보정 차단  — 보정 차단 — 열처리 보류 0ea → 1ea (잔량 초과 · 등록과 동일 규율) · 수량을 줄이거나 다른 실적을 먼저 정정하세요
-[PASS] T4 준비: 둘째 공정 보류 양수 (사고 상태 · 잔량 0)  — pend1 60 · bal1 0
-[PASS] T4-a 사고 LOT 악화 보정(증가) 차단  — 보정 차단 — 열처리 보류 60ea → 70ea (잔량 초과 · 등록과 동일 규율) · 수량을 줄이거나 다른 실적을 먼저 정정하세요
-[PASS] T4-b 사고 LOT 개선 보정(감소 · 아직 보류) 허용 — Gate ③ 정정 경로 유지  — pend1 50
-[PASS] T4-c 사고 LOT 완전 정정(0) 허용 → 보류 0  — pend1 0
-[PASS] T5 correctionCheck 드라이런 — 판정만 · 원장/로그 불변  — {"proc":"FORGE","name":"단조","before":99799,"after":0,"pendBefore":0,"pendAfter":99799}
-[PASS] T6 _perfEdit → LOT.correctRecord 배선 (DB.correct 직접 호출 제거)
-[PASS] T6 보정 모달 잔량 힌트 표기
-
-CORRECT-GUARD TOTAL 12 · PASS 12 · FAIL 0
-exit=0
-
-==================== _verify-dash357.js
-[PASS] D1 스트립 정확히 4칸 · 라벨 = 총 수주잔/당월 매출/오늘 생산/오늘 이상  — 총 수주잔|당월 매출|오늘 생산|오늘 이상
-[PASS] D2 총 수주잔 = calcSoFulfillment().total (수주 화면 띠와 같은 값 · 오차 0)  — 수주 ↗ 총 수주잔 ₩89,018,000 생산중 ₩8,342,300 · 미착수 ₩31,386,700 
-[PASS] D2 띠 카드 총 수주 금액 = 스트립 총 수주잔 (한 화면 두 숫자 일치)
-[PASS] D3 당월 매출 = calcSales (출하 화면과 계산 1벌)
-[PASS] D4 오늘 생산 = 오늘 records 양품 합  — 0ea
-[PASS] D5 오늘 이상 = 잠금+HOLD+판정 지체(alert↑)+납기 지연 합 (9-B 승계)  — exp 7 · 확인 ↗ 오늘 이상 7건 품질 HOLD 3 · 납기 지연 4 
-[PASS] D5 이상 있으면 amber 타일(.issue) / 없으면 .ok
-[PASS] D6 사고 발생 → 오늘 이상 +1 · 「동시성 사고 1」 표기 · 클릭 → #audit (v0.36.0 승계)  — 확인 ↗ 오늘 이상 8건 동시성 사고 1 · 품질 HOLD 3 · 납기 지연 4 
-[PASS] D7 카드 2장만 (수주 대비 띠 + 생산 추세) · 이동 항목 미노출
-[PASS] D8 5초 규격 — 화면 내 통화/수량 대형 숫자(.val) 4개뿐
-[PASS] D9 추세 주/월/년 토글 동작
-[PASS] N1 매일 메뉴 = 대시보드 + 7 (수주·생산계획·실적 등록·실적현황·LOT·품질·출하) — 메뉴 순서 유지  — dash,so,plan,scan,perf,lot,qc,ship
-[PASS] N2 사이드바 = 내 메뉴만 + 「전체 메뉴」 버튼 (관리 접이식·그룹 라벨·아이콘 0)  — 8개
-[PASS] N2 전체 메뉴 창 = 나머지 전부 · 그룹 라벨 ≥4  — 28개
-[PASS] N3 기능 수 불변 — 전체 메뉴 창 항목 수 = canSee 결과와 동일 (숨김 0)  — 28
-[PASS] N4 전체 메뉴 창 열림
-[PASS] N4 닫기 → 닫힘 · vela_nav_more 미사용
-[PASS] N5 내 메뉴 밖 화면으로 이동 → 「전체 메뉴」 버튼 활성 + 화면 이름 힌트  — ☰ 전체 메뉴· 기준정보
-[PASS] N5 내 메뉴 화면으로 복귀 → 힌트 해제
-[PASS] N6 settings/menu.primary 로 매일 메뉴 조정 가능 (업체 데이터)  — dash,so,os
-[PASS] N7 권한 로직 무변 — worker 에게 MANAGER_ONLY 메뉴 미노출
-[PASS] 버전 ≥ v0.35.7  — v0.38.24
-
-DASH357 TOTAL 22 · PASS 22 · FAIL 0
-exit=0
-
-==================== _verify-docedit.js
-[PASS] 1 PO 100→80 (입고 60) 허용 · 감사 로그(처리자·사유·변경 전/후)  — {"ok80":true,"ord":80,"rcv":60,"remain":20,"amt":80000,"ng50":true,"after50":true,"log":{"vendor":"S001","due":"2026-12-31","items":[{"kind":"mat","name":"SCM440","spec":"Ø55","unit":"kg","qty":80,"price":1000}]}}
-[PASS] 2 PO 100→50 (입고 60) 차단 · 실패 시 문서 불변
-[PASS] 3 수정 전후 PO 금액·잔량 재계산 정확 (발주 80 · 입고 60 · 잔량 20 · 금액 80,000)  — {"ok80":true,"ord":80,"rcv":60,"remain":20,"amt":80000,"ng50":true,"after50":true,"log":{"vendor":"S001","due":"2026-12-31","items":[{"kind":"mat","name":"SCM440","spec":"Ø55","unit":"kg","qty":80,"price":1000}]}}
-[PASS] 4 마감 월 차단(D2): PO 단가(연결 입고 월 마감) · 소재 입고일 · 공급처 → 차단 / 비고는 허용  — {"price":true,"date":true,"vend":true,"memo":true,"memoSaved":true,"poSame":true}
-[PASS] 5 공급처: 입고 연결 PO 변경 차단 · 연결 소재 입고 잠금 · 비연결 입고 변경 허용 → 매입 집계 거래처 즉시 일치  — {"poV":true,"mrLinked":true,"mrFree":true,"vendorNow":"S002","prFree":true,"s003Before":0,"s003After":500}
-[PASS] 6 LOT·Heat·수주·수량·외주처 등 대상 변경 = 수정 경로 없음 (필드 정의 0 · 입력 무시 · 출하 문서 불변) · v0.38.21 출하 수량 정정 켜짐 = shipments.qty 1개만 추가 (대상 변경은 여전히 0)  — {"emptyShip":true,"emptyMr":true,"forbidden":[],"forbiddenOn":["shipments.qty"],"same":true}
-[PASS] 7 출하: 계산서 발행 월 날짜 수정 차단(D2·D3) · 포장수량·비고 수정 허용 · 수량 불변  — {"free":true,"inv":true,"pack":true,"packNow":150,"qtySame":true}
-[PASS] 8 외주 반출일은 첫 외주 입고보다 늦을 수 없음 · 외주 입고 = 비고만(수량·날짜는 실적 연동 2차)  — {"late":true,"orFields":"memo"}
-[PASS] 9 날짜·거래처·단가 변경은 사유 필수 (없으면 저장 0 · 문서 불변) · 사유 있으면 저장  — {"need":true,"same":true,"ok":true}
-[PASS] 10 원장 무변 — LOT·실적·작업지시·계획·소재 LOT·외주 입고 문서 수정 전후 동일
-[PASS] 11 UI: 발주·출하 목록 [수정] · 발주 수정 창(입고 연결 품목 이름 잠금) → 저장 90 · 출하 수정 창 「수량은 취소 후 재등록」 안내  — {"poBtn":true,"rows":1,"nameLocked":true,"saved":true,"shBtn":true,"shModal":true}
-
-DOCEDIT TOTAL 11 · PASS 11 · FAIL 0
-exit=0
-
-==================== _verify-forms358.js
-[PASS] S1 새 수주 첫 화면 입력칸 = 고객사·품번·수량·납기 4개 (수주번호·단가는 더 보기)  — so-cust,so-item,so-qty,so-due
-[PASS] S2 품번 목록 = 선택 고객사의 품번만 (짧은 라벨 · 품명/단가 미포함)  — 5 vs 5
-[PASS] S3 품번 고르면 품명·단가·최근 수주 자동 카드  —  품명링기어 단가 (마스터)₩5,300 최근 수주400ea · 2026-10-24
-[PASS] S3 단가 칸(더 보기) = 마스터 단가 자동
-[PASS] S4 고객사 변경 → 품번 목록 갱신 + 자동 카드 갱신  — C001
-[PASS] S5 수량 없으면 저장 안 됨
-[PASS] S5 납기 없으면 저장 안 됨 (담당자 요구: 납기만 고르면 됨 = 납기는 필수)
-[PASS] S6 고객사·품번·수량·납기만으로 생성 → 단가는 마스터값 자동 저장  — {"q":120,"p":3200,"d":"2026-10-15"}
-[PASS] P1 수주 연결 = 표 (재고생산 행 + 잔량 있는 수주 행) · 긴 드롭다운은 숨김  — 24 rows
-[PASS] P2 행 클릭 → 숨은 select 선택 + 품번·수량(계획 가능) 프리필 + 강조  — SO-2026-D102
-[PASS] P2 표 컬럼 = 수주번호·고객사·품번·납기·계획 가능 (5개)
-[PASS] P3 검색 1줄로 수주 좁히기 (수주번호)  — 1
-[PASS] P4 프리필(so_id) → 표에서 그 행 강조 + 수량 프리필
-[PASS] Q1 근거 줄 — 단가표 등록 여부를 문장으로 (실데이터 / 미등록)  —  ● 실데이터 원가 › 단가표 · 라우트 4공정 · 소재 SCM440 0.42kg/ea 재료₩1,47037%외주₩80020%가공₩1,70043%간접₩39710% 
-[PASS] Q2 원가 4항목(재료·외주·가공·간접) 칸 + 비중 %  — 4
-[PASS] Q3 원가 → 마진 → 단가 → 금액 한 줄 · 숫자 = computeCost 1벌
-[PASS] Q4 단가표 비면 「단가표 미등록 (예시 아님 · 0으로 계산)」 + 단가표 링크
-[PASS] Q4 복원 → 실데이터 문구
-[PASS] M1 내 메뉴 미설정 → 회사 기본 (dash + 7)  — dash,so,plan,scan,perf,lot,qc,ship
-[PASS] M1 사이드바에 「전체 메뉴」 버튼
-[PASS] M2 전체 메뉴 창 = 권한 있는 메뉴 ★ 토글 · MANAGER_ONLY 제외 · 대시보드는 고정(★ 토글 없음)  — 24
-[PASS] M3 ★ 토글 즉시 저장 → 내 메뉴 = dash + 2개 · settings/prefs.U-QA.menu_primary 저장 · users 문서에는 쓰지 않음  — dash,lot,qc / ["lot","qc"]
-[PASS] M3 나머지는 전체 메뉴 창 안 (기능 숨김 0)  — 25
-[PASS] M4 다른 계정은 회사 기본 그대로 (계정별 독립)  — dash,so,plan,scan,perf,lot,qc,ship
-[PASS] M5 [회사 기본으로] → 복원  — dash,so,plan,scan,perf,lot,qc,ship
-[PASS] 버전 ≥ v0.35.8  — v0.38.24
-
-FORMS358 TOTAL 26 · PASS 26 · FAIL 0
-exit=0
-
-==================== _verify-hold3.js
-[PASS] 1 현장 NC(hold=false) → 판정 대기 · LOT 미차단  — NC-2026-MZ001
-[PASS] 1b 판정 대기 LOT 은 실적 등록 가능 (registerRecord 미차단)
-[PASS] 1c 시드 접수 NC 는 hold:true 명시 = HOLD 시연 케이스 유지 (U1·K1-3 시나리오 보존)  — NC-2026-DA006
-[PASS] 1d hold 필드 없는 기존 NC(실DB 업데이트 전 등록분) = 판정 대기 (사용자 판정: 기본 전부 HOLD 아님)
-[PASS] 2 품질팀 HOLD 체크 → 실적·출하·반출 3중 차단 (기존 Gate)
-[PASS] 2b HOLD 해제 → 판정 대기 복귀
-[PASS] 4 실적 NC 30+10 / 실적 불량 40 → 격리 40 (실적 상한)  — 40
-[PASS] 4b 같은 실적 초과 신고(30 추가 → 70 > 40)는 등록 단계에서 차단 (ncSumByRecord)  — 실적 불량 초과 — 실적 40ea · 기 등록 40ea · 추가 가능 0ea
-[PASS] 5 LOT NC 500 / 가용 260 → LOT NC 는 가용 상한 · 합계도 가용 상한  — 260
-[PASS] 6 실적 NC(40) + LOT NC(25) 혼합 → 65 (가용 이내)  — 65
-[PASS] 7 재작업 중 NC → 격리 유지  — 65
-[PASS] 8 처리 완료(완료·특채) → 격리에서 제외 (남은 판정 대기 30만)  — 30
-[PASS] 9 판정 대기 → 허용 수량(가용−격리) 이내 출하 성공  — allowed 230
-[PASS] 10 허용 초과 출하 → 차단 (문구에 격리·가능 수량)  — 판정 대기 격리 — PL-2026-D104 부적합 신고 30ea 격리 (NC-2026-MZ001) · 출하 가능 5ea (요청 6) · 품질 관리에서 판정 후 전량 가능
-[PASS] 11 판정 대기 → 허용 이내 반출 통과
-[PASS] 12 허용 초과 반출 → 차단 (출하와 동일 규칙 · 완화 없음)  — 판정 대기 격리 — PL-2026-D104 부적합 신고 30ea 격리 (NC-2026-MZ001) · 외주 반출 가능 5ea (요청 6) · 품질 관리에서 판정 후 전량 가능
-[PASS] 13 출하 직전 격리 증가 → 같은 요청(3ea) 재검증 시 차단
-[PASS] 14 반출 직전 격리 증가 → 차단
-[PASS] 15/16 출하·반출 직전 HOLD 전환 → assertLotNotHeld 차단
-[PASS] 17 동시성 판정은 별도 Gate 그대로 (v0.36.0: assertWithinAccepted → assertQuarantine 순서 · 출하 핸들러 내)
-[PASS] 18 출하 창 판정 대기 경고 문구 (NC n건 · 격리 m · 출하 가능 k)  — ⚠ 판정 대기 NC 1건 (NC-2026-MZ001) · 격리 30ea — 출하 가능 5ea · 품질팀 판정 전 출하는 NC 에 기록됩니다
-[PASS] 18b LOT 옵션 라벨 ⚠ 판정 대기
-[PASS] 19 판정 지체 1일 → 🟡 (기본 warn=1)
-[PASS] 20 판정 지체 3일 → 🔴 (기본 alert=3)
-[PASS] 21 설정값 변경 반영 (alert 7 → 3일은 🟡)
-[PASS] 21b 대시보드 「오늘 이상」에 판정 지체 집계 (alert 이상만)  — 확인 ↗ 오늘 이상 8건 품질 HOLD 3 · 판정 지체 1 · 납기 지연 4 
-[PASS] 21c 품질 목록 배지 🔴 판정 지체 n일
-[PASS] 22/23 HOLD 설정·해제 이력 (hold_log on/off · by · reason) + _logs  — 4 hold_log · 8 logs
-[PASS] 24 판정 대기 중 출하 기록 (NC pending_out kind=ship · ref · qty)  — [{"kind":"ship","ref_id":"SH-QA-1791534181874-yq2","qty":225,"ts":1791534181875,"by":"qa"}]
-[PASS] 25 판정 대기 중 반출 기록 (kind=os)
-[PASS] 25b 출하 원장 구조 무변 — shipments 에 pending_nc 필드 없음
-[PASS] 25c NC 상세 타임라인에 HOLD 설정/해제·판정 대기 중 출하 표시 + [로트 불량 HOLD] 버튼
-[PASS] 26 U1 승계 — HOLD 오류문에 NC 번호·해결 방법 (hold=true 조건)
-[PASS] 27 K1-3 승계 — 특채 처리 → HOLD 해제 (시드 NC)
-[PASS] 28 v2.2 K2 승계 — HOLD LOT 실적 등록 차단 (registerRecord)
-[PASS] 29 등록 창 = 「판정 범위」 선택칸(부분 불량 기본 · 로트 불량) — 체크박스 없음 · 두 경로 모두 기본 부분 불량
-[PASS] 29a 로트 불량 선택 → 사유 칸 표시(필수) · 사유 없이 등록 시 차단
-[PASS] 29b 등록 시 hold 미지정 → 판정 대기 (qcRegisterNc 기본값 false)
-[PASS] 29c 로트 불량(hold:true+사유) 등록 → 즉시 HOLD + hold_reason + hold_log
-[PASS] 29d [📷 등록 + 사진 첨부] 버튼 + NC 상세 [📎 사진·파일] → 첨부 모듈 1벌(nc_records attachments)
-[PASS] 29e NC 상세 정보에 판정 범위 행 (부분 불량 n ea 격리 / 로트 불량 + 사유)
-[PASS] 30 원장 불변 — records/lots 총량 (NC·hold·pending_out 은 nc_records 만 변경)
-[PASS] 버전 v0.38.24  — v0.38.24
-[PASS] 29f 부적합 등록 폼에 드롭존 + 도면 등록 폼에 드롭존 (attPendingDropZone 1벌)
-[PASS] 29g 폼에 파일 드롭 → 대기 목록 표시 → 등록 시 문서 생성 후 업로드 (로컬 모드 = 인라인 ≤400KB)
-[PASS] 29h 저장 후 첨부 반영 — kind=inline · data URL · 이름 유지  — [{"k":"inline","n":"crack.jpg","s":1200}]
-[PASS] 29i 로컬 모드 400KB 초과 → 거부(건수 0) · 서버 모드 경로 무변  — n=0
-
-HOLD3 TOTAL 47 · PASS 47 · FAIL 0
-exit=0
-
-==================== _verify-lock-live.js
-[PASS] 준비: 단조 보류 100 · 잔량 0 · 사고 기록 0 (화면 미방문 상태)  — pend 100 · bal 0 · inc 0
-[PASS] 준비: 단조 인정양품 = 가용(부풀림 없음) · 보고양품 = 인정 + 100  — acc 200 · tot 300
-[PASS] T1 후공정 등록 → 인정분 안 허용 (LOT 추적 미방문 · 잠금 아님)
-[PASS] T1 등록과 동시에 사고 기록 생성 (멱등 1건 · pending 100)  — [{"id":"R-OFFLINE","ts":1791534181737,"by":"작업자B","qty":150,"accepted":50,"pending":100}]
-[PASS] T1 records +1 (인정분 흐름 유지)  — 86 → 87
-[PASS] T2 사고 공정 등록 → 잔량 0 초과 등록 차단  — 초과 등록 차단 — 잔량 0ea, 등록 10ea
-[PASS] T3 출하·반출 인정 밖 차단 (보류 안내 · 같은 사고번호)  — 출하 가능 0ea (요청 1) · 동시성 사고 보류 100ea 는 관리자 판정 전 사용 불가 (변경 이력 → 동시성 사고) | 외주 반출 가능 20ea (요청 30) · 동시성 사고 보류 100ea 는 관리자 판정 전 사용 불가 (변경 이력 → 동시성 사고)
-[PASS] T3 count 불변 (records·shipments·os_dispatches)
-[PASS] T4 정상 LOT 사고 아님 · 사고 미생성 (오탐 0)  — PL-2026-D001
-[PASS] T5 lockedPlotSet 에 사고 LOT 포함
-[PASS] T6 정정 전 해제 거부 (J1′ · 보류 미해소)  — J1′ 재검증 실패 — 보류 미해소 (FORGE 보류 100) · Case A(실적현황 관리자 보정) 또는 Case B(오등록 취소) 로 원장 정정 후 다시 해제하세요 (Case C = 보류 유지)
-[PASS] T6 관리자 판정 Case A 기록 (원장 무변 · 사고 open 유지)
-[PASS] T6 감소 보정(150→50) 허용 → 보류 0  — pend 0
-[PASS] T6 J1′ 재검증 통과 → 해제
-[PASS] T6 해제 후 후공정 등록 계속
-[PASS] T7 등록 모달 사고 안내 배선 (⚠ 보류 · 인정분 안에서 등록)
-[PASS] T7 등록 모달 LOT 옵션에 사고 라벨
-[PASS] T7 파비콘 data URI 내장 (콘솔 404 제거)
-
-LOCK-LIVE TOTAL 18 · PASS 18 · FAIL 0
-exit=0
-
-==================== _verify-mobile.js
-[PASS] 1 진입(v0.37.2 역할 기반): worker → 현장 · operator(coarse 폰이어도) → PC · manager → PC · 수동 켜기(vela_ui_mode=mobile) 만 예외 · worker 는 vela_ui_mode=pc 무시
-[PASS] 2 M01 내 작업 = 내 설비(계획 레인/WO 계획 설비) ∧ balance>0 ∧ HOLD 아님 · 「지금 할 작업」 = 첫 항목  — {"n":6,"allOk":true,"mine":true,"first":"PL-2026-D002"}
-[PASS] 2b 설비를 바꾸면 내 작업이 바뀐다 (절단기 세션과 프레스 세션의 작업 겹침 0 · 작업자 동일)  — overlap 0
-[PASS] 3 M01 렌더(v0.37.3 작업 순서): ● 진행 카드 · 순번 ①~ · ○ 대기 · 하단 4탭 · PC 메뉴 숨김(m-mode) · 라벨 「작업 가능」 · [■ 정지] · [수동] 0
-[PASS] 3b M02 상세 = balance 실제값 · 지시수량 = WO.qty · 계산 신설 0 (소스: mobile 코드에 Math/reduce 로 수량 계산 없음 — 헬퍼 호출만)
-[PASS] 4 M03 완료 = LOT.registerRecord 1회 · payload = 세션 worker/equipment/shift · records +1 · 잔량 > 0 → 같은 작업 화면 유지 + 수량 0 초기화 (완료 화면 없음)  — {"plot_no":"PL-2026-D002","proc":"FORGE","equipment":"프레스 1호","good":15,"defect":0,"rework":0,"scrap":0,"defect_reason":"","type":"in","shift":"day","source":"manual","worker":{"id":"W1","name":"홍길동","emp_no":"OP-014"}}
-[PASS] 4b [다음 작업으로] = 화면 이동만(실적 0) · 이동 후 ● = 다음 작업 · 잔량 남은 첫 작업은 ○ 미완료로 표시  — {"curOk":true,"hadSkip":true,"moved":true,"added":0,"cur2":"PL-2026-D003","firstWait":true,"nowIsOther":true}
-[PASS] 5 초과 입력 9999 → write path 차단(초과 등록 차단) · 입력값 유지 · 빨간 배너 · records 불변  — bal 185
-[PASS] 6 M04: 절단 전 프레스 세션에 없음 → 절단 100 완료 → 프레스 세션 「내 작업」 에 작업 가능 100 자동 노출 · 절단 세션에서는 사라짐 · 단조 실적 자동 생성 0  — {"b0":false,"c0":true,"b1":true,"c1":false,"added":1,"forgeRecs":0}
-[PASS] 7 Q6-0 A: 단조 150+150/200 → 인정 200 · 확인 필요 100 · 배너 「확인 필요 100 EA · 관리자 판정」 + 「보고 300」 · 내부 용어 0 · PC 값과 동일  — {"pend":100,"acc":200,"bal":0,"banner":true,"reported":true,"noInternal":true}
-[PASS] 8 Q6-0 B: 열처리 250 선등록 → 쇼트 세션 작업 가능 = 200 (250 아님 · 인정 기준) · 열처리 확인 필요 50  — {"avail":200,"heatPend":50,"heatAcc":200}
-[PASS] 9 Q6-0 C: 화면이 잔량 0 이던 상태에서 상류 보정(A 150→50) → 보류 0 · 잔량 0(A50+B150=200) · 이전 화면값 무관하게 50 등록은 write path 가 현재 원장으로 차단 · 재조회 값 갱신  — {"shown0":"0 EA","pendAfter":0,"balAfter":0,"blocked":true,"shown1":"-50 EA"}
-[PASS] 10 M06: HOLD → [작업 시작] 비활성 + 배너 + registerRecord 차단 + 내 작업 제외·확인 필요 포함 → HOLD 해제(판정 대기) → 배너 「품질 판정 대기」 + 작업 시작 가능 + 내 작업 복귀  — {"btnDisabled":true,"banner":true,"blocked":true,"inJobs":false,"inAttn":true,"pendBanner":true,"startOk":true,"inJobs2":true}
-[PASS] 11 권한: operator #audit/#set 직접 이동 → #dash 로 차단(기존 가드) · scan 권한 none → 현장 모드 진입 거부  — {"a":true,"b":true,"c":true}
-[PASS] 12 새로고침(재렌더)·뒤로가기 후 입력값 77 유지 (sessionStorage 단말 전용) · 세션 유지  — {"kept":true,"kept2":true,"sess":true}
-[PASS] 13 PC ↔ Mobile 동일 원장: 별도 PC 인스턴스(manager · 마우스)에서 balance/pending/HOLD/NC 값 일치 · PC 인스턴스는 자동 진입 안 함  — {"pcVals":{"bal":200,"pend":0,"hpend":50,"held":false,"ncPend":1,"entry":false},"mVals":{"bal":200,"pend":0,"hpend":50,"held":false,"ncPend":1}}
-[PASS] 14 PC 복귀 정상(nav·#dash) · 모바일 코드에 DB.set/correct/void 0 (쓰기는 registerRecord 만) · 로컬 키 vela_ui_mode 는 DB 밖  — {"a":true,"noWrite":true}
-[PASS] 15 화면 모드: 폰 기본 auto(기기 설정) · OS 다크→다크/라이트→라이트 · 더보기 3버튼(자동/밝게/어둡게) · 선택 저장(vela_theme) · 자동 복귀 시 OS 값  — {"prefPhone":"auto","darkNow":"dark","lightNow":"light","seg":3,"onAuto":true,"pickDark":true,"pickLight":true,"backAuto":true}
-[PASS] 15b PC(마우스) 기본 테마 = 라이트 유지 (OS 다크여도 · v0.32.0 사용자 판정) · 설정 라디오 3개  — light
-[PASS] 16 세션 = 단말 로컬(vela_m_session · userId 포함) · settings/active_session 읽기·쓰기 0(DB 스파이) · 원장 스냅샷에 세션 문서 0 · 다른 사용자로 바뀌면 SES.get()=null(상속 0) · 원 사용자 복귀 시 유지  — {"hits":0,"s0":null,"s1ok":true,"s2eq":"프레스 1호","raw":true,"inDb":false,"other":null,"backOk":true,"noSrc":true}
-[PASS] 16b 폰 A(홍길동·프레스 1호·주간) 출근 → 폰 B(이영호·절단기 1호·야간) 출근 → A 세션·설비 불변 · B 도 자기 것 (전역 문서 없음)  — {"a":{"w":"홍길동","eq":"프레스 1호","sh":"day"},"b":{"w":"이영호","eq":"절단기 1호","sh":"night"}}
-[PASS] 17 v0.37.4 설비 = 목록만: 출근 직후 작업 0 · 설비 없음 화면 = [설비 선택] 하나(QR 버튼·문구 0) · 선택 창 = 설비 마스터 목록(QR 링크 0) → 프레스 1호 → 작업 순서(balance 동일) · 하단 탭 「조회」(QR 스캔 탭 0)  — {"j0":0,"noeq":true,"noQrWord":true,"modalNoQr":true,"fromMaster":true,"eq1":"프레스 1호","j1n":7,"j1ok":true,"tabOk":true,"tabs":"#m/home:📋내 작업|#m/trace:🔍조회|#m/check:⚠1주의|#m/more:☰더보기"}
-[PASS] 17b 조회 = 읽기 전용: 작업지시 QR → LOT 이력(공정 이력 값 = Core totalGood/pendingQty) · 실적 등록/작업 시작 버튼 0 · 포장 QR → 같은 LOT · 설비 QR → 설비 정보(오늘 실적) · 모르는 QR → 안내 · LOT 번호 입력 조회 · DB 쓰기 0(스파이) · 소스에 write path 0  — {"cam":true,"lotShown":true,"valOk":true,"noRegBtn":true,"packOk":true,"eqOk":true,"errOk":true,"typedOk":true,"writes":0,"noWriteSrc":true}
-[PASS] 18 교대: 09→day · 22→night · 03→night(자정 넘김) · 07→night · 08→day · 19→day · 20→night · 더보기 칩 2개 · 야간 탭 → 세션 shift=night → payload.shift=night · 주간 복귀 · records.shift 구조 무변  — {"auto":{"h9":"day","h22":"night","h3":"night","h7":"night","h8":"day","h19":"day","h20":"night"},"chips":2,"sh":"night","pShift":"night","back":"day","recShiftKept":true}
-[PASS] 19 출근 화면: 로그인 이름 = 작업자 마스터 자동 매칭(목록 없음) · 교대 칩 = shiftAt(지금) · 하단 4탭 · [출근] → 세션(작업자 OP-014 · 설비 null · started) → #m/home · 이름 불일치 → 작업자 목록 1탭(선택 전 [출근] 비활성) → 김철수 선택 → 출근  — {"clock":true,"nameOk":true,"autoChip":true,"tabs":4,"after":{"hash":"#m/home","w":"OP-014","eq":null,"sh":"day","started":true},"list":15,"goDisabled":true,"picked":true,"w2":"김철수"}
-[PASS] 20 퇴근: 더보기 [퇴근·세션 종료] → 확인 → 세션 null → 출근 화면 · records 불변 · 근태 컬렉션 신설 0 · 로그인 유지  — {"modal":true,"gone":true,"clock":true,"same":true,"noAtt":true,"loggedIn":true}
-[PASS] 21 역할 진입: operator 로그인 → #dash · 역할을 worker 로 바꾸고 로그인 → #m/home · worker 가 #lot 직접 이동 → #m/home 으로 · 더보기에 「PC 화면으로」 0 · manager 로 바꾸면 #dash  — {"opHash":"#dash","wHash":"#m/home","roleNow":"worker","redirected":true,"noPcBtn":true,"badge":"현장 작업자","mHash":"#dash"}
-[PASS] 22 자동 로그인 B(기기 토큰): 발급 → users.devices 해시 1 · 로컬에 비밀번호/해시 0(토큰 ≠ 해시) → 검증 진입 U-W9 · 위조 토큰/userId 만 → 진입 불가 + 로컬 키 제거 · 관리자 [기기 해제] → 불가 · 역할 operator 로 바뀌면 불가 · operator 는 발급 0 · 로그아웃 시 로컬 해제  — {"ok":true,"devN":1,"noSecret":true,"v1":"U-W9","v2":null,"cleared":true,"v2b":null,"v3":null,"v4":null,"opIssue":false,"before":true,"afterLogout":null}
-[PASS] 22b 게이트 부팅: 기억된 기기 → renderGate 가 토큰 검증 후 자동 진입(U-W9 · worker · #m/home · 게이트 숨김) · 로그인 폼에 「이 기기에서 자동 로그인」 체크 존재  — {"gateShown":true,"rememberBox":true,"entered":true}
-[PASS] 23 사용자 관리(관리자 · v0.38.16 기준정보 화면): 역할 라디오 3개(operator/worker/manager) · 「현장 작업자」 등록 → users.role=worker · 목록 배지 「현장 작업자」 · 기억 기기 있는 사용자에 [기기 해제] 버튼  — {"hasRows":true,"badge":true,"forget":true,"radios":3,"radioVals":"operator,worker,manager","nuRole":"worker"}
-[PASS] 24 PC 실적 등록 무변: 설비 없는 로컬 세션으로도 #scan 열림(PC 모드) · payload 설비 = WO 계획 설비 폴백(프레스 1호) · worker 세션값  — {"shell":true,"noMode":true,"eq":"프레스 1호","worker":"OP-014"}
-[PASS] 25 권한: 현장 화면 = 실적 등록(scan) 권한 적용 — scan=view 면 currentPagePerm=view · 폰 실적 등록 DB.set 차단(records 불변) · 권한 복구 시 edit  — {"perm":"view","blocked":true,"perm2":"edit"}
-[PASS] 26 잔량 0 완료: PL-M-S1 단조 20/20 [작업 완료] → 실적 +1 만 · 잔량 0 → 다음 순번 작업의 입력 화면으로 자동 이동(수량 0 · 실적 생성 0) · ● = 다음 작업 · 홈에서 PL-M-S1 = ✓ 완료 · M08 라우트 없음  — {"nowIsS1":true,"seqBefore":"done,wait,wait,wait,wait,wait,wait,wait,now","added":1,"hashAfter":"#m/run/PL-2026-D002/FORGE","expected":"#m/run/PL-2026-D002/FORGE","qvalEmpty":true,"cur":"PL-2026-D002","doneIsS1":true,"nowIsNext":true,"noDoneRoute":true,"bal":0}
-[PASS] 27 [■ 정지] → 현재 설비·진행 작업 해제 · 원장 스냅샷 불변 · 설비 없음 화면 → [설비 선택] = 기존 설비 마스터 목록(buildEquipmentList · QR 링크 0) → 프레스 1호 선택 → 작업 순서 복귀 · 정지 시각/비가동/사유 저장 코드 0  — {"cleared":true,"noeq":true,"ledgerSame":true,"qrFirst":true,"fromMaster":true,"n":9,"eqNow":"프레스 1호","seqBack":true,"noStopWrite":true}
-[PASS] 28 터치 기기 ▲▼ 스크롤 버튼 숨김(CSS pointer:coarse) · 현장 QR 탭 [수동] 0 · PC 실적 등록 [수동] 유지  — {"hide":true,"noManualM":true,"pcManual":true}
-[PASS] 29 라벨(v0.37.4): ● 카드 [실적 등록] · 상세 [실적 등록] · 입력 화면 제목 「실적 등록 ·」 · 저장 버튼 [등록] · 「작업 시작」 문구 0
-[PASS] 30 v0.37.5: 하단 탭 「주의」(「확인 필요」 메뉴명 0 · 수량 라벨 「확인 필요」 유지) · 조회 카메라 = 라이브러리 대기·qrbox 함수·오류 배너 요소 · 카메라 정사각형 CSS  — {"a":true,"b":true,"c":true,"d":true,"tabs":"📋내 작업|🔍조회|⚠1주의|☰더보기"}
-[PASS] 31 v0.37.6 주의 화면 설명: 한 줄 설명 + 네 가지 사유 범례(HOLD·판정 대기·확인 필요·납기) + 관리자 PC 안내 · 빈 상태 안내
-[PASS] 버전 v0.38.24 · 데모 시드 worker 사용자(U-DEMO-W 홍길동)  — v0.38.24
-
-MOBILE TOTAL 39 · PASS 39 · FAIL 0
-exit=0
-
-==================== _verify-nav377.js
-[PASS] S1 사이드바 = 회사 기본(dash+7) · 아이콘 0 · 관리 접이식 0 · 그룹 라벨 0 · 「전체 메뉴」 버튼 1개  — dash,so,plan,scan,perf,lot,qc,ship
-[PASS] S2 구 API 제거 — openMyMenuModal/setNavMore/navMoreOpen 없음 · menuCanSee/getPrefs/setPrefs/openAllMenuModal 있음
-[PASS] A1 전체 메뉴 창 항목 = getMenuOrder ∩ menuCanSee (관리자 = 전부 · 같은 집합 · 그룹 안 순서 = 회사 메뉴 순서)  — 28/28
-[PASS] A2 그룹 라벨 = NAV_GROUPS(영업·생산·품질·기술·구매·재고·경영·기준정보) · 아이콘 0  — 영업|생산|품질·기술|구매·재고|경영|기준정보
-[PASS] A3 안내 문구 「관리책임자가 열어준 메뉴만 보입니다」 · 대시보드 ★ 고정(토글 없음)
-[PASS] A4 내 메뉴(회사 기본 7) 는 ★ · 나머지는 ☆
-[PASS] A5 검색 "재고" → 재고 행만 표시 · 나머지 hidden · 행 수 불변(재렌더 0) · 빈 그룹 hidden  — inv
-[PASS] A5 검색 지움 → 전부 복귀
-[PASS] A6 행 클릭 → 이동(#inv) + 창 닫힘  — #inv
-[PASS] A7 내 메뉴 밖 화면 → 「전체 메뉴」 버튼 on + 「· 재고」 힌트  — ☰ 전체 메뉴· 재고
-[PASS] A7 내 메뉴 화면 → 힌트 해제 · 해당 버튼 on
-[PASS] B1 ☆ 클릭 → ★ · 사이드바에 재고 추가(회사 메뉴 순서 위치) · settings/prefs.U-DEMO.menu_primary 저장 · users 문서 무변  — dash,so,plan,scan,perf,lot,qc,inv,ship
-[PASS] B1 사이드바 순서 = 회사 메뉴 순서(getMenuOrder) 유지  — dash,so,plan,scan,perf,lot,qc,inv,ship
-[PASS] B2 ★ 클릭 → ☆ · 사이드바에서 수주 제외 · prefs 갱신 (창은 열린 채)  — dash,plan,scan,perf,lot,qc,inv,ship
-[PASS] B3 회사 기본 settings/menu.primary 무변 · 다른 계정 무영향
-[PASS] B3 다른 계정(U-OTHER) = 회사 기본  — dash,so,plan,scan,perf,lot,qc,ship
-[PASS] B4 「회사 기본으로 되돌리기」 → prefs.menu_primary = [] (명시적 회사 기본) · 사이드바 회사 기본 · 창 닫힘  — dash,so,plan,scan,perf,lot,qc,ship
-[PASS] C1 prefs 없음 + users.menu_primary 있음 → 레거시 읽기 (dash + lot·qc 순서 = 회사 메뉴 순서)  — dash,lot,qc
-[PASS] C2 레거시 사용자 ★ → prefs 신설(레거시 + 추가) · users.menu_primary 는 그대로(삭제·갱신 0)  — dash,lot,qc,inv
-[PASS] C3 레거시 사용자 「회사 기본으로」 → prefs [] 가 레거시보다 우선 → 회사 기본  — dash,so,plan,scan,perf,lot,qc,ship
-[PASS] D1 operator: MANAGER_ONLY(set·masters·audit) 전체 메뉴 창에 0
-[PASS] D2 권한 none(acct) 창에 0 · view(inv) 창에 있음
-[PASS] D3 보기 전용(#inv) 화면에서 ★ 저장 허용 — prefs 는 개인 설정(_permBlockWrite 예외) · shipments 쓰기는 여전히 차단  — ["so","plan","scan","perf","lot","qc","ship","inv"]
-[PASS] P1 내 prefs → 저장 가능 (보기 전용 화면 #inv 에서도)  — #inv
-[PASS] P2 남의 prefs(U-DEMO) → setPrefs 거부(null) · 문서 무변 · _permBlockWrite 도 예외 아님
-[PASS] P3 회사 settings(menu·features·company) → 보기 전용 화면에서 차단 유지
-[PASS] P4 필드 화이트리스트 — role/perms/hash 같은 키는 버림 · 허용 키 없으면 쓰기 0  — {"userId":"U-PERM","menu_primary":["inv","qc"],"updated":1791534193609,"id":"prefs.U-PERM","_updated":1791534193609,"_logs":[{"ts":1791534193548,"op":"create","by":"qa"},{"ts":1791534193609,"op":"update","by":"qa"},{"ts":1791534193609,"op":"update","by":"qa"}],"report_format":"pptx"}
-[PASS] P5 관리자도 남의 prefs 편집 불가 (SPEC §7 범위 밖)
-[PASS] D4 기능 플래그 OFF(scan) → 전체 메뉴 창에서도 0 (플래그 1벌)
-[PASS] E1 userId 없는 개발자 세션 — ☆ 비활성 + 안내 · 회사 기본 표시
-[PASS] F1 CSS — #app.m-mode #nav 숨김 유지 · 구 .nav-more CSS 0 · .nav-grp{display:none}(nav321 정적) 유지
-[PASS] 버전 v0.38.24 · 2026-10-09  — v0.38.24 2026-10-09
-
-NAV377 TOTAL 32 · PASS 32 · FAIL 0
-exit=0
-
-==================== _verify-otd.js
-[PASS] 1 평가 대상 6건 (T1·T2·T3·T6·T7·T10) · 준수 3건 → 건수 기준 50.0%  — {"lines":6,"okLines":3,"rateLines":50,"qty":580,"onTime":430,"unit":"ea","mixedUnit":false,"rateQty":74.13793103448276}
-[PASS] 2 수량 기준 = 430 / 580 = 74.14%  — {"lines":6,"okLines":3,"rateLines":50,"qty":580,"onTime":430,"unit":"ea","mixedUnit":false,"rateQty":74.13793103448276}
-[PASS] 3 분할 출하 30+30+40 모두 납기일 이내(당일 포함) → 준수 (T10)
-[PASS] 4 납기 당일 60 + 이틀 뒤 40 → 지연 출하 · 납기 내 60 · 지연 2일 (T2)  — ["T2",false,60,"지연 출하",2,0]
-[PASS] 5 부분종결 70/100 → 미준수 · 수량 70 · 분모 100 유지 (T3)  — ["T3",false,70,"부분종결",5,0]
-[PASS] 6 수주취소(출하 0) 2건 집계 제외 · 그중 납기 후 취소 1건 별도 (U1)  — {"cancel":2,"lateCancel":1,"noDue":1,"notDue":0,"dueToday":0,"dueTodayDone":0}
-[PASS] 7 취소(void)된 출하는 제외 → 미출하 (T6)  — ["T6",false,0,"미출하",2459,0]
-[PASS] 8 납기 변경 → 현재 납기(1/15) 기준 준수 · 변경 이력 1건 보존 (T7 · U2)  — ["T7",true,100,"준수",0,1]
-[PASS] 9 납기 미등록·미도래 제외 + 별도 카운트 (T8·T9)  — {"cancel":2,"lateCancel":1,"noDue":1,"notDue":0,"dueToday":0,"dueTodayDone":0}
-[PASS] 9b 미래 납기 = 미도래 카운트
-[PASS] 10 고객사별·품목별 집계 일치 (CT1 4건 준수 2 · CT2 2건 준수 1 · HF-A 4건 준수 3 · HF-B 2건 준수 0)  — {"cust":[["CT1",4,2],["CT2",2,1]],"item":[["HF-A",4,3],["HF-B",2,0]]}
-[PASS] 11 독립 산식 대조 — 최근 6개월 월별 + 전체 기간: 평가 건수·준수 건수·수주량·납기 내 출하량 모두 일치  — [{"w":"2000-01-01~2026-10-09","same":true,"a":[26,18,10320,8610],"b":[26,18,10320,8610]}]
-[PASS] A1 오늘 납기 · 오전 미출하 → 공식 집계 제외 (오늘 납기 진행 중)  — {"aEx":3,"aDone":2,"aLines":1,"a1":null,"a2":null,"a3":null,"a4":"지연 출하","b1":"미출하","b2":"준수","b3":"준수","bEx":0,"bLines":4}
-[PASS] A2 오늘 납기 · 당일 전량 출하(15:00·23:30 KST)도 당일엔 공식 집계 제외 · 「오늘 정시 출하 완료」 2건으로 별도 표시 (결정 2)  — {"aEx":3,"aDone":2,"aLines":1,"a1":null,"a2":null,"a3":null,"a4":"지연 출하","b1":"미출하","b2":"준수","b3":"준수","bEx":0,"bLines":4}
-[PASS] A3 다음 날 자동 전환: 오늘 납기 3건 전부 공식 평가 (G1 미출하 · G2·G3 준수) · 다음날 00:10 KST 출하 = 지연 출하  — {"aEx":3,"aDone":2,"aLines":1,"a1":null,"a2":null,"a3":null,"a4":"지연 출하","b1":"미출하","b2":"준수","b3":"준수","bEx":0,"bLines":4}
-[PASS] A4 선택 편향 방지 (GPT 예시): 과거 8/10 + 오늘 2/10 완료 → 공식 80.0% (83.3% 아님) · 오늘 10건 중 완료 2 별도  — {"rate":80,"lines":10,"today":10,"done":2}
-[PASS] B1 출하 0 인 열린 수주 = 미출하로 평가 (제외 아님)  — {"b1":"미출하","b2":"부분종결","b3":"부분종결","b4":null,"cancel":1,"lines":3}
-[PASS] B2 출하 0 인 부분종결 = 부분종결로 평가 (제외 아님)  — {"b1":"미출하","b2":"부분종결","b3":"부분종결","b4":null,"cancel":1,"lines":3}
-[PASS] B3 취소 표시여도 출하가 있으면 제외하지 않음 (부분종결로 평가) · B4 출하 0 취소만 제외  — {"b1":"미출하","b2":"부분종결","b3":"부분종결","b4":null,"cancel":1,"lines":3}
-[PASS] C1 출하일 수정 → 영향 미리 확인(준수 → 지연 출하) · 사유 없으면 저장 거부  — {"so":"C1","due":"2026-10-01","before":"준수 (납기 내 10/10)","after":"지연 출하 (납기 내 0/10)","changed":true,"diff":{"before":{"skip":"","ok":true,"onTime":10,"delay":0},"after":{"skip":"","ok":false,"onTime":0,"delay":1}}}
-[PASS] C2 감사 이력: 수정 전·후 출하일 · 수정자 · 시각 · 사유 + 「납기준수 영향」 문구 · 재계산 결과 = 지연 출하  — {"im":{"so":"C1","due":"2026-10-01","before":"준수 (납기 내 10/10)","after":"지연 출하 (납기 내 0/10)","changed":true,"diff":{"before":{"skip":"","ok":true,"onTime":10,"delay":0},"after":{"skip":"","ok":false,"onTime":0,"delay":1}}},"noReason":true,"ok":true,"prev":"2026-10-01","next":"2026-10-02","by":"검증","at":true,"reason":"출하 수정: 출하일 오입력 정정 · 납기준수 영향: C1 준수 (납기 내 10/10) → 지연 출하 (납기 내 0/10)","status":"지연 출하"}
-[PASS] C4 (GPT 소스 검토 P1) 일부 출하 → 일부 출하라도 납기 내 수량 40 → 20 이면 영향 있음 · 납기 안에서 날짜만 바뀌면 영향 없음  — {"im":{"so":"C4","due":"2026-10-03","before":"일부 출하 (납기 내 40/100)","after":"일부 출하 (납기 내 20/100)","changed":true,"diff":{"before":{"skip":"","ok":false,"onTime":40,"delay":6},"after":{"skip":"","ok":false,"onTime":20,"delay":6}}},"same":{"so":"C4","due":"2026-10-03","before":"일부 출하 (납기 내 40/100)","after":"일부 출하 (납기 내 40/100)","changed":false,"diff":{"before":{"skip":"","ok":false,"onTime":40,"delay":6},"after":{"skip":"","ok":false,"onTime":40,"delay":6}}}}
-[PASS] C5 (GPT Gate) 오늘 납기 정시 완료 → 출하일을 내일로 정정 = 「오늘 납기 · 정시 출하 완료 → 미완료」 영향 경고 · 같은 날 시간만 변경 = 영향 없음  — {"today":"2026-10-09","tomorrow":"2026-10-10","im":{"so":"C5","due":"2026-10-09","before":"오늘 납기 · 정시 출하 완료","after":"오늘 납기 · 미완료","changed":true,"diff":{"before":{"skip":"dueToday","ok":true,"onTime":null,"delay":null},"after":{"skip":"dueToday","ok":false,"onTime":null,"delay":null}}},"same":{"so":"C5","due":"2026-10-09","before":"오늘 납기 · 정시 출하 완료","after":"오늘 납기 · 정시 출하 완료","changed":false,"diff":{"before":{"skip":"dueToday","ok":true,"onTime":null,"delay":null},"after":{"skip":"dueToday","ok":true,"onTime":null,"delay":null}}}}
-[PASS] C3 저장된 보고서 스냅샷에 납기준수 값 없음 (PART 2 보고서 블록에서 스냅샷 저장 예정 → 지금 수정이 과거 보고서를 바꾸지 않음)  — {"reports":0,"otdInSnapshot":false}
-[PASS] D1 ea + kg 혼합 → 수량 기준 미산출(합산 안 함) · 건수 기준은 정상(50%)  — {"mixed":true,"rq":null,"q":null,"rl":50,"itemK":{"key":"HF-K","lines":1,"okLines":0,"rateLines":0,"qty":500,"onTime":200,"unit":"kg","mixedUnit":false,"rateQty":40},"one":[false,40,"kg"],"dflt":"ea"}
-[PASS] D2 같은 단위 안(품목 HF-K · kg)에서는 수량 기준 산출 40% · 단위 기본값 ea  — {"mixed":true,"rq":null,"q":null,"rl":50,"itemK":{"key":"HF-K","lines":1,"okLines":0,"rateLines":0,"qty":500,"onTime":200,"unit":"kg","mixedUnit":false,"rateQty":40},"one":[false,40,"kg"],"dflt":"ea"}
-[PASS] 12 UI: 출하 [납기 실적] → KPI(건수 50.0% · 수량 74.1%) · 지연 목록(T2 포함 · 준수 T1 제외) · 제외 표시 · [출하 목록] 복귀  — {"ok1":true,"ok2":true,"ok3":true}
-[PASS] 13 조회 기능 — 원장 쓰기 0 (테스트 준비분 외 문서 수 변화 없음: 수주 +43 · 출하 +29)  — [42,52,32,84] → [85,81,32,84]
-
-OTD TOTAL 28 · PASS 28 · FAIL 0
-exit=0 (VELA_FILE=index-dev.html)
-
-==================== _verify-personal.js
-[PASS] A1 DASH_CARDS 12종 ID 고정 · k_alert fixed · DASH_DEFAULT = v3 A안 6종
-[PASS] A2 prefs 없음 → 회사 기본 = 스트립 4 + 카드 2 (dash357 무변) · 「카드 고르기」 버튼  — 2
-[PASS] A3 prefs.dash_cards 반영 — KPI 2(오늘 생산·오늘 이상 순서) · 카드 3(추세·재고·고객사) · 계산 무변(총 수주잔 값 동일)  — 오늘 생산|오늘 이상
-[PASS] A4 k_alert 를 빼도 항상 표시(고정 · 안전 신호 은폐 금지) — KPI 뒤에 삽입  — k_backlog,k_alert,c_fulfil
-[PASS] A5 권한 none(inv·ship) 카드 = 표시 0(k_sales·c_stock·c_cust 제외) · 카탈로그(Picker)에서도 0  — k_backlog,k_alert,c_trend
-[PASS] A6 플래그 OFF(capa) 카드 제외  — k_alert,c_trend
-[PASS] A6 플래그 ON → 설비 부하 카드 표시 (computeCapa 읽기만)
-[PASS] A7 prefs [] + settings/dash.default → 회사 기본 문서 적용 (공정 진행 4단 표시)  — k_backlog,k_alert,c_fulfil,c_prog
-[PASS] A7 회사 기본 문서 비움 → 코드 기본 6종
-[PASS] B1 Picker — 내 구성 6행(★) + 추가 가능 6행(☆) · k_alert 자물쇠(해제 0 · ▲▼ 0 · 🔒) · 나머지 5행 ▲▼
-[PASS] B1b 다른 KPI 를 k_alert 아래로 내려도 k_alert 는 항상 마지막 KPI 뒤 (위치 규칙 · 결정론)  — k_backlog,k_sales,k_today,k_alert,c_fulfil,c_trend
-[PASS] B1c dashPinAlert — 저장 순서가 k_alert 앞이어도 렌더는 마지막 KPI 뒤 · KPI 없으면 맨 앞
-[PASS] B2 ☆ 넣기 · ★ 빼기 · ▲ 순서 (창 안 상태만 · 저장 전 prefs 무변)  — k_backlog,k_sales,k_today,k_alert,c_due,c_trend
-[PASS] B3 저장 → prefs.dash_cards = 창 순서 · 창 닫힘 · 대시보드 재렌더(납기 카드)
-[PASS] B4 「회사 기본으로」 → prefs.dash_cards = [] · 기본 6종
-[PASS] B5 userId 없는 개발자 — 저장·회사 기본 버튼 비활성 + 안내
-[PASS] C1 REPORT_SECTIONS 8 ID 고정 · kpi fixed · REPORT_FORMATS 4
-[PASS] C2 라벨 — 메뉴 「보고서」 · 제목 「주간보고서」(AI 접두 0) · 모듈 정의  — 보고서
-[PASS] C3 prefs 없음 → 전부 8 섹션 · 「내 보고서 구성」 행 + [☆ 구성 바꾸기] + 기본 출력 select(screen) · [보고서 만들기] 버튼 · [보고서 생성] 0  — 7
-[PASS] C4 키 없음 → 자동 브리핑 섹션은 숨기지 않고 「자동 브리핑 사용 안 함」 안내
-[PASS] C5 prefs.report_sections 반영 — 화면 = 품질 → 생산부 → 이슈 (순서 그대로) · 영업·구매·경영·브리핑 0 · 전사 KPI 항상  — qc,prod,issues
-[PASS] C6 엑셀 = 같은 섹션 (■ 품질·■ 생산부·■ 이슈 있음 · ■ 영업부·■ 경영·■ 자동 브리핑 없음)
-[PASS] C7 PPT = 같은 섹션·같은 순서 — 표지·전사·품질·생산부·이슈 5장 (영업·구매·경영·브리핑 0)  — 주간보고서|전사 요약|품질|생산부|이슈 · 25건
-[PASS] C7 엑셀 순서 = prefs 순서 (■ 품질 이 ■ 생산부 보다 앞)
-[PASS] C8 자동 브리핑 입력 = 고른 섹션만([기간][전사] 항상 · [생산][품질][이슈] · [영업][구매][경영] 0) · 형식 줄도 고른 부서만 · 라벨 「선택한 섹션 기준」  — 선택한 섹션 기준(생산부·품질·이슈)
-[PASS] C8 전부 선택이면 라벨 「전체 섹션 기준」
-[PASS] C9 buildReportData 무변 — 섹션 선택과 무관하게 8키 전부 계산
-[PASS] C10 매핑 메뉴 전부 none(closing·acct) → 경영·정산 섹션 제외 · 하나라도 view 면 유지  — kpi,prod,sales,pur,qc,issues,ai
-[PASS] D1 🔴 페이지 열기·탭 전환 시 reports 자동 생성 0
-[PASS] D2 기본 출력 select → prefs.report_format = pptx
-[PASS] D3 [보고서 만들기] 1회 = reports +1 · sections = 내 구성 저장 · data 는 전부(영업·경영 포함) · 열람 모드로 전환  — ["kpi","qc","prod","issues"]
-[PASS] D4 키 없음 → 브리핑 건너뜀(ai_summary 없음 · 오류 0) · 기본 출력 PPT 호출 1회(스냅샷 섹션 5장)  — 5
-[PASS] D5 스냅샷 열람 = 저장 당시 sections (prefs 바꿔도 무변)
-[PASS] D6 sections 없는 구 스냅샷 → 전부 표시 (하위 호환)  — 7
-[PASS] D7 prefs [] → 전부 (회사 기본 문서 없음)
-[PASS] D7 settings/report.default 적용  — kpi,prod,ai
-[PASS] D8 원클릭 스냅샷 data = 라이브 buildReportData 와 동일 수치(companyKPI)
-[PASS] E1 PREFS_FIELDS 5 (v0.38.17 sec_off 추가) · report_format 화이트리스트 · 남의 prefs 거부
-[PASS] E2 폰 현장 화면 무변 — .m-mode 에서 dash-tools 숨김 CSS · #m/ 라우트 무변
-[PASS] C11 kpi 는 항상 첫째 (_normReportSections)
-[PASS] 버전 v0.38.24  — v0.38.24
-
-PERSONAL TOTAL 41 · PASS 41 · FAIL 0
-exit=0
-
-==================== _verify-pilot359.js
-[PASS] S1 타이핑 중 재렌더 없음 (커서 유지 · 목록 그대로)  — 32 rows · active=lot-q
-[PASS] S2 Enter → 검색 적용 + 새 입력창에 focus·값 유지  — rows 12 · active=lot-q
-[PASS] S3 검색어 지우면 즉시 전체 복귀
-[PASS] S4 [검색] 버튼 = Enter 와 동일
-[PASS] S5 재고·수주·실적·품질·계획·도면·이력 검색창 전부 Search Contract (검색 버튼 존재)
-[PASS] I1 재고 행에 진행 LOT 배지 · 행 클릭 가능  — HF-3301
-[PASS] I2 상세 모달 = 이 품번 LOT 목록(위치·잔량·heat·상태) + 스트립  — 2 lots
-[PASS] I3 LOT 클릭 → 공정 스텝 패널 (lotStepPanelHTML 1벌)
-[PASS] W1 작성 현황에 품번·품명 + 소재 규격 컬럼  — WO번호|수주|품번 · 품명|소재 규격|생산LOT|지시수량|상태|생성|
-[PASS] W2 품번·수량 입력 → 같은 규격 heat 만 입고 순 배정 · 배정 합 = 필요량(또는 부족 표기)  — need 63 sum 63 rows 1
-[PASS] W3 배정 순서 = 입고일 오름차순 (선입선출)  — 2026-07-23
-[PASS] W4 직접 선택 = 같은 규격 heat 만 + 「다른 규격 보기」  — 8 opts
-[PASS] W5 생성 → LOT.material_lot_ids = 자동 배정 heat (제안 반영 · 원장 차감 없음)  — ["H2604-101"]
-[PASS] W5 소재 잔량 원장 무변 — 발행 전후 used_kg·totalRemain 동일 (차감은 절단 실적 경로에서만)  — used 5555.4→5555.4 · remain 9873.6→9873.6
-[PASS] W6 절단 실적 150 등록 후에야 used_kg +150×단중 (소비 = 실적 경로)  — used +63.00 (exp 63.00)
-[PASS] R1 품번 선택칸이 먼저 · 품번 목록 = 진행 LOT 있는 품번만 (건수 표기)  — 20
-[PASS] R2 LOT 목록 = 그 품번의 진행 LOT 만 · 다음 공정·대기 수량 라벨  — PL-2026-D001 · 출하 대기 300ea — 품질 HOLD (등록 불가)
-[PASS] R3 품번 바꾸면 LOT 목록 갱신
-[PASS] R4 출하(SHIP)는 공정 목록에서 제외 + 「출하 메뉴에서」 안내  — PL-2026-D001
-[PASS] R5 파렛트 수량 입력 → records.pallets 저장 (수량 계산 무관)  — {"p":3,"g":1}
-[PASS] H1 미납 수주 표 = 수주번호·품번·품명·주문·완성·미납·납기 · 미납>0 만  — 22 rows
-[PASS] H2 고객사 선택 → 그 고객사 미납만  — C002
-[PASS] H3 행 클릭 → 숨은 수주 select 선택 + 같은 품번 LOT 만 목록  — 1 lots
-[PASS] Q1 품질 헤더 = 주 버튼 1 + ⋯ (글자만) · 불량 유형 추가 항목
-[PASS] Q2 품질 화면에서 불량 유형 추가 → defect_types +1 (마스터 편집 1벌)  — 5
-[PASS] P1 인쇄 양식 검은 띠(#16181d 배경 rule/th) 0건
-[PASS] P2 작업지시서 지시수량 옆 「실 수량(수기)」 칸
-[PASS] M1 LOT 추적 ⋯ 메뉴 항목 글자만 (아이콘 0)
-[PASS] 버전 ≥ v0.35.9  — v0.38.24
-
-PILOT359 TOTAL 29 · PASS 29 · FAIL 0
-exit=0
-
-==================== _verify-q60.js
-[PASS] 1 정상: 절단 200 → 단조 150 → 잔량 50 · 보류 0 · NORMAL  — [[150,0,"NORMAL"]]
-[PASS] 2 충돌: 단조 A150+B150 / 실물 200 → 인정 200(A150·B50) · 보류 100 · B=PARTIAL_PENDING · 잔량 0 (음수 없음)  — [["R-FORGE-PL-Q60-A-1791534181821-egqh",150,0],["R-Q60-B",50,100]]
-[PASS] 3 열처리 가용 = 인정양품 200 (보고 300 아님) · 201 등록 → 초과 등록 차단  — 초과 등록 차단 — 잔량 200ea, 등록 201ea
-[PASS] 4 열처리 200 등록 성공 — 인정분 흐름 유지 (LOT 전체 잠금 아님)
-[PASS] 6 사고 문서 자동 생성 (쓰기 경로 · FORGE 1건 · pending 100 · 충돌 실적 = R-Q60-B 인정 50/보류 100) · 재탐지 멱등  — [["CI-PL-Q60-A-FORGE-1",100,[{"id":"R-Q60-B","ts":1791534186821,"by":"B","qty":150,"accepted":50,"pending":100}]]]
-[PASS] 5 출하: 인정 안(200) 통과 + 사고 pending_log 기록 · 201 은 보류 안내로 차단  — 출하 가능 200ea (요청 201) · 동시성 사고 보류 100ea 는 관리자 판정 전 사용 불가 (변경 이력 → 동시성 사고)
-[PASS] 10 연쇄 보류: 단조 보류 100 → 열처리 가용 200 → 열처리 250 중 인정 200 · 보류 50 자동 (재계산 절차 없음)  — F 100 H 50
-[PASS] 7 Case A: 판정 기록(open 유지) → 정정 전 해제 거부 → correctRecord 150→50 → 단조 보류 0 · 열처리 보류 50 유지 → 단조 사고 resolve · 열처리 사고 open  —  | J1′ 재검증 실패 — 보류 미해소 (FORGE 보류 100) · Case A(실적현황 관리자 보정) 또는 Case B(오등록 취소) 로 원장 정정 후 다시 해제하세요 (Case C = 보류 유지) |  | 
-[PASS] 8 Case B: void → 열처리 보류 0 → resolve 가능  —  | 
-[PASS] 9 Case C: 사유 기록 · status open 유지 · 판정 지체 4일 = 조치 단계(2) · 정책값 settings/concurrency 기본 1/3  — {"case":"C","by":"qa","ts":1791534182164,"reason":"실물 확인 필요","refs":[]}
-[PASS] 13 순서: 동일 ts → id ASC (R-…-A 전량 인정 · R-…-Z 20 인정/60 보류) · 도착(삽입) 순서 무관  — [["R-Q60-T-A",80,0],["R-Q60-T-Z",20,60]]
-[PASS] 14 결정론: 100회 호출 동일 · 메모 무효화 후 동일 · 렌더 전후 동일  — [["R-Q60-T-A",80,0],["R-Q60-T-Z",20,60]]
-[PASS] 15 상한 전수: 0 ≤ accepted_i ≤ reported_i ∧ accepted+pending = reported ∧ Σ accepted ≤ avail ∧ balance ≥ 0 (시드+검증 LOT 전체)
-[PASS] 16 Lock(b) 유지: 사고 공정 등록 → 잔량 0 차단 · 사고 open · lotConflictInfo.incidents 1 · pending 100 · 대시보드 「동시성 사고 n」  — 초과 등록 차단 — 잔량 0ea, 등록 1ea
-[PASS] 17 인정/보류 저장 필드 0 (records 키 검사 + 소스: DB.set('records' 에 accepted 없음)
-[PASS] 11 강제 인정 버튼/경로 0 (소스 grep) · 원장 무변: 기존 records 총량 불변 (증가분 = 검증 LOT 실적뿐) · shipments/os 불변  — Δ 0
-[PASS] 12 J1′ verifyLotInvariant: PL-Q60-C 전 공정 err 0 · pending 0 → ok  — [["CUT",200,0,0],["FORGE",200,0,0],["HEAT",0,0,200],["SHOT",0,0,0],["SHIP",0,0,0]]
-[PASS] 버전 v0.38.24  — v0.38.24
-
-Q60 TOTAL 18 · PASS 18 · FAIL 0
-exit=0
-
-==================== _verify-r4-bottleneck.js
-[PASS] T1 병목 자동 판정 = 재계산 기대값 일치  — 기대 FORGE · 경고 FORGE 부하 156% (초과 808ea)
-[PASS] T1 단조 데모 동등성 — 병목이 FORGE (구 로직과 동일 결과)  — 병목=FORGE
-[PASS] T2 외주 공정 제외
-[PASS] T3 결정성 — 2회 실행 동일 경고
-[PASS] T4 부하 데이터 없음 — 예외 0 · 경고 없음  — items 18
-[PASS] T5 공정 1개 — 유일 능력 공정(CUT)이 병목  — CUT 부하 4500% (초과 352ea)
-[PASS] T6 스냅샷 복원
-
-R4 TOTAL 7 · PASS 7 · FAIL 0
-exit=0
-
-==================== _verify-recid.js
-[PASS] T1 같은 ms 2건 등록 → records +2 (무음 덮어쓰기 없음)  — 84 → 86
-[PASS] T1 두 id 서로 다름 · 접두 R-{proc}-{plot}-{ts} 유지  — R-FORGE-PL-2026-D002-1791534182395-hlrq | R-FORGE-PL-2026-D002-1791534182395-3kwz
-[PASS] T1 잔량 = 두 건 모두 투입 반영  — bal 180
-[PASS] T2 newRecId 는 이미 있는 id 를 피해 재생성  — R-X-PL-2026-D002-1791534182432-i
-[PASS] T3 registerRecord 가 newRecId 사용 · Date.now 직접 조합 0
-[PASS] T3 R-STOP 도 헬퍼 경유
-[PASS] T3 Date.now() 직접 조합 실적 id 0건 (R-…-${Date.now()})
-[PASS] T4 준비: D002 사고(보류) 상태
-[PASS] T4 출하 창 사고 LOT → ⚠ 보류 안내 (인정분 출하 가능 · 완성품 경고 없음) — v0.36.0 승계
-[PASS] T4 출하 창 LOT 옵션 라벨 사고
-[PASS] T5 반출 창 LOT 옵션 사고 라벨 (인정분만)
-[PASS] T5 반출 대상 표 ⚠ 사고 표시 (해당 LOT 후보가 있을 때)
-[PASS] T6 NC 상세 [오등록 취소] 라벨 + 판정→[처리] 안내
-[PASS] T6 오등록 취소 prompt 취소 시 무동작 (코드)
-[PASS] 버전 ≥ v0.35.6 · 2026-09-07  — v0.38.24 2026-10-09
-
-RECID TOTAL 15 · PASS 15 · FAIL 0
-exit=0
-
-==================== _verify-sec.js
-[PASS] 1 마감 모듈 ON → 외주 화면에 「월별 외주처 정산」 없음 · [외주 정산 → 마감] 바로 가기  — {"settle":false,"goto":true,"flag":true}
-[PASS] 2 마감 모듈 OFF 업체 → 정산 카드 그대로 (정산 경로 유지)  — {"settle":true,"goto":false,"sel":true}
-[PASS] 3 [외주 정산 → 마감] → 마감 화면 외주 탭으로 이동  — {"h":"#closing","type":"outsource","txt":true}
-[PASS] 3b (GPT 소스 검토 P1) 마감 ON 이어도 마감 화면 권한이 없는 사용자 → 외주 화면 정산 카드 유지(「참고용 · 확정 = 마감」 표기) · 바로 가기 없음  — {"settle":true,"ref":true,"goto":false}
-[PASS] 4 외주 화면 단락 = 외주 현황 · 최근 외주 입고 · 제목 옆 스위치 · 머리 [단락 2/2]  — {"titles":["외주 현황","최근 외주 입고"],"sw":2,"btn":"단락 2/2","order":true}
-[PASS] 5 스위치 끄기 → 화면에서만 숨김(DOM 유지) · prefs.U-SEC.sec_off 저장 · [단락 1/2]  — {"off":true,"pref":"{\"os:최근 외주 입고\":true}","btn":"단락 1/2","inDom":true}
-[PASS] 6 다시 그려도(router) 꺼진 상태 유지
-[PASS] 7 [단락] 목록에서 선택해 다시 켜기 → 보임 · prefs 에서 제거  — {"rows":["외주 현황","최근 외주 입고"],"wasOff":true,"vis":true,"pref":"{}"}
-[PASS] 8 [모두 켜기] → 이 화면 단락 전부 표시  — [2,0]
-[PASS] 9 사람마다 저장 — 다른 사용자 화면은 그대로  — [1,0]
-[PASS] 10 안전 신호(이상·HOLD·격리·주의·경고·보류·판정 대기) 단락 = 스위치 없음 · prefs 에 있어도 숨기지 않음  — {"locked":true,"sw":false,"off":false,"key":"os:오늘 이상 건"}
-[PASS] 10b 명시 표식 data-sec-lock: 부적합 목록(HOLD·판정)·동시성 사고 = 잠금 1순위(mark) · 스위치 없음 · 저장값 있어도 표시  — {"found":true,"lockBy":"mark","sw":false,"off":false,"audit":"mark"}
-[PASS] 10c 키워드 없는 제목이라도 표식이 있으면 잠금 · 표식 없는 단락은 제목 키워드가 보조 방어(정합성 등)  — {"a":"mark","aSw":false,"b":"keyword"}
-[PASS] 10d 단락 키 고유: 명시 ID(plan:plan-day — 날짜가 바뀌어도 동일) · 같은 제목 2개 = 다른 키 · 하나만 꺼짐  — {"k1":"plan:plan-day","d":["plan:중복 제목","plan:중복 제목#2"],"offs":[false,true]}
-[PASS] 10e 화면의 마지막 보이는 단락은 끌 수 없음 (빈 화면 방지)  — {"visible":1,"can":false}
-[PASS] 10f 전수 조사(30화면): HOLD·사고 배지를 보여주는 단락은 모두 명시 잠금 · 명시 잠금 = 생산 LOT·부적합 목록·동시성 사고  — {"bad":[],"lockedMarks":["lot:lot-list","qc:qc-nc-list","audit:audit-incident","audit:audit-ship-overage"]}
-[PASS] 11 대시보드 = 제외 (카드 Picker 별도)  — {"sw":0,"btn":false}
-[PASS] 12 전 메뉴 순회: 예외 0 · 끌 수 있는 단락마다 스위치 1 · [단락 n/n]  — 27화면 · 단락 합계 57 · []
-   화면별 단락: so:0 · plan:2 · scan:0 · wo:0 · perf:1 · lot:1(고정 생산 LOT) · qc:5(고정 부적합 목록) · quote:1 · po:1 · matin:2 · os:2 · inv:2 · ship:3 · pallet:2 · closing:1 · acct:3 · report:2 · cost:3 · autoplan:2 · eqstatus:0 · mold:1 · draw:0 · docs:2 · proc:3 · masters:7 · audit:4(고정 동시성 사고/원장 정합성 · LOT 출하 초과) · set:7
-[PASS] 13 보기 전용 권한이어도 내 화면 단락은 저장 · 남의 설정은 저장 거부(setPrefs 본인 계약)  — {"mine":"{\"os:외주 현황\":true}","other":true}
-[PASS] 14 출하 › 납기 실적 화면에도 적용 (고객사별 · 품목별 · 지연·미출하 수주)  — ["고객사별","품목별","지연·미출하 수주"]
-[PASS] 15 원장 무변 — 수주·출하·LOT·실적·외주·마감 문서 수 변화 0 (쓰기 = settings/prefs 만)  — [42,52,32,84,6,0,3] → [42,52,32,84,6,0,3]
-[PASS] 16 콘솔 jsdom 오류 0
-[PASS] 6b 화면이 router 밖에서 다시 그려져도(innerHTML 교체) [단락]·꺼짐 재부착 (MutationObserver)  — {"btn":"단락 1/2","nBtn":1,"off":true,"bound":true,"clickWorks":true}
-[PASS] 6c 5회 연속 다시 그림 → 스위치 단락당 1개 · [단락] 1개 · 정지 후 추가 실행 0 (무한 반복 없음)  — {"runs0":6,"sw":2,"perH3":[1,1],"btn":1,"runs1":6}
-
-SEC TOTAL 24 · PASS 24 · FAIL 0
-exit=0 (VELA_FILE=index-dev.html)
-
-==================== _verify-shipfix.js
-[PASS] F0 실데이터 기본 = 꺼짐(시험 기능 · 풀옵션 프리셋 제외 · 데모만 켜짐) · 끄면 수량 칸 없음 · 수량 입력 무시 · 검사 함수 거부 · 의존성 ship  — {"demoOn":true,"flagDefault":false,"fields":["date","pack_qty_actual","memo"],"patch":{},"empty":true,"thr":"출하 수량 정정 기능이 꺼져 있습니다 (설정 › 기능)","deps":"{\"needs\":[\"ship\"],\"breaks\":[]}"}
-[PASS] G1 실데이터(데모 아님): 플래그 켜도 수량 칸 없음 · 저장 차단(서버 Gate) · 입력 무시 · SERVER_GATES=false  — {"demo":false,"fields":["date","pack_qty_actual","memo"],"locked":"수주 · LOT:SO-FX · PL-2026-D108|출하 수량:40 ea — 바꾸려면 [취소] 후 재등록 (수량 정정 = 시험 기능 · 데모에서만)|파렛트:1 — 수량 정정과 무관 (파렛트 화면에서 조정)","e":"실데이터에서는 서버 권한·동시성 검증 전까지 수량 정정 저장이 차단됩니다 (데모에서만 시험 가능)","empty":true,"gate":false}
-[PASS] F1 감소 정정 40 → 30: 같은 문서 · 매출 −30,000 · 수주 출하 −10 · LOT 출하 −10 · 출하 문서 수 그대로  — {"a0":{"qty":40,"hist":0,"amt":120000,"soShip":40,"lotShip":40},"a1":{"qty":30,"hist":1,"amt":90000,"soShip":30,"lotShip":30}}
-[PASS] F2 감사 이력: _logs 전·후 수량·처리자·사유 + qty_hist(추가 전용) 1건  — {"prev":40,"next":30,"by":"검증","reason":"출하 수정: 수량 정정 40 → 30 ea · 수량 오타","h":{"from":40,"to":30,"by":"검증","byId":"U-T","ts":1791534181784,"reason":"수량 정정 40 → 30 ea · 수량 오타"}}
-[PASS] F3 사유 없으면 거부 · 0·음수·소수·빈값 거부
-[PASS] F4 증가 정정: 수주 초과 차단(최대 표시) · LOT 남은 양품 초과 차단 · 범위 안 30 → 60 저장  — {"e4a":"ERR 수주 수량 초과 — SO-FX 수주 100ea · 다른 출하 0ea · 정정 가능 최대 100ea","e4b":"ERR LOT 남은 양품 초과 — PL-2026-D108 인정양품 500ea · 다른 출하 0ea · 정정 가능 최대 500ea","e4c":"OK"}
-[PASS] F5 품질 HOLD LOT: 증가 정정 차단 · 감소 정정은 허용  — {"up":"품질 HOLD — PL-2026-D108 미처리 부적합 1건 (NC-2026-D001) · 품질 관리에서 판정(재작업/특채/폐기) 후 출하 수량 정정 가능","down":"OK","qty":59}
-[PASS] F6 (GPT P0) 정정 = 출하 문서 1건만 쓰기 · NC 문서 무변 · NC 상세는 qty_hist 파생 「59 → 55ea (현재 유효 55ea)」 · 판정 대기 LOT 증가 정정 차단  — {"same":true,"up":"판정 대기·동시성 보류 중인 LOT 은 증가 정정 불가 (NC-2026-D002) — 판정·해제 후 정정하거나 새 출하로 등록","tl":true,"qty":55}
-[PASS] G2 (GPT P1) 수주·LOT 연결 비어 있음 · 품번 비어 있음 → 정정 차단 (불일치 검사 우회 없음)  — {"noPlot":"출하의 수주·LOT 연결이 비어 있음 — 정정 불가 ([취소] 후 재등록)","noItem":"수주 또는 LOT 의 품번이 비어 있음 — 정정 불가"}
-[PASS] F7 차단: 판매 마감 월 · 계산서 발행 월 · 종결 수주 (해제 후 원장 무변)  — {"e7a":"2026-10 은(는) 마감된 월 — 출하 수정 불가 (마감 취소 후 수정)","e7b":"2026-10 계산서 발행됨(TI-FX) — 출하 수정 불가 (계산서 정정 후)","e7c":"SO-FX — 부분종결된 수주 · [재개] 후 출하 수량 정정 가능"}
-[PASS] F8 창을 연 뒤 다른 곳 변경 → 저장 거부 · 취소된 출하 정정 불가 · 정정 5회 초과 → [취소] 후 재등록 안내  — {"e8a":"창을 연 뒤 다른 곳에서 이 문서가 바뀌었습니다 — 닫고 다시 열어 확인하세요","e8b":"출하 없음 (취소된 출하는 정정 불가)","e8c":{"out":["OK","수량 정정은 출하 1건당 5회까지 — 이후는 [취소] 후 재등록","수량 정정은 출하 1건당 5회까지 — 이후는 [취소] 후 재등록","수량 정정은 출하 1건당 5회까지 — 이후는 [취소] 후 재등록"],"hist":5}}
-[PASS] F9 수량 정정이 납기준수 판정을 바꾸면 미리 알림 + 감사 사유에 「납기준수 영향」 기록  — {"im":{"so":"SO-FX9","due":"2026-10-07","before":"준수 (납기 내 10/10)","after":"일부 출하 (납기 내 8/10)","changed":true,"diff":{"before":{"skip":"","ok":true,"onTime":10,"delay":0},"after":{"skip":"","ok":false,"onTime":8,"delay":2}}},"e":"OK","reason":"출하 수정: 수량 정정 10 → 8 ea · 수량 오타 · 납기준수 영향: SO-FX9 준수 (납기 내 10/10) → 일부 출하 (납기 내 8/10)"}
-[PASS] F10 수정 창: 수량 칸 · 「8 → 7 ea」 미리보기(매출·수주 잔량·LOT·명세서 재발행·거래처 통보·파렛트 안내) · 초과는 「저장 불가」 · 목록 ✎ 정정  — {"has":true,"t1":"8 → 7 ea (-1) · 매출 −₩1 · 수주 잔량 +1 · LOT 남은 양품 +1납기준수: 일부 출하 (납기 내 8/10) → 일부 출하 (납기 내 7/10)거래명세서를 이미 발행·전달했다면 정정 내용으로 다시 발행하고 거래처(현대위아)에 알려 주세요파렛트 0개는 그대로 — 필요하면 파렛트 화면에서 조정","t2":"저장 불가 — 수주 수량 초과 — SO-FX9 수주 10ea · 다른 출하 0ea · 정정 가능 최대 10ea","badge":true,"noFixed":true}
-[PASS] F10b 기존 초과 원장(레거시): 증가 정정 차단 · 감소 정정 허용 + 「⚠ 정정 후에도 … 초과 — 확인 필요」 감사 기록  — {"up":"수주 수량 초과 — SO-FX 수주 100ea · 다른 출하 54ea · 정정 가능 최대 46ea","down":"OK","reason":"출하 수정: 수량 정정 505 → 501 ea · 감소 · ⚠ 정정 후에도 수주 출하 합 555 > 수주량 100 — 확인 필요 / 정정 후에도 LOT PL-2026-D108 출하 합 563 > 인정양품 500 — 확인 필요"}
-[PASS] G3 (GPT ②) 감사 › 「원장 정합성 · LOT 출하 초과」 단락(안전 잠금)에 미해결 초과 LOT 표시 · 파생(저장 0)  — {"over":true,"lockBy":"mark","listed":true}
-[PASS] F11 출하 문서 = 픽스처 6건만 증가(정정으로 새 출하 0) · 실적·LOT 무변  — [52,84,32,42] → [58,84,32,44]
-[PASS] 버전 v0.38.24  — v0.38.24
-
-SHIPFIX TOTAL 17 · PASS 17 · FAIL 0
-exit=0 (VELA_FILE=index-dev.html)
-
-==================== _verify-sim-standard.js
-[PASS] boot: eval inline scripts  — 2 block(s)
-[PASS] 시나리오: 생산LOT 1,000 생성
-[PASS] 보존식: 절단 양품 950  — good=950
-[PASS] 보존식: 절단 투입 980 (950+30)  — input=980
-[PASS] 보존식: 절단 잔류 20  — remain=20
-[PASS] 보존식: 950(양품)+30(불량)+20(잔류) = 절단 1,000  — 950+30+20=1000
-[PASS] G1: 초과등록 차단 (잔량 20 < 등록 21 → 거부)  — 초과 등록 차단 — 잔량 20ea, 등록 21ea
-[PASS] G1: 차단 후 수치 무변 (원장 보호)
-[PASS] 시나리오: 출하 900 ≤ 직전공정 양품 950 (SHIP 잔량 검증)  — ship-balance=950
-[PASS] 매출: 900개 × 3,000원 = ₩2,700,000 (shipAmount 1벌)  — ₩2,700,000
-[PASS] 매출: SO 없으면 품번 표준단가 폴백 (10×3,000=30,000)
-
-────────────────────────────────────────
-TOTAL 11 · PASS 11 · FAIL 0
-exit=0
-
-==================== _verify-soclose.js
-[PASS] 0 종결 0건 → 수주행·소재 소요·순소요·수주 3단·보고서(일/주/월) 수치 v0.38.6 과 완전 동일  — 11339 bytes
-[PASS] 1 [수주 종결] 버튼(7번째 열 「작업」) → 확인 창(미출하·연결 현황·자동 처리 없음) → 사유 저장 → kind=short · 수주량 100·출하 70 무변 · 미출하 30 보존 · 유효잔량 0 · 감사 로그(처리자·사유)  — {"ths":"수주번호|고객사|품번|잔량 / 수주수량|납기|상태|작업","modal":true,"noReason":true,"kind":"short","qty":100,"un":30,"open":0,"shipped":70,"snapUn":30,"log":true}
-[PASS] 9 사유 없이 [수주 종결] → 저장 0
-[PASS] 2 상태 「부분종결」 · 표 「미출하 30 종결」 + [재개] · 납기임박/지연 집계 제외  — {"s":"부분종결","r":0,"u":30,"tr":true,"b":true,"l":false}
-[PASS] 2b 순소요 −30 · 보고서 수주잔 −30 · 고객사별 잔량 −30 · 소재 소요 제외 · 보고서 납기 이슈 제외 · 계획/작업지시 수주 후보 제외  — {"net":[420,390],"backlog":[11200,11170],"custBl":[8200,8170],"mat":[true,false],"issue":[true,false],"wo":false,"plan":false}
-[PASS] 2c 수주 3단(D3): 종결 미출하 30×1,000 은 출하완료·생산중·미착수 어디에도 없음 · total −30,000 · done 무변 · closedAmt 30,000 표시용  — {"total":[86678000,86648000],"done":[47649000,47649000],"closedAmt":30000}
-[PASS] 3 출하 0 수주 종결 → kind=cancel · 「수주취소」 · 미출하 40 보존 · 유효잔량 0  — {"title":true,"kind":"cancel","label":"수주취소","un":40,"open":0}
-[PASS] 4a 종결 수주로 신규 출하 저장 → 차단 · shipments 불변 · 화면 안내 「부분종결 수주 — 출하 불가」  — {"added":0,"msg":"SO-T1 — 부분종결된 수주 · [재개] 후 출하 가능","warn":"⛔ 부분종결 수주 — 출하 불가 (수주 화면 [재개] 후 출하)⚠ 이 품번 완성품재고 0ea 보다 많은 수량 — 실제 출하 가능량은 선택 LOT 잔량으로 검증됩니다"}
-[PASS] 4b 출하완료 수주(50/50)에 추가 출하 → 수주 수량 초과 차단 (GPT 🔴 필수) · shipments 불변  — {"added":0,"msg":"수주 수량 초과 출하 — SO-T3 수주 50ea · 출하 50ea · 남은 0ea (요청 1ea)","warn":"⛔ 수주 남은 수량 0ea 초과 — 저장 시 차단⚠ 이 품번 완성품재고 0ea 보다 많은 수량 — 실제 출하 가능량은 선택 LOT 잔량으로 검증됩니다"}
-[PASS] 4c 진행 수주 잔량 이내(30/30) 통과 · 31 → 초과 차단  — {"ok30":true,"ng31":true}
-[PASS] 5 종결 수주: 계획→작업지시 발행 거부(ok:false) · WO 0 · 계획/지시 저장 직전 assertSoOpen · [수정] 숨김(D2)  — {"iw":true,"wo":0,"a":true,"editBtn":false,"srcPlan":true,"srcWo":true}
-[PASS] 8 종결·취소 전후 production_lots·records·shipments·work_orders·production_plans 문서 완전 동일 (자동 완료·자동 취소 0)
-[PASS] 6 종결 후 출하 취소(void) = 허용(정정 업무) · 미출하 30→60 · 유효잔량 0 유지 · 종결 유지  — {"un":60,"open":0,"still":true}
-[PASS] 7 [재개] 사유 없으면 거부 → 사유 입력 후 재개 · close=null · 유효잔량 60 복원 · 출하 가능 · 감사 로그 종결+재개 2건  — {"blank":true,"close":null,"open":60,"logs":["부분종결: 고객 협의 감량 — 잔량 30 공급 종료","수주 재개: 고객 추가 요청"],"ok":true,"status":"납기임박"}
-[PASS] 10 쓰기 권한 없음 → soClose 거부 · 종결 0 (클라이언트 계약 — 서버 강제 아님)  — {"m":"저장 안 됨 — 수주 등록 권한 확인","close":null}
-
-SOCLOSE TOTAL 15 · PASS 15 · FAIL 0
-exit=0
-
-==================== _verify-tx23.js
-[PASS] 1 출하 내역: 열 = 일시·SO·품번·품명·수량·단가·금액·LOT · 품명 = 품번 마스터 · 단가 = 수주 단가(없으면 품번 단가) · 금액 = shipAmount 와 같음  — {"heads":["일시","SO","품번","품명","수량","단가","금액","LOT",""],"nameOk":true,"priceOk":true,"amtOk":true}
-[PASS] 2 거래명세서: 품번·품명 칸 분리(8열 · v0.38.24 순서 = 수량 → 단가 → 공급가액 → 포장내역 → 파렛트) · 글자 크기 그룹 통일 · 각 칸 내용 일치 · 줄바꿈 금지(nowrap) + 고정 폭 표 · 글자 맞춤 대상 지정  — {"heads":["품번","품명","LOT","수량","단가","공급가액","포장내역","파렛트"],"cols":8,"code":true,"name":true,"nowrap":true,"fit":[".fit-tbl td, .fit-tbl th",".party .pr .v"],"formKey":"tx"}
-[PASS] 3 인쇄창에 글자 맞춤 함수 주입(인쇄 직전 실행) · 최소 6px · !important(인쇄 글자 규칙보다 우선) · 다른 양식은 무주입  — {"inject":true,"minClamp":true,"important":true,"noFitOther":true}
-[PASS] 4 버전 v0.38.24  — v0.38.24
-
-TX23 TOTAL 4 · PASS 4 · FAIL 0
-exit=0 (VELA_FILE=index-dev.html)
-
-==================== _verify-v0.35.10.js
-[PASS] external: 로컬 script src 0건
-[PASS] external: 허용 CDN 2곳 밖 0건
-[PASS] external: 전부 버전 고정  — 4 external
-[PASS] boot: eval inline scripts  — 2 block(s)
-[PASS] boot: no jsdomErrors during eval
-[PASS] version: APP_VERSION == v0.38.17  — v0.38.24
-[PASS] version: APP_DATE == 2026-10-09  — 2026-10-09
-[PASS] demo287: _DEMO_EMPTY_KEY 정의 1곳
-[PASS] demo287: isEmptyDemo 헬퍼 1벌
-[PASS] demo287: isEmptyDemo 기본 false
-[PASS] demo287: 두 플래그 시 true
-[PASS] demo287: EMPTY 키 제거 시 false (샘플 데모)
-[PASS] demo383: 데모 플래그 = 탭 단위 — sessionStorage 만 데모 · 옛 localStorage 플래그는 데모 아님 + 부팅 시 제거
-[PASS] vis383: 추세 차트 값·축·점 = 테마 변수 (흰 글자 고정 #eef0f4 0)
-[PASS] vis383: 라이트 --heat/--c1~c6 · 다크 --dim 4.5:1 보정 · 계획 교대 밴드 토큰
-[PASS] prt383: 인쇄 장 넘김 이중 안전장치 + 화면 최소 높이 해제 + 가로 한 장 맞춤
-[PASS] prt383: PDF = 한 장 양식은 1쪽 맞춤 · 흐름 문서(.flow/.sheet)만 행 경계 분할
-[PASS] prt383: 출력물 하단 버전 표기 _stampPrintVersion (인쇄·PDF 공통)
-[PASS] demo287: 진입 모달 2버튼 (샘플/빈 상태)
-[PASS] demo287: 샘플 진입 = EMPTY 키 제거+데모 저장소 리셋
-[PASS] demo287: 빈 상태 진입 = EMPTY 키 설정+데모 저장소 리셋
-[PASS] demo287: seedIfEmpty 데이터성 7블록 게이팅
-[PASS] demo287: 구조성 시드 무게이팅 (공정·계정과목·설정)
-[PASS] demo287: autoLoginDemo 빈 데모 시 seedDemoData 스킵 (v0.32.6 — 시드 버전 마커 문구로 승계)
-[PASS] demo287: 초기화 2선택 (샘플 재생성/빈 상태)
-[PASS] demo287: 초기화 핸들러 EMPTY 키 토글 후 resetDemoData
-[PASS] demo287: 설정 카드 모드 표기 (빈 상태/샘플)
-[PASS] kg288: fmtKg 헬퍼 1벌
-[PASS] kg288: fmtKg 소수 3자리·빈값
-[PASS] kg288: 폼 kg 입력 (step 0.001·소수)
-[PASS] kg288: 구 g 입력 id 제거
-[PASS] kg288: 표 헤더 kg
-[PASS] kg288: 엑셀 내보내기 kg 컬럼
-[PASS] kg288: 임포트 스펙 weight_kg/product_weight_kg  — code,part_no,name,customer_ref,mat,dia,mat_len_mm,ht_spec,hardness,weight_kg,product_weight_kg,price,cav,mold_no,default_forge_eq,pack_qty
-[PASS] kg288: 저장 필드 무변 (weight=kg · product_weight_g=g 하위 호환)
-[PASS] kg288: 원/kg 자동계산 kg 직산
-[PASS] id289: 신규 채번 2분절 (rev 미포함)
-[PASS] id289: 2분절·구 3분절 모두 인식
-[PASS] id289: split — 2분절 rev=null · 3분절 rev 유지
-[PASS] id289: 최소 빈 번호 채번 (001·003 → 002 = 삭제 번호 즉시 재사용)
-[PASS] del289: 무이력 품번 참조 0
-[PASS] del289: DB.remove 물리 삭제 (items)
-[PASS] del289: 삭제 후 번호 즉시 재사용 (003 재채번 대상)
-[PASS] del289: 실적·이력 품번 참조 감지  — 수주 1건
-[PASS] del289: void 된 이력도 감지 (Raw 검사)
-[PASS] del289: 원장 컬렉션 remove 차단 (records)
-[PASS] del289: 어댑터 remove 2벌 (local·firestore — v0.35.5 승계: 로컬 = 문서 단위 del 마킹)
-[PASS] adp353: 로컬 write = read-modify-write (전체 재직렬화 제거)
-[PASS] adp353: storage 이벤트 병합 (_updated 최신 우선) + 모달 중 리렌더 보류
-[PASS] adp353: restore 전체 쓰기 경로 유지 (col=null → _full)
-[PASS] adp353: 백업 다운로드 전 flush
-[PASS] cor354: LOT.correctRecord·correctionCheck 존재 (보정 단일 경로)
-[PASS] cor354: 실적 수정 모달 → LOT.correctRecord 배선 · DB.correct 직접 호출 0
-[PASS] lck355: lotConflictInfo 자체 탐지 (파생 보류 → detectConcurrencyIncidents(plot)) — v0.36.0 승계
-[PASS] lck355: detectConcurrencyIncidents(onlyPlot) 범위 인자
-[PASS] lck355: 실적 등록 모달 사고(보류) 안내·옵션 라벨 · 파비콘 내장 — v0.36.0 승계
-[PASS] adp353: 로컬 어댑터 flush·_listen 런타임 존재 (기본 부팅은 firestore 어댑터 — 로컬 동작 검증은 _verify-2tab-local.js)
-[PASS] del289: 삭제 버튼 + 이력 가드 + 서버 rules 안내 (v0.31.5 — v4 문구로 승계)
-[PASS] rev289: 리비전 올리기 = 코드 불변·rev+1·rev_history 보존
-[PASS] rev289: 폼 자동채번 rev 미연동 (고객사 선택만)
-[PASS] sb290: 시계 클릭 진입 연결
-[PASS] sb290: 대기화면 마크업 (CI·날짜·시간·날씨·브랜드·버전)
-[PASS] sb290: 헬퍼 1벌 (enterStandby/wakeStandby)
-[PASS] sb290: 마우스 이동 깨우기 없음 (사용자 판정)
-[PASS] sb290: 키/클릭/터치 복귀 3종
-[PASS] sb290: 날씨 = Open-Meteo (무료·키 불필요) · 실패 시 숨김
-[PASS] sb290: 날씨코드 맵 존재 (맑음·비·눈·뇌우)
-[PASS] sb290: 진입 — 표시·회사명·버전 주입
-[PASS] sb290: 깨우기 — 소등·타이머 해제
-[PASS] sb290: 인쇄 시 숨김 가드
-[PASS] hist291: 이력 순번 수집 (_itemSeqsInHistory)
-[PASS] hist291: 품번 부재+이력 존재 번호 채번 제외 (Z9-001 건너뜀 → Z9-002)  — Z9-002
-[PASS] hist291: void 된 이력도 제외 유지 (Raw)
-[PASS] hist291: 단가합의서 라인 순번도 제외 (Z9-003)
-[PASS] hist291: 무이력 번호는 정상 채번 유지 (Z9-002)
-[PASS] hist291: 수기 입력 우회 차단 (신규 저장 시 이력 번호 거부)
-[PASS] hist291: 채번 경로에 이력 제외 연결
-[PASS] sc292: 표 세로 스크롤 CSS (50vh — v0.31.4 상한 통일)
-[PASS] sc292: 머리글 고정 (thead sticky)
-[PASS] sc292: 인쇄 시 전체 펼침 가드
-[PASS] sc292: 화살표 마크업 (▲▼ 우하단 고정)
-[PASS] sc292: 헬퍼 1벌 (_scrollTarget/_snScroll)
-[PASS] sc292: 대상 우선순위 — 모달 > 마지막 사용 > 최대 리스트 > 페이지
-[PASS] sc292: PageUp/Down — 입력 포커스 시 미개입
-[PASS] sc292: 꾹 누르면 연속 스크롤 (320ms)
-[PASS] sc292: 인쇄 화살표 숨김
-[PASS] sc292: 스크롤 불가 시 화살표 숨김 판정
-[PASS] mold293: 선택 셀렉트 존재 (신규 전용)
-[PASS] mold293: 품번 금형번호 수집 (기등록도 목록 유지·현황 병기)
-[PASS] mold293: 선택 시 자동 채움 (금형번호·품번 전체·ID·이름 제안 — v0.31.4 충돌 회피 승계)
-[PASS] mold293: 다품번 공유 금형 표기 (외 N품번)
-[PASS] mold294: 구분 힌트 풀어쓰기 (v0.31.4 선택형 문구로 승계)
-[PASS] mold294: KPI 문구 풀어쓰기 (v0.31.4 구분별 벌수 요약으로 승계)
-[PASS] mold295: MOLD_VARIANT_LABELS 1벌 (ONE/BL/FI 한글 병기)
-[PASS] mold295: 구분 셀렉트 + 기타 직접 입력 토글
-[PASS] mold295: 저장 — 선택값 또는 기타 수기
-[PASS] mold295: 목록 pill 툴팁 한글 병기
-[PASS] mold295: 구 자유값(1차·상형 등) 기타로 표시 보존
-[PASS] mold296: 빠진 구분 자동 제안 (BL 있으면 FI · FI 있으면 BL)
-[PASS] mold296: 금형ID 충돌 회피 ({번호}-{구분} → {번호}-N)
-[PASS] mold296: 이름에 구분 한글 병기 제안
-[PASS] mold296: 안내 문구 — 2벌은 같은 번호 두 번 등록
-[PASS] mold296: 토스트에 기존 등록 현황 표기 (v0.31.4 건·구분×벌수)
-[PASS] qty297: 헬퍼 1벌 (moldQty/moldShotsPerUnit)
-[PASS] qty297: moldQty 기본 1·바닥값 보정
-[PASS] qty297: 벌당 평균 = ceil(전체÷보유)
-[PASS] qty297: 수명 판정 벌당 기준
-[PASS] qty297: 보유 1벌이면 기존과 동일 (회귀)
-[PASS] qty297: 폼 보유 수량 입력 (min 1·정수)
-[PASS] qty297: 표 보유 컬럼 + 벌당 표기 + 전체 툴팁
-[PASS] qty297: 엑셀 내보내기 보유·벌당·전체 컬럼
-[PASS] qty297: 임포트 보유수량 컬럼·적용
-[PASS] qty297: 저장 doc 에 qty 포함 (신규·수정)
-[PASS] qty298: 합계 KPI = 건 + 총 벌수
-[PASS] qty298: 구분별 벌수 집계 (unitsByVar — 구분별 qty 합산)
-[PASS] qty298: 구분 한글 병기 요약 (일체형/블로커/피니셔 순)
-[PASS] qty298: 연동 목록 — 건수·구분×벌수 병기
-[PASS] sc299: overscroll 격리 제거 (휠 체이닝 — 표 끝→페이지)
-[PASS] sc299: ▲▼·PageUp/Down 단락 흐름 (리스트 끝→페이지로 전환)
-[PASS] sc299: 모달은 흐름 예외 (뒤 페이지로 안 샘)
-[PASS] sec300: .sec-scroll 유틸 (50vh·인쇄 펼침)
-[PASS] sec300: 렌더 후 실측 승격 (1벌 · 상한 초과 즉시 · 이중 스크롤 방지)
-[PASS] sec300: router 연결 (전 메뉴 공통)
-[PASS] sec300: 화살표·PageUp/Down 대상에 포함
-[PASS] sec300: 설비현황 행 목록도 대상 (.eqtable)
-[PASS] sec301: 상한 = 화면 절반 통일 (cap 0.50 = CSS 50vh)
-[PASS] sec301: 스크롤바 상시 표시 스타일 (webkit+firefox)
-[PASS] sec301: 스크롤바 썸 hover 강조
-[PASS] pn302: getPartNo 헬퍼 1벌
-[PASS] pn302: part_no 우선·구 자유코드 폴백·식별번호는 품번 아님
-[PASS] pn302: 폼 분리 (mi-partno 별도 저장·구 mi-legacy 제거)
-[PASS] pn302: 표 — 식별번호 옆 품번 컬럼
-[PASS] pn302: 검색에 품번 포함
-[PASS] pn302: 엑셀 내보내기·임포트에 품번 컬럼
-[PASS] pn303: itemLabel 헬퍼 1벌 (식별번호 · 품번 병기)
-[PASS] pn303: 병기 규칙 — 품번 있으면 " · " 연결·같으면 1회·없으면 식별번호만
-[PASS] pn303→so358: 새 수주 품번 선택 = itemLabel(식별번호·품번) 병기 · 고객사별 목록 · 품명/단가/최근수주 자동 카드 (v0.35.8 승계)
-[PASS] pn303: 수주 통합 표에 식별번호 병기 (v0.35.1 공통 규격 승계 — 2카드→통합 1표)
-[PASS] cal304: _calEnhance 헬퍼 1벌 (date→text 통일+달력 연결)
-[PASS] cal304: router(화면)+openModal(모달) 양쪽 연결
-[PASS] cal304: date→text 전환+placeholder+숫자 키패드
-[PASS] cal304: 달력 바인딩 (중복 방지 플래그)
-[PASS] cal304: 수기 입력 병행 (readonly 미사용)
-[PASS] soe305: 수정 버튼 — 행 상세 안 (v0.35.1 승계 — 통합 표 상세 1곳 + 핸들러)
-[PASS] soe305: 고객사·품번 불변 (표시만)
-[PASS] soe305: 저장 = DB.correct 보정 레코드 (원본 보존)
-[PASS] soe305: 출하량 미만 감축 차단
-[PASS] soe305: correct 반영 (150·3100·9-15·보정 사유 로그)
-[PASS] pln306: 수량 기준 목록 제외 (planRemain>0 만)
-[PASS] pln306: 저장 시 수량 기준 재검증
-[PASS] pln306: 프리필 거부 = 충족 수주만 (분할 계획 허용)
-[PASS] pln306→pln358: 수주 연결 = 검색 1줄 + 표 행 클릭 (숨은 select 단일 소스 · v0.35.8 승계)
-[PASS] pln306: 재고생산 = 중복 가능 명시
-[PASS] pln306: 수주 화면 — 충족 시 계획완료·미충족 시 [계획]+잔량
-[PASS] pln307: soPlannedQty 헬퍼 1벌
-[PASS] pln307: 부분 계획 후 잔량 200 (미충족 → 추가 허용)
-[PASS] pln307: 분할 2건 합=500 (충족 → 차단 대상)
-[PASS] pln307: 계획 취소(void) 시 계획잔량 복원
-[PASS] pln307→pln358: 표에 계획 가능·기계획 표기 (v0.35.8 승계)
-[PASS] pln307: 프리필 수량 = 미계획 수량
-[PASS] po308: 헬퍼 1벌 (soMaterialNeeds/matStockKg)
-[PASS] po308: 소요 산출 (잔량×절단중량 — 50kg·40kg)
-[PASS] po308: 같은 규격(S45C Ø40) 묶음 키 일치
-[PASS] po308: 발주 연결(so_ids) 수주는 poLinked 표시
-[PASS] po308: 모달 섹션 (체크·집계·반영 버튼)
-[PASS] po308: 재고·부족·합의 단가(원가 단가표) 표기
-[PASS] po308: 반영 = 규격별 소재 품목 생성 + so_ids 연결·재반영 가능
-[PASS] po308: 저장 시 so_ids 보존
-[PASS] mt310: 채번 MT→materials 등록
-[PASS] mt310: 기준정보 카드 (등록·불러오기·임포트·엑셀)
-[PASS] mt310: 등록 모달 1벌 (_mstMaterialEdit — 구분 토글·소재 재질 필수)
-[PASS] mt310: matPriceKg 1벌 — 마스터(규격별) 우선·단가표 폴백
-[PASS] mt310: 마스터 없으면 단가표 폴백
-[PASS] mt310: 마스터 등록 시 규격별 단가 우선 (2950)
-[PASS] mt310: 비활성 시 폴백 복귀
-[PASS] mt310: 품번에서 소재 불러오기 (미등록 재질·Ø 일괄 생성)
-[PASS] mt310: 새 발주 연동 — 마스터 이름 자동완성+일치 시 자동 채움
-[PASS] mt310: 임포트 스펙+중복 건너뜀+적용
-[PASS] mt311: mtHistoryRefs 헬퍼 1벌 (발주·구매입고·소재 입고/LOT)
-[PASS] mt311: DB.remove 허용 목록 (v0.31.5 — MASTER_DEL_COLS 상수로 승계)
-[PASS] mt311: 모달 [삭제] + 이력 차단 + rules 안내 (v0.31.5 — v4 문구로 승계)
-[PASS] mt311: 무이력 → 참조 0·삭제 성공
-[PASS] mt311: 발주 이력 시 참조 감지 (삭제 차단 대상)
-[PASS] mt311: void 된 발주도 이력으로 감지 (Raw)
-[PASS] po312: 품목 카드 체크박스 + [체크 품목 삭제] 버튼
-[PASS] po312: 최소 1행 차단 폐지 — 마지막 행 삭제 시 빈 행 교체
-[PASS] po312: 일괄 삭제 — 체크만 제거·건수 토스트·버튼 비활성 복귀
-[PASS] pdf313: 헬퍼 1벌 (_loadPdfLibs/_openPdf — 지연 로드·캐시)
-[PASS] pdf313: cdnjs 버전 고정 (html2canvas 1.4.1 · jspdf 2.5.1)
-[PASS] pdf313: 인쇄 모달에 [PDF 저장] — 방향 설정 공유
-[PASS] pdf313: A4 분할 (96dpi 794/1123 · mm 210×297 · 다중 페이지 addPage)
-[PASS] pdf313: 파일명 규칙 + 메일 첨부 안내 + 실패 정직 안내
-[PASS] pdf313: 숨은 iframe 격리 렌더 (앱 스타일 오염 없음·정리 finally)
-[PASS] seq314: suggestNextId 헬퍼 1벌
-[PASS] seq314: 기존 형식 승계 (OP-014→OP-015 · 자릿수 유지)
-[PASS] seq314: 최빈 형식 학습 (DT-XXX vs ZZXX — 다수 형식 제안)  — ZZ03
-[PASS] seq314: 빈 컬렉션 fallback
-[PASS] seq314: 작업자 — 신규 사번 자동 제안+중복 차단(덮어쓰기 사고 방지)
-[PASS] seq314: 금형 — ID 빈칸 시 자동순번 (연동 제안과 병행)
-[PASS] ht: HT_SPEC_OPTS = Q.T/NOR/ISO/CA  — ["Q.T","NOR","ISO","CA"]
-[PASS] ht: getHtSpec 표준값 우선
-[PASS] ht: getHtSpec 구 custom 폴백 (이력 보존)
-[PASS] ht: getHtSpec 빈값 처리
-[PASS] ht: 헬퍼 1벌 — getHtSpec 정의 1곳
-[PASS] badge: [hidden] 전역 강제 CSS 존재
-[PASS] badge: demo-badge 마크업 기본 hidden
-[PASS] badge: 로그인·부트 시 isDemoMode 로 토글 (2곳)
-[PASS] badge: 실모드 → demo-badge hidden=true
-[PASS] hd: getHardness 표준값 우선
-[PASS] hd: getHardness 구 custom 폴백 (이력 보존)
-[PASS] hd: 헬퍼 1벌 — getHardness 정의 1곳
-[PASS] hd: 폼 mi-hardness 입력칸 (열처리 옆 g3)
-[PASS] hd: 저장 신규·수정 양쪽 hardness
-[PASS] hd: 품목 표 경도 컬럼 + colspan 14 (v0.31.4 품번 컬럼 추가 승계)
-[PASS] hd: 엑셀 내보내기 경도 컬럼
-[PASS] po: 품목 카드 구분 select (소재/일반)
-[PASS] po: 저장 시 kind 기록
-[PASS] po: 소재 입고 연결 = 구분 mat (구버전 kg 호환)
-[PASS] po: 구매품 입고 연결 = mat 제외 (구버전 전부 허용)
-[PASS] po: 목록 일반 배지
-[PASS] light: green/blue/amber/red 재정의
-[PASS] print-doc: 변수 스코프 재정의 (bg2/sub/red/amber 인쇄 안전값)
-[PASS] print-doc: th 밝은 배경 강제
-[PASS] print-doc: 테마 변수 상속 차단 (border 도 고정)
-[PASS] light: 다크 :root 불변 (green #4ade80 유지)
-[PASS] migration: 경도HB 정의 필드도 비활성 (v0.26.6)
-[PASS] migration: 구 정의 필드 비활성 (삭제 아님 — 문서·값 보존)
-[PASS] migration: 멱등 (재실행 무해)
-[PASS] migration: 부팅 경로에 호출 연결
-[PASS] sim: seedDemoData ran
-[PASS] demo: HEAT 라우트 품번 ht_spec=Q.T  — HF-3301:Q.T HF-3302:Q.T HF-3305:Q.T HF-3309:Q.T
-[PASS] demo: 사내만 품번(HF-3312) ht_spec 빈값
-[PASS] demo: HEAT 품번 경도 시드 (HB 269~331)
-[PASS] demo: MF-ITEM-004(경도HB) 시드 제거
-[PASS] demo: MF-ITEM-003 시드 제거 (표준 승격)
-[PASS] demo: 정의 필드에 열처리사양·경도HB 없음 (중복 노출 방지)  — 차종,단조온도,자분탐상,표면처리
-[PASS] form: mi-htspec select + 기타 토글 + 기타 입력칸
-[PASS] form: 저장 핸들러 ht_spec 수집
-[PASS] form: 신규·수정 doc 양쪽에 ht_spec 저장
-[PASS] table: 품목 표 열처리 컬럼
-[PASS] xlsx: 내보내기에 열처리사양 컬럼
-[PASS] import: _IMPORTER_SPEC.items 에 ht_spec+hardness  — code,part_no,name,customer_ref,mat,dia,mat_len_mm,ht_spec,hardness,weight_kg,product_weight_kg,price,cav,mold_no,default_forge_eq,pack_qty
-[PASS] import: 적용부 ht_spec+hardness 저장
-[PASS] render smoke: 28 pages 예외 0  — ok=28 fail=0
-[PASS] render smoke: 20화면 이상  — ok=28
-[PASS] flags: 데모 부팅 시 전 플래그 ON 동기화 코드 (v0.32.6 — 시드 보강 블록 추가로 탐색 범위 확대 승계)
-[PASS] flags: 고착 재현 (cost=false)
-[PASS] flags: 동기화 후 원가·견적·회계·도면 전부 ON
-[PASS] dwf: Storage SDK 지연 로드 (버전 고정 · 부팅 무영향)
-[PASS] dwf: 로컬/데모 모드 = 링크만 (정직 안내)
-[PASS] pa: 컬렉션·PA 채번·doc_price 플래그 등록
-[PASS] pa: 문서 출력 허브 ⑥ 칩 + 새 합의서 작성 + 인쇄 연결
-[PASS] pa: 작성 모달 — 고객사 select·건별 체크·마스터 반영 옵션
-[PASS] pa: 인쇄 양식 — 2부·bizBlock·서명란·합의 문구
-[PASS] pa: 데모 시드 — C001·품목 2건·기존→합의 단가
-[PASS] pa: 시드가 마스터 단가 무변 (master_synced=false)
-[PASS] pa render: 문서 출력에 ⑥ 단가합의서 칩 노출
-[PASS] imp: 4종 마스터 스펙 추가
-[PASS] imp: UI 진입점 4곳 (설비·금형·도면·작업자)
-[PASS] imp workers: 판정 ok → 등록
-[PASS] imp workers: 중복 사번 건너뜀
-[PASS] imp equipments: 없는 공정코드 거부
-[PASS] imp equipments: 등록 (work_hours 반영)
-[PASS] imp molds: 없는 품번 거부
-[PASS] imp molds: 다품번·기초 타수 등록
-[PASS] imp drawings: 현행 Rev·이력 1건 생성
-[PASS] imp drawings: 중복 도면번호 건너뜀
-[PASS] wipe: 서버 모드 초기화 정직 안내 (로컬 사본만·local 전환 동선)
-[PASS] od: 반출 대상 실적 테이블 (클릭 자동 채움·부분 반출 안내)
-[PASS] mig: 설정 이관 허브 12버튼 + 권장 순서
-[PASS] mig: 라우트 파서 1벌
-[PASS] dnd: 드롭존 (클릭=선택·드래그=업로드)
-[PASS] dnd: URL 드래그 → 링크 자동 등록 (uri-list)
-[PASS] dnd: 업로드·링크 등록 1벌 공용 (버튼·드롭 동일 경로)
-[PASS] dnd: PC 경로 자동 등록 불가 정직 안내
-[PASS] dnd: 드래그 하이라이트 (over/leave 복원)
-[PASS] att: 첨부 모달 공용화 — _attFilesModal(col,id) + 도면 래퍼 위임
-[PASS] att: 모달 내부 컬렉션 결합 제거 (DB.get(col, id))
-[PASS] att: Storage 경로 컬렉션별 분리 (attUploadFiles 1벌로 이동)
-[PASS] pa-att: 목록 [첨부 N] + 저장 후 자동 오픈 + 인쇄 근거서류 표기
-[PASS] pa-att: PA 문서 첨부 추가·목록 헬퍼 동작 (rev 없는 문서 호환)
-[PASS] pa-att: 삭제 마킹 후 목록 제외
-[PASS] perm: 코어 정의 (none/view/edit)
-[PASS] perm: 미설정 메뉴 = edit (기존 동작 호환)
-[PASS] perm: none/view 반영
-[PASS] perm: 관리책임자 = 전권 고정
-[PASS] perm: dash 는 none 불가 (최소 보기)
-[PASS] perm guard: 보기 페이지에서 DB.set 차단 (null 반환)
-[PASS] perm guard: users 컬렉션은 예외 (last_login)
-[PASS] perm guard: 등록 페이지에서는 허용
-[PASS] perm nav: none 메뉴(LOT 추적) 숨김 · view 메뉴(재고) 노출
-[PASS] isolation: 관리책임자 설정 — 시스템·백업/복원·기능 플래그 전부 숨김
-[PASS] isolation: 관리책임자 설정 — 사용자 관리는 노출
-[PASS] isolation: 개발자 설정 — 시스템·백업/복원·기능 플래그 노출
-[PASS] perm ui: 사용자 행 [권한] 버튼 + 모달 + 프리셋
-[PASS] perm ui: 보기 전용 배너 (라우터 공통)
-[PASS] draw flow: 등록 직후 첨부 창 자동 오픈
-[PASS] dws: 2MB 앱 내 저장 상한 · 조각 900k chars
-[PASS] dws: 조각 분할 — 문서당 1MB 미만 보장·손실 없음
-[PASS] dws: MIME 판정 (pdf/이미지 열람 · 그 외 다운로드)
-[PASS] dws: 업로드 자동 판정 코드 (≤2MB → 앱 내 · 초과 → Storage)
-[PASS] dws: 삭제 = 조각 비우기 (delete 금지 규칙과 무충돌)
-[PASS] dws: 조각 컬렉션 미러 제외 (drawing_file_chunks — _FS_COLLECTIONS 밖 · 직접 읽기)
-[PASS] dws: 로컬/데모 = 링크·경로만 안내
-[PASS] dwp: PC 경로 첨부 — kind path·복사 버튼·file:// 안내
-[PASS] dwp: 경로 첨부 데이터 규칙 (path_str 보존)
-[PASS] dwf: Blaze 요금 안내 문구 (정직 고지)
-[PASS] dwf: 20MB 개당 제한
-[PASS] dwf: 첨부 추가 — 증분 누적
-[PASS] dwf: 삭제 = removed 마킹 (메타 이력 보존 · 배열 불변)
-[PASS] dwf: 목록 = removed 제외
-[PASS] dwf: 확장자·크기 헬퍼
-[PASS] dwf: 데모 시드 링크 첨부 1건 (Rev 2)
-[PASS] dwf render: 목록에 [첨부 N] 버튼
-[PASS] draw: PAGES 도면 메뉴 (p_drawing 기존 키 재사용)
-[PASS] draw: 데모 시드 — 리비전 이력 3건·현행 Rev 2
-[PASS] draw: _drawNextRev 숫자 +1 제안 · 비숫자 빈값
-[PASS] draw: 리비전 업 — 이력 4건·현행 3·기존 이력 보존
-[PASS] draw render: 목록·현행 Rev·이력 수 표시
-[PASS] cat: 표준 계정과목 22과목 정의  — 22
-[PASS] cat: 데모 DB 에 표준 세트 시드 (급여·복리후생비·지급수수료 등)  — 22개
-[PASS] cat: 재료비·외주가공비 없음 (이중 계상 방지)
-[PASS] cat: 마이그레이션 멱등 (재실행 무증가)
-[PASS] cat: 경비 UI 라벨 = 계정과목
-[PASS] close→invoice: 매출 마감 확정 시 자동 이동 코드
-[PASS] close→invoice: 마감 완료 화면 발행 진입 버튼
-[PASS] cat: 데모 경비 시드 = 표준 계정과목명 (지급임차료·소모품비)
-[PASS] acct: 설정값 — 경고 45일(변경 가능)·수단 3종(어음 포함)  — {"warn_days":45,"methods":["현금","계좌이체","어음"]}
-[PASS] acct: 매출 발생 총합 = Σ shipAmount (재계산 없음)  — 49289000 vs 49289000
-[PASS] acct: C001 수금 누계 = 3,300,000 (v0.32.5 대량 시드 3건으로 승계)  — received=3300000
-[PASS] acct: C001 미수 = 발생 − 수금 (v0.32.5 승계)  — 14505000
-[PASS] acct: 경과일 = 마지막 수금 기준 (v0.32.5 승계 — 5일 전 대량 시드)  — 5
-[PASS] acct: 수금 +100,000 → 미수 −100,000  — 14505000 → 14405000
-[PASS] acct: 수금 void → 미수 원복 (물리 삭제 없음)  — 14505000
-[PASS] acct: S001 지급 누계 = 1,440,000 (v0.32.5 대량 시드 2건으로 승계)  — paid=1440000
-[PASS] acct: 손익 항등식 (이익 = 매출−매입−외주−경비)  — {"month":"2026-10","revenue":1698000,"purchase":0,"outsource":0,"expenses":12870000,"profit":-11172000,"missingCount":1}
-[PASS] acct: 이번 달 경비에 절삭유 150,000 포함  — exp=12870000
-[PASS] acct: 계산서 대상 = 마감 매출 산식 일치  — 6 targets
-[PASS] acct: 데모 발행 기록 금액 = 대상액 (금액 상이 없음)
-[PASS] acct: 반복 제안 — 전월 임차료(매월) 이번 달 미등록 → 제안 포함  — 공장 임차료,전기 요금,인터넷·전화,세무 기장료
-[PASS] acct: 등록 후 제안 소멸 (멱등)
-[PASS] acct G1: 원장 counts 불변 (records/lots/orders/ships)  — {"records":84,"lots":32,"orders":42,"ships":52}
-[PASS] acct G1: buildReportData 수치 불변 (매출·실적)
-[PASS] acct render: 원장·계산서/경비·손익 3장 예외 0  — ok
-[PASS] acct render: 정직 라벨 (간이·세전·신고용 아님)
-[PASS] sim regression: counts 불변
-[PASS] sim regression: totalShipAmount 불변  — ₩49,289,000
-[PASS] sim regression: buildReportData 수치 불변
-[PASS] 회귀 v0.26.4: buildReportPpt 무변 (PPT 존재·생성)
-[PASS] mig bom: 라우트 검증·등록
-[PASS] mig bom: 없는 공정 거부
-[PASS] mig mat: heat 입고 → receipts+lots 두 문서
-[PASS] mig lot: LOT.create 경로·heat 승계
-[PASS] mig rec: registerRecord 경로 — 절단 700/50 등록·ts 소급
-[PASS] mig rec: 초과 실적 행 = 등록 시 거부 (보존식 보호)
-[PASS] mig od: 반출 임포트 — 가능량 내 등록·초과 거부
-[PASS] mig so: 수주 임포트 — 자동 채번·created 소급
-[PASS] del315: MASTER_DEL_COLS 11종 (rules v4 와 동기)
-[PASS] del315: _MASTER_DEL 레지스트리 8종
-[PASS] del315: masterDelete/masterHistoryRefs/masterDelBtn 정의
-[PASS] del315: 모달 삭제 버튼 5곳 배선 (작업자·거래처·설비·금형·불량유형)
-[PASS] del315: 행 삭제 버튼 3곳 배선 (공정·도면·계정과목)
-[PASS] del315: 표준 계정과목(EC-STD-*) 가드 (멱등 시드 복원 → 삭제 무의미 차단)
-[PASS] del315: rules v4 — col in [11종] delete 허용
-[PASS] del315: rules v4 — 원장 delete 전면 금지 유지
-[PASS] del315: 작업자 무이력 삭제 → 재조회 null
-[PASS] del315: 작업자 실적 참조 → 차단·보존
-[PASS] del315: 거래처 무이력 삭제
-[PASS] del315: 거래처 수주 참조 → 차단 (C001)
-[PASS] del315: 설비 무이력 삭제
-[PASS] del315: 설비 생산계획 참조 → 차단·보존
-[PASS] del315: 금형 파생 타수 0 삭제
-[PASS] del315: 금형 파생 타수 참조 → 차단·보존  — HF-3301
-[PASS] del315: 불량유형 무이력 삭제
-[PASS] del315: 불량유형 부적합 참조 → 차단·보존
-[PASS] del315: 공정 무이력 삭제
-[PASS] del315: 공정 BOM 라우트 참조 → 차단 (CUT)
-[PASS] del315: 도면 최초등록만 → 삭제
-[PASS] del315: 도면 개정 이력 2건 → 차단·보존
-[PASS] del315: 표준 계정과목 → 가드 차단
-[PASS] del315: 사용자 계정과목 무이력 삭제
-[PASS] del315: 계정과목 경비 참조 → 차단·보존
-[PASS] del315: DB.remove 원장 불허 (records)
-[PASS] del315: masterDelete 미지원 컬렉션 거부 (orders)
-[PASS] dz320: 부팅 기본 테마 = PC 라이트 · 폰 auto(기기 설정) — v0.37.1 승계 (저장 취향은 유지)
-[PASS] dz320: 신규 토큰 --sh/--prim 두 테마 정의
-[PASS] dz320: 라이트 프리미엄 팔레트 (--bg #f6f7f9 · --ink #101828 · --cyan #0f766e)
-[PASS] dz320: 디자인 레이어 — 카드 단색+그림자·차콜 주버튼
-[PASS] dz320: 라이트 배경 평면화 (그리드·라디얼 제거)
-[PASS] dz320: 행 호버 중립화 (청록 틴트 → 잉크 4%)
-[PASS] dz320: 다크 :root 원본 불변 (기존 다크 사용자 픽셀 보존)
-[PASS] dz320: 스크롤 CSS 불변 (sc292 계약 유지)
-[PASS] nav321: NAV_GROUPS 7그룹 · 전 PAGES 수용(기타 제외 누락 0)
-[PASS] nav321: renderNav 그룹 라벨 + 전 메뉴 버튼 (개발자 세션)
-[PASS] nav321: 사이드바 CSS — 그리드·sticky·좁은 화면 라벨 숨김·인쇄 무영향
-[PASS] nav321: 활성 메뉴 틴트 (솔리드 시안 대체 · 아이콘 동색)
-[PASS] dash333: 제거 확인 — 오늘 챙길 일·오늘의 생산·안내줄·섹션 라벨 전부 미노출
-[PASS] dash357: 핵심 스트립 4 (hero dash3 — 총 수주잔 · 당월 매출 · 오늘 생산 · 오늘 이상) · hero6 제거
-[PASS] dash357: 이동 확인 — 연 누적 카드·월별 매출·고객사 5년·진도 4칸·공정 흐름·품질 KPI 그리드 대시보드 미노출 (담당 화면 존치)
-[PASS] dash334: 띠 세그먼트 .prog 전역 충돌 차단 (margin:0·row 명시 — 생산중 반만 칠해지던 버그)
-[PASS] dash333: 띠그래프 단색 (생산중 #f59e0b · 출하완료 단색 + 라이트 텍스트 보정 · 그라데이션 제거)
-[PASS] dash333: 차트 단색 틸 — 월별 막대 인라인 무지개 색 제거 (당월만 진하게)
-[PASS] dash333: 수주대비 카드 — 범례 설명문 제거·총 수주잔 범례 우측 통합
-[PASS] dash357: 카드 2장 — 수주 대비 띠(stage3 · D′4 그대로) + 생산 추세(trend-seg) 한 행 · 카드 수 2
-[PASS] dash357: 오늘 이상 신호등 — 잠금·HOLD·부적합 대기·납기 지연 합 (lockedPlotSet·heldPlotSet·calcSoRows 1벌 · 0이면 「이상 없음」)
-[PASS] dash333: 데이터 보존 — 오늘의 생산 상세는 설비현황 담당 (computeEqStatus 1벌 유지)
-[PASS] dash357→hold3: 오늘 이상 = 잠금+HOLD+판정 지체(alert↑ · ncPendingLevel 1벌)+납기 지연 (9-B 승계)
-[PASS] lst323: lotStepPanelHTML 정의 + LOT행 배선 + 스텝 CSS
-[PASS] lst323: 패널 — 생산 LOT 배지 + 스텝 스트립
-[PASS] lst323: 패널 — 실적 상세 표 (일시·설비·작업자·양품/불량/재작업·합계)
-[PASS] lst323: 패널 — 완료 공정 done 상태 존재
-[PASS] lst323: 원장 무변 (패널 생성은 읽기 전용)
-[PASS] rn324: _ruleNoteEnhance 정의 + router/openModal 훅 + CSS(1줄 접힘·인쇄 펼침)
-[PASS] rn324: 기준정보 화면 규칙·가드 박스 접힘 적용 (2개 이상)  — 5개
-[PASS] rn324: 클릭 펼침 토글
-[PASS] rn324: 텍스트 전문 보존 (규칙/가드 원문 그대로)
-[PASS] bulk325: 마스터 대량 (품번≥25·거래처≥15·작업자≥17·금형≥19·도면≥14·설비≥9)  — items 26 vendors 16 workers 19 molds 21
-[PASS] bulk325: 원장 대량 (수주≥30·LOT≥20·지시≥20·출하≥28·계획≥20·발주≥12)  — SO 43 LOT 33 WO 32
-[PASS] bulk325: 품질·회계 대량 (NC≥14·수금≥11·지급≥8·경비≥12·견적≥11)
-[PASS] bulk325: 멱등 (재시드 시 문서 수 불변 — 고정 id)
-[PASS] bulk325: 대량 데이터 렌더 23화면 예외 0
-[PASS] bulk326: 6개월 이력 (실적≥80·수주≥42·출하≥50·지시≥32·LOT≥32)  — rec 86 SO 43 SH 52 WO 32
-[PASS] bulk326: 파렛트·회계 6개월 (파렛트≥9·경비≥30·수금≥19·견적≥16·마감 3)
-[PASS] bulk326: H LOT 전 공정 완주 (records 에 H01 실적 존재·출하 90% 완납)
-[PASS] bulk326: 마감 3개월 = calcClosing 재계산 일치 (첫 달 amount 검산)
-[PASS] bulk326: 시드 버전 자동 보강 (DEMO_SEED_VER=7 · v0.37.2 worker 사용자 · autoLoginDemo 불일치 재시드)
-[PASS] split327: 분할 후 부모 잔량 차감 (200 분할 80 → 부모 120)  — 부모 잔량 120
-[PASS] split327: 이관 레코드 생성 (transferred=80 · transferred_to 자식)
-[PASS] split327: 총수량 보존 (부모 잔량+자식 초기 = 원 초기 200)
-[PASS] split327: 잔량 초과 분할 차단 유지 (121 > 120)
-[PASS] hold330: 헬퍼 1벌 + 3중 배선 (registerRecord·출하·반출) + UI 배지
-[PASS] hold330: 접수 NC → 다음 공정 등록 차단 (원장 경로)  — 품질 HOLD — PL-HOLD-T 미처리 부적합 1건 (NC-HOLD-T) · 품질 관리에서 판정(재작업/특채/폐기) 후 실적 등록 가능
-[PASS] hold330: 출하 게이트 차단
-[PASS] hold330: 판정(특채) → HOLD 해제·등록 성공
-[PASS] hold330: 재접수 → 재차단 (양방향 일관)
-[PASS] hold330: NC 취소(void) → HOLD 해제 (void 는 판정에서 제외)
-[PASS] hold330: heldPlotSet 일괄 판정 = 개별 판정 일치
-[PASS] audit331: 메뉴 신설 (PAGES audit · MANAGER_ONLY · 기준정보 그룹)
-[PASS] audit331: G-3a 해소 — 보정 로그에 전값/후값 스냅샷 (50→45)
-[PASS] audit331: 취소·복원 흔적 보존 (DB.set 단일 경로 op 세분화 · 복원 후에도 남음)
-[PASS] audit331: 통합 이력 — 의미 있는 op 만 (correct/void/unvoid · update 소음 제외)
-[PASS] audit331: 이력에 보정 전값 포함 + 복원 항목 존재
-[PASS] audit331: G-3b 해소 — 뷰어 렌더 (통합 이력·전→후 표기·LOT 생애주기 카드)
-[PASS] audit331: LOT 생애주기 — 생성·실적·출하 통합 + 시간 오름차순 (데모 백데이팅 특성상 생성이 첫 행 아닐 수 있음 — 정렬만 검증)
-[PASS] audit331: 관리자 전용 게이팅 (관리자 노출·작업자 숨김)
-[PASS] conc332: 헬퍼 1벌 + 3중 배선 + 컬렉션 등록 + UI 배지
-[PASS] conc332: 정상 원장에서 오탐 0건 (시드+기존 시나리오 전체 스캔)  — 사고 0건
-[PASS] conc332: 사고 성립 (동기화 병합 등가 — 보류 60 · 잔량 0 · 인정 100) — v0.36.0 승계  — 보류 60
-[PASS] conc332: ① Incident 자동 생성 — LOT·공정·가용 100·투입 160·보류 60 연결 (v0.36.0)
-[PASS] conc332: ① 첫 실적·충돌 실적·작업자·시각 자동 연결
-[PASS] conc332: 재탐지 멱등 (열린 사고 중복 생성 0)
-[PASS] conc332: ② 수량 차단 — 사고 공정 신규 실적은 잔량 0 초과 차단 (balance 가 Lock 흡수)  — 초과 등록 차단 — 잔량 0ea, 등록 1ea
-[PASS] conc332: ② 출하·반출 인정 밖 차단 + 인정 안 통과(사고 목록 반환) + 일괄 판정 일치
-[PASS] conc332: ⑤ 보류 미해소 → 해제 거부·사고 open 유지 (J1′)  — J1′ 재검증 실패 — 보류 미해소 (CUT 보류 60) · Case A(실적현황 관리자 보정) 또는 Case B(오등록 취소) 로 원장 정정 후 다시 해제하세요 (Case C = 보류 유지)
-[PASS] conc332: 비관리자 해제 차단 (관리책임자 전용)
-[PASS] conc332: ③ 관리자 정정 → 잔량 0 회복 + ④ J1 전 공정 오차 0  — [["CUT",0,0],["FORGE",100,0],["HEAT",0,0],["SHOT",0,0],["SHIP",0,0]]
-[PASS] conc332: ⑤ 재검증 통과 시에만 해제 — resolved + 검증 스냅샷 보존
-[PASS] conc332: 해제 후 정상 등록 재개 + 잠금 세트 소멸
-[PASS] conc332: LOT 생애주기 — 사고 감지·해제 연결
-[PASS] conc332: 변경 이력 화면 — 동시성 사고 카드 렌더 (사고번호·잔량·해제 상태)
-[PASS] pack340: ① Runtime 업종 결합 소멸 — R1/R2 mold_linked · R3 seq맵 제거 · R4 병목 자동 판정
-[PASS] pack340: ② FORGE 공정 mold_linked=true (시드+마이그레이션 멱등)
-[PASS] pack340: ② 타발 누적 동일 동작 — CUT(비연동) 무반응 · FORGE +22 (good+defect)  — 505→505→527
-[PASS] pack340: ④ 빈 인스턴스 machining 설치 — 공정 10·불량 8·정의필드 4  — {"added":22,"skipped":0,"first":true,"version":"machining-2.1"}
-[PASS] pack340: ④ 멱등 — 재적용 added 0 · 마스터 무변 · first=false
-[PASS] pack340: ⑤ machining→forging — SHIP 공유 스킵 · 기존 가공 데이터 무변
-[PASS] pack340: ⑤ 역방향 forging→machining — 단조 데이터 무변 · mold_linked 보존
-[PASS] pack340: ⑥⑦ 설치 이력·버전 — 2건 · pack/packVersion/installedAt/installedBy
-[PASS] pack340: preset 갱신 + _logs Audit (DB.set 경유)
-[PASS] pack340: ③ 스냅샷 복원 — 기존 데이터 원복 (orders 42 유지)
-[PASS] pack340: 설정 화면 [팩 설치] 버튼 + 이력 표시
-[PASS] plan350: 필드·설정 — BOM uph 입력·금형 setup_min·교대 설정·CSS 레인
-[PASS] plan350: 타임라인 — 레인·미배정 분리·순번 배치·시각 계산  — [["PP-P35A","08:00","~11:00"],["PP-P35B","11:00","17:00"]] (완료 계획 자동 제외 동작 포함)
-[PASS] plan350: 타수 폴백 ③ 설비 능력
-[PASS] plan350: 타수 폴백 ① 라우트 uph 우선(×cav)  — 480 · 라우트 480타/h
-[PASS] plan350: 2교대 밴드 + 교대 이월 구조
-[PASS] plan350: 일간 렌더 — 레인·교대·순번·미배정·출력 버튼
-[PASS] plan350: 순번 이동 (seq 스왑 저장)
-[PASS] plan350: 생산계획서 — 엑셀 설비별+전체 시트 · 인쇄(교대·결재란·소재소요)
-[PASS] menu351: 수주 — 핵심 스트립 4 + 통합 표 + ⋯ 수납
-[PASS] menu351: 수주 — 상세 행(단가·출하 누계·수정 버튼) 기본 숨김
-[PASS] menu351: 수주 — 행 클릭 → 상세 펼침 토글
-[PASS] menu351: 수주 — 상태 필터 동작
-[PASS] menu351: LOT — 핵심 6컬럼 (진행 위치·잔량) + 스트립 + ⋯ 수납
-[PASS] menu351: LOT — 공정별 12칸 제거 · 스텝 패널 상세 유지
-[PASS] eqpick385: 교대 세션 설비 목록 클릭 → 선택됨 (구 equipment 문서 없는 마스터 설비) · 목록 닫힘  — {"noLegacy":true,"found":true,"picked":true,"closed":true,"qr":true}
-[PASS] eqpick385: 설비 QR 매칭 = 마스터에만 있는 설비도 인식 (id/qr/name)  — {"noLegacy":true,"found":true,"picked":true,"closed":true,"qr":true}
-[PASS] so386: 수주 표 헤더 = 잔량 / 수주수량
-[PASS] logo388: 로고 = Fraunces 정적 900 이탤릭 요청 + opsz 9 고정 + 테두리 뒤로 · 색 무변
-[PASS] ci389: 진입 화면 CI — 저장값 없으면 숨김(기본 상호 표시 0) · 로고+상호만 표시(사이트·테두리 없음) · 이미지 data URL 외 로고 무시  — {"hidEmpty":true,"shown":true,"injBlocked":true,"v1":true}
-[PASS] ci389: 설정 › 회사 정보 로고 선택·빼기 + [저장] 시 logo 반영 · 대기 화면도 같은 검증 함수
-[PASS] brand3811: 헤더 회사명 renderBrandCompany 1벌 — 빈 값 숨김 · 저장값 표시(이스케이프) · getCompany 예시 상호 제거  — {"hid":true,"def":true,"shown":true}
-[PASS] brand3811: 서버 스냅샷 도착(첫 라운드·settings 증분) 시 헤더 갱신 호출 · 회사정보 저장 실패 시 토스트 없음
-[PASS] sb3812: 대기 화면 = 저장된 상호+로고 표시 (companyLogoSrc 1벌)  — {"ok":true}
-[PASS] sb3812: 서버 저장(set) 비동기 거부도 화면 알림 _fsWriteRejected (즉시 쓰기·대기열 flush 둘 다)
-[PASS] mst3813: 기준정보에 사용자·비밀번호 관리 + 작업자 마스터 (목록·버튼 동작) · 설정에는 안내+이동 버튼만  — {"m":{"usr":true,"wk":true,"wkRows":19,"usrAdd":true,"wkAdd":true},"sOn":{"usr":false,"link":true},"sOff":{"usr":true,"wk":true,"bound":true}}
-[PASS] mst3813: 기준정보 모듈 OFF 업체 → 설정 화면에 그대로 표시(관리 경로 상실 방지)  — {"usr":true,"wk":true,"bound":true}
-[PASS] gate3814: 진입 화면 CI 캐시 — 원본 있으면 캐시 갱신 · 원본 도착 전(F5 직후)엔 캐시로 즉시 표시 · 저장소별 키  — {"key":"vela_gate_ci:fs:vela-mes-juns","cachedName":"캐시산업","shownFromCache":true,"keyScoped":true}
-[PASS] gate3814: 서버 스냅샷 — settings/users 첫 도착 시 전체 라운드 기다리지 않고 진입 화면 갱신
-
-────────────────────────────────────────
-TOTAL 499 · PASS 499 · FAIL 0
-exit=0
-
-==================== _verify-v21-exec.js
-FATAL: none
-[PASS] I1 — heat=H2607-301
-[PASS] I2 — H2607-301 → 입고 MR-DEMO-H2607-301 S001 400kg
-[PASS] I3 — split child qty=80
-[PASS] I6-split — 부모 잔량 120 + 자식 80 = 200 (기대 200 — v0.32.7 수량 보존 수정)
-[PASS] I4 — merged heat=H2604-101,H2606-160
-[PASS] I4-1 — 차단 메시지: 서로 다른 품번 — 병합 불가
-[PASS] I5 — fork_from=PL-V21-M @CUT
-[PASS] I6-merge — 병합 초기 150 = 부모 잔량 합 150
-[PASS] J4 — 잔량 120 → 55 (기대 −65)
-[PASS] J1 — 좌변 200 = 우변 200
-[PASS] J1-h — H01 2공정: 300 = 300
-[PASS] J1-mg — 병합 부모(이관 포함): 100 = 100
-[PASS] J2 — 차단: 초과 등록 차단 — 잔량 55ea, 등록 56ea
-[PASS] J2-1 — 실적 수 불변 2 · 잔량 불변 55
-[PASS] J3 — 잔량 0 (경계값 등록 성공)
-[PASS] J5 — 보정 후 잔량 5 (기대 +5)
-[PASS] J6 — 패널에 보정값 45 표시
-[PASS] J5-inv — 보정 후 불변식: 200 = 200
-[확인불가(수동)] J7 — 출하 초과 차단은 출하 등록 UI 가드 — 실브라우저에서 수동 확인 필요
-[PASS] K1-1 — 등록·상태·기록자
-[PASS] K1-2 — 재작업 전환·처리자 기록
-[확인불가(수동)] K1-3 — 특채/폐기/반품 UI 흐름·승인 근거 입력은 실브라우저 수동 확인
-[PASS] K1-4 — 품질 화면 렌더 예외 0
-[PASS] K2-1 — NG LOT 다음 공정 등록 → 차단: 품질 HOLD — PL-V21-A 미처리 부적합 1건 (NC-V21-H) · 품질 관리에서 판정(재작업/특채/폐기) 후 실적 등록 가능
-[PASS] K2-2 — 출하 게이트(assertLotNotHeld) → 차단
-[PASS] K2-3 — 판정(재작업)→해제·등록 성공 true · 재접수→재차단 true
-[PASS] L1 — none 메뉴 숨김·view 메뉴 노출 (전체 메뉴 창)
-[PASS] L2 — 해시 직접 접근 → #dash (차단·복귀)
-[PASS] L3 — 보기 페이지 콘솔 DB.set → null·미생성
-[PASS] L4 — 관리자 전용 직접 접근 → #dash
-[PASS] L5 — 관리자 세션 복귀
-[PASS] M1 — by/ts: 생성 문서에 기록자·시각 저장 (DB.set 로그 계층)
-[PASS] M2 — _corrected·사유·_logs{ts,op,by,reason}
-[PASS] M3 — 삭제 아님 — void{reason,ts} 마킹·원본 보존
-[PASS] M4 — 복원 성공
-[PASS] M5 — 보정 로그 전값 스냅샷: {"prev":{"good":50},"next":{"good":45}}
-[PASS] M6 — 통합 Audit Viewer(변경 이력 메뉴) + 전→후 표기 + LOT 생애주기 렌더 — G-3b 해소
-[PASS] O1 — 2탭 동시 표시는 실브라우저 몫 — 여기서는 상태 재현으로 대체
-[PASS] O2 — 동시 80+80 → 잔량 0 · 보류 60 · Incident 자동 생성 CI-PL-V21-O-CUT-1 (가용 100·투입 160·충돌 1건·작업자 작업자A/작업자B) — G-2 완화 Gate 동작 (사전 차단은 실브라우저 2탭 수동 몫)
-[PASS] O2-1 — Gate ② 수량 차단(v0.36.0: 사고 공정 잔량 0 · 출하는 인정 안만) — 초과 등록 차단 — 잔량 0ea, 등록 1ea
-[PASS] O2-2 — Gate ⑤ 전제 — 보류 미해소 상태 해제 거부·사고 open 유지: J1′ 재검증 실패 — 보류 미해소 (CUT 보류 60) · Case A(실적현황 관리자 보정) 또는 Case B(오등록 취소) 로 원장 정정 후 다시 해제하세요 (Case C = 보류 유지)
-[PASS] O3 — 보류(60) 공정 목록 우선 표시 + "초과 투입" 툴팁 + 사고 배지 (v0.36.0 승계)
-[PASS] O4 — 두 실적 각각 시각·작업자 보존 — 충돌 쌍 Incident 로 자동 추적
-[PASS] O5 — Gate ③ 관리자 정정 (잠금 중에도 보정 경로 동작) → 잔량 0
-[PASS] O6 — Gate ④ 정정 후 불변식 재성립: 100 = 100
-[PASS] O7 — Gate ④⑤ J1 자동 재검증(오차 0) 통과 → 잠금 해제·정상 등록 재개 — 탐지→추적→잠금→정정→재검증→해제 사이클 완결
-[PASS] N1 — 백업/복원 카드는 개발자 전용 격리 (소스: 데모·일반 미노출) — 사양대로
-[확인불가(수동)] N2 — JSON 파일 다운로드→복원 왕복은 실브라우저 개발자 세션 필요
-[확인불가(수동)] N3 — 상동 — count+표본 대조는 복원 후에만 가능
-
-TALLY: {"PASS":45,"확인불가(수동)":4}
-exit=0
+Playwright 데모: seed=8 · 수주(확장) 22건 · 마지막 납기 2026-12-26 · 출하 초과 LOT 0 · 구매 정정 미리보기 60→52 L · 페이지 오류 0(외부 CDN 차단만)
 
 ===== FILE: _verify-2tab-local.js =====
 // ★ v0.35.3 — 로컬 어댑터 문서 단위 쓰기·탭 동기화 회귀 (QV-1b O절 실브라우저 FAIL → 수정 검증)
@@ -1193,6 +91,7 @@ function pushStorage(toWin, newValue){
   const ev = new toWin.StorageEvent('storage', { key: KEY, newValue, storageArea: toWin.localStorage });
   toWin.dispatchEvent(ev);
 }
+let B0 = 0;   // ★ v0.38.25 — 데모 시드 v8(확장) 기준 실적 수 = 128 · 이후 기대값은 B0 기준 상대값
 const R = []; const P = (n, ok, note) => R.push({ n, ok, note: String(note||'') });
 const PLOT = 'PL-2026-D002', PROC = 'FORGE';
 const REG = (w, q) => w.__X(`(function(){ try { LOT.registerRecord({plot_no:'${PLOT}',proc:'${PROC}',equipment:'프레스 1호',good:${q},type:'in',shift:'day',source:'manual_pc'}); return null; } catch(e){ return e.message; } })()`);
@@ -1204,7 +103,7 @@ const REG = (w, q) => w.__X(`(function(){ try { LOT.registerRecord({plot_no:'${P
     await tick();
     const lsA0 = JSON.parse(A.localStorage.getItem(KEY));
     const recMem = A.__X(`DB.all('records').length`), recLS = Object.values(lsA0.records||{}).filter(x=>!x.void).length;
-    P('S0 시드 후 localStorage 문서 수 = 메모리 (records)', recMem === recLS && recMem === 84, `mem ${recMem} · ls ${recLS}`);
+    P('S0 시드 후 localStorage 문서 수 = 메모리 (records)', (B0 = recMem, recMem === recLS && recMem === 128), `mem ${recMem} · ls ${recLS}`);
     const memCols = A.__X(`(function(){ const s=DB.snapshot(); return Object.keys(s).filter(c=>Object.keys(s[c]).length).length; })()`);
     P('S0 시드 후 localStorage 컬렉션 수 = 메모리(문서 1개 이상)', Object.keys(lsA0).filter(c=>Object.keys(lsA0[c]).length).length === memCols, `ls ${Object.keys(lsA0).length} · mem ${memCols}`);
     const S0 = A.localStorage.getItem(KEY);
@@ -1215,18 +114,18 @@ const REG = (w, q) => w.__X(`(function(){ try { LOT.registerRecord({plot_no:'${P
     P('S1 탭A 150 등록 성공', REG(A, 150) === null, '');
     await tick();
     const SA = A.localStorage.getItem(KEY);
-    P('S1 탭A 쓰기 후 localStorage records 85', Object.keys(JSON.parse(SA).records).length === 85, '');
+    P('S1 탭A 쓰기 후 localStorage records 129', Object.keys(JSON.parse(SA).records).length === B0 + 1, '');
     pushStorage(B, SA);
-    P('S1 storage 이벤트 수신 → 탭B 메모리 병합 (records 85 · 잔량 50)', B.__X(`DB.all('records').length`) === 85 && B.__X(`LOT.balance('${PLOT}','${PROC}')`) === 50, `rec ${B.__X(`DB.all('records').length`)} bal ${B.__X(`LOT.balance('${PLOT}','${PROC}')`)}`);
+    P('S1 storage 이벤트 수신 → 탭B 메모리 병합 (records 129 · 잔량 50)', B.__X(`DB.all('records').length`) === B0 + 1 && B.__X(`LOT.balance('${PLOT}','${PROC}')`) === 50, `rec ${B.__X(`DB.all('records').length`)} bal ${B.__X(`LOT.balance('${PLOT}','${PROC}')`)}`);
     const errB = REG(B, 150);
     P('S1 탭B 150 등록 → 초과 등록 차단 (예방)', typeof errB === 'string' && errB.includes('초과 등록 차단') && errB.includes('잔량 50'), errB);
     B.localStorage.setItem(KEY, SA);            // 브라우저의 공유 localStorage 현재값 (A 가 쓴 것)
     P('S1 탭B 50 등록은 허용', REG(B, 50) === null, '');
     await tick();
     const SB = B.localStorage.getItem(KEY);
-    P('S1 두 탭 실적 모두 보존 (records 86)', Object.keys(JSON.parse(SB).records).length === 86, '');
+    P('S1 두 탭 실적 모두 보존 (records 130)', Object.keys(JSON.parse(SB).records).length === B0 + 2, '');
     pushStorage(A, SB);
-    P('S1 탭A 역방향 병합 → 잔량 0', A.__X(`LOT.balance('${PLOT}','${PROC}')`) === 0 && A.__X(`DB.all('records').length`) === 86, '');
+    P('S1 탭A 역방향 병합 → 잔량 0', A.__X(`LOT.balance('${PLOT}','${PROC}')`) === 0 && A.__X(`DB.all('records').length`) === B0 + 2, '');
     P('S1 정합: 사고 0 · 잠금 없음', A.__X(`(detectConcurrencyIncidents()||[]).length`) === 0 && A.__X(`lockedPlotSet().has('${PLOT}')`) === false, '');
 
     // ── S2 진짜 동시 도착 (동기화 전에 둘 다 씀 = 다른 단말·오프라인): 두 문서 모두 원장에 남고 Gate 가 잠근다
@@ -1240,7 +139,7 @@ const REG = (w, q) => w.__X(`(function(){ try { LOT.registerRecord({plot_no:'${P
     await tick();
     const SB2 = B2.localStorage.getItem(KEY);
     const n2 = Object.keys(JSON.parse(SB2).records).length;
-    P('S2 ★ 유실 없음 — localStorage records 86 (구 방식 85)', n2 === 86, `records ${n2}`);
+    P('S2 ★ 유실 없음 — localStorage records 130 (구 방식 129)', n2 === B0 + 2, `records ${n2}`);
     const C = boot(SB2);
     const balC = C.__X(`LOT.pendingQty('${PLOT}','${PROC}')`), incC = C.__X(`(detectConcurrencyIncidents()||[]).length + DB.query('concurrency_incidents', c => c.plot_no === '${PLOT}' && c.status === 'open').length`), lockC = C.__X(`lockedPlotSet().has('${PLOT}')`);   // v0.35.7: 부팅 렌더(대시보드 오늘 이상)가 먼저 탐지하므로 incC = 신규+기존 합
     P('S2 새 부팅 진실: 보류 100(잔량 0) · 사고 ≥1 · 사고 LOT 집합 true (★ v0.36.0 Q6-0 승계)', balC === 100 && C.__X(`LOT.balance('${PLOT}','${PROC}')`) === 0 && incC >= 1 && lockC === true, `pend ${balC} inc ${incC} lock ${lockC}`);
@@ -1251,7 +150,7 @@ const REG = (w, q) => w.__X(`(function(){ try { LOT.registerRecord({plot_no:'${P
     P('S2 탭A LOT 추적 진입 → 사고 생성·사고 LOT 집합 true', A2.__X(`lockedPlotSet().has('${PLOT}')`) === true && A2.__X(`DB.all('concurrency_incidents').length`) === 1, '');
     const errLocked = REG(A2, 10);
     P('S2 사고 공정 신규 실적 → 잔량 0 초과 등록 차단 (Lock 의 수량 차단을 balance 가 흡수)', typeof errLocked === 'string' && errLocked.includes('초과 등록 차단') && errLocked.includes('잔량 0ea'), errLocked);
-    P('S2 차단 시도 후 records 불변 (O-3)', A2.__X(`DB.all('records').length`) === 86, '');
+    P('S2 차단 시도 후 records 불변 (O-3)', A2.__X(`DB.all('records').length`) === B0 + 2, '');
 
     // ── S3 restore 전체 쓰기 경로 + remove 문서 단위 삭제
     const D = boot(S0);
@@ -1261,7 +160,7 @@ const REG = (w, q) => w.__X(`(function(){ try { LOT.registerRecord({plot_no:'${P
     P('S3 set 후 localStorage 에 SO-TMP-1', !!JSON.parse(D.localStorage.getItem(KEY)).orders['SO-TMP-1'], '');
     D.__X(`DB.restore(${JSON.stringify(snap)})`);
     await tick();
-    P('S3 restore(전체 쓰기) 후 SO-TMP-1 사라짐 · records 84', !JSON.parse(D.localStorage.getItem(KEY)).orders['SO-TMP-1'] && Object.keys(JSON.parse(D.localStorage.getItem(KEY)).records).length === 84, '');
+    P('S3 restore(전체 쓰기) 후 SO-TMP-1 사라짐 · records 128', !JSON.parse(D.localStorage.getItem(KEY)).orders['SO-TMP-1'] && Object.keys(JSON.parse(D.localStorage.getItem(KEY)).records).length === B0, '');
     D.__X(`DB.set('items','ZZ-TMP',{id:'ZZ-TMP',name:'tmp'})`); await tick();
     const okRm = D.__X(`DB.remove('items','ZZ-TMP')`); await tick();
     P('S3 remove 문서 단위 삭제 반영 (타 문서 무손상)', okRm === true && !JSON.parse(D.localStorage.getItem(KEY)).items['ZZ-TMP'] && Object.keys(JSON.parse(D.localStorage.getItem(KEY)).items).length === D.__X(`DB.allRaw('items').length`), '');
@@ -1273,7 +172,7 @@ const REG = (w, q) => w.__X(`(function(){ try { LOT.registerRecord({plot_no:'${P
     P('S4 자기 쓰기 에코(동일 문자열) 무시 — 리렌더 0', E.__X(`window.__rc`) === 0, '');
     E.__X(`document.getElementById('modal-bg').classList.add('show')`);
     pushStorage(E, SB2);
-    P('S4 모달 열림 중 수신 → 데이터 병합(86) · 리렌더 보류(0)', E.__X(`DB.all('records').length`) === 86 && E.__X(`window.__rc`) === 0, '');
+    P('S4 모달 열림 중 수신 → 데이터 병합(130) · 리렌더 보류(0)', E.__X(`DB.all('records').length`) === B0 + 2 && E.__X(`window.__rc`) === 0, '');
     E.__X(`document.getElementById('modal-bg').classList.remove('show')`);
     pushStorage(E, SB);
     P('S4 모달 닫힌 뒤 수신 → 리렌더 1', E.__X(`window.__rc`) === 1, '');
@@ -1453,6 +352,69 @@ console.log(`\nDASH357 TOTAL ${out.length} · PASS ${out.length-fail} · FAIL ${
 if(out.length !== 22) console.log(`[FAIL] 항목 수 ${out.length} ≠ 기대 22 (중도 종료·누락)`);
 process.exit((fail || out.length !== 22) ? 1 : 0);
 
+===== FILE: _verify-demo8.js =====
+// ★ v0.38.25 — 데모 확장 시드(DEMO_SEED_VER 8) 회귀: 출하 정합성 정리 · 올해 말까지 수주 · 계획 · 구매 입고 시험 데이터 · 매출 무변 · 멱등
+// Usage: node _verify-demo8.js   (VELA_FILE=index-dev.html 지원)
+const fs = require('fs'), path = require('path');
+const { JSDOM, VirtualConsole } = require(path.join(__dirname, 'node_modules/jsdom'));
+const html = fs.readFileSync(path.resolve(__dirname, process.env.VELA_FILE || 'vela-mes-prototype.html'), 'utf8');
+const stripped = html.replace(/<script\s+src=[^>]*><\/script>/g, '').replace(/<link\s+rel="manifest"[^>]*>/g, '');
+const scripts = [...stripped.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+const vc = new VirtualConsole(); const errs = []; vc.on('jsdomError', e => errs.push(e.message));
+const dom = new JSDOM(stripped, { runScripts:'outside-only', pretendToBeVisual:true, virtualConsole:vc, url:'http://localhost/' });
+const win = dom.window; win.VELA_BACKEND = 'local';
+win.XLSX = { utils:{book_new:()=>({}),json_to_sheet:()=>({}),book_append_sheet:()=>{}}, writeFile:()=>{} };
+win.Html5Qrcode = function(){}; win.qrcode = function(){ return { addData(){}, make(){}, createSvgTag(){return ''}, createDataURL(){return ''} }; };
+win.matchMedia = q => ({ matches:false, media:q, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+win.eval(scripts.join('\n;\n') + `;window.__X = s => eval(s);`);
+const X = s => win.__X(s);
+const R = []; const P = (n, ok, note) => { R.push({ n, ok }); console.log(`[${ok?'PASS':'FAIL'}] ${n}${note?'  — '+note:''}`); };
+X(`sessionStorage.setItem('vela_demo','1'); seedDemoData(); SESSION.loggedIn=true; SESSION.role='manager'; SESSION.user='검증'; SESSION.userId='U-T'; 1`);
+const snap = () => X(`(()=>{ const ships = DB.all('shipments'); const plots = [...new Set(ships.map(x=>x.plot_no).filter(Boolean))];
+  const m = _tsMonth(Date.now()); const sales = calcClosing('sales', m);
+  return { over: plots.map(p => lotShipOverage(p)).filter(o => o && o.over > 0).map(o => o.plot), nShip: ships.length,
+    shipSig: ships.map(x => [x.id, x.so_id, x.qty, x.ts].join(':')).sort().join('|'), amt: ships.reduce((a,x)=>a+shipAmount(x),0),
+    salesTotal: JSON.stringify(sales && (sales.total ?? sales.sum ?? sales.amount ?? sales)).length, otd: JSON.stringify(calcOnTime ? calcOnTime() : null),
+    soShipSig: DB.all('orders').map(o => o.id + ':' + soShippedQty(o)).sort().join('|') }; })()`);
+const b = snap();
+P('D0 기준 시드: 출하 초과 LOT 12건(정리 대상 확인)', b.over.length === 12, b.over.join(','));
+const rep = X(`JSON.stringify(seedDemoExtension())`); const r = JSON.parse(rep);
+const a = snap();
+P('D1 정리 후 출하 초과 LOT 0', a.over.length === 0, a.over.join(','));
+P('D2 출하 문서 수·수주·수량·일자 무변 (plot_no 만 이동) · 출하 금액 무변', a.nShip === b.nShip && a.shipSig === b.shipSig && a.amt === b.amt, `${b.amt} → ${a.amt}`);
+P('D3 수주별 출하량 무변 (기존 수주) · 납기준수 수치 무변', b.soShipSig.split('|').every(s => a.soShipSig.includes(s)) && a.otd === b.otd, '');
+const lots = X(`(()=>{ return ${rep}.lotsCreated.map(p => { const l = DB.get('production_lots', p); const ov = lotShipOverage(p); const recs = DB.query('records', x => x.plot_no === p);
+  const minShip = Math.min(...DB.query('shipments', x => x.plot_no === p).map(x => x.ts)); const maxRec = Math.max(...recs.map(x => x.ts));
+  const route = getRoute(l.itemCode).filter(x => x.proc !== 'SHIP'); const procs = new Set(recs.map(x => x.proc));
+  return { p, good: ov.good, shipped: ov.shipped, before: maxRec < minShip, allProcs: route.every(x => procs.has(x.proc)), note: !!l.demo_note }; }); })()`);
+P('D4 이력 LOT(PL-2026-X..) = 출하 합 이상 인정양품 · 전 공정 실적 · 실적이 첫 출하보다 먼저 · 설명 메모', lots.length === 12 && lots.every(l => l.good >= l.shipped && l.before && l.allProcs && l.note), JSON.stringify(lots.slice(0,2)));
+const neg = X(`(()=>{ const bad = []; DB.all('production_lots').forEach(l => getRoute(l.itemCode).forEach(r => { const v = LOT.balance(l.plot_no, r.proc); if(v < 0) bad.push(l.plot_no + ':' + r.proc + ':' + v); })); return bad; })()`);
+P('D5 전 LOT 잔량 음수 0', neg.length === 0, neg.slice(0,5).join(','));
+const od = X(`(()=>{ const y = new Date().getFullYear(); const e = DB.query('orders', o => o.demo_ext); const today = _kstDate(Date.now());
+  const months = [...new Set(e.map(o => o.due.slice(0,7)))].sort(); return { n: e.length, months, allFuture: e.every(o => o.due > today), last: months[months.length-1], y, itemsOk: e.every(o => DB.get('items', o.itemCode) && o.cust && o.price > 0 && o.qty > 0) }; })()`);
+P('D6 올해 말까지 수주 (오늘 이후 납기 · 12월 포함 · 품번·고객·단가 정상)', od.n >= 16 && od.allFuture && od.last === `${od.y}-12` && od.itemsOk, JSON.stringify(od));
+const pl = X(`(()=>{ const p = DB.query('production_plans', x => /-E\\d+$/.test(x.id)); return { n: p.length, wk: p.every(x => ![0,6].includes(new Date(x.date + 'T00:00:00').getDay())), linked: p.every(x => DB.get('orders', x.so_id)) }; })()`);
+P('D7 생산계획 12건 (평일 · 수주 연결)', pl.n === 12 && pl.wk && pl.linked, JSON.stringify(pl));
+const po = X(`(()=>{ const c = (po, n, s, u, q) => { try { return prPoCapCheck({ po_id:po, po_item_key:_poItemKey(n,s), unit:u }, q); } catch(e){ return { err: e.message }; } };
+  const st = DB.get('purchase_orders','PO-2026-E01') && calcPoStatus(DB.get('purchase_orders','PO-2026-E01'));
+  return { cut: c('PO-2026-E01','절삭유','20L','L', 10), ins: c('PO-2026-E01','초경 인서트','CNMG120408','ea', 81), over: c('PO-2026-E02','방청유','18L','L', 1), st: st && (st.label || st.status || st) }; })()`);
+P('D8 구매 시험 데이터: 절삭유 L 잔량 59.5 · 인서트 ea 81 초과 차단 · 방청유 기존 초과(60/50) 추가 입고 차단', po.cut.remainBefore === 59.5 && /발주량 초과/.test(po.ins.err || '') && /발주량 초과/.test(po.over.err || ''), JSON.stringify(po));
+const r2 = JSON.parse(X(`JSON.stringify(seedDemoExtension())`)); const c = snap();
+const cnt = X(`JSON.stringify(['orders','production_plans','production_lots','records','purchase_orders','purchase_receipts','shipments'].map(k => DB.allRaw(k).length))`);
+const r3 = JSON.parse(X(`JSON.stringify(seedDemoExtension())`)); const cnt2 = X(`JSON.stringify(['orders','production_plans','production_lots','records','purchase_orders','purchase_receipts','shipments'].map(k => DB.allRaw(k).length))`);
+P('D9 멱등: 두 번 더 실행해도 문서 수·출하 무변 · 이동 0', cnt === cnt2 && c.shipSig === a.shipSig && r2.moved.length === 0 && r3.lotsCreated.length === 0, cnt + ' / ' + cnt2);
+P('D10 DEMO_SEED_VER = 8 · autoLoginDemo/재시드 두 곳 모두 seedDemoExtension 호출', X(`DEMO_SEED_VER`) === 8 && (html.match(/seedDemoData\(\); seedDemoExtension\(\);/g) || []).length === 2, '');
+const views = ['dash','so','plan','ship','po','inv','lot','audit','closing','report','perf','os','qc'];
+const ve = views.map(v => { try { win.location.hash = '#' + v; X(`router()`); return null; } catch(e){ return v + ':' + e.message; } }).filter(Boolean);
+P('D11 화면 13종 렌더 예외 0 (확장 데이터 포함)', ve.length === 0 && errs.length === 0, ve.concat(errs.slice(0,3)).join(' / '));
+const au = X(`(()=>{ location.hash = '#audit'; router(); const s = secList().find(x => x.key === 'audit:audit-ship-overage'); return s ? s.card.textContent.slice(0, 200) : 'none'; })()`);
+P('D12 감사 「LOT 출하 초과」 = 데모 기본 데이터에서 0건 표시 (D14 데모 안내는 초과 있을 때만)', !/PL-2026-D0/.test(au) && !/시연용 데이터/.test(au), au.slice(0,120));
+P('버전 v0.38.25', X(`APP_VERSION`) === 'v0.38.25', X(`APP_VERSION`));
+if(R.length !== 14) R.push({ n:`항목 수 ${R.length} ≠ 기대 14`, ok:false });
+const fail = R.filter(x => !x.ok).length;
+console.log(`\nDEMO8 TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
+process.exit(fail ? 1 : 0);
+
 ===== FILE: _verify-docedit.js =====
 // ★ v0.38.15 — 등록 후 수정 1차 회귀 (SPEC 「등록 후 수정 v0.1」 · GPT D1~D4 · GPT 지정 테스트)
 // Usage: node _verify-docedit.js
@@ -1542,7 +504,7 @@ const p6 = X(`(()=>{
   return { emptyShip: r1 && r1.empty === true, emptyMr: r2 && r2.empty === true, forbidden, forbiddenOn, same: JSON.stringify(DB.get('shipments', sh.id)) === sh0 };
   function T(f){ try { return f(); } catch(e){ return 'ERR ' + e.message; } }
 })()`);
-P('6 LOT·Heat·수주·수량·외주처 등 대상 변경 = 수정 경로 없음 (필드 정의 0 · 입력 무시 · 출하 문서 불변) · v0.38.21 출하 수량 정정 켜짐 = shipments.qty 1개만 추가 (대상 변경은 여전히 0)', p6.emptyShip && p6.emptyMr && p6.forbidden.length === 0 && JSON.stringify(p6.forbiddenOn) === '["shipments.qty"]' && p6.same, JSON.stringify(p6));
+P('6 LOT·Heat·수주·수량·외주처 등 대상 변경 = 수정 경로 없음 (필드 정의 0 · 입력 무시 · 출하 문서 불변) · v0.38.21/25 수량 정정 켜짐(데모) = shipments.qty · purchase_receipts.qty 2개만 추가 (대상 변경은 여전히 0)', p6.emptyShip && p6.emptyMr && p6.forbidden.length === 0 && JSON.stringify(p6.forbiddenOn) === '["purchase_receipts.qty","shipments.qty"]' && p6.same, JSON.stringify(p6));
 
 // 7 출하: 계산서 발행 월 차단 · 포장수량·비고 허용 · 날짜 허용(계산서 없는 월)
 const p7 = X(`(()=>{
@@ -1839,7 +801,7 @@ const body = `
     P('29d [📷 등록 + 사진 첨부] 버튼 + NC 상세 [📎 사진·파일] → 첨부 모듈 1벌(nc_records attachments)', (() => { VIEWS._qcRegister({}); const hasBtn = !!document.getElementById('nc-save-att'); closeModal(); VIEWS._attFilesModal('nc_records', n1.id); const modalOk = !!document.getElementById('dwf-link-add'); document.getElementById('dwf-link-name').value = '현장 사진'; document.getElementById('dwf-link-url').value = 'https://example.com/photo.jpg'; document.getElementById('dwf-link-add').onclick(); const att = _drawAttList(DB.get('nc_records', n1.id)); closeModal(); VIEWS._qcDetail(n1.id); const detailBtn = /사진·파일 1/.test(document.getElementById('nc-att').textContent); closeModal(); return hasBtn && modalOk && att.length === 1 && att[0].kind === 'link' && detailBtn; })(), '');
     P('29e NC 상세 정보에 판정 범위 행 (부분 불량 n ea 격리 / 로트 불량 + 사유)', (() => { VIEWS._qcDetail(n1.id); const t = T(document.getElementById('modal').textContent); closeModal(); return /판정 범위/.test(t) && /부분 불량 — 30ea 격리/.test(t); })(), '');
     P('30 원장 불변 — records/lots 총량 (NC·hold·pending_out 은 nc_records 만 변경)', DB.all('production_lots').length === 32 && DB.all('records').every(r => typeof r.good === 'number') && !DB.all('records').some(r => 'hold' in r || 'pending_out' in r), '');
-    P('버전 v0.38.24', APP_VERSION === 'v0.38.24', APP_VERSION);
+    P('버전 v0.38.25', APP_VERSION === 'v0.38.25', APP_VERSION);
     // ── 드롭존 (사용자 요청 2026-09-10: 부적합 등록·도면 등록 폼에 드래그 업로드 · 저장 후 attUploadFiles 1벌) ──
     P('29f 부적합 등록 폼에 드롭존 + 도면 등록 폼에 드롭존 (attPendingDropZone 1벌)', (() => { VIEWS._qcRegister({}); const a = !!document.querySelector('#nc-drop .att-dz'); closeModal(); VIEWS._drawNewModal(); const b = !!document.querySelector('#dw-drop .att-dz'); closeModal(); return a && b && typeof attPendingDropZone === 'function' && typeof attUploadFiles === 'function'; })(), '');
     P('29g 폼에 파일 드롭 → 대기 목록 표시 → 등록 시 문서 생성 후 업로드 (로컬 모드 = 인라인 ≤400KB)', (() => { VIEWS._qcRegister({}); const dz = document.querySelector('#nc-drop .att-dz'); const f = new window.File([new Uint8Array(1200)], 'crack.jpg', { type:'image/jpeg' }); const dt = { files:[f], types:['Files'] }; const ev = new window.Event('drop', { bubbles:true, cancelable:true }); ev.dataTransfer = dt; dz.ondrop(ev); const pendingShown = /crack\.jpg/.test(document.querySelector('#nc-drop .att-dz-list').textContent); document.getElementById('nc-lot').value = PLOT; document.getElementById('nc-qty').value = 1; const n0 = DB.all('nc_records').length; document.getElementById('nc-save').onclick(); const nc = DB.all('nc_records').sort((a,b)=>b.ts-a.ts)[0]; window.__ncDrop = nc.id; return pendingShown && DB.all('nc_records').length === n0 + 1; })(), '');
@@ -2092,7 +1054,7 @@ try {
   const s30 = X(`(()=>{ const tabs = [...document.querySelectorAll('.m-tabs a')].map(a => a.textContent.trim()); const a = tabs.some(t => /주의$/.test(t)) && !tabs.some(t => /확인 필요/.test(t)) && M_LABEL.pending === '확인 필요'; location.hash='#m/trace'; router(); const b = !!document.getElementById('m-tr-cam-err') && !!document.getElementById('m-tr-err') && !!document.getElementById('m-tr-q'); const src = String(VIEWS.m_trace); const c = /setTimeout\\(startCam, 400\\)/.test(src) && /qrbox:\\(w,h\\)/.test(src) && /NotAllowed\\|Permission\\|denied/.test(src); const css = [...document.querySelectorAll('style')].map(s => s.textContent).join(''); const d = /\\.m-cam\\{width:min\\(62vw,260px\\);aspect-ratio:1/.test(css); location.hash='#m/home'; router(); return { a, b, c, d, tabs: tabs.join('|') }; })()`);
   P('30 v0.37.5: 하단 탭 「주의」(「확인 필요」 메뉴명 0 · 수량 라벨 「확인 필요」 유지) · 조회 카메라 = 라이브러리 대기·qrbox 함수·오류 배너 요소 · 카메라 정사각형 CSS', s30.a && s30.b && s30.c && s30.d, JSON.stringify(s30));
   P('31 v0.37.6 주의 화면 설명: 한 줄 설명 + 네 가지 사유 범례(HOLD·판정 대기·확인 필요·납기) + 관리자 PC 안내 · 빈 상태 안내', X(`(()=>{ location.hash='#m/check'; router(); const t = document.getElementById('view').textContent; const ok = !!document.querySelector('.m-sub') && /품질 HOLD/.test(t) && /품질 판정 대기/.test(t) && /확인 필요/.test(t) && /납기 지남/.test(t) && /관리자가 PC/.test(t) && document.querySelectorAll('.m-legend-row').length === 4; location.hash='#m/home'; router(); return ok; })()`), '');
-  P('버전 v0.38.24 · 데모 시드 worker 사용자(U-DEMO-W 홍길동)', X(`APP_VERSION`) === 'v0.38.24' && X(`DB.get('users','U-DEMO-W') && DB.get('users','U-DEMO-W').role`) === 'worker' && X(`DEMO_SEED_VER`) === 7, X(`APP_VERSION`));
+  P('버전 v0.38.25 · 데모 시드 worker 사용자(U-DEMO-W 홍길동)', X(`APP_VERSION`) === 'v0.38.25' && X(`DB.get('users','U-DEMO-W') && DB.get('users','U-DEMO-W').role`) === 'worker' && X(`DEMO_SEED_VER`) >= 7, X(`APP_VERSION`));   // v0.38.25 — 시드 v8(확장)도 worker 포함
 } catch(e){ R.push({ n:'FATAL', ok:false, note: e.stack || e.message }); }
 let fail = 0;
 R.forEach(r => { if(!r.ok) fail++; console.log(`[${r.ok?'PASS':'FAIL'}] ${r.n}${r.note?`  — ${r.note}`:''}`); });
@@ -2205,7 +1167,7 @@ const body = `
     // ── 7. 폰 현장 화면 무변 ──
     SESSION.userId = 'U-DEMO'; SESSION.role = 'manager';
     P('F1 CSS — #app.m-mode #nav 숨김 유지 · 구 .nav-more CSS 0 · .nav-grp{display:none}(nav321 정적) 유지', /#app\\.m-mode #nav, #app\\.m-mode \\.foot\\{display:none\\}/.test(document.documentElement.outerHTML) && !/\\.tabnav \\.nav-more\\{/.test(document.documentElement.outerHTML) && /\\.nav-grp\\{display:none\\}/.test(document.documentElement.outerHTML), '');
-    P('버전 v0.38.24 · 2026-10-09', APP_VERSION === 'v0.38.24' && APP_DATE === '2026-10-09', APP_VERSION + ' ' + APP_DATE);
+    P('버전 v0.38.25 · 2026-10-09', APP_VERSION === 'v0.38.25' && APP_DATE === '2026-10-09', APP_VERSION + ' ' + APP_DATE);
   } catch(e){ window.__T.push({ n:'FATAL', ok:false, note: e.stack || e.message }); }
 })();`;
 win.eval(scripts.join('\n;\n') + body);
@@ -2528,7 +1490,7 @@ const body = `
     P('E1 PREFS_FIELDS 5 (v0.38.17 sec_off 추가) · report_format 화이트리스트 · 남의 prefs 거부', JSON.stringify(PREFS_FIELDS) === JSON.stringify(['menu_primary','dash_cards','report_sections','report_format','sec_off']) && setPrefs('U-PV', { report_format:'xlsx' }) === null && !!setPrefs('U-DEMO', { report_format:'xlsx' }) && getPrefs('U-DEMO').report_format === 'xlsx', '');
     P('E2 폰 현장 화면 무변 — .m-mode 에서 dash-tools 숨김 CSS · #m/ 라우트 무변', /#app\\.m-mode \\.dash-tools\\{display:none\\}/.test(document.documentElement.outerHTML) && typeof mobileRouter === 'function', '');
     P('C11 kpi 는 항상 첫째 (_normReportSections)', JSON.stringify(_normReportSections(['qc','kpi','prod'])) === JSON.stringify(['kpi','qc','prod']), '');
-    P('버전 v0.38.24', APP_VERSION === 'v0.38.24', APP_VERSION);
+    P('버전 v0.38.25', APP_VERSION === 'v0.38.25', APP_VERSION);
   } catch(e){ window.__T.push({ n:'FATAL', ok:false, note: e.stack || e.message }); }
   window.__DONE = true;
 })();`;
@@ -2684,6 +1646,109 @@ console.log(`\nPILOT359 TOTAL ${out.length} · PASS ${out.length-fail} · FAIL $
 if(out.length !== 29) console.log(`[FAIL] 항목 수 ${out.length} ≠ 기대 29 (중도 종료·누락)`);
 process.exit((fail || out.length !== 29) ? 1 : 0);
 
+===== FILE: _verify-prfix.js =====
+// ★ v0.38.25 — 구매 입고 수량 정정 회귀 (SPEC 「등록 후 수정 v0.4」 · GPT D11~D13 · 시험 기능 pr_qty_fix · SERVER_GATES.pr_qty_fix=false)
+// Usage: node _verify-prfix.js   (VELA_FILE=index-dev.html 지원)
+const fs = require('fs'), path = require('path');
+const { JSDOM, VirtualConsole } = require(path.join(__dirname, 'node_modules/jsdom'));
+const html = fs.readFileSync(path.resolve(__dirname, process.env.VELA_FILE || 'vela-mes-prototype.html'), 'utf8');
+const stripped = html.replace(/<script\s+src=[^>]*><\/script>/g, '').replace(/<link\s+rel="manifest"[^>]*>/g, '');
+const scripts = [...stripped.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+const vc = new VirtualConsole(); const errs = []; vc.on('jsdomError', e => errs.push(e.message));
+const dom = new JSDOM(stripped, { runScripts:'outside-only', pretendToBeVisual:true, virtualConsole:vc, url:'http://localhost/' });
+const win = dom.window; win.VELA_BACKEND = 'local';
+win.XLSX = { utils:{book_new:()=>({}),json_to_sheet:()=>({}),book_append_sheet:()=>{}}, writeFile:()=>{} };
+win.Html5Qrcode = function(){}; win.qrcode = function(){ return { addData(){}, make(){}, createSvgTag(){return ''}, createDataURL(){return ''} }; };
+win.matchMedia = q => ({ matches:false, media:q, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+win.eval(scripts.join('\n;\n') + `;window.__X = s => eval(s);`);
+const X = s => win.__X(s);
+const R = []; const P = (n, ok, note) => { R.push({ n, ok }); console.log(`[${ok?'PASS':'FAIL'}] ${n}${note?'  — '+note:''}`); };
+const E = s => X(`(()=>{ try { const r = (()=>{ ${s} })(); return r === undefined ? 'OK' : r; } catch(e){ return 'ERR ' + e.message; } })()`);
+X(`seedDemoData(); seedDemoExtension(); SESSION.loggedIn=true; SESSION.role='manager'; SESSION.user='검증'; SESSION.userId='U-T'; 1`);
+const N0 = X(`DB.allRaw('purchase_receipts').length`);
+// P0 기본값
+const p0 = X(`({ def: !!defaultFlags().pr_qty_fix, exp: EXPERIMENTAL_FLAGS.includes('pr_qty_fix'), deps: JSON.stringify(FEATURE_DEPS.pr_qty_fix), gate: SERVER_GATES.pr_qty_fix, demoFlag: getFlags().pr_qty_fix })`);
+P('P0 기본 끔 · 시험 플래그(풀옵션 제외) · 의존성 purchase · SERVER_GATES.pr_qty_fix=false', p0.def === false && p0.exp && p0.deps === '{"needs":["purchase"],"breaks":[]}' && p0.gate === false, JSON.stringify(p0));
+// P1 실데이터(데모 아님): 플래그 켜도 차단
+X(`setFlag('pr_qty_fix', true); 1`);
+const p1 = X(`(()=>{ const d = DB.get('purchase_receipts','PR-DEMO-E01'); const f = DOC_EDIT_SPEC.purchase_receipts.fields(d).map(x=>x.k); let e=''; try { prQtyFixCheck('PR-DEMO-E01', 41); } catch(x){ e = x.message; } const v = docEditValidate('purchase_receipts','PR-DEMO-E01',{ qty:'41' }); return { demo: isDemoMode(), f, e, empty: v.empty, lock: DOC_EDIT_SPEC.purchase_receipts.locked(d).map(x=>x.join(':')).join('|') }; })()`);
+P('P1 실데이터: 플래그 켜도 수량 칸 없음 · 검사 함수 거부(서버 Gate) · 입력 무시 · 「데모에서만」 안내', p1.demo === false && !p1.f.includes('qty') && /서버 권한·동시성/.test(p1.e) && p1.empty && /데모에서만/.test(p1.lock), JSON.stringify(p1));
+X(`sessionStorage.setItem('vela_demo','1'); 1`);
+// P2 형식 1벌
+const fm = (u, q) => E(`return String(prQtyFormatCheck(${JSON.stringify(u)}, ${q}))`);
+const p2 = { box15: fm('box', 1.5), kg1255: fm('kg', 1.255), kg12555: fm('kg', 1.2555), L12375: fm('L', '"12.375"'), inf: fm('kg', 'Infinity'), nan: fm('ea', 'NaN'), zero: fm('kg', 0), neg: fm('ea', -2), empty: fm('ea', '""'), pcs: fm('pcs', 1.5), ea3: fm('ea', 3) };
+P('P2 형식: 1.5 box 거부 · 1.255 kg 허용 · 1.2555 kg 거부 · 12.375 L 허용 · Infinity/NaN/0/음수/빈값 거부 · 미등록 단위(pcs)=개수(정수만)', /정수/.test(p2.box15) && p2.kg1255 === '1.255' && /셋째/.test(p2.kg12555) && p2.L12375 === '12.375' && [p2.inf, p2.nan, p2.zero, p2.neg, p2.empty].every(x => /0 보다 큰/.test(x)) && /정수/.test(p2.pcs) && p2.ea3 === '3', JSON.stringify(p2));
+// P3 정정에도 같은 형식
+const p3 = { ea: E(`docEditSave('purchase_receipts','PR-DEMO-E02',{ qty:'120.5' }, '오타')`), L: E(`docEditSave('purchase_receipts','PR-DEMO-E01',{ qty:'40.1234' }, '오타')`), inf: E(`docEditSave('purchase_receipts','PR-DEMO-E01',{ qty:'Infinity' }, '오타')`), abc: E(`docEditSave('purchase_receipts','PR-DEMO-E01',{ qty:'abc' }, '오타')`) };
+P('P3 정정 = 등록과 같은 형식 검사 (ea 소수 · L 4자리 · Infinity · 문자 거부) · 원장 무변', /정수/.test(p3.ea) && /셋째/.test(p3.L) && /0 보다 큰/.test(p3.inf) && /확인/.test(p3.abc) && X(`DB.get('purchase_receipts','PR-DEMO-E01').qty`) === 40.5, JSON.stringify(p3));
+// P4 단위 불일치
+const p4 = E(`prPoCapCheck({ po_id:'PO-2026-E01', po_item_key:_poItemKey('절삭유','20L'), unit:'kg' }, 10)`);
+P('P4 발주 단위 ≠ 입고 단위 → 차단 (미등록 단위를 ea 로 간주하지 않음)', /단위 불일치/.test(p4), p4);
+// P5 초과 발생·악화 차단
+const p5 = { newOver: E(`docEditSave('purchase_receipts','PR-DEMO-E02',{ qty:'201' }, '증가')`), worse: E(`docEditSave('purchase_receipts','PR-DEMO-E03',{ qty:'61' }, '증가')`), regNew: E(`prPoCapCheck({ po_id:'PO-2026-E01', po_item_key:_poItemKey('초경 인서트','CNMG120408'), unit:'ea' }, 81)`) };
+P('P5 발주량 초과 새로 발생 · 기존 초과 악화 → 차단 (가능 최대 표시) · 신규 등록도 같은 함수', /가능 최대 200/.test(p5.newOver) && /발주량 초과/.test(p5.worse) && /가능 최대 80/.test(p5.regNew), JSON.stringify(p5));
+// P6 기존 초과 감소 = 허용 + 경고
+const p6c = X(`(()=>{ const c = prQtyFixCheck('PR-DEMO-E03', 55); return { ob: c.cap.overBefore, oa: c.cap.overAfter, rb: c.cap.remainBefore, w: c.warn.length }; })()`);
+const p6 = E(`docEditSave('purchase_receipts','PR-DEMO-E03',{ qty:'55' }, '실측 재확인')`);
+const p6l = X(`(()=>{ const d = DB.get('purchase_receipts','PR-DEMO-E03'); const l = (d._logs||[]).filter(x=>x.op==='correct').pop()||{}; return { qty: d.qty, reason: l.reason, h: (d.qty_hist||[]).length }; })()`);
+P('P6 기존 초과(60/50) 감소 55 = 허용 · 초과 10 → 5 · 「⚠ … 확인 필요」 감사 기록', p6 === 'OK' && p6c.ob === 10 && p6c.oa === 5 && p6c.w === 1 && p6l.qty === 55 && /⚠ .*확인 필요/.test(p6l.reason) && p6l.h === 1, JSON.stringify({ p6c, p6l }));
+// P7 정상 정정 + 연동값
+const m = X(`_tsMonth(Date.now())`);
+const before = X(`({ amt: Object.values(calcClosing('purchase','${m}').byParty).reduce((a,g)=>a+g.amount,0), rec: calcPoStatus(DB.get('purchase_orders','PO-2026-E01')).items[0].received })`);
+const p7 = E(`docEditSave('purchase_receipts','PR-DEMO-E01',{ qty:'45.25' }, '전표 대조')`);
+const after = X(`(()=>{ const d = DB.get('purchase_receipts','PR-DEMO-E01'); const l = (d._logs||[]).filter(x=>x.op==='correct').pop()||{}; return { amt: Object.values(calcClosing('purchase','${m}').byParty).reduce((a,g)=>a+g.amount,0), rec: calcPoStatus(DB.get('purchase_orders','PO-2026-E01')).items[0].received, reason: l.reason, prev: l.prev && l.prev.qty, next: l.next && l.next.qty, h: d.qty_hist[0] }; })()`);
+P('P7 40.5 → 45.25 L: 같은 문서 · 발주 입고 합 +4.75 · 매입 마감 금액 +21,375 (발주 단가 4,500) · _logs 전후 · qty_hist', p7 === 'OK' && Math.abs(after.rec - before.rec - 4.75) < 1e-9 && Math.round(after.amt - before.amt) === 21375 && /수량 정정 40.5 → 45.25 L/.test(after.reason) && after.prev === 40.5 && after.next === 45.25 && after.h.by === '검증', JSON.stringify({ before, after }));
+// P8 미리보기 (단가 없음 · 발주 잔량·초과)
+const ui = X(`(()=>{ DB.set('purchase_receipts','PR-FX-NP',{ id:'PR-FX-NP', name:'걸레', spec:'', unit:'box', qty:3, price:null, vendor:'S001', po_id:null, po_item_key:null, date:_kstDate(Date.now()), ts:Date.now(), by:'검증' });
+  const prv = (id, v) => { VIEWS._docEdit('purchase_receipts', id); const i = document.querySelector('[data-de="qty"]'); i.value = v; i.dispatchEvent(new window.Event('input')); const t = document.getElementById('de-qfix').textContent; closeModal(); return t; };
+  return { np: prv('PR-FX-NP','4'), po: prv('PR-DEMO-E01','50'), ov: prv('PR-DEMO-E03','52'), bad: prv('PR-DEMO-E02','300') }; })()`);
+P('P8 수정 창 미리보기: 단가 없음 「단가 미등록 — 금액 영향 계산 불가」 · 발주 잔량 전→후 · 초과 입고 전→후 · 금액(마감 단가) · 초과는 「저장 불가」', /3 → 4 box/.test(ui.np) && /단가 미등록 — 금액 영향 계산 불가/.test(ui.np) && /발주 미연결/.test(ui.np) && /잔량 54.75 → 50L/.test(ui.po) && /₩21,375/.test(ui.po) && /초과 입고 5 → 2L/.test(ui.ov) && /⚠/.test(ui.ov) && /저장 불가 — 발주량 초과/.test(ui.bad), JSON.stringify(ui));
+// P9 마감 월 차단
+const p9 = X(`(()=>{ const id = _closingId('purchase','${m}'); DB.set('closings', id, { id, type:'purchase', month:'${m}', ts:Date.now() }); let e='OK'; try { docEditSave('purchase_receipts','PR-DEMO-E01',{ qty:'46' }, '마감 중'); } catch(x){ e = x.message; } DB.set('closings', id, { void:{ ts:Date.now(), reason:'검증 해제' } }); return e; })()`);
+P('P9 매입 마감 월 → 정정 차단 (해제 후 원장 무변)', /마감/.test(p9) && X(`DB.get('purchase_receipts','PR-DEMO-E01').qty`) === 45.25, p9);
+// P10 사유 · 취소 문서 · 다른 곳 변경
+const p10 = { noReason: E(`docEditSave('purchase_receipts','PR-DEMO-E01',{ qty:'46' }, '')`),
+  stale: E(`const u = DB.get('purchase_receipts','PR-DEMO-E01')._updated; DB.set('purchase_receipts','PR-DEMO-E01',{ memo:'다른 단말' }); docEditSave('purchase_receipts','PR-DEMO-E01',{ qty:'46' }, '경합', { expectUpdated: u })`),
+  voided: E(`DB.set('purchase_receipts','PR-FX-V',{ id:'PR-FX-V', name:'x', unit:'ea', qty:1, ts:Date.now() }); voidDoc('purchase_receipts','PR-FX-V','검증'); prQtyFixCheck('PR-FX-V', 2)`) };
+P('P10 사유 없으면 거부 · 창을 연 뒤 다른 곳 변경 → 거부 · 취소된 입고 정정 불가', /사유/.test(p10.noReason) && /다른 곳/.test(p10.stale) && /취소된/.test(p10.voided), JSON.stringify(p10));
+// P11 5회 상한
+const p11 = X(`(()=>{ const out = []; for(let i=0;i<6;i++){ try { docEditSave('purchase_receipts','PR-FX-NP',{ qty:String(4+i) }, '반복 ' + i); out.push('OK'); } catch(x){ out.push(x.message); } } return { out, h: DB.get('purchase_receipts','PR-FX-NP').qty_hist.length }; })()`);
+P('P11 정정 5회 상한 → 6번째 「[취소] 후 재등록」 안내', p11.h === 5 && /5회/.test(p11.out[5]), JSON.stringify(p11));
+// P12 단위만 바꿔도 형식 검사 (발주 미연결)
+const p12 = E(`DB.set('purchase_receipts','PR-FX-KG',{ id:'PR-FX-KG', name:'용접봉', spec:'', unit:'kg', qty:1.5, price:9000, vendor:'S001', ts:Date.now(), by:'검증' }); docEditSave('purchase_receipts','PR-FX-KG',{ unit:'ea' }, '단위')`);
+P('P12 단위만 변경 시에도 기존 수량이 새 단위 형식에 맞아야 (1.5 kg → ea 거부)', /정수/.test(p12), p12);
+// P13 신규 등록 화면 = 같은 규칙
+const reg = X(`(()=>{ window._matinHub = { tab:'buy' }; location.hash = '#matin'; router();
+  const open = () => { document.getElementById('mbuy-add').click(); };
+  const fill = (o) => { if(o.po != null){ const s = document.getElementById('pr-po'); s.value = o.po; s.dispatchEvent(new window.Event('change')); }
+    if(o.name) document.getElementById('pr-name').value = o.name; if(o.unit){ const u = document.getElementById('pr-unit'); u.value = o.unit; u.dispatchEvent(new window.Event('change')); }
+    document.getElementById('pr-qty').value = o.qty; const n0 = DB.allRaw('purchase_receipts').length; document.getElementById('pr-ok').click(); const n1 = DB.allRaw('purchase_receipts').length; const open = !!document.getElementById('pr-ok'); if(open) closeModal(); return n1 - n0; };
+  open(); const rule0 = document.getElementById('pr-qty-rule').textContent; const hasM = [...document.getElementById('pr-unit').options].some(o => o.value === 'm');
+  const box = fill({ name:'장갑', unit:'box', qty:'1.5' });
+  open(); const kg = fill({ name:'용접봉', unit:'kg', qty:'1.255' });
+  open(); const ruleKg = (()=>{ const u = document.getElementById('pr-unit'); u.value='kg'; u.dispatchEvent(new window.Event('change')); return document.getElementById('pr-qty-rule').textContent; })(); closeModal();
+  open(); const opt = [...document.getElementById('pr-po').options].find(o => o.dataset.poid === 'PO-2026-E01' && /인서트/.test(o.dataset.name||'')); const key = opt && opt.value;
+  const over = fill({ po:key, qty:'81' });
+  open(); const ok = fill({ po:key, qty:'80' });
+  return { rule0, ruleKg, hasM, box, kg, key: !!key, over, ok }; })()`);
+P('P13 신규 등록 = 같은 함수: 1.5 box 거부 · 1.255 kg 저장 · 단위 안내(정수/소수 3자리) · m 단위 · 발주 인서트 81 거부(잔량 80) · 80 저장', reg.box === 0 && reg.kg === 1 && reg.rule0 === '정수' && /소수 3자리/.test(reg.ruleKg) && reg.hasM && reg.key && reg.over === 0 && reg.ok === 1, JSON.stringify(reg));
+const unitOpt = X(`(()=>{ DB.set('purchase_orders','PO-FX-U',{ id:'PO-FX-U', vendor:'S001', items:[{ name:'질소', spec:'47L', unit:'병', qty:10, price:15000, kind:'gen' }], ts:Date.now(), by:'검증' });
+  window._matinHub = { tab:'buy' }; location.hash = '#matin'; router(); document.getElementById('mbuy-add').click();
+  const s = document.getElementById('pr-po'); const opt = [...s.options].find(o => o.dataset.poid === 'PO-FX-U'); s.value = opt.value; s.dispatchEvent(new window.Event('change'));
+  const u = document.getElementById('pr-unit'); const r = { val: u.value, label: u.selectedOptions[0].textContent, rule: document.getElementById('pr-qty-rule').textContent }; closeModal(); voidDoc('purchase_orders','PO-FX-U','검증'); return r; })()`);
+P('P14 발주 단위가 목록에 없으면(병) ea 로 바꾸지 않고 「병 (발주 단위)」 추가·선택', unitOpt.val === '병' && /발주 단위/.test(unitOpt.label) && unitOpt.rule === '정수', JSON.stringify(unitOpt));
+// P15 목록 ✎ 정정
+const p15 = X(`(()=>{ window._matinHub = { tab:'buy' }; location.hash = '#matin'; router(); const row = [...document.querySelectorAll('#view tr')].find(tr => tr.textContent.includes('절삭유')); return { badge: !!row && /✎ 정정/.test(row.textContent), tip: !!row && !!row.querySelector('[title*="40.5 → 45.25"]') }; })()`);
+P('P15 구매 입고 목록: 수량 옆 「✎ 정정」 + 이력 툴팁', p15.badge && p15.tip, JSON.stringify(p15));
+// P16 원장: 정정은 새 문서 0
+const N1 = X(`DB.allRaw('purchase_receipts').length`);
+P('P16 정정으로 새 입고 문서 0 (증가분 = 픽스처 3 + 등록 2)', N1 - N0 === 5, `${N0} → ${N1}`);
+P('버전 v0.38.25', X(`APP_VERSION`) === 'v0.38.25', X(`APP_VERSION`));
+if(R.length !== 18) R.push({ n:`항목 수 ${R.length} ≠ 기대 18`, ok:false });
+const fail = R.filter(x => !x.ok).length;
+console.log(`\nPRFIX TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
+process.exit(fail ? 1 : 0);
+
 ===== FILE: _verify-q60.js =====
 // ★ v0.36.0 — Q6-0 「초과분 보류/격리」 회귀 (설계서 v1.1 §10 · GPT FINAL PASS 2026-09-10 · 17항목 + 원장 무변)
 //   원칙 검증: 인정/보류 = 파생(미저장) · ts ASC→id ASC · clamp 상한 · 양품 우선 차감 · 하류 연쇄 · Case A/B/C · Lock(b) 유지 · 강제 인정 경로 0
@@ -2805,7 +1870,7 @@ const body = `
     // 12 표준 시뮬·기존 하네스 승계는 별도 파일(_verify-sim-standard·2tab·lock-live·correct-guard) — 여기서는 J1′ 함수 자체
     const v = verifyLotInvariant(PL2);
     P('12 J1′ verifyLotInvariant: PL-Q60-C 전 공정 err 0 · pending 0 → ok', v.ok && v.checks.every(c => c.err === 0 && c.pending === 0), JSON.stringify(v.checks.map(c=>[c.proc,c.accepted,c.pending,c.bal])));
-    P('버전 v0.38.24', APP_VERSION === 'v0.38.24', APP_VERSION);
+    P('버전 v0.38.25', APP_VERSION === 'v0.38.25', APP_VERSION);
   } catch(e){ window.__T.push({ n:'FATAL', ok:false, note: e.stack || e.message }); }
 })();`;
 win.eval(scripts.join('\n;\n') + body);
@@ -3232,7 +2297,7 @@ P('G3 (GPT ②) 감사 › 「원장 정합성 · LOT 출하 초과」 단락(�
 const L1 = X(`JSON.stringify(['shipments','records','production_lots','orders'].map(c => DB.allRaw(c).length))`);
 const b = JSON.parse(L0), a = JSON.parse(L1);
 P('F11 출하 문서 = 픽스처 6건만 증가(정정으로 새 출하 0) · 실적·LOT 무변', a[0] - b[0] === 6 && a[1] === b[1] && a[2] === b[2] && a[3] - b[3] === 2, L0 + ' → ' + L1);
-P('버전 v0.38.24', X(`APP_VERSION`) === 'v0.38.24', X(`APP_VERSION`));
+P('버전 v0.38.25', X(`APP_VERSION`) === 'v0.38.25', X(`APP_VERSION`));
 if(R.length !== 17) R.push({ n:`항목 수 ${R.length} ≠ 기대 17`, ok:false });
 const fail = R.filter(x => !x.ok).length;
 console.log(`\nSHIPFIX TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
@@ -3526,7 +2591,7 @@ const c = X(`(()=>{ const src = printFitCells.toString(); let html = ''; const o
   try { _openPrintWindow('t', '<div class="page"><table class="fit-tbl"><tr><td>x</td></tr></table></div>', '', 'portrait', '.fit-tbl td'); } finally { window.open = ow; }
   return { inject: html.includes('const __fit = function printFitCells') && html.includes('__fit(document, __fitSel)'), minClamp: /Math\\.max\\(6, fs - 0\\.5\\)/.test(src), important: /'important'/.test(src), noFitOther: (() => { let h2=''; const ow2 = window.open; window.open = () => ({ document:{ write(h){ h2 += h; }, close(){} } }); try { _openPrintWindow('t','<div></div>','',null); } finally { window.open = ow2; } return !h2.includes('__fit'); })() }; })()`);
 P('3 인쇄창에 글자 맞춤 함수 주입(인쇄 직전 실행) · 최소 6px · !important(인쇄 글자 규칙보다 우선) · 다른 양식은 무주입', c.inject && c.minClamp && c.important && c.noFitOther, JSON.stringify(c));
-P('4 버전 v0.38.24', X(`APP_VERSION`) === 'v0.38.24', X(`APP_VERSION`));
+P('4 버전 v0.38.25', X(`APP_VERSION`) === 'v0.38.25', X(`APP_VERSION`));
 if(R.length !== 4) R.push({ n:`항목 수 ${R.length} ≠ 기대 4`, ok:false });
 const fail = R.filter(x => !x.ok).length;
 console.log(`\nTX23 TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
@@ -3586,7 +2651,7 @@ const expose = `
 try { win.eval(scripts.join('\n;\n') + expose); record('boot: eval inline scripts', true, `${scripts.length} block(s)`); }
 catch (e) { record('boot: eval inline scripts', false, e.message); finish(); }
 record('boot: no jsdomErrors during eval', consoleErrors.length === 0, consoleErrors.slice(0,3).join(' | '));
-record('version: APP_VERSION == v0.38.17', win.APP_VERSION === 'v0.38.24', win.APP_VERSION);
+record('version: APP_VERSION == v0.38.17', win.APP_VERSION === 'v0.38.25', win.APP_VERSION);
 record('version: APP_DATE == 2026-10-09', win.APP_DATE === '2026-10-09', win.APP_DATE);
 
 // ── v0.31.4 빈 상태 데모 (테스트 모드) ──
@@ -3625,7 +2690,7 @@ record('demo287: 샘플 진입 = EMPTY 키 제거+데모 저장소 리셋', /dem
 record('demo287: 빈 상태 진입 = EMPTY 키 설정+데모 저장소 리셋', /demo-go-empty'\)\.onclick\s+= \(\) => \{ try\{ localStorage\.setItem\(_DEMO_EMPTY_KEY,'1'\); localStorage\.removeItem\(_DEMO_LS_KEY\);/.test(html));
 record('demo287: seedIfEmpty 데이터성 7블록 게이팅', (html.match(/!isEmptyDemo\(\) && /g) || []).length === 7);
 record('demo287: 구조성 시드 무게이팅 (공정·계정과목·설정)', /if\(DB\.all\('processes'\)\.length===0\)\{/.test(html) && /if\(DB\.all\('expense_categories'\)\.length===0\)\{/.test(html) && /if\(DB\.all\('settings'\)\.length===0\)\{/.test(html));
-record('demo287: autoLoginDemo 빈 데모 시 seedDemoData 스킵 (v0.32.6 — 시드 버전 마커 문구로 승계)', /if\(!isEmptyDemo\(\)\)\{\s*\n\s*try \{ seedDemoData\(\); DB\.set\('settings','demo_seed_ver'/.test(html));
+record('demo287: autoLoginDemo 빈 데모 시 seedDemoData 스킵 (v0.32.6 — 시드 버전 마커 문구로 승계)', /if\(!isEmptyDemo\(\)\)\{\s*\n\s*try \{ seedDemoData\(\); (seedDemoExtension\(\); )?DB\.set\('settings','demo_seed_ver'/.test(html));
 record('demo287: 초기화 2선택 (샘플 재생성/빈 상태)', /id="demo-reset-sample"/.test(html) && /id="demo-reset-empty"/.test(html));
 record('demo287: 초기화 핸들러 EMPTY 키 토글 후 resetDemoData', /demo-reset-sample'\)\.onclick = \(\) => \{ try\{ localStorage\.removeItem\(_DEMO_EMPTY_KEY\); \}catch\(e\)\{\} resetDemoData\(\); \};/.test(html) && /demo-reset-empty'\)\.onclick\s+= \(\) => \{ try\{ localStorage\.setItem\(_DEMO_EMPTY_KEY,'1'\); \}catch\(e\)\{\} resetDemoData\(\); \};/.test(html));
 record('demo287: 설정 카드 모드 표기 (빈 상태/샘플)', /isEmptyDemo\(\) \? '빈 상태 \(시연·테스트\)' : '샘플 데이터 \(데모정밀\)'/.test(html));
@@ -4557,7 +3622,7 @@ if(demoOk){
         const { byParty } = win.calcClosing('sales', m);
         return doc.rows.every(r => Math.round(byParty[r.party]?.amount||0) === r.amount);
       })());
-      record('bulk326: 시드 버전 자동 보강 (DEMO_SEED_VER=7 · v0.37.2 worker 사용자 · autoLoginDemo 불일치 재시드)', /const DEMO_SEED_VER = 7;/.test(html) && /sv\.ver !== DEMO_SEED_VER/.test(html) && /데모 샘플 데이터가 최신으로 보강/.test(html));
+      record('bulk326: 시드 버전 자동 보강 (DEMO_SEED_VER=8 · v0.38.25 데모 확장 · autoLoginDemo 불일치 재시드)', /const DEMO_SEED_VER = 8;/.test(html) && /sv\.ver !== DEMO_SEED_VER/.test(html) && /데모 샘플 데이터가 최신으로 보강/.test(html));
       // ── v0.32.7 LOT 분할 수량 보존 (v2.1 검증 실측 결함 I6-split → 수정 검증) ──
       (function(){
         try {
