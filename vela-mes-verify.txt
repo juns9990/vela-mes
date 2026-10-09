@@ -1,5 +1,5 @@
 VELA MES v0.38.26 — 검증 묶음 (GPT 독립 검토용 · 검증 스크립트 원본 + 하네스별 원시 실행 로그 전부 · UTF-8)
-생성: 2026-10-09T22:50:02Z · index-dev.html SHA-256 = b26f134fcc14eb34e1776f8e6b03a6ff9ca4e9c4e4f179e0202c7e0d1463a0ce · git blob = 8265ea5300614e058f06ef37102c52367d6ed518
+생성: 2026-10-09T23:24:00Z · index-dev.html SHA-256 = b26f134fcc14eb34e1776f8e6b03a6ff9ca4e9c4e4f179e0202c7e0d1463a0ce · git blob = 8265ea5300614e058f06ef37102c52367d6ed518
 재현: 각 ===== FILE: 블록을 같은 이름 파일로 저장 → npm i jsdom → VELA_FILE=index-dev.html node <파일> (VELA_FILE 미지원 하네스는 index-dev.html 을 vela-mes-prototype.html 로 복사)
 
 ########## 목차 (파일 · SHA-256 앞 16자리)
@@ -28,8 +28,8 @@ VELA MES v0.38.26 — 검증 묶음 (GPT 독립 검토용 · 검증 스크립트
 - _verify-v0.35.10.js  sha256=2c5710dd3b688901
 - _verify-v21-exec.js  sha256=37430071f4532cd8
 - _snapshot-compare-3324.js  sha256=81fa4b07b5673df3
-- _verify-rules-v5.mjs  sha256=7f600f25e4028b08
-- firestore.rules.v5-draft  sha256=ca0683d1da98bf64
+- _verify-rules-v5.mjs  sha256=ebff4fa63f084473
+- firestore.rules.v5-draft  sha256=aeae6ea77398d964
 
 ########## 실행 요약 (로그 파일 · 종료 코드 · 마지막 합계 줄)
 _snapshot-compare-3324.js.log            exit=0 | RESULT: IDENTICAL — 원장·집계 무변 증명
@@ -63,7 +63,8 @@ dev-_verify-prfix.js.log                 exit=0 | PRFIX TOTAL 22 · PASS 22 · F
 dev-_verify-sec.js.log                   exit=0 | SEC TOTAL 24 · PASS 24 · FAIL 0
 dev-_verify-shipfix.js.log               exit=0 | SHIPFIX TOTAL 17 · PASS 17 · FAIL 0
 dev-_verify-tx23.js.log                  exit=0 | TX23 TOTAL 4 · PASS 4 · FAIL 0
-rules-v5-static.log                      exit=2 (2 = 에뮬레이터 없음 · 동적 30항목 미실행 · PASS 아님) | 
+rules-v4-negative-control.log            exit=1 (기대대로) | RULES-V5 TOTAL 32 · PASS 8 · FAIL 24
+rules-v5-emulator.log                    exit=0 | RULES-V5 TOTAL 32 · PASS 32 · FAIL 0
 
 ########## 하네스별 원시 로그 (자르지 않음)
 ===== LOG: _snapshot-compare-3324.js.log (sha256=44cebe5c6461d7f1) =====
@@ -1370,12 +1371,81 @@ exit=0
 
 TX23 TOTAL 4 · PASS 4 · FAIL 0
 exit=0
-===== LOG: rules-v5-static.log (sha256=1f5c212fea12df0b) =====
+===== LOG: rules-v4-negative-control.log (sha256=dc5865b3d05ce7ba) =====
+음성 대조: 같은 32항목을 현재 운영 규칙 v4(firestore.rules · v0.31.5)로 실행 — 시험이 규칙 차이를 실제로 잡아내는지 확인 (FAIL 이 나와야 정상)
+명령: RULES_FILE=firestore.rules.v4 npx firebase emulators:exec --only firestore --project vela-rules-test "node _verify-rules-v5.mjs"
+[FAIL] S1 Rules 일반 목록 = 앱 _FS_COLLECTIONS − 보호 2 (순서 포함 1:1)  — rules 0 · app 61
+[FAIL] S2 보호·관리 컬렉션이 일반 목록에 없음 (OR 합산 우회 방지) · delete 허용 = 앱 MASTER_DEL_COLS 1:1 · 전체 허용 와일드카드 없음  — leak=
+[PASS] S3 익명: 일반 컬렉션 읽기·생성·수정 허용 (현장 흐름 유지 · 기술부채)
+[PASS] S4 익명: 원장 delete 거부 · 마스터 delete 허용(v4 동일)
+[PASS] S5 미인증: 전부 거부
+[FAIL] S6 목록 밖 컬렉션·하위 경로 거부
+[FAIL] S7 settings/server_rules = 관리자 포함 앱 쓰기 거부 · 읽기 허용 · 다른 settings 문서 쓰기 허용
+[FAIL] S8 approvers: 본인 문서만 읽기 · 쓰기 전부 거부 (익명·가입 계정·관리자 모두 자기 권한 상승 불가)
+[PASS] S9 (S-1b · P0-1 미해결 명시) 익명 출하 생성 = 형식 맞으면 허용 (서버는 수량 범위를 모름 — 문서에 미해결 표기)
+[PASS] S10 미인증 출하 생성 거부
+[FAIL] S11 출하 생성 거부: 작성자 uid 위조 · 수량 0 · 소수 · 수주/LOT 비어 있음 · 처음부터 qty_hist
+[FAIL] S12 출하 수정: 비고 허용 · 연결 필드(LOT·수주·품번·작성자) 변경 거부 · 미인증 거부
+[FAIL] S13 출하 수량: 익명 변경 거부(이력을 붙여도) · 가입만 한 계정 거부 · 이력 없이 관리자 변경 거부
+[PASS] S14 출하 수량: 관리자 + 이력 정확히 1건(from=이전 · to=새 · 본인 uid) + 이력 시각 qty_hist_at.0 = 서버 시각 → 허용
+[FAIL] S15 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일치 · 남의 uid · 클라이언트 시각 · 이력 시각 누락 · 이전 시각 변경 · 정수 아님
+[FAIL] S16 정정 5회까지 허용 · 6번째 거부
+[PASS] S17 출하 삭제 = 관리자도 거부 (void 만 · 익명 void 허용)
+[FAIL] S18 구매 입고 생성: 익명 허용(S-1b) · 미인증 거부 · 작성자 위조 거부 · 단위 비어 있음 거부 · 발주 연결인데 품목 키 없음 거부
+[FAIL] S19 구매 입고 수정: 발주 연결이면 단위·발주·품목 키 변경 거부 · 단가 수정 허용
+[FAIL] S20 구매 입고 수량: 관리자 + 이력 1건 = 허용(40.5 → 45.25) · 익명 거부
+[FAIL] S21 결재 상신: 관리자 허용 · 익명/역할 없는 계정 거부 · 결재선에 관리자 아닌 uid 거부 · 처음부터 승인 상태 거부 · 남 명의 상신 거부
+[FAIL] S22 차례 아닌 관리자 승인 거부 · 결재선 변경 거부 · 단계 건너뛰기 거부 · 결정 기록 없는 상태 변경 거부
+[PASS] S23 현재 단계 관리자 승인 = 결정 1건 + 다음 단계(같은 쓰기) 허용
+[FAIL] S24 결정 기록 위조 거부: 앞선 결정 수정 · 남 명의 결정 · 단계 번호 위조
+[FAIL] S25 마지막 단계 승인 → approved · 이후 모든 수정 거부 · 삭제 거부
+[FAIL] S26 반려 = 현재 단계만 · 상신자 회수 = 결정 전만
+[FAIL] S27 결재 읽기: 관리자만 (익명·역할 없는 계정 거부)
+[FAIL] S28 알림: 받는 사람만 읽기 · 남의 알림 거부 · 쿼리는 to==나 조건만 · 발신자 위조 거부
+[FAIL] S29 알림 수정·삭제 거부 (읽음은 prefs 쪽 · 이벤트 불변)
+[FAIL] S30 개인 템플릿: 소유자(관리자)만 읽기·수정 · 다른 관리자 거부 · 익명 생성 거부 · 소유자 바꾸기 거부
+[FAIL] S31 템플릿 목록 쿼리 = owner_uid==나 조건만 허용
+[FAIL] S32 보고 요청: 받는 사람만 답변 · 상태는 submitted/declined 만
+RULES-V5 TOTAL 32 · PASS 8 · FAIL 24
+exit=1 (기대대로)
+===== LOG: rules-v5-emulator.log (sha256=3987f15c1a5407bf) =====
+실행 환경: 14.27.0 firebase-tools · cloud-firestore-emulator-v1.19.8.jar · openjdk version "21.0.12.1" 2026-08-18 · node v22.22.0 · @firebase/rules-unit-testing 4.0.1 · firebase 11.10.0
+규칙 파일 SHA-256: aeae6ea77398d96474c730b6c6461c8b3c0d41f8701b6f0071a1840c120c5ef7 · 하네스 SHA-256: ebff4fa63f084473e78dd4dd42cad45fa157d6ec72cd4c0af5b12b3f96c87a70
+명령: npx firebase emulators:exec --only firestore --project vela-rules-test "node _verify-rules-v5.mjs"
 [PASS] S1 Rules 일반 목록 = 앱 _FS_COLLECTIONS − 보호 2 (순서 포함 1:1)  — rules 59 · app 61
 [PASS] S2 보호·관리 컬렉션이 일반 목록에 없음 (OR 합산 우회 방지) · delete 허용 = 앱 MASTER_DEL_COLS 1:1 · 전체 허용 와일드카드 없음  — leak=
-
-RULES-V5 정적 2/2 · 에뮬레이터 없음 → 동적 30항목 미실행 (PASS 아님)
-exit=2 (2 = 에뮬레이터 없음 · 동적 30항목 미실행 · PASS 아님)
+[PASS] S3 익명: 일반 컬렉션 읽기·생성·수정 허용 (현장 흐름 유지 · 기술부채)
+[PASS] S4 익명: 원장 delete 거부 · 마스터 delete 허용(v4 동일)
+[PASS] S5 미인증: 전부 거부
+[PASS] S6 목록 밖 컬렉션·하위 경로 거부
+[PASS] S7 settings/server_rules = 관리자 포함 앱 쓰기 거부 · 읽기 허용 · 다른 settings 문서 쓰기 허용
+[PASS] S8 approvers: 본인 문서만 읽기 · 쓰기 전부 거부 (익명·가입 계정·관리자 모두 자기 권한 상승 불가)
+[PASS] S9 (S-1b · P0-1 미해결 명시) 익명 출하 생성 = 형식 맞으면 허용 (서버는 수량 범위를 모름 — 문서에 미해결 표기)
+[PASS] S10 미인증 출하 생성 거부
+[PASS] S11 출하 생성 거부: 작성자 uid 위조 · 수량 0 · 소수 · 수주/LOT 비어 있음 · 처음부터 qty_hist
+[PASS] S12 출하 수정: 비고 허용 · 연결 필드(LOT·수주·품번·작성자) 변경 거부 · 미인증 거부
+[PASS] S13 출하 수량: 익명 변경 거부(이력을 붙여도) · 가입만 한 계정 거부 · 이력 없이 관리자 변경 거부
+[PASS] S14 출하 수량: 관리자 + 이력 정확히 1건(from=이전 · to=새 · 본인 uid) + 이력 시각 qty_hist_at.0 = 서버 시각 → 허용
+[PASS] S15 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일치 · 남의 uid · 클라이언트 시각 · 이력 시각 누락 · 이전 시각 변경 · 정수 아님
+[PASS] S16 정정 5회까지 허용 · 6번째 거부
+[PASS] S17 출하 삭제 = 관리자도 거부 (void 만 · 익명 void 허용)
+[PASS] S18 구매 입고 생성: 익명 허용(S-1b) · 미인증 거부 · 작성자 위조 거부 · 단위 비어 있음 거부 · 발주 연결인데 품목 키 없음 거부
+[PASS] S19 구매 입고 수정: 발주 연결이면 단위·발주·품목 키 변경 거부 · 단가 수정 허용
+[PASS] S20 구매 입고 수량: 관리자 + 이력 1건 = 허용(40.5 → 45.25) · 익명 거부
+[PASS] S21 결재 상신: 관리자 허용 · 익명/역할 없는 계정 거부 · 결재선에 관리자 아닌 uid 거부 · 처음부터 승인 상태 거부 · 남 명의 상신 거부
+[PASS] S22 차례 아닌 관리자 승인 거부 · 결재선 변경 거부 · 단계 건너뛰기 거부 · 결정 기록 없는 상태 변경 거부
+[PASS] S23 현재 단계 관리자 승인 = 결정 1건 + 다음 단계(같은 쓰기) 허용
+[PASS] S24 결정 기록 위조 거부: 앞선 결정 수정 · 남 명의 결정 · 단계 번호 위조
+[PASS] S25 마지막 단계 승인 → approved · 이후 모든 수정 거부 · 삭제 거부
+[PASS] S26 반려 = 현재 단계만 · 상신자 회수 = 결정 전만
+[PASS] S27 결재 읽기: 관리자만 (익명·역할 없는 계정 거부)
+[PASS] S28 알림: 받는 사람만 읽기 · 남의 알림 거부 · 쿼리는 to==나 조건만 · 발신자 위조 거부
+[PASS] S29 알림 수정·삭제 거부 (읽음은 prefs 쪽 · 이벤트 불변)
+[PASS] S30 개인 템플릿: 소유자(관리자)만 읽기·수정 · 다른 관리자 거부 · 익명 생성 거부 · 소유자 바꾸기 거부
+[PASS] S31 템플릿 목록 쿼리 = owner_uid==나 조건만 허용
+[PASS] S32 보고 요청: 받는 사람만 답변 · 상태는 submitted/declined 만
+RULES-V5 TOTAL 32 · PASS 32 · FAIL 0
+exit=0
 
 ===== FILE: _verify-2tab-local.js =====
 // ★ v0.35.3 — 로컬 어댑터 문서 단위 쓰기·탭 동기화 회귀 (QV-1b O절 실브라우저 FAIL → 수정 검증)
@@ -5683,20 +5753,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const RULES = fs.readFileSync(path.join(DIR, 'firestore.rules.v5-draft'), 'utf8');
+const RULES = fs.readFileSync(path.join(DIR, process.env.RULES_FILE || 'firestore.rules.v5-draft'), 'utf8');   // RULES_FILE=firestore.rules → v4 음성 대조
 const APP = fs.readFileSync(path.join(DIR, process.env.VELA_FILE || 'vela-mes-prototype.html'), 'utf8');
 const R = []; const P = (n, ok, note) => { R.push({ n, ok }); console.log(`[${ok ? 'PASS' : 'FAIL'}] ${n}${note ? '  — ' + note : ''}`); };
 
 // ── 정적 검사 ──
 const appCols = [...APP.match(/const _FS_COLLECTIONS = \[([\s\S]*?)\];/)[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
-const ruleCols = [...RULES.match(/function generalCols\(\) \{\s*return \[([\s\S]*?)\];/)[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
+const ruleCols = [...(RULES.match(/function generalCols\(\) \{\s*return \[([\s\S]*?)\];/) || [, ''])[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
 const GUARDED = ['shipments', 'purchase_receipts'];
 const ADMIN = ['approvals', 'events', 'report_requests', 'approvers', 'report_templates'];
 const expect = appCols.filter(c => !GUARDED.includes(c));
 P('S1 Rules 일반 목록 = 앱 _FS_COLLECTIONS − 보호 2 (순서 포함 1:1)', JSON.stringify(ruleCols) === JSON.stringify(expect), `rules ${ruleCols.length} · app ${appCols.length}`);
 const leak = ruleCols.filter(c => GUARDED.includes(c) || ADMIN.includes(c));
 const appMaster = [...APP.match(/const MASTER_DEL_COLS = \[([^\]]*)\]/)[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
-const ruleMaster = [...RULES.match(/function masterDelCols\(\) \{\s*return \[([\s\S]*?)\];/)[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
+const ruleMaster = [...(RULES.match(/function masterDelCols\(\) \{\s*return \[([\s\S]*?)\];/) || [, ''])[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
 P('S2 보호·관리 컬렉션이 일반 목록에 없음 (OR 합산 우회 방지) · delete 허용 = 앱 MASTER_DEL_COLS 1:1 · 전체 허용 와일드카드 없음',
   leak.length === 0 && JSON.stringify(appMaster) === JSON.stringify(ruleMaster) && !/match \/\{document=\*\*\}\s*\{\s*allow read, create, update: if request\.auth != null/.test(RULES),
   `leak=${leak.join(',')}`);
@@ -5733,7 +5803,9 @@ async function seed() {
   });
 }
 await seed();
-const hist = (from, to, u) => ({ from, to, uid: u, at: serverTimestamp() });
+const raw = async (col, id) => { let v; await env.withSecurityRulesDisabled(async c => { v = (await getDoc(doc(c.firestore(), col, id))).data(); }); return v; };   // withSecurityRulesDisabled 는 반환값을 돌려주지 않음
+const hist = (from, to, u) => ({ from, to, uid: u });   // 시각은 배열 밖 qty_hist_at.{n} (serverTimestamp 는 배열 안 불가 — 에뮬레이터 실측)
+const qfix = (prevHist, from, to, u, extra) => ({ qty: to, qty_hist: [...prevHist, hist(from, to, u)], [`qty_hist_at.${prevHist.length}`]: serverTimestamp(), ...(extra || {}) });
 
 // 일반 컬렉션 (v4 수준)
 P('S3 익명: 일반 컬렉션 읽기·생성·수정 허용 (현장 흐름 유지 · 기술부채)', await ok(getDoc(doc(db.anon, 'orders', 'SO-1'))) && await ok(setDoc(doc(db.anon, 'orders', 'SO-2'), { qty: 1 })) && await ok(updateDoc(doc(db.anon, 'orders', 'SO-1'), { memo: 'x' })));
@@ -5749,45 +5821,48 @@ P('S9 (S-1b · P0-1 미해결 명시) 익명 출하 생성 = 형식 맞으면 �
 P('S10 미인증 출하 생성 거부', await no(setDoc(doc(db.none, 'shipments', 'SH-N'), shipNew('x'))));
 P('S11 출하 생성 거부: 작성자 uid 위조 · 수량 0 · 소수 · 수주/LOT 비어 있음 · 처음부터 qty_hist', await no(setDoc(doc(db.anon, 'shipments', 'SH-3'), shipNew(ANON2))) && await no(setDoc(doc(db.anon, 'shipments', 'SH-4'), shipNew(ANON, { qty: 0 }))) && await no(setDoc(doc(db.anon, 'shipments', 'SH-5'), shipNew(ANON, { qty: 1.5 }))) && await no(setDoc(doc(db.anon, 'shipments', 'SH-6'), shipNew(ANON, { plot_no: '' }))) && await no(setDoc(doc(db.anon, 'shipments', 'SH-7'), shipNew(ANON, { qty_hist: [] }))));
 P('S12 출하 수정: 비고 허용 · 연결 필드(LOT·수주·품번·작성자) 변경 거부 · 미인증 거부', await ok(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { memo: '포장 변경' })) && await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { plot_no: 'PL-9' })) && await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { so_id: 'SO-9' })) && await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { itemCode: 'IT-9' })) && await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { by_uid: MGR_A })) && await no(updateDoc(doc(db.none, 'shipments', 'SH-1'), { memo: 'x' })));
-P('S13 출하 수량: 익명 변경 거부(이력을 붙여도) · 가입만 한 계정 거부 · 이력 없이 관리자 변경 거부', await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { qty: 30, qty_hist: [hist(40, 30, ANON)] })) && await no(updateDoc(doc(db.rogue, 'shipments', 'SH-1'), { qty: 30, qty_hist: [hist(40, 30, ROGUE)] })) && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 30 })));
-P('S14 출하 수량: 관리자 + 이력 정확히 1건(from=이전 · to=새 · 본인 uid · 서버 시각) = 허용', await ok(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 30, qty_hist: [hist(40, 30, MGR_A)] })));
-const h1 = (await env.withSecurityRulesDisabled(async c => (await getDoc(doc(c.firestore(), 'shipments', 'SH-1'))).data())).qty_hist;
-P('S15 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일치 · 남의 uid · 클라이언트 시각 · 정수 아님',
-  await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 31, qty_hist: [{ ...h1[0], from: 99 }, hist(30, 31, MGR_A)] }))
-  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 32, qty_hist: [...h1, hist(30, 31, MGR_A), hist(31, 32, MGR_A)] }))
-  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 31, qty_hist: [...h1, hist(29, 31, MGR_A)] }))
-  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 31, qty_hist: [...h1, hist(30, 31, MGR_B)] }))
-  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 31, qty_hist: [...h1, { from: 30, to: 31, uid: MGR_A, at: Timestamp.fromMillis(0) }] }))
-  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 30.5, qty_hist: [...h1, hist(30, 30.5, MGR_A)] })));
+P('S13 출하 수량: 익명 변경 거부(이력을 붙여도) · 가입만 한 계정 거부 · 이력 없이 관리자 변경 거부', await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), qfix([], 40, 30, ANON))) && await no(updateDoc(doc(db.rogue, 'shipments', 'SH-1'), qfix([], 40, 30, ROGUE))) && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 30 })));
+P('S14 출하 수량: 관리자 + 이력 정확히 1건(from=이전 · to=새 · 본인 uid) + 이력 시각 qty_hist_at.0 = 서버 시각 → 허용', await ok(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix([], 40, 30, MGR_A))));
+const h1 = (await raw('shipments', 'SH-1')).qty_hist;
+P('S15 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일치 · 남의 uid · 클라이언트 시각 · 이력 시각 누락 · 이전 시각 변경 · 정수 아님',
+  await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 31, qty_hist: [{ ...h1[0], from: 99 }, hist(30, 31, MGR_A)], 'qty_hist_at.1': serverTimestamp() }))
+  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 32, qty_hist: [...h1, hist(30, 31, MGR_A), hist(31, 32, MGR_A)], 'qty_hist_at.1': serverTimestamp(), 'qty_hist_at.2': serverTimestamp() }))
+  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(h1, 29, 31, MGR_A)))
+  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(h1, 30, 31, MGR_B)))
+  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 31, qty_hist: [...h1, hist(30, 31, MGR_A)], 'qty_hist_at.1': Timestamp.fromMillis(0) }))
+  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 31, qty_hist: [...h1, hist(30, 31, MGR_A)] }))
+  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(h1, 30, 31, MGR_A, { 'qty_hist_at.0': serverTimestamp() })))
+  && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(h1, 30, 30.5, MGR_A))));
 let cur = 30, hh = h1; let five = true;
-for (let i = 0; i < 4; i++) { const ok1 = await ok(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: cur - 1, qty_hist: [...hh, hist(cur, cur - 1, MGR_A)] })); five = five && ok1; cur--; hh = (await env.withSecurityRulesDisabled(async c => (await getDoc(doc(c.firestore(), 'shipments', 'SH-1'))).data())).qty_hist; }
-P('S16 정정 5회까지 허용 · 6번째 거부', five && hh.length === 5 && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: cur - 1, qty_hist: [...hh, hist(cur, cur - 1, MGR_A)] })));
+for (let i = 0; i < 4; i++) { const ok1 = await ok(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(hh, cur, cur - 1, MGR_A))); five = five && ok1; cur--; hh = (await raw('shipments', 'SH-1')).qty_hist; }
+P('S16 정정 5회까지 허용 · 6번째 거부', five && hh.length === 5 && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(hh, cur, cur - 1, MGR_A))));
 P('S17 출하 삭제 = 관리자도 거부 (void 만 · 익명 void 허용)', await no(deleteDoc(doc(db.a, 'shipments', 'SH-1'))) && await ok(updateDoc(doc(db.anon, 'shipments', 'SH-A'), { void: { reason: '오등록' } })));
 
 // P0-1 구매 입고
 const prNew = (u, extra) => ({ name: '장갑', unit: 'box', qty: 3, by_uid: u, ...extra });
 P('S18 구매 입고 생성: 익명 허용(S-1b) · 미인증 거부 · 작성자 위조 거부 · 단위 비어 있음 거부 · 발주 연결인데 품목 키 없음 거부', await no(setDoc(doc(db.none, 'purchase_receipts', 'PR-A'), prNew('x'))) && await no(setDoc(doc(db.anon, 'purchase_receipts', 'PR-F'), prNew(ANON2))) && await ok(setDoc(doc(db.anon, 'purchase_receipts', 'PR-2'), prNew(ANON))) && await no(setDoc(doc(db.anon, 'purchase_receipts', 'PR-3'), prNew(ANON, { unit: '' }))) && await no(setDoc(doc(db.anon, 'purchase_receipts', 'PR-4'), prNew(ANON, { po_id: 'PO-1' }))));
 P('S19 구매 입고 수정: 발주 연결이면 단위·발주·품목 키 변경 거부 · 단가 수정 허용', await no(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), { unit: 'kg' })) && await no(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), { po_id: 'PO-9' })) && await no(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), { po_item_key: 'x|y' })) && await ok(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), { price: 4600 })));
-P('S20 구매 입고 수량: 관리자 + 이력 1건 = 허용(40.5 → 45.25) · 익명 거부', await no(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), { qty: 45.25, qty_hist: [hist(40.5, 45.25, ANON)] })) && await ok(updateDoc(doc(db.a, 'purchase_receipts', 'PR-1'), { qty: 45.25, qty_hist: [hist(40.5, 45.25, MGR_A)] })));
+P('S20 구매 입고 수량: 관리자 + 이력 1건 = 허용(40.5 → 45.25) · 익명 거부', await no(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), qfix([], 40.5, 45.25, ANON))) && await ok(updateDoc(doc(db.a, 'purchase_receipts', 'PR-1'), qfix([], 40.5, 45.25, MGR_A))));
 
 // P0-2 결재
 const line = [{ uid: MGR_B, role: 'review' }, { uid: MGR_C, role: 'approve' }];
-const apNew = (u, extra) => ({ docType: 'report', docId: 'RP-1', docRev: 1, snapshot: { t: 1 }, line, cur: 0, state: 'pending', decisions: [], submittedUid: u, createdAt: serverTimestamp(), title: '주간', ...extra });
+const apNew = (u, extra) => ({ docType: 'report', docId: 'RP-1', docRev: 1, snapshot: { t: 1 }, line, cur: 0, state: 'pending', decisions: [], decision_at: {}, submittedUid: u, createdAt: serverTimestamp(), title: '주간', ...extra });
 P('S21 결재 상신: 관리자 허용 · 익명/역할 없는 계정 거부 · 결재선에 관리자 아닌 uid 거부 · 처음부터 승인 상태 거부 · 남 명의 상신 거부',
   await ok(setDoc(doc(db.a, 'approvals', 'AP-1'), apNew(MGR_A))) && await no(setDoc(doc(db.anon, 'approvals', 'AP-2'), apNew(ANON))) && await no(setDoc(doc(db.rogue, 'approvals', 'AP-3'), apNew(ROGUE)))
   && await no(setDoc(doc(db.a, 'approvals', 'AP-4'), apNew(MGR_A, { line: [{ uid: ROGUE, role: 'approve' }] }))) && await no(setDoc(doc(db.a, 'approvals', 'AP-5'), apNew(MGR_A, { state: 'approved' }))) && await no(setDoc(doc(db.a, 'approvals', 'AP-6'), apNew(MGR_B))));
-const dec = (u, action, step) => ({ step, uid: u, action, at: serverTimestamp() });
+const dec = (u, action, step) => ({ step, uid: u, action });
+const dat = n => ({ [`decision_at.${n}`]: serverTimestamp() });
 P('S22 차례 아닌 관리자 승인 거부 · 결재선 변경 거부 · 단계 건너뛰기 거부 · 결정 기록 없는 상태 변경 거부',
-  await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_C, 'approve', 0)] }))
-  && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_B, 'approve', 0)], line: [{ uid: MGR_B, role: 'approve' }] }))
-  && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 2, decisions: [dec(MGR_B, 'approve', 0)] }))
+  await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_C, 'approve', 0)], ...dat(0) }))
+  && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_B, 'approve', 0)], ...dat(0), line: [{ uid: MGR_B, role: 'approve' }] }))
+  && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 2, decisions: [dec(MGR_B, 'approve', 0)], ...dat(0) }))
   && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1 })));
-P('S23 현재 단계 관리자 승인 = 결정 1건 + 다음 단계(같은 쓰기) 허용', await ok(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_B, 'approve', 0)] })));
-const d1 = (await env.withSecurityRulesDisabled(async c => (await getDoc(doc(c.firestore(), 'approvals', 'AP-1'))).data())).decisions;
-P('S24 결정 기록 위조 거부: 앞선 결정 수정 · 남 명의 결정 · 단계 번호 위조', await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [{ ...d1[0], action: 'reject' }, dec(MGR_C, 'approve', 1)] })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_B, 'approve', 1)] })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_C, 'approve', 0)] })));
-P('S25 마지막 단계 승인 → approved · 이후 모든 수정 거부 · 삭제 거부', await ok(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_C, 'approve', 1)] })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { title: '변경' })) && await no(updateDoc(doc(db.a, 'approvals', 'AP-1'), { state: 'withdrawn' })) && await no(deleteDoc(doc(db.a, 'approvals', 'AP-1'))));
+P('S23 현재 단계 관리자 승인 = 결정 1건 + 다음 단계(같은 쓰기) 허용', await ok(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_B, 'approve', 0)], ...dat(0) })));
+const d1 = (await raw('approvals', 'AP-1')).decisions;
+P('S24 결정 기록 위조 거부: 앞선 결정 수정 · 남 명의 결정 · 단계 번호 위조', await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [{ ...d1[0], action: 'reject' }, dec(MGR_C, 'approve', 1)], ...dat(1) })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_B, 'approve', 1)], ...dat(1) })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_C, 'approve', 0)], ...dat(1) })));
+P('S25 마지막 단계 승인 → approved · 이후 모든 수정 거부 · 삭제 거부', await ok(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_C, 'approve', 1)], ...dat(1) })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { title: '변경' })) && await no(updateDoc(doc(db.a, 'approvals', 'AP-1'), { state: 'withdrawn' })) && await no(deleteDoc(doc(db.a, 'approvals', 'AP-1'))));
 await setDoc(doc(db.a, 'approvals', 'AP-7'), apNew(MGR_A)); await setDoc(doc(db.a, 'approvals', 'AP-8'), apNew(MGR_A));
-P('S26 반려 = 현재 단계만 · 상신자 회수 = 결정 전만', await ok(updateDoc(doc(db.b, 'approvals', 'AP-7'), { state: 'rejected', decisions: [dec(MGR_B, 'reject', 0)] })) && await ok(updateDoc(doc(db.a, 'approvals', 'AP-8'), { state: 'withdrawn' })) && await no(updateDoc(doc(db.a, 'approvals', 'AP-7'), { state: 'withdrawn' })));
+P('S26 반려 = 현재 단계만 · 상신자 회수 = 결정 전만', await ok(updateDoc(doc(db.b, 'approvals', 'AP-7'), { state: 'rejected', decisions: [dec(MGR_B, 'reject', 0)], ...dat(0) })) && await ok(updateDoc(doc(db.a, 'approvals', 'AP-8'), { state: 'withdrawn' })) && await no(updateDoc(doc(db.a, 'approvals', 'AP-7'), { state: 'withdrawn' })));
 P('S27 결재 읽기: 관리자만 (익명·역할 없는 계정 거부)', await ok(getDoc(doc(db.c, 'approvals', 'AP-1'))) && await no(getDoc(doc(db.anon, 'approvals', 'AP-1'))) && await no(getDoc(doc(db.rogue, 'approvals', 'AP-1'))));
 
 // 알림·템플릿
@@ -5869,7 +5944,7 @@ service cloud.firestore {
         && nd().so_id is string && nd().so_id.size() > 0
         && nd().plot_no is string && nd().plot_no.size() > 0
         && nd().qty is int && nd().qty >= 1
-        && !('qty_hist' in nd())
+        && !('qty_hist' in nd()) && !('qty_hist_at' in nd())
         && !('void' in nd());
       allow update: if authed()
         && !changed().hasAny(['id', 'so_id', 'plot_no', 'itemCode', 'by_uid', 'ts_created'])
@@ -5884,7 +5959,7 @@ service cloud.firestore {
         && nd().by_uid == uid()
         && nd().qty is number && nd().qty > 0
         && nd().unit is string && nd().unit.size() > 0
-        && !('qty_hist' in nd())
+        && !('qty_hist' in nd()) && !('qty_hist_at' in nd())
         && !('void' in nd())
         && (!('po_id' in nd()) || nd().po_id == null || (nd().po_item_key is string && nd().po_item_key.size() > 0));
       allow update: if authed()
@@ -5896,8 +5971,15 @@ service cloud.firestore {
 
     // 수량 규칙 (출하·구매 입고 공용): 수량·이력 무변 = 통과 · 바꾸면 관리자 + 이력 정확히 1건 추가
     //   minQty: 출하 1(정수) / 구매 입고 0 초과
+    // ★ 에뮬레이터 실측(2026-10-10): serverTimestamp() 는 배열 안에 넣을 수 없음 → 이력 시각은 맵 필드 qty_hist_at.{순번} 에 서버 시각으로
     function qtyRule(minQty) {
-      return !changed().hasAny(['qty', 'qty_hist']) || qtyFix(minQty);
+      return !changed().hasAny(['qty', 'qty_hist', 'qty_hist_at']) || qtyFix(minQty);
+    }
+    // 맵 m 에 키 k 하나만 새로 추가되고 그 값이 서버 시각인지 (이전 키 변경·삭제 불가)
+    function onlyAddedAt(newMap, oldMap, k) {
+      return newMap is map && newMap.diff(oldMap).addedKeys().hasOnly([k]) && newMap.diff(oldMap).addedKeys().hasAll([k])
+        && newMap.diff(oldMap).changedKeys().size() == 0 && newMap.diff(oldMap).removedKeys().size() == 0
+        && newMap[k] == request.time;
     }
     function qtyFix(minQty) {
       let old = od().get('qty_hist', []);
@@ -5906,11 +5988,12 @@ service cloud.firestore {
         && n < 5
         && nd().qty_hist is list
         && nd().qty_hist.size() == n + 1
-        && nd().qty_hist[0:n] == old
+        && (n == 0 || nd().qty_hist[0:n] == old)   // ★ 에뮬레이터 실측: 빈 구간 [0:0] 은 Index -1 평가 오류 → n==0 분기
         && nd().qty_hist[n].from == od().qty
         && nd().qty_hist[n].to == nd().qty
         && nd().qty_hist[n].uid == uid()
-        && nd().qty_hist[n].at == request.time
+        && nd().qty_hist[n].keys().hasOnly(['from', 'to', 'uid', 'reason'])
+        && onlyAddedAt(nd().get('qty_hist_at', {}), od().get('qty_hist_at', {}), string(n))
         && nd().qty != od().qty
         && (minQty == 1 ? (nd().qty is int && nd().qty >= 1) : (nd().qty is number && nd().qty > 0));
     }
@@ -5920,11 +6003,12 @@ service cloud.firestore {
     match /settings/server_rules { allow read: if authed(); allow write: if false; }   // ① 블록도 protectedDoc 로 제외
 
     // ───────── ⑤ 결재 (GPT P0-2) ─────────
-    // 문서: { docType, docId, docRev, snapshot, line:[{uid,role}], cur, state, decisions:[{step,uid,action,at,comment?}], submittedUid, createdAt }
+    // 문서: { docType, docId, docRev, snapshot, line:[{uid,role}], cur, state, decisions:[{step,uid,action,comment?}], decision_at:{ "0": 서버시각, … }, submittedUid, createdAt }
     match /approvals/{id} {
       allow read: if approver();
       allow create: if approver()
-        && nd().keys().hasOnly(['docType','docId','docRev','snapshot','line','cur','state','decisions','submittedUid','createdAt','title'])
+        && nd().keys().hasOnly(['docType','docId','docRev','snapshot','line','cur','state','decisions','decision_at','submittedUid','createdAt','title'])
+        && nd().decision_at == {}
         && nd().submittedUid == uid()
         && nd().state == 'pending' && nd().cur == 0
         && nd().decisions == []
@@ -5947,12 +6031,13 @@ service cloud.firestore {
       let n = od().decisions.size();
       let d = nd().decisions[n];
       let last = od().cur == od().line.size() - 1;
-      return changed().hasOnly(['state', 'cur', 'decisions'])
+      return changed().hasOnly(['state', 'cur', 'decisions', 'decision_at'])
         && od().line[od().cur].uid == uid()
         && nd().decisions.size() == n + 1
-        && nd().decisions[0:n] == od().decisions
-        && d.keys().hasOnly(['step', 'uid', 'action', 'at', 'comment'])
-        && d.step == od().cur && d.uid == uid() && d.at == request.time
+        && (n == 0 || nd().decisions[0:n] == od().decisions)
+        && d.keys().hasOnly(['step', 'uid', 'action', 'comment'])
+        && d.step == od().cur && d.uid == uid()
+        && onlyAddedAt(nd().decision_at, od().decision_at, string(n))
         && ( (d.action == 'reject'  && nd().state == 'rejected' && nd().cur == od().cur)
           || (d.action == 'approve' && !last && nd().state == 'pending'  && nd().cur == od().cur + 1)
           || (d.action == 'approve' &&  last && nd().state == 'approved' && nd().cur == od().cur) );
