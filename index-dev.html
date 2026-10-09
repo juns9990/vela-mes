@@ -1426,7 +1426,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.19';
+const APP_VERSION = 'v0.38.20';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -10815,8 +10815,9 @@ function otdShipDateImpact(shipId, newTs){
   const today = _kstDate(Date.now());
   const ships = DB.query('shipments', s => s.so_id === o.id);
   // ★ v0.38.18 (GPT 소스 검토 P1) — 상태 문자열만이 아니라 skip·ok·납기 내 수량·지연일까지 비교 (일부 출하 → 일부 출하라도 납기 내 수량이 바뀌면 영향)
-  const lab = r => r.skip ? ({ cancel:'집계 제외(취소)', notDue:'미도래', dueToday:'오늘 납기(내일 평가)', noDue:'납기 미등록' }[r.skip] || r.skip) : r.status;
-  const sig = r => r.skip ? { skip:r.skip, ok:null, onTime:null, delay:null } : { skip:'', ok:r.ok, onTime:r.onTime, delay:r.delayDays };
+  // ★ v0.38.20 (GPT Gate) — 오늘 납기(skip dueToday)도 「오늘 정시 출하 완료 ↔ 미완료」(done) 변화를 영향으로 본다
+  const lab = r => r.skip === 'dueToday' ? `오늘 납기 · ${r.done ? '정시 출하 완료' : '미완료'}` : r.skip ? ({ cancel:'집계 제외(취소)', notDue:'미도래', noDue:'납기 미등록' }[r.skip] || r.skip) : r.status;
+  const sig = r => r.skip ? { skip:r.skip, ok: r.skip === 'dueToday' ? !!r.done : null, onTime:null, delay:null } : { skip:'', ok:r.ok, onTime:r.onTime, delay:r.delayDays };
   const rb = otdEvalOrder(o, today, ships), ra = otdEvalOrder(o, today, ships.map(s => s.id === shipId ? { ...s, ts:newTs } : s));
   const sb = sig(rb), sa = sig(ra);
   const b = lab(rb) + (sb.onTime != null ? ` (납기 내 ${sb.onTime}/${rb.qty})` : '');

@@ -117,7 +117,7 @@ const body = `
     P('29d [📷 등록 + 사진 첨부] 버튼 + NC 상세 [📎 사진·파일] → 첨부 모듈 1벌(nc_records attachments)', (() => { VIEWS._qcRegister({}); const hasBtn = !!document.getElementById('nc-save-att'); closeModal(); VIEWS._attFilesModal('nc_records', n1.id); const modalOk = !!document.getElementById('dwf-link-add'); document.getElementById('dwf-link-name').value = '현장 사진'; document.getElementById('dwf-link-url').value = 'https://example.com/photo.jpg'; document.getElementById('dwf-link-add').onclick(); const att = _drawAttList(DB.get('nc_records', n1.id)); closeModal(); VIEWS._qcDetail(n1.id); const detailBtn = /사진·파일 1/.test(document.getElementById('nc-att').textContent); closeModal(); return hasBtn && modalOk && att.length === 1 && att[0].kind === 'link' && detailBtn; })(), '');
     P('29e NC 상세 정보에 판정 범위 행 (부분 불량 n ea 격리 / 로트 불량 + 사유)', (() => { VIEWS._qcDetail(n1.id); const t = T(document.getElementById('modal').textContent); closeModal(); return /판정 범위/.test(t) && /부분 불량 — 30ea 격리/.test(t); })(), '');
     P('30 원장 불변 — records/lots 총량 (NC·hold·pending_out 은 nc_records 만 변경)', DB.all('production_lots').length === 32 && DB.all('records').every(r => typeof r.good === 'number') && !DB.all('records').some(r => 'hold' in r || 'pending_out' in r), '');
-    P('버전 v0.38.19', APP_VERSION === 'v0.38.19', APP_VERSION);
+    P('버전 v0.38.20', APP_VERSION === 'v0.38.20', APP_VERSION);
     // ── 드롭존 (사용자 요청 2026-09-10: 부적합 등록·도면 등록 폼에 드래그 업로드 · 저장 후 attUploadFiles 1벌) ──
     P('29f 부적합 등록 폼에 드롭존 + 도면 등록 폼에 드롭존 (attPendingDropZone 1벌)', (() => { VIEWS._qcRegister({}); const a = !!document.querySelector('#nc-drop .att-dz'); closeModal(); VIEWS._drawNewModal(); const b = !!document.querySelector('#dw-drop .att-dz'); closeModal(); return a && b && typeof attPendingDropZone === 'function' && typeof attUploadFiles === 'function'; })(), '');
     P('29g 폼에 파일 드롭 → 대기 목록 표시 → 등록 시 문서 생성 후 업로드 (로컬 모드 = 인라인 ≤400KB)', (() => { VIEWS._qcRegister({}); const dz = document.querySelector('#nc-drop .att-dz'); const f = new window.File([new Uint8Array(1200)], 'crack.jpg', { type:'image/jpeg' }); const dt = { files:[f], types:['Files'] }; const ev = new window.Event('drop', { bubbles:true, cancelable:true }); ev.dataTransfer = dt; dz.ondrop(ev); const pendingShown = /crack\.jpg/.test(document.querySelector('#nc-drop .att-dz-list').textContent); document.getElementById('nc-lot').value = PLOT; document.getElementById('nc-qty').value = 1; const n0 = DB.all('nc_records').length; document.getElementById('nc-save').onclick(); const nc = DB.all('nc_records').sort((a,b)=>b.ts-a.ts)[0]; window.__ncDrop = nc.id; return pendingShown && DB.all('nc_records').length === n0 + 1; })(), '');
@@ -140,6 +140,8 @@ const out = win.__T || [];
 let fail = 0;
 out.forEach(r => { if(!r.ok) fail++; console.log(`[${r.ok?'PASS':'FAIL'}] ${r.n}${r.note?`  — ${r.note}`:''}`); });
 console.log(`\nHOLD3 TOTAL ${out.length} · PASS ${out.length-fail} · FAIL ${fail}`);
-process.exit(0);
+// ★ v0.38.20 (GPT Gate) — FAIL 또는 항목 수 불일치(중도 종료) = 종료코드 1
+if(out.length !== 47) console.log(`[FAIL] 항목 수 ${out.length} ≠ 기대 47 (중도 종료·누락)`);
+process.exit((fail || out.length !== 47) ? 1 : 0);
 };
-let waited = 0; const tick = () => { if(win.__done || waited > 250){ finish(); } else { waited++; setTimeout(tick, 100); } }; tick();
+let waited = 0; const tick = () => { if(win.__done || waited > 250){ if(!win.__done) (win.__T = win.__T || []).push({ n:'TIMEOUT 비동기 첨부 검사 25초 초과', ok:false }); finish(); } else { waited++; setTimeout(tick, 100); } }; tick();

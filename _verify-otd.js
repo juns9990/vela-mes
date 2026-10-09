@@ -137,6 +137,16 @@ const c4 = X(`(()=>{
   return { im, same };
 })()`);
 P('C4 (GPT 소스 검토 P1) 일부 출하 → 일부 출하라도 납기 내 수량 40 → 20 이면 영향 있음 · 납기 안에서 날짜만 바뀌면 영향 없음', c4.im && c4.im.changed && /일부 출하 \(납기 내 40\/100\)/.test(c4.im.before) && /일부 출하 \(납기 내 20\/100\)/.test(c4.im.after) && c4.same && c4.same.changed === false, JSON.stringify(c4));
+const c5 = X(`(()=>{
+  const K = s => Date.parse(s + '+09:00'); const today = _kstDate(Date.now()); const [y,m,d] = today.split('-').map(Number);
+  const tomorrow = _kstDate(Date.UTC(y, m-1, d) - 9*3600000 + 86400000 + 3600000);
+  DB.set('orders','C5',{ id:'C5', cust:'CC', itemCode:'HF-G', qty:10, price:1, due: today });
+  DB.set('shipments','SC5',{ id:'SC5', so_id:'C5', itemCode:'HF-G', plot_no:'', qty:10, ts:K(today + 'T09:00:00'), by:'검증' });
+  const im = otdShipDateImpact('SC5', K(tomorrow + 'T09:00:00'));
+  const same = otdShipDateImpact('SC5', K(today + 'T14:00:00'));
+  return { today, tomorrow, im, same };
+})()`);
+P('C5 (GPT Gate) 오늘 납기 정시 완료 → 출하일을 내일로 정정 = 「오늘 납기 · 정시 출하 완료 → 미완료」 영향 경고 · 같은 날 시간만 변경 = 영향 없음', c5.im && c5.im.changed && /정시 출하 완료/.test(c5.im.before) && /미완료/.test(c5.im.after) && c5.same && c5.same.changed === false, JSON.stringify(c5));
 const snap = X(`(()=>{ const src = Object.keys(DB.get('settings','report_snapshot_test')||{}); const rp = DB.all('reports'); return { reports: rp.length, otdInSnapshot: rp.some(x => JSON.stringify(x.data||{}).includes('rateLines')) }; })()`);
 P('C3 저장된 보고서 스냅샷에 납기준수 값 없음 (PART 2 보고서 블록에서 스냅샷 저장 예정 → 지금 수정이 과거 보고서를 바꾸지 않음)', snap.otdInSnapshot === false, JSON.stringify(snap));
 // ── GPT Gate D — 수량 단위 혼합 방지
@@ -162,7 +172,7 @@ const ui = X(`(()=>{ window._shTab = 'list'; location.hash = '#ship'; VIEWS.ship
 P('12 UI: 출하 [납기 실적] → KPI(건수 50.0% · 수량 74.1%) · 지연 목록(T2 포함 · 준수 T1 제외) · 제외 표시 · [출하 목록] 복귀', ui.ok1 && ui.ok2 && ui.ok3, JSON.stringify(ui));
 const L1 = X(`JSON.stringify(['orders','shipments','production_lots','records'].map(c => DB.allRaw(c).length))`);
 const before = JSON.parse(L0), after = JSON.parse(L1);
-P('13 조회 기능 — 원장 쓰기 0 (테스트 준비분 외 문서 수 변화 없음: 수주 +42 · 출하 +28)', after[0] - before[0] === 42 && after[1] - before[1] === 28 && after[2] === before[2] && after[3] === before[3], L0 + ' → ' + L1);
+P('13 조회 기능 — 원장 쓰기 0 (테스트 준비분 외 문서 수 변화 없음: 수주 +43 · 출하 +29)', after[0] - before[0] === 43 && after[1] - before[1] === 29 && after[2] === before[2] && after[3] === before[3], L0 + ' → ' + L1);
 const fail = R.filter(x => !x.ok).length;
 console.log(`\nOTD TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
 process.exit(fail ? 1 : 0);
