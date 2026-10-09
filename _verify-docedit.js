@@ -76,15 +76,17 @@ P('5 공급처: 입고 연결 PO 변경 차단 · 연결 소재 입고 잠금 ·
 
 // 6 대상 변경(LOT·Heat·수주·수량) 차단 — 입력에 넣어도 무시 · 필드 정의에 없음
 const p6 = X(`(()=>{
+  const flag0 = getFlags().ship_qty_fix; setFlag('ship_qty_fix', false);   // ★ v0.38.21 — 출하 수량 정정(시험 기능)은 꺼진 상태가 v0.38.15 규칙
   const sh = DB.all('shipments')[0]; const sh0 = JSON.stringify(sh);
   const r1 = T(() => docEditValidate('shipments', sh.id, { qty: 1, plot_no:'X', so_id:'X' }));
   const r2 = T(() => docEditValidate('material_receipts', 'MR-T', { heat:'H-X', kg: 1 }));
   const keys = Object.keys(DOC_EDIT_SPEC).flatMap(c => DOC_EDIT_SPEC[c].fields({}).map(f => c + '.' + f.k));
   const forbidden = keys.filter(k => /\\.(qty|kg|good|defect|plot_no|heat|so_id|itemCode|proc|pallets|mat|dia|po_id)$/.test(k));
-  return { emptyShip: r1 && r1.empty === true, emptyMr: r2 && r2.empty === true, forbidden, same: JSON.stringify(DB.get('shipments', sh.id)) === sh0 };
+  setFlag('ship_qty_fix', true); const forbiddenOn = Object.keys(DOC_EDIT_SPEC).flatMap(c => DOC_EDIT_SPEC[c].fields({}).map(f => c + '.' + f.k)).filter(k => /\\.(qty|kg|good|defect|plot_no|heat|so_id|itemCode|proc|pallets|mat|dia|po_id)$/.test(k)); setFlag('ship_qty_fix', flag0);
+  return { emptyShip: r1 && r1.empty === true, emptyMr: r2 && r2.empty === true, forbidden, forbiddenOn, same: JSON.stringify(DB.get('shipments', sh.id)) === sh0 };
   function T(f){ try { return f(); } catch(e){ return 'ERR ' + e.message; } }
 })()`);
-P('6 LOT·Heat·수주·수량·외주처 등 대상 변경 = 수정 경로 없음 (필드 정의 0 · 입력 무시 · 출하 문서 불변)', p6.emptyShip && p6.emptyMr && p6.forbidden.length === 0 && p6.same, JSON.stringify(p6));
+P('6 LOT·Heat·수주·수량·외주처 등 대상 변경 = 수정 경로 없음 (필드 정의 0 · 입력 무시 · 출하 문서 불변) · v0.38.21 출하 수량 정정 켜짐 = shipments.qty 1개만 추가 (대상 변경은 여전히 0)', p6.emptyShip && p6.emptyMr && p6.forbidden.length === 0 && JSON.stringify(p6.forbiddenOn) === '["shipments.qty"]' && p6.same, JSON.stringify(p6));
 
 // 7 출하: 계산서 발행 월 차단 · 포장수량·비고 허용 · 날짜 허용(계산서 없는 월)
 const p7 = X(`(()=>{

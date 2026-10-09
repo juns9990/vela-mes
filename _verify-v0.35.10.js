@@ -51,7 +51,7 @@ const expose = `
 try { win.eval(scripts.join('\n;\n') + expose); record('boot: eval inline scripts', true, `${scripts.length} block(s)`); }
 catch (e) { record('boot: eval inline scripts', false, e.message); finish(); }
 record('boot: no jsdomErrors during eval', consoleErrors.length === 0, consoleErrors.slice(0,3).join(' | '));
-record('version: APP_VERSION == v0.38.17', win.APP_VERSION === 'v0.38.20', win.APP_VERSION);
+record('version: APP_VERSION == v0.38.17', win.APP_VERSION === 'v0.38.21', win.APP_VERSION);
 record('version: APP_DATE == 2026-10-09', win.APP_DATE === '2026-10-09', win.APP_DATE);
 
 // ── v0.31.4 빈 상태 데모 (테스트 모드) ──

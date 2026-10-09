@@ -173,6 +173,7 @@ P('12 UI: 출하 [납기 실적] → KPI(건수 50.0% · 수량 74.1%) · 지연
 const L1 = X(`JSON.stringify(['orders','shipments','production_lots','records'].map(c => DB.allRaw(c).length))`);
 const before = JSON.parse(L0), after = JSON.parse(L1);
 P('13 조회 기능 — 원장 쓰기 0 (테스트 준비분 외 문서 수 변화 없음: 수주 +43 · 출하 +29)', after[0] - before[0] === 43 && after[1] - before[1] === 29 && after[2] === before[2] && after[3] === before[3], L0 + ' → ' + L1);
+if(R.length !== 28) R.push({ n:`항목 수 ${R.length} ≠ 기대 28 (중도 종료·누락)`, ok:false });   // ★ v0.38.20 GPT 권고 — 항목 수 확인
 const fail = R.filter(x => !x.ok).length;
 console.log(`\nOTD TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
 process.exit(fail ? 1 : 0);

@@ -130,6 +130,7 @@ P('16 콘솔 jsdom 오류 0', errs.length === 0, errs.slice(0,3).join(' | '));
   await new Promise(r => setTimeout(r, 50));
   const runs1 = X(`_secEnhanceRuns`);
   P('6c 5회 연속 다시 그림 → 스위치 단락당 1개 · [단락] 1개 · 정지 후 추가 실행 0 (무한 반복 없음)', loop.sw === 2 && loop.perH3.every(n => n <= 1) && loop.btn === 1 && runs1 === loop.runs0 && loop.runs0 <= 15, JSON.stringify({ ...loop, runs1 }));
+if(R.length !== 24) R.push({ n:`항목 수 ${R.length} ≠ 기대 24 (중도 종료·누락)`, ok:false });   // ★ v0.38.20 GPT 권고 — 항목 수 확인
 const fail = R.filter(x => !x.ok).length;
 console.log(`\nSEC TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
 process.exit(fail ? 1 : 0);

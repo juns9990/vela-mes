@@ -127,7 +127,7 @@ const body = `
     P('E1 PREFS_FIELDS 5 (v0.38.17 sec_off 추가) · report_format 화이트리스트 · 남의 prefs 거부', JSON.stringify(PREFS_FIELDS) === JSON.stringify(['menu_primary','dash_cards','report_sections','report_format','sec_off']) && setPrefs('U-PV', { report_format:'xlsx' }) === null && !!setPrefs('U-DEMO', { report_format:'xlsx' }) && getPrefs('U-DEMO').report_format === 'xlsx', '');
     P('E2 폰 현장 화면 무변 — .m-mode 에서 dash-tools 숨김 CSS · #m/ 라우트 무변', /#app\\.m-mode \\.dash-tools\\{display:none\\}/.test(document.documentElement.outerHTML) && typeof mobileRouter === 'function', '');
     P('C11 kpi 는 항상 첫째 (_normReportSections)', JSON.stringify(_normReportSections(['qc','kpi','prod'])) === JSON.stringify(['kpi','qc','prod']), '');
-    P('버전 v0.38.20', APP_VERSION === 'v0.38.20', APP_VERSION);
+    P('버전 v0.38.21', APP_VERSION === 'v0.38.21', APP_VERSION);
   } catch(e){ window.__T.push({ n:'FATAL', ok:false, note: e.stack || e.message }); }
   window.__DONE = true;
 })();`;
