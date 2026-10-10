@@ -1,5 +1,5 @@
-VELA MES v0.38.26 — 검증 묶음 (GPT 독립 검토용 · 검증 스크립트 원본 + 하네스별 원시 실행 로그 전부 · UTF-8)
-생성: 2026-10-09T23:24:00Z · index-dev.html SHA-256 = b26f134fcc14eb34e1776f8e6b03a6ff9ca4e9c4e4f179e0202c7e0d1463a0ce · git blob = 8265ea5300614e058f06ef37102c52367d6ed518
+VELA MES v0.38.26-r2 — 검증 묶음 (GPT 독립 검토용 · 검증 스크립트 원본 + 하네스별 원시 실행 로그 전부 · UTF-8)
+생성: 2026-10-09T23:52:04Z · index-dev.html SHA-256 = b26f134fcc14eb34e1776f8e6b03a6ff9ca4e9c4e4f179e0202c7e0d1463a0ce · git blob = 8265ea5300614e058f06ef37102c52367d6ed518
 재현: 각 ===== FILE: 블록을 같은 이름 파일로 저장 → npm i jsdom → VELA_FILE=index-dev.html node <파일> (VELA_FILE 미지원 하네스는 index-dev.html 을 vela-mes-prototype.html 로 복사)
 
 ########## 목차 (파일 · SHA-256 앞 16자리)
@@ -28,8 +28,11 @@ VELA MES v0.38.26 — 검증 묶음 (GPT 독립 검토용 · 검증 스크립트
 - _verify-v0.35.10.js  sha256=2c5710dd3b688901
 - _verify-v21-exec.js  sha256=37430071f4532cd8
 - _snapshot-compare-3324.js  sha256=81fa4b07b5673df3
-- _verify-rules-v5.mjs  sha256=ebff4fa63f084473
-- firestore.rules.v5-draft  sha256=aeae6ea77398d964
+- _verify-rules-v5.mjs  sha256=7300cdac35ff8080
+- _verify-rules-compat.mjs  sha256=d1e50d2f0b72a074
+- _capture-app-payloads.js  sha256=d18f0f0dcb6ec206
+- _app-payloads.json  sha256=885f9782baba86fe
+- firestore.rules.v5-draft  sha256=631679c22c640855
 
 ########## 실행 요약 (로그 파일 · 종료 코드 · 마지막 합계 줄)
 _snapshot-compare-3324.js.log            exit=0 | RESULT: IDENTICAL — 원장·집계 무변 증명
@@ -63,8 +66,9 @@ dev-_verify-prfix.js.log                 exit=0 | PRFIX TOTAL 22 · PASS 22 · F
 dev-_verify-sec.js.log                   exit=0 | SEC TOTAL 24 · PASS 24 · FAIL 0
 dev-_verify-shipfix.js.log               exit=0 | SHIPFIX TOTAL 17 · PASS 17 · FAIL 0
 dev-_verify-tx23.js.log                  exit=0 | TX23 TOTAL 4 · PASS 4 · FAIL 0
-rules-v4-negative-control.log            exit=1 (기대대로) | RULES-V5 TOTAL 32 · PASS 8 · FAIL 24
-rules-v5-emulator.log                    exit=0 | RULES-V5 TOTAL 32 · PASS 32 · FAIL 0
+rules-compat-app.log                     exit=0 | RULES-COMPAT TOTAL 8 · PASS 8 · FAIL 0
+rules-v4-negative-control.log            exit=1 (기대대로) | RULES-V5 TOTAL 64 · PASS 16 · FAIL 48
+rules-v5r2-emulator.log                  exit=0 | RULES-V5 TOTAL 64 · PASS 64 · FAIL 0
 
 ########## 하네스별 원시 로그 (자르지 않음)
 ===== LOG: _snapshot-compare-3324.js.log (sha256=44cebe5c6461d7f1) =====
@@ -1371,80 +1375,159 @@ exit=0
 
 TX23 TOTAL 4 · PASS 4 · FAIL 0
 exit=0
-===== LOG: rules-v4-negative-control.log (sha256=dc5865b3d05ce7ba) =====
-음성 대조: 같은 32항목을 현재 운영 규칙 v4(firestore.rules · v0.31.5)로 실행 — 시험이 규칙 차이를 실제로 잡아내는지 확인 (FAIL 이 나와야 정상)
+===== LOG: rules-compat-app.log (sha256=71de13aefdadd395) =====
+실행 환경: firebase-tools 14.27.0 · cloud-firestore-emulator-v1.19.8.jar · openjdk version "21.0.12.1" 2026-08-18 · node v22.22.0 · @firebase/rules-unit-testing 4.0.1 · firebase 11.10.0
+규칙 SHA-256 631679c22c6408553b7c61d055f77060aa7594748e113dd06dd1d64658387f98 · 하네스 SHA-256 d1e50d2f0b72a074e4af799c15b81e2b9fdc1d43c9eb15987304e1efb4914a35 · 입력 _app-payloads.json SHA-256 885f9782baba86febbdd352b4f96f7835fa9f6440eee0d5fc9ace2faf14a2aff
+명령: node _capture-app-payloads.js (jsdom · 실제 앱 화면/함수) → npx firebase emulators:exec --only firestore --project vela-rules-compat "node _verify-rules-compat.mjs"
+[PASS] K1 출하 등록 — A 지금 앱(by_uid 없음) 거부 · B 작성자 uid 추가 시 허용  — 앱 필드: by,id,itemCode,pack_qty_actual,pallets,plot_no,qty,so_id,ts
+[PASS] K2 구매 입고 등록 — A 거부(by_uid 없음) · B 허용  — po_id=null price=null
+[PASS] K3 출하 비고 수정 — 지금 앱 그대로 허용 (정상 업무 무변)
+[PASS] K4 출하 취소 — A 지금 voidDoc 모양({ts,by,reason}) 거부 · B void{by_uid·사유·서버시각}+이력 1건+이력 시각 허용  — 앱 void 키: ts,by,reason
+[PASS] K5 출하 복원 — A 지금 unvoidDoc(void:null 만) 거부 · B 복원 이력 1건 추가 시 허용 (레거시 취소 문서에서도)
+[PASS] K6 구매 입고 수량 정정 — A 지금 앱(등록 기기 · 이력 {from,to,by,byId,ts,reason}) 거부 · 관리자라도 지금 이력 모양 거부 · B 관리자 계정 + {from,to,uid,reason} + 서버 시각 허용  — 앱 이력 키: from,to,by,byId,ts,reason
+[PASS] K7 사용자 역할 변경 — A 등록 기기(지금 앱의 관리자 화면) 거부 · B 관리자 계정 인스턴스로 저장 시 허용
+[PASS] K8 비밀번호 변경 — 지금 앱 그대로 허용 (등록 기기)
+RULES-COMPAT TOTAL 8 · PASS 8 · FAIL 0
+exit=0
+===== LOG: rules-v4-negative-control.log (sha256=b0316c243f61c64b) =====
+음성 대조: 같은 64항목을 운영 v4 규칙(firestore.rules v0.31.5)으로 — 허용 시험만 통과하고 거부 시험이 실패해야 정상
+실행 환경: firebase-tools 14.27.0 · cloud-firestore-emulator-v1.19.8.jar · openjdk version "21.0.12.1" 2026-08-18 · node v22.22.0 · @firebase/rules-unit-testing 4.0.1 · firebase 11.10.0
 명령: RULES_FILE=firestore.rules.v4 npx firebase emulators:exec --only firestore --project vela-rules-test "node _verify-rules-v5.mjs"
-[FAIL] S1 Rules 일반 목록 = 앱 _FS_COLLECTIONS − 보호 2 (순서 포함 1:1)  — rules 0 · app 61
-[FAIL] S2 보호·관리 컬렉션이 일반 목록에 없음 (OR 합산 우회 방지) · delete 허용 = 앱 MASTER_DEL_COLS 1:1 · 전체 허용 와일드카드 없음  — leak=
-[PASS] S3 익명: 일반 컬렉션 읽기·생성·수정 허용 (현장 흐름 유지 · 기술부채)
-[PASS] S4 익명: 원장 delete 거부 · 마스터 delete 허용(v4 동일)
-[PASS] S5 미인증: 전부 거부
-[FAIL] S6 목록 밖 컬렉션·하위 경로 거부
-[FAIL] S7 settings/server_rules = 관리자 포함 앱 쓰기 거부 · 읽기 허용 · 다른 settings 문서 쓰기 허용
-[FAIL] S8 approvers: 본인 문서만 읽기 · 쓰기 전부 거부 (익명·가입 계정·관리자 모두 자기 권한 상승 불가)
-[PASS] S9 (S-1b · P0-1 미해결 명시) 익명 출하 생성 = 형식 맞으면 허용 (서버는 수량 범위를 모름 — 문서에 미해결 표기)
-[PASS] S10 미인증 출하 생성 거부
-[FAIL] S11 출하 생성 거부: 작성자 uid 위조 · 수량 0 · 소수 · 수주/LOT 비어 있음 · 처음부터 qty_hist
-[FAIL] S12 출하 수정: 비고 허용 · 연결 필드(LOT·수주·품번·작성자) 변경 거부 · 미인증 거부
-[FAIL] S13 출하 수량: 익명 변경 거부(이력을 붙여도) · 가입만 한 계정 거부 · 이력 없이 관리자 변경 거부
-[PASS] S14 출하 수량: 관리자 + 이력 정확히 1건(from=이전 · to=새 · 본인 uid) + 이력 시각 qty_hist_at.0 = 서버 시각 → 허용
-[FAIL] S15 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일치 · 남의 uid · 클라이언트 시각 · 이력 시각 누락 · 이전 시각 변경 · 정수 아님
-[FAIL] S16 정정 5회까지 허용 · 6번째 거부
-[PASS] S17 출하 삭제 = 관리자도 거부 (void 만 · 익명 void 허용)
-[FAIL] S18 구매 입고 생성: 익명 허용(S-1b) · 미인증 거부 · 작성자 위조 거부 · 단위 비어 있음 거부 · 발주 연결인데 품목 키 없음 거부
-[FAIL] S19 구매 입고 수정: 발주 연결이면 단위·발주·품목 키 변경 거부 · 단가 수정 허용
-[FAIL] S20 구매 입고 수량: 관리자 + 이력 1건 = 허용(40.5 → 45.25) · 익명 거부
-[FAIL] S21 결재 상신: 관리자 허용 · 익명/역할 없는 계정 거부 · 결재선에 관리자 아닌 uid 거부 · 처음부터 승인 상태 거부 · 남 명의 상신 거부
-[FAIL] S22 차례 아닌 관리자 승인 거부 · 결재선 변경 거부 · 단계 건너뛰기 거부 · 결정 기록 없는 상태 변경 거부
-[PASS] S23 현재 단계 관리자 승인 = 결정 1건 + 다음 단계(같은 쓰기) 허용
-[FAIL] S24 결정 기록 위조 거부: 앞선 결정 수정 · 남 명의 결정 · 단계 번호 위조
-[FAIL] S25 마지막 단계 승인 → approved · 이후 모든 수정 거부 · 삭제 거부
-[FAIL] S26 반려 = 현재 단계만 · 상신자 회수 = 결정 전만
-[FAIL] S27 결재 읽기: 관리자만 (익명·역할 없는 계정 거부)
-[FAIL] S28 알림: 받는 사람만 읽기 · 남의 알림 거부 · 쿼리는 to==나 조건만 · 발신자 위조 거부
-[FAIL] S29 알림 수정·삭제 거부 (읽음은 prefs 쪽 · 이벤트 불변)
-[FAIL] S30 개인 템플릿: 소유자(관리자)만 읽기·수정 · 다른 관리자 거부 · 익명 생성 거부 · 소유자 바꾸기 거부
-[FAIL] S31 템플릿 목록 쿼리 = owner_uid==나 조건만 허용
-[FAIL] S32 보고 요청: 받는 사람만 답변 · 상태는 submitted/declined 만
-RULES-V5 TOTAL 32 · PASS 8 · FAIL 24
+[FAIL] S1 Rules 일반 목록 = 앱 _FS_COLLECTIONS − 별도 블록 5 (순서 포함 1:1)  — rules 0 · app 61
+[FAIL] S2 별도·관리 컬렉션이 일반 목록에 없음(OR 우회 방지) · delete 목록 = 앱 1:1 · 전체 허용 와일드카드 없음 · 일반 블록에 authed() 단독 허용 없음  — leak=
+[FAIL] E1 외부인(익명 로그인만): 일반 원장·사용자·설정·마감 읽기 전부 거부
+[FAIL] E2 외부인: 목록 쿼리 거부 (컬렉션 통째 내려받기 불가)
+[FAIL] E3 외부인: 일반 원장 생성·수정·삭제 거부 · 출하·입고 생성 거부
+[PASS] E4 외부인: 자기 UID 등록 요청 1건만 생성 가능 (이름·6자리 코드·서버 시각)
+[FAIL] E5 등록 요청 위조 거부: 남의 UID · 코드 형식 위반 · 허용 밖 필드(status 등) · 클라이언트 시각 · 수정·삭제
+[FAIL] E6 등록 요청 후에도 외부인 데이터 접근 0 (요청 = 권한 아님) · 남의 요청·요청 목록 조회 거부
+[FAIL] E7 권한 상승 거부: 외부인이 자기 기기 승인 · 관리자 목록 자기 추가 · 등록 기기가 자기 기기 문서 변경
+[FAIL] E8 관리자: 요청 목록 조회 · 요청 있는 UID 승인 허용 · 요청 없는 UID 승인 거부 · 승인자 위조 거부
+[PASS] E9 승인된 기기 = 즉시 정상 사용 (읽기·쓰기)
+[FAIL] E10 관리자 해제(revoked) → 그 기기 즉시 접근 0 · 재승인 → 복구
+[FAIL] E11 가입만 한 계정(관리자 목록·기기 승인 없음) = 데이터 접근 0
+[PASS] E12 관리자 계정(보조 인스턴스 UID · 기기 문서 없음)도 일반 데이터 접근 가능 (관리 기능이 E1 에 막히지 않음)
+[FAIL] E13 미인증: 전부 거부 · 목록 밖 컬렉션·하위 경로 거부
+[PASS] E14 등록 기기: 일반 원장 v4 수준 사용 (읽기·생성·수정 · 원장 delete 거부 · 마스터 delete 허용)
+[PASS] U1 등록 기기: 사용자 읽기 · 비밀번호·마지막 로그인·기기 토큰 변경 허용
+[FAIL] U2 등록 기기: 역할·권한·활성·이름 변경 거부 · 신규 사용자 생성 거부 (앱 화면 우회 권한 상승 차단)
+[PASS] U3 관리자 계정: 사용자 생성·역할 변경 허용 · 삭제 거부
+[FAIL] U4 settings/server_rules = 관리자 포함 앱 쓰기 거부 (Gate 표식 위조 불가) · 일반 settings 문서는 등록 기기 쓰기 가능
+[FAIL] U5 approvers: 본인 문서만 읽기 · 쓰기 전부 거부
+[FAIL] C1 마감·계산서: 등록 기기 읽기 허용 · 쓰기 거부 / 관리자 계정 쓰기 허용 · 삭제 거부
+[FAIL] C2 마감된 월 출하: 취소·수량 정정·날짜 변경 거부 (관리자 계정 포함) · 비고 수정은 허용
+[FAIL] C3 KST 월 경계: UTC 8/31 16:30 = KST 9/1 → 9월(마감)로 판정 · 취소 거부
+[PASS] C4 마감 취소된 월(8월 · closings.void 있음)은 다시 변경 가능
+[FAIL] C5 열린 월 출하의 날짜를 마감된 월로 옮기기 거부 (바꾼 뒤 월도 검사)
+[FAIL] C6 마감된 월 구매 입고: 취소·수량 정정·단가 변경 거부
+[PASS] H1 등록 기기: 정상 출하 생성 허용 (수주·LOT 실재 · 품번 = 수주 품번)
+[FAIL] H2 출하 생성 거부: 품번 없음 · 수주 없음 · LOT 없음 · 품번 ≠ 수주 품번
+[FAIL] H3 출하 생성 거부: 작성자 uid 위조 · 수량 0 · 소수 · 시각 없음 · 처음부터 수량 이력 · 처음부터 취소 상태/취소 이력(위조된 채 생성)
+[FAIL] H4 출하 수정: 비고 허용 · 연결 필드(LOT·수주·품번·작성자) 변경 거부
+[PASS] H5 출하 삭제 = 관리자도 거부 (void 만)
+[FAIL] Q1 수량 변경: 등록 기기 거부(이력을 붙여도) · 가입만 한 계정 거부 · 이력 없이 관리자 변경 거부
+[PASS] Q2 관리자 + 이력 정확히 1건(from=이전 · to=새 · 본인 uid) + 이력 시각 = 서버 시각 → 허용
+[FAIL] Q3 수량 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일치 · 남의 uid · 클라이언트 시각 · 시각 누락 · 이전 시각 변경 · 정수 아님
+[FAIL] Q4 정정 5회까지 허용 · 6번째 거부
+[FAIL] Q5 구매 입고 수량: 관리자 + 이력 1건 허용(40.5 → 45.25) · 등록 기기 거부
+[FAIL] Q6 구매 입고 생성: 등록 기기 허용 · 작성자 위조 · 단위 없음 · 없는 발주 연결 · 발주 연결인데 품목 키 없음 거부
+[FAIL] Q7 구매 입고 수정: 발주 연결이면 단위·발주·품목 키 변경 거부 · 단가 수정 허용
+[PASS] V1 등록 기기 취소 = 이력 1건(cancel · 본인 uid · 사유) + 이력 시각 서버 + void{by_uid·사유·서버 시각} 동시 쓰기 → 허용
+[PASS] V2 저장 모양: void_hist 1건 · void_hist_at.0 서버 시각 · void.by_uid = 실행 기기 · 최초 작성자 by_uid 그대로
+[FAIL] V3 이미 취소된 출하 다시 취소 거부 · 상태 없이 이력만 추가 거부
+[PASS] V4 복원 = 다른 기기도 가능 · 이력 2건 · void = null
+[FAIL] V5 취소 위조 거부: 사유 없음 · 1자 · 실행자 uid 위조 · 클라이언트 시각 · void 사유 불일치 · void.by_uid 위조 · 이력 없이 void 만
+[FAIL] V6 이력 변조 거부: 앞선 항목 수정 · 항목 삭제 · 2건 한꺼번에 · 이전 시각 변경 · 이력 시각 키 삭제
+[PASS] V7 레거시 취소(이력 없는 옛 void) → 첫 이력으로 복원 허용 (옛 void 내용은 서버 미검증 기록)
+[FAIL] V8 경합: 같은 상태를 본 두 기기 동시 취소 → 먼저 저장한 1건만 성공 · 늦은 쪽(낡은 이력 기준) 거부
+[FAIL] V9 취소·복원 이력 보관 상한 20건 · 21번째 거부 (문서 크기 보호 — 이후 처리는 관리자 절차)
+[PASS] V10 구매 입고 취소·복원도 같은 규칙 (허용 + 이력)
+[FAIL] V11 외부인(미등록 익명 · E8~E10 에서 승인된 OUT 과 다른 UID)은 취소·복원 불가
+[FAIL] A1 결재 상신: 관리자 허용 · 등록 기기·가입만 한 계정 거부 · 남 명의 거부 · 처음부터 승인 상태 거부
+[FAIL] A2 결재 대상·결재선 검사: 없는 문서 · 잘못된 종류 · 개정번호 0 · 결재선에 관리자 아닌 uid · 상신자 자기 결재 · 같은 사람 중복 → 거부
+[FAIL] A3 차례 아닌 관리자 승인 거부 · 결재선 변경 거부 · 단계 건너뛰기 거부 · 결정 기록 없는 상태 변경 거부
+[PASS] A4 현재 단계 관리자 승인 = 결정 1건 + 다음 단계(같은 쓰기) 허용
+[FAIL] A5 결정 기록 위조 거부: 앞선 결정 수정 · 남 명의 · 단계 번호 위조
+[FAIL] A6 마지막 단계 승인 → approved · 이후 수정·회수·삭제 거부
+[FAIL] A7 반려 = 현재 단계만 · 상신자 회수 = 결정 전만
+[FAIL] A8 결재 읽기: 관리자만 (등록 기기·외부인·가입 계정 거부)
+[FAIL] N1 알림: 받는 사람만 읽기 · 남의 알림 거부 · 쿼리는 to==나 조건만 · 발신자 위조 거부 · 수정·삭제 거부
+[FAIL] N2 보고 요청 생성: 정상 허용 · 자기 자신에게 · 허용 밖 필드 · 처음부터 제출 상태 거부
+[FAIL] N3 보고 요청 답변: 받는 사람만 · 없는 보고서로 제출 거부 · 상태 approved 거부 · 실제 보고서로 제출 허용
+[FAIL] N4 보고 요청 종료 상태(submitted) 재변경 거부 (declined 로 바꾸기 · 다른 보고서로 재제출)
+[FAIL] N5 개인 템플릿(owner_uid): 소유 관리자만 읽기·수정 · 다른 관리자·등록 기기 거부 · 익명 생성 거부 · 소유자 바꾸기 거부
+[FAIL] N6 템플릿 목록 쿼리 = owner_uid==나 조건만 허용
+RULES-V5 TOTAL 64 · PASS 16 · FAIL 48
 exit=1 (기대대로)
-===== LOG: rules-v5-emulator.log (sha256=3987f15c1a5407bf) =====
-실행 환경: 14.27.0 firebase-tools · cloud-firestore-emulator-v1.19.8.jar · openjdk version "21.0.12.1" 2026-08-18 · node v22.22.0 · @firebase/rules-unit-testing 4.0.1 · firebase 11.10.0
-규칙 파일 SHA-256: aeae6ea77398d96474c730b6c6461c8b3c0d41f8701b6f0071a1840c120c5ef7 · 하네스 SHA-256: ebff4fa63f084473e78dd4dd42cad45fa157d6ec72cd4c0af5b12b3f96c87a70
+===== LOG: rules-v5r2-emulator.log (sha256=b85fc5389121cc9c) =====
+실행 환경: firebase-tools 14.27.0 · cloud-firestore-emulator-v1.19.8.jar · openjdk version "21.0.12.1" 2026-08-18 · node v22.22.0 · @firebase/rules-unit-testing 4.0.1 · firebase 11.10.0
+규칙 SHA-256 631679c22c6408553b7c61d055f77060aa7594748e113dd06dd1d64658387f98 · 하네스 SHA-256 7300cdac35ff808080edfe682a20e600ca0cf6ec4d98dac77868eccb563c668f
 명령: npx firebase emulators:exec --only firestore --project vela-rules-test "node _verify-rules-v5.mjs"
-[PASS] S1 Rules 일반 목록 = 앱 _FS_COLLECTIONS − 보호 2 (순서 포함 1:1)  — rules 59 · app 61
-[PASS] S2 보호·관리 컬렉션이 일반 목록에 없음 (OR 합산 우회 방지) · delete 허용 = 앱 MASTER_DEL_COLS 1:1 · 전체 허용 와일드카드 없음  — leak=
-[PASS] S3 익명: 일반 컬렉션 읽기·생성·수정 허용 (현장 흐름 유지 · 기술부채)
-[PASS] S4 익명: 원장 delete 거부 · 마스터 delete 허용(v4 동일)
-[PASS] S5 미인증: 전부 거부
-[PASS] S6 목록 밖 컬렉션·하위 경로 거부
-[PASS] S7 settings/server_rules = 관리자 포함 앱 쓰기 거부 · 읽기 허용 · 다른 settings 문서 쓰기 허용
-[PASS] S8 approvers: 본인 문서만 읽기 · 쓰기 전부 거부 (익명·가입 계정·관리자 모두 자기 권한 상승 불가)
-[PASS] S9 (S-1b · P0-1 미해결 명시) 익명 출하 생성 = 형식 맞으면 허용 (서버는 수량 범위를 모름 — 문서에 미해결 표기)
-[PASS] S10 미인증 출하 생성 거부
-[PASS] S11 출하 생성 거부: 작성자 uid 위조 · 수량 0 · 소수 · 수주/LOT 비어 있음 · 처음부터 qty_hist
-[PASS] S12 출하 수정: 비고 허용 · 연결 필드(LOT·수주·품번·작성자) 변경 거부 · 미인증 거부
-[PASS] S13 출하 수량: 익명 변경 거부(이력을 붙여도) · 가입만 한 계정 거부 · 이력 없이 관리자 변경 거부
-[PASS] S14 출하 수량: 관리자 + 이력 정확히 1건(from=이전 · to=새 · 본인 uid) + 이력 시각 qty_hist_at.0 = 서버 시각 → 허용
-[PASS] S15 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일치 · 남의 uid · 클라이언트 시각 · 이력 시각 누락 · 이전 시각 변경 · 정수 아님
-[PASS] S16 정정 5회까지 허용 · 6번째 거부
-[PASS] S17 출하 삭제 = 관리자도 거부 (void 만 · 익명 void 허용)
-[PASS] S18 구매 입고 생성: 익명 허용(S-1b) · 미인증 거부 · 작성자 위조 거부 · 단위 비어 있음 거부 · 발주 연결인데 품목 키 없음 거부
-[PASS] S19 구매 입고 수정: 발주 연결이면 단위·발주·품목 키 변경 거부 · 단가 수정 허용
-[PASS] S20 구매 입고 수량: 관리자 + 이력 1건 = 허용(40.5 → 45.25) · 익명 거부
-[PASS] S21 결재 상신: 관리자 허용 · 익명/역할 없는 계정 거부 · 결재선에 관리자 아닌 uid 거부 · 처음부터 승인 상태 거부 · 남 명의 상신 거부
-[PASS] S22 차례 아닌 관리자 승인 거부 · 결재선 변경 거부 · 단계 건너뛰기 거부 · 결정 기록 없는 상태 변경 거부
-[PASS] S23 현재 단계 관리자 승인 = 결정 1건 + 다음 단계(같은 쓰기) 허용
-[PASS] S24 결정 기록 위조 거부: 앞선 결정 수정 · 남 명의 결정 · 단계 번호 위조
-[PASS] S25 마지막 단계 승인 → approved · 이후 모든 수정 거부 · 삭제 거부
-[PASS] S26 반려 = 현재 단계만 · 상신자 회수 = 결정 전만
-[PASS] S27 결재 읽기: 관리자만 (익명·역할 없는 계정 거부)
-[PASS] S28 알림: 받는 사람만 읽기 · 남의 알림 거부 · 쿼리는 to==나 조건만 · 발신자 위조 거부
-[PASS] S29 알림 수정·삭제 거부 (읽음은 prefs 쪽 · 이벤트 불변)
-[PASS] S30 개인 템플릿: 소유자(관리자)만 읽기·수정 · 다른 관리자 거부 · 익명 생성 거부 · 소유자 바꾸기 거부
-[PASS] S31 템플릿 목록 쿼리 = owner_uid==나 조건만 허용
-[PASS] S32 보고 요청: 받는 사람만 답변 · 상태는 submitted/declined 만
-RULES-V5 TOTAL 32 · PASS 32 · FAIL 0
+[PASS] S1 Rules 일반 목록 = 앱 _FS_COLLECTIONS − 별도 블록 5 (순서 포함 1:1)  — rules 56 · app 61
+[PASS] S2 별도·관리 컬렉션이 일반 목록에 없음(OR 우회 방지) · delete 목록 = 앱 1:1 · 전체 허용 와일드카드 없음 · 일반 블록에 authed() 단독 허용 없음  — leak=
+[PASS] E1 외부인(익명 로그인만): 일반 원장·사용자·설정·마감 읽기 전부 거부
+[PASS] E2 외부인: 목록 쿼리 거부 (컬렉션 통째 내려받기 불가)
+[PASS] E3 외부인: 일반 원장 생성·수정·삭제 거부 · 출하·입고 생성 거부
+[PASS] E4 외부인: 자기 UID 등록 요청 1건만 생성 가능 (이름·6자리 코드·서버 시각)
+[PASS] E5 등록 요청 위조 거부: 남의 UID · 코드 형식 위반 · 허용 밖 필드(status 등) · 클라이언트 시각 · 수정·삭제
+[PASS] E6 등록 요청 후에도 외부인 데이터 접근 0 (요청 = 권한 아님) · 남의 요청·요청 목록 조회 거부
+[PASS] E7 권한 상승 거부: 외부인이 자기 기기 승인 · 관리자 목록 자기 추가 · 등록 기기가 자기 기기 문서 변경
+[PASS] E8 관리자: 요청 목록 조회 · 요청 있는 UID 승인 허용 · 요청 없는 UID 승인 거부 · 승인자 위조 거부
+[PASS] E9 승인된 기기 = 즉시 정상 사용 (읽기·쓰기)
+[PASS] E10 관리자 해제(revoked) → 그 기기 즉시 접근 0 · 재승인 → 복구
+[PASS] E11 가입만 한 계정(관리자 목록·기기 승인 없음) = 데이터 접근 0
+[PASS] E12 관리자 계정(보조 인스턴스 UID · 기기 문서 없음)도 일반 데이터 접근 가능 (관리 기능이 E1 에 막히지 않음)
+[PASS] E13 미인증: 전부 거부 · 목록 밖 컬렉션·하위 경로 거부
+[PASS] E14 등록 기기: 일반 원장 v4 수준 사용 (읽기·생성·수정 · 원장 delete 거부 · 마스터 delete 허용)
+[PASS] U1 등록 기기: 사용자 읽기 · 비밀번호·마지막 로그인·기기 토큰 변경 허용
+[PASS] U2 등록 기기: 역할·권한·활성·이름 변경 거부 · 신규 사용자 생성 거부 (앱 화면 우회 권한 상승 차단)
+[PASS] U3 관리자 계정: 사용자 생성·역할 변경 허용 · 삭제 거부
+[PASS] U4 settings/server_rules = 관리자 포함 앱 쓰기 거부 (Gate 표식 위조 불가) · 일반 settings 문서는 등록 기기 쓰기 가능
+[PASS] U5 approvers: 본인 문서만 읽기 · 쓰기 전부 거부
+[PASS] C1 마감·계산서: 등록 기기 읽기 허용 · 쓰기 거부 / 관리자 계정 쓰기 허용 · 삭제 거부
+[PASS] C2 마감된 월 출하: 취소·수량 정정·날짜 변경 거부 (관리자 계정 포함) · 비고 수정은 허용
+[PASS] C3 KST 월 경계: UTC 8/31 16:30 = KST 9/1 → 9월(마감)로 판정 · 취소 거부
+[PASS] C4 마감 취소된 월(8월 · closings.void 있음)은 다시 변경 가능
+[PASS] C5 열린 월 출하의 날짜를 마감된 월로 옮기기 거부 (바꾼 뒤 월도 검사)
+[PASS] C6 마감된 월 구매 입고: 취소·수량 정정·단가 변경 거부
+[PASS] H1 등록 기기: 정상 출하 생성 허용 (수주·LOT 실재 · 품번 = 수주 품번)
+[PASS] H2 출하 생성 거부: 품번 없음 · 수주 없음 · LOT 없음 · 품번 ≠ 수주 품번
+[PASS] H3 출하 생성 거부: 작성자 uid 위조 · 수량 0 · 소수 · 시각 없음 · 처음부터 수량 이력 · 처음부터 취소 상태/취소 이력(위조된 채 생성)
+[PASS] H4 출하 수정: 비고 허용 · 연결 필드(LOT·수주·품번·작성자) 변경 거부
+[PASS] H5 출하 삭제 = 관리자도 거부 (void 만)
+[PASS] Q1 수량 변경: 등록 기기 거부(이력을 붙여도) · 가입만 한 계정 거부 · 이력 없이 관리자 변경 거부
+[PASS] Q2 관리자 + 이력 정확히 1건(from=이전 · to=새 · 본인 uid) + 이력 시각 = 서버 시각 → 허용
+[PASS] Q3 수량 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일치 · 남의 uid · 클라이언트 시각 · 시각 누락 · 이전 시각 변경 · 정수 아님
+[PASS] Q4 정정 5회까지 허용 · 6번째 거부
+[PASS] Q5 구매 입고 수량: 관리자 + 이력 1건 허용(40.5 → 45.25) · 등록 기기 거부
+[PASS] Q6 구매 입고 생성: 등록 기기 허용 · 작성자 위조 · 단위 없음 · 없는 발주 연결 · 발주 연결인데 품목 키 없음 거부
+[PASS] Q7 구매 입고 수정: 발주 연결이면 단위·발주·품목 키 변경 거부 · 단가 수정 허용
+[PASS] V1 등록 기기 취소 = 이력 1건(cancel · 본인 uid · 사유) + 이력 시각 서버 + void{by_uid·사유·서버 시각} 동시 쓰기 → 허용
+[PASS] V2 저장 모양: void_hist 1건 · void_hist_at.0 서버 시각 · void.by_uid = 실행 기기 · 최초 작성자 by_uid 그대로
+[PASS] V3 이미 취소된 출하 다시 취소 거부 · 상태 없이 이력만 추가 거부
+[PASS] V4 복원 = 다른 기기도 가능 · 이력 2건 · void = null
+[PASS] V5 취소 위조 거부: 사유 없음 · 1자 · 실행자 uid 위조 · 클라이언트 시각 · void 사유 불일치 · void.by_uid 위조 · 이력 없이 void 만
+[PASS] V6 이력 변조 거부: 앞선 항목 수정 · 항목 삭제 · 2건 한꺼번에 · 이전 시각 변경 · 이력 시각 키 삭제
+[PASS] V7 레거시 취소(이력 없는 옛 void) → 첫 이력으로 복원 허용 (옛 void 내용은 서버 미검증 기록)
+[PASS] V8 경합: 같은 상태를 본 두 기기 동시 취소 → 먼저 저장한 1건만 성공 · 늦은 쪽(낡은 이력 기준) 거부
+[PASS] V9 취소·복원 이력 보관 상한 20건 · 21번째 거부 (문서 크기 보호 — 이후 처리는 관리자 절차)
+[PASS] V10 구매 입고 취소·복원도 같은 규칙 (허용 + 이력)
+[PASS] V11 외부인(미등록 익명 · E8~E10 에서 승인된 OUT 과 다른 UID)은 취소·복원 불가
+[PASS] A1 결재 상신: 관리자 허용 · 등록 기기·가입만 한 계정 거부 · 남 명의 거부 · 처음부터 승인 상태 거부
+[PASS] A2 결재 대상·결재선 검사: 없는 문서 · 잘못된 종류 · 개정번호 0 · 결재선에 관리자 아닌 uid · 상신자 자기 결재 · 같은 사람 중복 → 거부
+[PASS] A3 차례 아닌 관리자 승인 거부 · 결재선 변경 거부 · 단계 건너뛰기 거부 · 결정 기록 없는 상태 변경 거부
+[PASS] A4 현재 단계 관리자 승인 = 결정 1건 + 다음 단계(같은 쓰기) 허용
+[PASS] A5 결정 기록 위조 거부: 앞선 결정 수정 · 남 명의 · 단계 번호 위조
+[PASS] A6 마지막 단계 승인 → approved · 이후 수정·회수·삭제 거부
+[PASS] A7 반려 = 현재 단계만 · 상신자 회수 = 결정 전만
+[PASS] A8 결재 읽기: 관리자만 (등록 기기·외부인·가입 계정 거부)
+[PASS] N1 알림: 받는 사람만 읽기 · 남의 알림 거부 · 쿼리는 to==나 조건만 · 발신자 위조 거부 · 수정·삭제 거부
+[PASS] N2 보고 요청 생성: 정상 허용 · 자기 자신에게 · 허용 밖 필드 · 처음부터 제출 상태 거부
+[PASS] N3 보고 요청 답변: 받는 사람만 · 없는 보고서로 제출 거부 · 상태 approved 거부 · 실제 보고서로 제출 허용
+[PASS] N4 보고 요청 종료 상태(submitted) 재변경 거부 (declined 로 바꾸기 · 다른 보고서로 재제출)
+[PASS] N5 개인 템플릿(owner_uid): 소유 관리자만 읽기·수정 · 다른 관리자·등록 기기 거부 · 익명 생성 거부 · 소유자 바꾸기 거부
+[PASS] N6 템플릿 목록 쿼리 = owner_uid==나 조건만 허용
+RULES-V5 TOTAL 64 · PASS 64 · FAIL 0
 exit=0
 
 ===== FILE: _verify-2tab-local.js =====
@@ -5744,34 +5827,33 @@ console.log(`\nRESULT: ${diff===0?'IDENTICAL — 원장·집계 무변 증명':'
 process.exit(diff === 0 ? 0 : 1);   // ★ v0.38.20 — 불일치 = 종료코드 1
 
 ===== FILE: _verify-rules-v5.mjs =====
-// ★ B′ A-1 — Firestore Rules v5 초안 검증 (GPT 판정 2026-10-10 · 사용자 결정 S-1b: 계정 = 관리자만 · P0-1 는 형식 검사만(미해결 명시) · P0-2 결재 위조 · 관리 목록 · 템플릿 소유권)
-// 실행: Firebase Emulator 필요 (실서버·실회사 데이터 접속 0)
-//   npm i firebase-tools@14 @firebase/rules-unit-testing@4.0.1 firebase@11
-//   npx firebase emulators:exec --only firestore --project vela-rules-test "node _verify-rules-v5.mjs"
-// 에뮬레이터가 없으면 정적 검사(S1·S2)만 실행하고 종료 코드 2 (= 미완 · PASS 아님)
+// ★ B′ A-1 — Firestore Rules v5 초안 r2 검증 (GPT 결정 2026-10-10)
+//   E1 등록 기기만 접근(외부인 차단) · 권한 상승 방지 · 마감 월 서버 보호 · 취소/복원 이력(GPT 조건 7) · 수량 정정 · 결재/보고 요청 · 템플릿 소유권
+// 실행: npx firebase emulators:exec --only firestore --project vela-rules-test "node _verify-rules-v5.mjs"
+//   (npm i firebase-tools@14 @firebase/rules-unit-testing@4.0.1 firebase@11 · 실서버·실회사 데이터 접속 0)
+// 음성 대조: RULES_FILE=firestore.rules (운영 v4) 로 같은 시험 → 대량 FAIL 이 나와야 정상
+// 에뮬레이터가 없으면 정적 검사만 하고 종료 코드 2 (= 미완 · PASS 아님)
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const RULES = fs.readFileSync(path.join(DIR, process.env.RULES_FILE || 'firestore.rules.v5-draft'), 'utf8');   // RULES_FILE=firestore.rules → v4 음성 대조
+const RULES = fs.readFileSync(path.join(DIR, process.env.RULES_FILE || 'firestore.rules.v5-draft'), 'utf8');
 const APP = fs.readFileSync(path.join(DIR, process.env.VELA_FILE || 'vela-mes-prototype.html'), 'utf8');
 const R = []; const P = (n, ok, note) => { R.push({ n, ok }); console.log(`[${ok ? 'PASS' : 'FAIL'}] ${n}${note ? '  — ' + note : ''}`); };
 
 // ── 정적 검사 ──
 const appCols = [...APP.match(/const _FS_COLLECTIONS = \[([\s\S]*?)\];/)[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
 const ruleCols = [...(RULES.match(/function generalCols\(\) \{\s*return \[([\s\S]*?)\];/) || [, ''])[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
-const GUARDED = ['shipments', 'purchase_receipts'];
-const ADMIN = ['approvals', 'events', 'report_requests', 'approvers', 'report_templates'];
-const expect = appCols.filter(c => !GUARDED.includes(c));
-P('S1 Rules 일반 목록 = 앱 _FS_COLLECTIONS − 보호 2 (순서 포함 1:1)', JSON.stringify(ruleCols) === JSON.stringify(expect), `rules ${ruleCols.length} · app ${appCols.length}`);
-const leak = ruleCols.filter(c => GUARDED.includes(c) || ADMIN.includes(c));
+const SEPARATE = ['shipments', 'purchase_receipts', 'users', 'closings', 'acct_invoices'];
+const ADMIN = ['approvals', 'events', 'report_requests', 'approvers', 'report_templates', 'devices', 'device_requests'];
+P('S1 Rules 일반 목록 = 앱 _FS_COLLECTIONS − 별도 블록 5 (순서 포함 1:1)', JSON.stringify(ruleCols) === JSON.stringify(appCols.filter(c => !SEPARATE.includes(c))), `rules ${ruleCols.length} · app ${appCols.length}`);
+const leak = ruleCols.filter(c => SEPARATE.includes(c) || ADMIN.includes(c));
 const appMaster = [...APP.match(/const MASTER_DEL_COLS = \[([^\]]*)\]/)[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
 const ruleMaster = [...(RULES.match(/function masterDelCols\(\) \{\s*return \[([\s\S]*?)\];/) || [, ''])[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
-P('S2 보호·관리 컬렉션이 일반 목록에 없음 (OR 합산 우회 방지) · delete 허용 = 앱 MASTER_DEL_COLS 1:1 · 전체 허용 와일드카드 없음',
-  leak.length === 0 && JSON.stringify(appMaster) === JSON.stringify(ruleMaster) && !/match \/\{document=\*\*\}\s*\{\s*allow read, create, update: if request\.auth != null/.test(RULES),
-  `leak=${leak.join(',')}`);
+P('S2 별도·관리 컬렉션이 일반 목록에 없음(OR 우회 방지) · delete 목록 = 앱 1:1 · 전체 허용 와일드카드 없음 · 일반 블록에 authed() 단독 허용 없음',
+  leak.length === 0 && JSON.stringify(appMaster) === JSON.stringify(ruleMaster) && !/allow read, create, update: if request\.auth != null/.test(RULES) && !/allow (read|create, update):\s+if authed\(\) && col in generalCols/.test(RULES), `leak=${leak.join(',')}`);
 
-const EXPECTED = 32;
+const EXPECTED = 64;
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
   console.log(`\nRULES-V5 정적 ${R.filter(x => x.ok).length}/${R.length} · 에뮬레이터 없음 → 동적 ${EXPECTED - 2}항목 미실행 (PASS 아님)`);
   process.exit(R.some(x => !x.ok) ? 1 : 2);
@@ -5779,52 +5861,97 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
 
 // ── 동적 검사 (에뮬레이터) ──
 const { initializeTestEnvironment, assertSucceeds, assertFails } = await import('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp, Timestamp } = await import('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp, Timestamp, deleteField } = await import('firebase/firestore');
 const [host, port] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
 const env = await initializeTestEnvironment({ projectId: 'vela-rules-test', firestore: { rules: RULES, host, port: +port } });
-const ANON = 'anon-1', ANON2 = 'anon-2', MGR_A = 'mgr-a', MGR_B = 'mgr-b', MGR_C = 'mgr-c', ROGUE = 'rogue-1';
-const ctx = u => u === ANON ? env.authenticatedContext(ANON, { firebase: { sign_in_provider: 'anonymous' } }).firestore()
-                            : env.authenticatedContext(u, { firebase: { sign_in_provider: 'password' } }).firestore();
-const db = { anon: ctx(ANON), anon2: ctx(ANON2), a: ctx(MGR_A), b: ctx(MGR_B), c: ctx(MGR_C), rogue: ctx(ROGUE), none: env.unauthenticatedContext().firestore() };
+// 등장인물: DEV·DEV2 = 관리자가 승인한 기기(익명) · OUT = 외부인(익명 로그인만) · MGR_A/B/C = 관리자 계정 · ROGUE = 가입만 한 계정
+const DEV = 'dev-1', DEV2 = 'dev-2', OUT = 'out-1', OUT2 = 'out-2', MGR_A = 'mgr-a', MGR_B = 'mgr-b', MGR_C = 'mgr-c', ROGUE = 'rogue-1';
+const anonCtx = u => env.authenticatedContext(u, { firebase: { sign_in_provider: 'anonymous' } }).firestore();
+const pwCtx = u => env.authenticatedContext(u, { firebase: { sign_in_provider: 'password' } }).firestore();
+const db = { dev: anonCtx(DEV), dev2: anonCtx(DEV2), out: anonCtx(OUT), out2: anonCtx(OUT2), a: pwCtx(MGR_A), b: pwCtx(MGR_B), c: pwCtx(MGR_C), rogue: pwCtx(ROGUE), none: env.unauthenticatedContext().firestore() };
 const ok = async p => { try { await assertSucceeds(p); return true; } catch (e) { return false; } };
 const no = async p => { try { await assertFails(p); return true; } catch (e) { return false; } };
+const raw = async (col, id) => { let v; await env.withSecurityRulesDisabled(async c => { v = (await getDoc(doc(c.firestore(), col, id))).data(); }); return v; };
+const NOW = Date.now();
+const CLOSED_TS = Date.parse('2026-09-15T03:00:00Z');            // KST 2026-09 (마감된 월)
+const EDGE_TS = Date.parse('2026-08-31T16:30:00Z');              // UTC 8월 · KST 2026-09-01 01:30 → 9월(마감)로 판정돼야 함
 async function seed() {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async c => {
     const f = c.firestore();
     for (const u of [MGR_A, MGR_B, MGR_C]) await setDoc(doc(f, 'approvers', u), { userId: 'U-' + u });
-    await setDoc(doc(f, 'orders', 'SO-1'), { qty: 100 });
+    for (const u of [DEV, DEV2]) { await setDoc(doc(f, 'device_requests', u), { name: u, code: '123456', createdAt: Timestamp.now() }); await setDoc(doc(f, 'devices', u), { status: 'approved', name: u, approvedBy: MGR_A, approvedAt: Timestamp.now() }); }
+    await setDoc(doc(f, 'orders', 'SO-1'), { qty: 100, itemCode: 'IT-1' });
+    await setDoc(doc(f, 'production_lots', 'PL-1'), { itemCode: 'IT-1' });
+    await setDoc(doc(f, 'purchase_orders', 'PO-1'), { items: [] });
+    await setDoc(doc(f, 'reports', 'RP-1'), { t: 1 });
     await setDoc(doc(f, 'items', 'IT-1'), { name: 'x' });
+    await setDoc(doc(f, 'users', 'U-1'), { name: '홍길동', role: 'operator', perms: {}, active: true, pin: 'sha256:x' });
     await setDoc(doc(f, 'settings', 'server_rules'), { version: 5 });
-    await setDoc(doc(f, 'shipments', 'SH-1'), { so_id: 'SO-1', plot_no: 'PL-1', itemCode: 'IT-1', qty: 40, by_uid: ANON });
-    await setDoc(doc(f, 'purchase_receipts', 'PR-1'), { name: '절삭유', unit: 'L', qty: 40.5, po_id: 'PO-1', po_item_key: '절삭유|20L', by_uid: ANON });
+    await setDoc(doc(f, 'closings', 'CL-2026-09-sales'), { type: 'sales', month: '2026-09', void: null });
+    await setDoc(doc(f, 'closings', 'CL-2026-09-purchase'), { type: 'purchase', month: '2026-09', void: null });
+    await setDoc(doc(f, 'closings', 'CL-2026-08-sales'), { type: 'sales', month: '2026-08', void: { reason: '마감 취소' } });
+    await setDoc(doc(f, 'shipments', 'SH-1'), { so_id: 'SO-1', plot_no: 'PL-1', itemCode: 'IT-1', qty: 40, by_uid: DEV, ts: NOW });
+    await setDoc(doc(f, 'shipments', 'SH-OLD'), { so_id: 'SO-1', plot_no: 'PL-1', itemCode: 'IT-1', qty: 10, by_uid: DEV, ts: CLOSED_TS });
+    await setDoc(doc(f, 'shipments', 'SH-EDGE'), { so_id: 'SO-1', plot_no: 'PL-1', itemCode: 'IT-1', qty: 10, by_uid: DEV, ts: EDGE_TS });
+    await setDoc(doc(f, 'shipments', 'SH-AUG'), { so_id: 'SO-1', plot_no: 'PL-1', itemCode: 'IT-1', qty: 10, by_uid: DEV, ts: Date.parse('2026-08-10T03:00:00Z') });
+    await setDoc(doc(f, 'shipments', 'SH-LEG'), { so_id: 'SO-1', plot_no: 'PL-1', itemCode: 'IT-1', qty: 5, by_uid: DEV, ts: NOW, void: { ts: 1, by: '홍길동', reason: '오입력' } });   // 레거시 취소(서버 미검증)
+    await setDoc(doc(f, 'purchase_receipts', 'PR-1'), { name: '절삭유', unit: 'L', qty: 40.5, po_id: 'PO-1', po_item_key: '절삭유|20L', by_uid: DEV, ts: NOW });
+    await setDoc(doc(f, 'purchase_receipts', 'PR-OLD'), { name: '장갑', unit: 'box', qty: 3, by_uid: DEV, ts: CLOSED_TS });
     await setDoc(doc(f, 'events', 'EV-1'), { from: MGR_A, to: MGR_B, ts: Timestamp.now() });
     await setDoc(doc(f, 'report_templates', 'RT-1'), { owner_uid: MGR_A, name: '내 템플릿' });
   });
 }
 await seed();
-const raw = async (col, id) => { let v; await env.withSecurityRulesDisabled(async c => { v = (await getDoc(doc(c.firestore(), col, id))).data(); }); return v; };   // withSecurityRulesDisabled 는 반환값을 돌려주지 않음
-const hist = (from, to, u) => ({ from, to, uid: u });   // 시각은 배열 밖 qty_hist_at.{n} (serverTimestamp 는 배열 안 불가 — 에뮬레이터 실측)
-const qfix = (prevHist, from, to, u, extra) => ({ qty: to, qty_hist: [...prevHist, hist(from, to, u)], [`qty_hist_at.${prevHist.length}`]: serverTimestamp(), ...(extra || {}) });
+const hist = (from, to, u) => ({ from, to, uid: u });
+const qfix = (prev, from, to, u, extra) => ({ qty: to, qty_hist: [...prev, hist(from, to, u)], [`qty_hist_at.${prev.length}`]: serverTimestamp(), ...(extra || {}) });
+const vstep = (prev, action, u, reason, extra) => ({ void_hist: [...prev, { action, actor_uid: u, reason }], [`void_hist_at.${prev.length}`]: serverTimestamp(),
+  void: action === 'cancel' ? { by_uid: u, reason, at: serverTimestamp(), by: '앱 사용자명' } : null, ...(extra || {}) });
 
-// 일반 컬렉션 (v4 수준)
-P('S3 익명: 일반 컬렉션 읽기·생성·수정 허용 (현장 흐름 유지 · 기술부채)', await ok(getDoc(doc(db.anon, 'orders', 'SO-1'))) && await ok(setDoc(doc(db.anon, 'orders', 'SO-2'), { qty: 1 })) && await ok(updateDoc(doc(db.anon, 'orders', 'SO-1'), { memo: 'x' })));
-P('S4 익명: 원장 delete 거부 · 마스터 delete 허용(v4 동일)', await no(deleteDoc(doc(db.anon, 'orders', 'SO-1'))) && await ok(deleteDoc(doc(db.anon, 'items', 'IT-1'))));
-P('S5 미인증: 전부 거부', await no(getDoc(doc(db.none, 'orders', 'SO-1'))) && await no(setDoc(doc(db.none, 'orders', 'SO-9'), { qty: 1 })));
-P('S6 목록 밖 컬렉션·하위 경로 거부', await no(setDoc(doc(db.anon, 'unknown_col', 'x'), { a: 1 })) && await no(setDoc(doc(db.anon, 'orders', 'SO-1', 'sub', 'x'), { a: 1 })));
-P('S7 settings/server_rules = 관리자 포함 앱 쓰기 거부 · 읽기 허용 · 다른 settings 문서 쓰기 허용', await no(setDoc(doc(db.a, 'settings', 'server_rules'), { version: 9 })) && await no(updateDoc(doc(db.anon, 'settings', 'server_rules'), { version: 9 })) && await ok(getDoc(doc(db.anon, 'settings', 'server_rules'))) && await ok(setDoc(doc(db.anon, 'settings', 'menu'), { a: 1 })));
-P('S8 approvers: 본인 문서만 읽기 · 쓰기 전부 거부 (익명·가입 계정·관리자 모두 자기 권한 상승 불가)', await ok(getDoc(doc(db.a, 'approvers', MGR_A))) && await no(getDoc(doc(db.a, 'approvers', MGR_B))) && await no(setDoc(doc(db.rogue, 'approvers', ROGUE), { userId: 'x' })) && await no(setDoc(doc(db.anon, 'approvers', ANON), { userId: 'x' })) && await no(updateDoc(doc(db.a, 'approvers', MGR_A), { userId: 'y' })));
+// ═══ E1 외부인 차단 ═══
+P('E1 외부인(익명 로그인만): 일반 원장·사용자·설정·마감 읽기 전부 거부', await no(getDoc(doc(db.out, 'orders', 'SO-1'))) && await no(getDoc(doc(db.out, 'users', 'U-1'))) && await no(getDoc(doc(db.out, 'settings', 'server_rules'))) && await no(getDoc(doc(db.out, 'closings', 'CL-2026-09-sales'))) && await no(getDoc(doc(db.out, 'shipments', 'SH-1'))));
+P('E2 외부인: 목록 쿼리 거부 (컬렉션 통째 내려받기 불가)', await no(getDocs(collection(db.out, 'orders'))) && await no(getDocs(collection(db.out, 'users'))));
+P('E3 외부인: 일반 원장 생성·수정·삭제 거부 · 출하·입고 생성 거부', await no(setDoc(doc(db.out, 'orders', 'SO-X'), { qty: 1 })) && await no(updateDoc(doc(db.out, 'orders', 'SO-1'), { qty: 1 })) && await no(deleteDoc(doc(db.out, 'items', 'IT-1'))) && await no(setDoc(doc(db.out, 'shipments', 'SH-X'), { so_id: 'SO-1', plot_no: 'PL-1', itemCode: 'IT-1', qty: 1, by_uid: OUT, ts: NOW })) && await no(setDoc(doc(db.out, 'purchase_receipts', 'PR-X'), { name: 'x', unit: 'ea', qty: 1, by_uid: OUT, ts: NOW })));
+P('E4 외부인: 자기 UID 등록 요청 1건만 생성 가능 (이름·6자리 코드·서버 시각)', await ok(setDoc(doc(db.out, 'device_requests', OUT), { name: '사무실 PC2', code: '482913', createdAt: serverTimestamp() })));
+P('E5 등록 요청 위조 거부: 남의 UID · 코드 형식 위반 · 허용 밖 필드(status 등) · 클라이언트 시각 · 수정·삭제', await no(setDoc(doc(db.out, 'device_requests', 'someone'), { name: 'x', code: '111111', createdAt: serverTimestamp() })) && await no(setDoc(doc(db.rogue, 'device_requests', ROGUE), { name: 'x', code: '12ab56', createdAt: serverTimestamp() })) && await no(setDoc(doc(db.rogue, 'device_requests', ROGUE), { name: 'x', code: '123456', createdAt: serverTimestamp(), status: 'approved' })) && await no(setDoc(doc(db.rogue, 'device_requests', ROGUE), { name: 'x', code: '123456', createdAt: Timestamp.fromMillis(0) })) && await no(updateDoc(doc(db.out, 'device_requests', OUT), { name: 'y' })) && await no(deleteDoc(doc(db.out, 'device_requests', OUT))));
+P('E6 등록 요청 후에도 외부인 데이터 접근 0 (요청 = 권한 아님) · 남의 요청·요청 목록 조회 거부', await no(getDoc(doc(db.out, 'orders', 'SO-1'))) && await no(getDoc(doc(db.out, 'device_requests', DEV))) && await no(getDocs(collection(db.out, 'device_requests'))) && await ok(getDoc(doc(db.out, 'device_requests', OUT))));
+P('E7 권한 상승 거부: 외부인이 자기 기기 승인 · 관리자 목록 자기 추가 · 등록 기기가 자기 기기 문서 변경', await no(setDoc(doc(db.out, 'devices', OUT), { status: 'approved', name: 'x', approvedBy: OUT, approvedAt: serverTimestamp() })) && await no(setDoc(doc(db.out, 'approvers', OUT), { userId: 'x' })) && await no(setDoc(doc(db.rogue, 'approvers', ROGUE), { userId: 'x' })) && await no(updateDoc(doc(db.dev, 'devices', DEV), { status: 'approved', approvedBy: DEV, approvedAt: serverTimestamp() })) && await no(setDoc(doc(db.dev, 'devices', OUT), { status: 'approved', name: 'x', approvedBy: DEV, approvedAt: serverTimestamp() })));
+P('E8 관리자: 요청 목록 조회 · 요청 있는 UID 승인 허용 · 요청 없는 UID 승인 거부 · 승인자 위조 거부', await ok(getDocs(collection(db.a, 'device_requests'))) && await no(setDoc(doc(db.a, 'devices', 'no-request'), { status: 'approved', name: 'x', approvedBy: MGR_A, approvedAt: serverTimestamp() })) && await no(setDoc(doc(db.a, 'devices', OUT), { status: 'approved', name: 'x', approvedBy: MGR_B, approvedAt: serverTimestamp() })) && await ok(setDoc(doc(db.a, 'devices', OUT), { status: 'approved', name: '사무실 PC2', approvedBy: MGR_A, approvedAt: serverTimestamp() })));
+P('E9 승인된 기기 = 즉시 정상 사용 (읽기·쓰기)', await ok(getDoc(doc(db.out, 'orders', 'SO-1'))) && await ok(setDoc(doc(db.out, 'orders', 'SO-2'), { qty: 1, itemCode: 'IT-1' })));
+P('E10 관리자 해제(revoked) → 그 기기 즉시 접근 0 · 재승인 → 복구', await ok(updateDoc(doc(db.a, 'devices', OUT), { status: 'revoked', revokedBy: MGR_A, revokedAt: serverTimestamp() })) && await no(getDoc(doc(db.out, 'orders', 'SO-1'))) && await ok(updateDoc(doc(db.a, 'devices', OUT), { status: 'approved', approvedBy: MGR_A, approvedAt: serverTimestamp() })) && await ok(getDoc(doc(db.out, 'orders', 'SO-1'))));
+P('E11 가입만 한 계정(관리자 목록·기기 승인 없음) = 데이터 접근 0', await no(getDoc(doc(db.rogue, 'orders', 'SO-1'))) && await no(setDoc(doc(db.rogue, 'orders', 'SO-R'), { qty: 1 })));
+P('E12 관리자 계정(보조 인스턴스 UID · 기기 문서 없음)도 일반 데이터 접근 가능 (관리 기능이 E1 에 막히지 않음)', await ok(getDoc(doc(db.a, 'orders', 'SO-1'))) && await ok(updateDoc(doc(db.a, 'orders', 'SO-1'), { memo: '관리자' })));
+P('E13 미인증: 전부 거부 · 목록 밖 컬렉션·하위 경로 거부', await no(getDoc(doc(db.none, 'orders', 'SO-1'))) && await no(setDoc(doc(db.dev, 'unknown_col', 'x'), { a: 1 })) && await no(setDoc(doc(db.dev, 'orders', 'SO-1', 'sub', 'x'), { a: 1 })));
+P('E14 등록 기기: 일반 원장 v4 수준 사용 (읽기·생성·수정 · 원장 delete 거부 · 마스터 delete 허용)', await ok(getDoc(doc(db.dev, 'orders', 'SO-1'))) && await ok(updateDoc(doc(db.dev, 'orders', 'SO-1'), { memo: 'x' })) && await no(deleteDoc(doc(db.dev, 'orders', 'SO-1'))) && await ok(deleteDoc(doc(db.dev, 'items', 'IT-1'))));
 
-// P0-1 출하
-const shipNew = (u, extra) => ({ so_id: 'SO-1', plot_no: 'PL-1', itemCode: 'IT-1', qty: 10, by_uid: u, ...extra });
-P('S9 (S-1b · P0-1 미해결 명시) 익명 출하 생성 = 형식 맞으면 허용 (서버는 수량 범위를 모름 — 문서에 미해결 표기)', await ok(setDoc(doc(db.anon, 'shipments', 'SH-A'), shipNew(ANON))));
-P('S10 미인증 출하 생성 거부', await no(setDoc(doc(db.none, 'shipments', 'SH-N'), shipNew('x'))));
-P('S11 출하 생성 거부: 작성자 uid 위조 · 수량 0 · 소수 · 수주/LOT 비어 있음 · 처음부터 qty_hist', await no(setDoc(doc(db.anon, 'shipments', 'SH-3'), shipNew(ANON2))) && await no(setDoc(doc(db.anon, 'shipments', 'SH-4'), shipNew(ANON, { qty: 0 }))) && await no(setDoc(doc(db.anon, 'shipments', 'SH-5'), shipNew(ANON, { qty: 1.5 }))) && await no(setDoc(doc(db.anon, 'shipments', 'SH-6'), shipNew(ANON, { plot_no: '' }))) && await no(setDoc(doc(db.anon, 'shipments', 'SH-7'), shipNew(ANON, { qty_hist: [] }))));
-P('S12 출하 수정: 비고 허용 · 연결 필드(LOT·수주·품번·작성자) 변경 거부 · 미인증 거부', await ok(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { memo: '포장 변경' })) && await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { plot_no: 'PL-9' })) && await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { so_id: 'SO-9' })) && await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { itemCode: 'IT-9' })) && await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), { by_uid: MGR_A })) && await no(updateDoc(doc(db.none, 'shipments', 'SH-1'), { memo: 'x' })));
-P('S13 출하 수량: 익명 변경 거부(이력을 붙여도) · 가입만 한 계정 거부 · 이력 없이 관리자 변경 거부', await no(updateDoc(doc(db.anon, 'shipments', 'SH-1'), qfix([], 40, 30, ANON))) && await no(updateDoc(doc(db.rogue, 'shipments', 'SH-1'), qfix([], 40, 30, ROGUE))) && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 30 })));
-P('S14 출하 수량: 관리자 + 이력 정확히 1건(from=이전 · to=새 · 본인 uid) + 이력 시각 qty_hist_at.0 = 서버 시각 → 허용', await ok(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix([], 40, 30, MGR_A))));
+// ═══ 권한 상승 방지 · 관리 데이터 ═══
+P('U1 등록 기기: 사용자 읽기 · 비밀번호·마지막 로그인·기기 토큰 변경 허용', await ok(getDoc(doc(db.dev, 'users', 'U-1'))) && await ok(updateDoc(doc(db.dev, 'users', 'U-1'), { pin: 'sha256:y', last_login: 1 })) && await ok(updateDoc(doc(db.dev, 'users', 'U-1'), { devices: {} })));
+P('U2 등록 기기: 역할·권한·활성·이름 변경 거부 · 신규 사용자 생성 거부 (앱 화면 우회 권한 상승 차단)', await no(updateDoc(doc(db.dev, 'users', 'U-1'), { role: 'manager' })) && await no(updateDoc(doc(db.dev, 'users', 'U-1'), { perms: { closing: 'edit' } })) && await no(updateDoc(doc(db.dev, 'users', 'U-1'), { active: false })) && await no(setDoc(doc(db.dev, 'users', 'U-NEW'), { name: 'x', role: 'manager', pin: '000000', active: true })));
+P('U3 관리자 계정: 사용자 생성·역할 변경 허용 · 삭제 거부', await ok(setDoc(doc(db.a, 'users', 'U-2'), { name: '김', role: 'operator', active: true, pin: '000000' })) && await ok(updateDoc(doc(db.a, 'users', 'U-1'), { role: 'manager' })) && await no(deleteDoc(doc(db.a, 'users', 'U-1'))));
+P('U4 settings/server_rules = 관리자 포함 앱 쓰기 거부 (Gate 표식 위조 불가) · 일반 settings 문서는 등록 기기 쓰기 가능', await no(setDoc(doc(db.a, 'settings', 'server_rules'), { version: 9 })) && await no(updateDoc(doc(db.dev, 'settings', 'server_rules'), { version: 9 })) && await ok(getDoc(doc(db.dev, 'settings', 'server_rules'))) && await ok(setDoc(doc(db.dev, 'settings', 'menu'), { a: 1 })));
+P('U5 approvers: 본인 문서만 읽기 · 쓰기 전부 거부', await ok(getDoc(doc(db.a, 'approvers', MGR_A))) && await no(getDoc(doc(db.a, 'approvers', MGR_B))) && await no(updateDoc(doc(db.a, 'approvers', MGR_A), { userId: 'y' })));
+
+// ═══ 마감 · 계산서 ═══
+P('C1 마감·계산서: 등록 기기 읽기 허용 · 쓰기 거부 / 관리자 계정 쓰기 허용 · 삭제 거부', await ok(getDoc(doc(db.dev, 'closings', 'CL-2026-09-sales'))) && await no(setDoc(doc(db.dev, 'closings', 'CL-2026-10-sales'), { type: 'sales', month: '2026-10', void: null })) && await no(updateDoc(doc(db.dev, 'closings', 'CL-2026-09-sales'), { void: { reason: '해제' } })) && await no(setDoc(doc(db.dev, 'acct_invoices', 'TI-1'), { month: '2026-10' })) && await ok(setDoc(doc(db.a, 'acct_invoices', 'TI-1'), { month: '2026-10' })) && await no(deleteDoc(doc(db.a, 'closings', 'CL-2026-09-sales'))));
+P('C2 마감된 월 출하: 취소·수량 정정·날짜 변경 거부 (관리자 계정 포함) · 비고 수정은 허용', await no(updateDoc(doc(db.dev, 'shipments', 'SH-OLD'), vstep([], 'cancel', DEV, '중복 출하'))) && await no(updateDoc(doc(db.a, 'shipments', 'SH-OLD'), qfix([], 10, 9, MGR_A))) && await no(updateDoc(doc(db.dev, 'shipments', 'SH-OLD'), { ts: NOW })) && await ok(updateDoc(doc(db.dev, 'shipments', 'SH-OLD'), { memo: '포장 메모' })));
+P('C3 KST 월 경계: UTC 8/31 16:30 = KST 9/1 → 9월(마감)로 판정 · 취소 거부', await no(updateDoc(doc(db.dev, 'shipments', 'SH-EDGE'), vstep([], 'cancel', DEV, '경계 시험'))));
+P('C4 마감 취소된 월(8월 · closings.void 있음)은 다시 변경 가능', await ok(updateDoc(doc(db.dev, 'shipments', 'SH-AUG'), vstep([], 'cancel', DEV, '마감 해제 후 정정'))));
+P('C5 열린 월 출하의 날짜를 마감된 월로 옮기기 거부 (바꾼 뒤 월도 검사)', await no(updateDoc(doc(db.dev, 'shipments', 'SH-1'), { ts: CLOSED_TS })));
+P('C6 마감된 월 구매 입고: 취소·수량 정정·단가 변경 거부', await no(updateDoc(doc(db.dev, 'purchase_receipts', 'PR-OLD'), vstep([], 'cancel', DEV, '오입력'))) && await no(updateDoc(doc(db.a, 'purchase_receipts', 'PR-OLD'), qfix([], 3, 4, MGR_A))) && await no(updateDoc(doc(db.dev, 'purchase_receipts', 'PR-OLD'), { price: 100 })));
+
+// ═══ 출하 생성 · 수정 ═══
+const shipNew = (u, extra) => ({ so_id: 'SO-1', plot_no: 'PL-1', itemCode: 'IT-1', qty: 10, by_uid: u, ts: NOW, ...extra });
+P('H1 등록 기기: 정상 출하 생성 허용 (수주·LOT 실재 · 품번 = 수주 품번)', await ok(setDoc(doc(db.dev, 'shipments', 'SH-2'), shipNew(DEV))));
+P('H2 출하 생성 거부: 품번 없음 · 수주 없음 · LOT 없음 · 품번 ≠ 수주 품번', await no(setDoc(doc(db.dev, 'shipments', 'SH-3'), shipNew(DEV, { itemCode: '' }))) && await no(setDoc(doc(db.dev, 'shipments', 'SH-4'), shipNew(DEV, { so_id: 'SO-NONE' }))) && await no(setDoc(doc(db.dev, 'shipments', 'SH-5'), shipNew(DEV, { plot_no: 'PL-NONE' }))) && await no(setDoc(doc(db.dev, 'shipments', 'SH-6'), shipNew(DEV, { itemCode: 'IT-OTHER' }))));
+P('H3 출하 생성 거부: 작성자 uid 위조 · 수량 0 · 소수 · 시각 없음 · 처음부터 수량 이력 · 처음부터 취소 상태/취소 이력(위조된 채 생성)', await no(setDoc(doc(db.dev, 'shipments', 'SH-7'), shipNew(DEV2))) && await no(setDoc(doc(db.dev, 'shipments', 'SH-8'), shipNew(DEV, { qty: 0 }))) && await no(setDoc(doc(db.dev, 'shipments', 'SH-9'), shipNew(DEV, { qty: 1.5 }))) && await no(setDoc(doc(db.dev, 'shipments', 'SH-10'), { ...shipNew(DEV), ts: null })) && await no(setDoc(doc(db.dev, 'shipments', 'SH-11'), shipNew(DEV, { qty_hist: [] }))) && await no(setDoc(doc(db.dev, 'shipments', 'SH-12'), shipNew(DEV, { void: { by_uid: DEV, reason: '가짜', at: serverTimestamp() } }))) && await no(setDoc(doc(db.dev, 'shipments', 'SH-13'), shipNew(DEV, { void_hist: [{ action: 'cancel', actor_uid: DEV, reason: '가짜' }] }))));
+P('H4 출하 수정: 비고 허용 · 연결 필드(LOT·수주·품번·작성자) 변경 거부', await ok(updateDoc(doc(db.dev, 'shipments', 'SH-1'), { memo: '포장 변경' })) && await no(updateDoc(doc(db.dev, 'shipments', 'SH-1'), { plot_no: 'PL-9' })) && await no(updateDoc(doc(db.dev, 'shipments', 'SH-1'), { so_id: 'SO-9' })) && await no(updateDoc(doc(db.dev, 'shipments', 'SH-1'), { itemCode: 'IT-9' })) && await no(updateDoc(doc(db.dev, 'shipments', 'SH-1'), { by_uid: DEV2 })));
+P('H5 출하 삭제 = 관리자도 거부 (void 만)', await no(deleteDoc(doc(db.a, 'shipments', 'SH-1'))) && await no(deleteDoc(doc(db.dev, 'shipments', 'SH-1'))));
+
+// ═══ 수량 정정 ═══
+P('Q1 수량 변경: 등록 기기 거부(이력을 붙여도) · 가입만 한 계정 거부 · 이력 없이 관리자 변경 거부', await no(updateDoc(doc(db.dev, 'shipments', 'SH-1'), qfix([], 40, 30, DEV))) && await no(updateDoc(doc(db.rogue, 'shipments', 'SH-1'), qfix([], 40, 30, ROGUE))) && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 30 })));
+P('Q2 관리자 + 이력 정확히 1건(from=이전 · to=새 · 본인 uid) + 이력 시각 = 서버 시각 → 허용', await ok(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix([], 40, 30, MGR_A))));
 const h1 = (await raw('shipments', 'SH-1')).qty_hist;
-P('S15 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일치 · 남의 uid · 클라이언트 시각 · 이력 시각 누락 · 이전 시각 변경 · 정수 아님',
+P('Q3 수량 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일치 · 남의 uid · 클라이언트 시각 · 시각 누락 · 이전 시각 변경 · 정수 아님',
   await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 31, qty_hist: [{ ...h1[0], from: 99 }, hist(30, 31, MGR_A)], 'qty_hist_at.1': serverTimestamp() }))
   && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 32, qty_hist: [...h1, hist(30, 31, MGR_A), hist(31, 32, MGR_A)], 'qty_hist_at.1': serverTimestamp(), 'qty_hist_at.2': serverTimestamp() }))
   && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(h1, 29, 31, MGR_A)))
@@ -5833,44 +5960,75 @@ P('S15 이력 위조 거부: 기존 항목 수정 · 2건 추가 · from 불일�
   && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), { qty: 31, qty_hist: [...h1, hist(30, 31, MGR_A)] }))
   && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(h1, 30, 31, MGR_A, { 'qty_hist_at.0': serverTimestamp() })))
   && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(h1, 30, 30.5, MGR_A))));
-let cur = 30, hh = h1; let five = true;
-for (let i = 0; i < 4; i++) { const ok1 = await ok(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(hh, cur, cur - 1, MGR_A))); five = five && ok1; cur--; hh = (await raw('shipments', 'SH-1')).qty_hist; }
-P('S16 정정 5회까지 허용 · 6번째 거부', five && hh.length === 5 && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(hh, cur, cur - 1, MGR_A))));
-P('S17 출하 삭제 = 관리자도 거부 (void 만 · 익명 void 허용)', await no(deleteDoc(doc(db.a, 'shipments', 'SH-1'))) && await ok(updateDoc(doc(db.anon, 'shipments', 'SH-A'), { void: { reason: '오등록' } })));
+let cur = 30, hh = h1, five = true;
+for (let i = 0; i < 4; i++) { five = five && await ok(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(hh, cur, cur - 1, MGR_A))); cur--; hh = (await raw('shipments', 'SH-1')).qty_hist; }
+P('Q4 정정 5회까지 허용 · 6번째 거부', five && hh.length === 5 && await no(updateDoc(doc(db.a, 'shipments', 'SH-1'), qfix(hh, cur, cur - 1, MGR_A))));
+P('Q5 구매 입고 수량: 관리자 + 이력 1건 허용(40.5 → 45.25) · 등록 기기 거부', await no(updateDoc(doc(db.dev, 'purchase_receipts', 'PR-1'), qfix([], 40.5, 45.25, DEV))) && await ok(updateDoc(doc(db.a, 'purchase_receipts', 'PR-1'), qfix([], 40.5, 45.25, MGR_A))));
+const prNew = (u, extra) => ({ name: '장갑', unit: 'box', qty: 3, by_uid: u, ts: NOW, ...extra });
+P('Q6 구매 입고 생성: 등록 기기 허용 · 작성자 위조 · 단위 없음 · 없는 발주 연결 · 발주 연결인데 품목 키 없음 거부', await ok(setDoc(doc(db.dev, 'purchase_receipts', 'PR-2'), prNew(DEV))) && await no(setDoc(doc(db.dev, 'purchase_receipts', 'PR-3'), prNew(DEV2))) && await no(setDoc(doc(db.dev, 'purchase_receipts', 'PR-4'), prNew(DEV, { unit: '' }))) && await no(setDoc(doc(db.dev, 'purchase_receipts', 'PR-5'), prNew(DEV, { po_id: 'PO-NONE', po_item_key: 'a|b' }))) && await no(setDoc(doc(db.dev, 'purchase_receipts', 'PR-6'), prNew(DEV, { po_id: 'PO-1' }))) && await ok(setDoc(doc(db.dev, 'purchase_receipts', 'PR-7'), prNew(DEV, { po_id: 'PO-1', po_item_key: '장갑|' }))));
+P('Q7 구매 입고 수정: 발주 연결이면 단위·발주·품목 키 변경 거부 · 단가 수정 허용', await no(updateDoc(doc(db.dev, 'purchase_receipts', 'PR-1'), { unit: 'kg' })) && await no(updateDoc(doc(db.dev, 'purchase_receipts', 'PR-1'), { po_id: 'PO-9' })) && await no(updateDoc(doc(db.dev, 'purchase_receipts', 'PR-1'), { po_item_key: 'x|y' })) && await ok(updateDoc(doc(db.dev, 'purchase_receipts', 'PR-1'), { price: 4600 })));
 
-// P0-1 구매 입고
-const prNew = (u, extra) => ({ name: '장갑', unit: 'box', qty: 3, by_uid: u, ...extra });
-P('S18 구매 입고 생성: 익명 허용(S-1b) · 미인증 거부 · 작성자 위조 거부 · 단위 비어 있음 거부 · 발주 연결인데 품목 키 없음 거부', await no(setDoc(doc(db.none, 'purchase_receipts', 'PR-A'), prNew('x'))) && await no(setDoc(doc(db.anon, 'purchase_receipts', 'PR-F'), prNew(ANON2))) && await ok(setDoc(doc(db.anon, 'purchase_receipts', 'PR-2'), prNew(ANON))) && await no(setDoc(doc(db.anon, 'purchase_receipts', 'PR-3'), prNew(ANON, { unit: '' }))) && await no(setDoc(doc(db.anon, 'purchase_receipts', 'PR-4'), prNew(ANON, { po_id: 'PO-1' }))));
-P('S19 구매 입고 수정: 발주 연결이면 단위·발주·품목 키 변경 거부 · 단가 수정 허용', await no(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), { unit: 'kg' })) && await no(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), { po_id: 'PO-9' })) && await no(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), { po_item_key: 'x|y' })) && await ok(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), { price: 4600 })));
-P('S20 구매 입고 수량: 관리자 + 이력 1건 = 허용(40.5 → 45.25) · 익명 거부', await no(updateDoc(doc(db.anon, 'purchase_receipts', 'PR-1'), qfix([], 40.5, 45.25, ANON))) && await ok(updateDoc(doc(db.a, 'purchase_receipts', 'PR-1'), qfix([], 40.5, 45.25, MGR_A))));
+// ═══ 취소 · 복원 (막지 않고 남김) ═══
+P('V1 등록 기기 취소 = 이력 1건(cancel · 본인 uid · 사유) + 이력 시각 서버 + void{by_uid·사유·서버 시각} 동시 쓰기 → 허용', await ok(updateDoc(doc(db.dev, 'shipments', 'SH-2'), vstep([], 'cancel', DEV, '중복 출하'))));
+const v1 = await raw('shipments', 'SH-2');
+P('V2 저장 모양: void_hist 1건 · void_hist_at.0 서버 시각 · void.by_uid = 실행 기기 · 최초 작성자 by_uid 그대로', v1.void_hist.length === 1 && v1.void_hist[0].actor_uid === DEV && v1.void_hist_at && v1.void_hist_at['0'] && v1.void.by_uid === DEV && v1.by_uid === DEV);
+P('V3 이미 취소된 출하 다시 취소 거부 · 상태 없이 이력만 추가 거부', await no(updateDoc(doc(db.dev2, 'shipments', 'SH-2'), vstep(v1.void_hist, 'cancel', DEV2, '또 취소'))) && await no(updateDoc(doc(db.dev2, 'shipments', 'SH-2'), { void_hist: [...v1.void_hist, { action: 'restore', actor_uid: DEV2, reason: '복원' }], 'void_hist_at.1': serverTimestamp() })));
+P('V4 복원 = 다른 기기도 가능 · 이력 2건 · void = null', await ok(updateDoc(doc(db.dev2, 'shipments', 'SH-2'), vstep(v1.void_hist, 'restore', DEV2, '정상 출하 확인'))) && (await raw('shipments', 'SH-2')).void_hist.length === 2 && (await raw('shipments', 'SH-2')).void == null);
+await setDoc(doc(db.dev, 'shipments', 'SH-V'), shipNew(DEV));
+P('V5 취소 위조 거부: 사유 없음 · 1자 · 실행자 uid 위조 · 클라이언트 시각 · void 사유 불일치 · void.by_uid 위조 · 이력 없이 void 만',
+  await no(updateDoc(doc(db.dev, 'shipments', 'SH-V'), vstep([], 'cancel', DEV, '')))
+  && await no(updateDoc(doc(db.dev, 'shipments', 'SH-V'), vstep([], 'cancel', DEV, 'x')))
+  && await no(updateDoc(doc(db.dev, 'shipments', 'SH-V'), vstep([], 'cancel', DEV2, '중복 출하')))
+  && await no(updateDoc(doc(db.dev, 'shipments', 'SH-V'), { ...vstep([], 'cancel', DEV, '중복 출하'), 'void_hist_at.0': Timestamp.fromMillis(0) }))
+  && await no(updateDoc(doc(db.dev, 'shipments', 'SH-V'), { ...vstep([], 'cancel', DEV, '중복 출하'), void: { by_uid: DEV, reason: '다른 사유', at: serverTimestamp() } }))
+  && await no(updateDoc(doc(db.dev, 'shipments', 'SH-V'), { ...vstep([], 'cancel', DEV, '중복 출하'), void: { by_uid: DEV2, reason: '중복 출하', at: serverTimestamp() } }))
+  && await no(updateDoc(doc(db.dev, 'shipments', 'SH-V'), { void: { by_uid: DEV, reason: '중복 출하', at: serverTimestamp() } })));
+const vh = (await raw('shipments', 'SH-2')).void_hist;
+P('V6 이력 변조 거부: 앞선 항목 수정 · 항목 삭제 · 2건 한꺼번에 · 이전 시각 변경 · 이력 시각 키 삭제',
+  await no(updateDoc(doc(db.dev, 'shipments', 'SH-2'), { void_hist: [{ ...vh[0], reason: '바꾼 사유' }, vh[1], { action: 'cancel', actor_uid: DEV, reason: '재취소' }], 'void_hist_at.2': serverTimestamp(), void: { by_uid: DEV, reason: '재취소', at: serverTimestamp() } }))
+  && await no(updateDoc(doc(db.dev, 'shipments', 'SH-2'), { void_hist: [vh[0]] }))
+  && await no(updateDoc(doc(db.dev, 'shipments', 'SH-2'), { void_hist: [...vh, { action: 'cancel', actor_uid: DEV, reason: '재취소' }, { action: 'restore', actor_uid: DEV, reason: '재복원' }], 'void_hist_at.2': serverTimestamp(), 'void_hist_at.3': serverTimestamp(), void: null }))
+  && await no(updateDoc(doc(db.dev, 'shipments', 'SH-2'), { ...vstep(vh, 'cancel', DEV, '재취소'), 'void_hist_at.0': serverTimestamp() }))
+  && await no(updateDoc(doc(db.dev, 'shipments', 'SH-2'), { 'void_hist_at.0': deleteField() })));
+P('V7 레거시 취소(이력 없는 옛 void) → 첫 이력으로 복원 허용 (옛 void 내용은 서버 미검증 기록)', await ok(updateDoc(doc(db.dev, 'shipments', 'SH-LEG'), vstep([], 'restore', DEV, '레거시 복원'))));
+// 경합: 두 기기가 같은 시점 상태(이력 0)를 보고 동시에 취소 → 두 번째는 거부
+await setDoc(doc(db.dev, 'shipments', 'SH-RACE'), shipNew(DEV));
+const ra = await ok(updateDoc(doc(db.dev, 'shipments', 'SH-RACE'), vstep([], 'cancel', DEV, '경합 A')));
+const rb = await no(updateDoc(doc(db.dev2, 'shipments', 'SH-RACE'), vstep([], 'cancel', DEV2, '경합 B')));
+P('V8 경합: 같은 상태를 본 두 기기 동시 취소 → 먼저 저장한 1건만 성공 · 늦은 쪽(낡은 이력 기준) 거부', ra && rb && (await raw('shipments', 'SH-RACE')).void_hist.length === 1);
+let vcur = (await raw('shipments', 'SH-RACE')).void_hist, vok = true;
+for (let i = 1; i < 20; i++) { const act = i % 2 ? 'restore' : 'cancel'; vok = vok && await ok(updateDoc(doc(db.dev, 'shipments', 'SH-RACE'), vstep(vcur, act, DEV, '반복 ' + i))); vcur = (await raw('shipments', 'SH-RACE')).void_hist; }
+P('V9 취소·복원 이력 보관 상한 20건 · 21번째 거부 (문서 크기 보호 — 이후 처리는 관리자 절차)', vok && vcur.length === 20 && await no(updateDoc(doc(db.dev, 'shipments', 'SH-RACE'), vstep(vcur, 'cancel', DEV, '21번째'))));
+P('V10 구매 입고 취소·복원도 같은 규칙 (허용 + 이력)', await ok(updateDoc(doc(db.dev, 'purchase_receipts', 'PR-2'), vstep([], 'cancel', DEV, '오입력'))) && await ok(updateDoc(doc(db.dev2, 'purchase_receipts', 'PR-2'), vstep((await raw('purchase_receipts', 'PR-2')).void_hist, 'restore', DEV2, '정상 확인'))));
+P('V11 외부인(미등록 익명 · E8~E10 에서 승인된 OUT 과 다른 UID)은 취소·복원 불가', await no(updateDoc(doc(db.out2, 'shipments', 'SH-1'), vstep([], 'cancel', OUT2, '외부 취소'))) && await no(updateDoc(doc(db.rogue, 'shipments', 'SH-1'), vstep([], 'cancel', ROGUE, '외부 취소'))));
 
-// P0-2 결재
+// ═══ 결재 ═══
 const line = [{ uid: MGR_B, role: 'review' }, { uid: MGR_C, role: 'approve' }];
 const apNew = (u, extra) => ({ docType: 'report', docId: 'RP-1', docRev: 1, snapshot: { t: 1 }, line, cur: 0, state: 'pending', decisions: [], decision_at: {}, submittedUid: u, createdAt: serverTimestamp(), title: '주간', ...extra });
-P('S21 결재 상신: 관리자 허용 · 익명/역할 없는 계정 거부 · 결재선에 관리자 아닌 uid 거부 · 처음부터 승인 상태 거부 · 남 명의 상신 거부',
-  await ok(setDoc(doc(db.a, 'approvals', 'AP-1'), apNew(MGR_A))) && await no(setDoc(doc(db.anon, 'approvals', 'AP-2'), apNew(ANON))) && await no(setDoc(doc(db.rogue, 'approvals', 'AP-3'), apNew(ROGUE)))
-  && await no(setDoc(doc(db.a, 'approvals', 'AP-4'), apNew(MGR_A, { line: [{ uid: ROGUE, role: 'approve' }] }))) && await no(setDoc(doc(db.a, 'approvals', 'AP-5'), apNew(MGR_A, { state: 'approved' }))) && await no(setDoc(doc(db.a, 'approvals', 'AP-6'), apNew(MGR_B))));
 const dec = (u, action, step) => ({ step, uid: u, action });
 const dat = n => ({ [`decision_at.${n}`]: serverTimestamp() });
-P('S22 차례 아닌 관리자 승인 거부 · 결재선 변경 거부 · 단계 건너뛰기 거부 · 결정 기록 없는 상태 변경 거부',
-  await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_C, 'approve', 0)], ...dat(0) }))
-  && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_B, 'approve', 0)], ...dat(0), line: [{ uid: MGR_B, role: 'approve' }] }))
-  && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 2, decisions: [dec(MGR_B, 'approve', 0)], ...dat(0) }))
-  && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1 })));
-P('S23 현재 단계 관리자 승인 = 결정 1건 + 다음 단계(같은 쓰기) 허용', await ok(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_B, 'approve', 0)], ...dat(0) })));
+P('A1 결재 상신: 관리자 허용 · 등록 기기·가입만 한 계정 거부 · 남 명의 거부 · 처음부터 승인 상태 거부', await ok(setDoc(doc(db.a, 'approvals', 'AP-1'), apNew(MGR_A))) && await no(setDoc(doc(db.dev, 'approvals', 'AP-2'), apNew(DEV))) && await no(setDoc(doc(db.rogue, 'approvals', 'AP-3'), apNew(ROGUE))) && await no(setDoc(doc(db.a, 'approvals', 'AP-6'), apNew(MGR_B))) && await no(setDoc(doc(db.a, 'approvals', 'AP-5'), apNew(MGR_A, { state: 'approved' }))));
+P('A2 결재 대상·결재선 검사: 없는 문서 · 잘못된 종류 · 개정번호 0 · 결재선에 관리자 아닌 uid · 상신자 자기 결재 · 같은 사람 중복 → 거부',
+  await no(setDoc(doc(db.a, 'approvals', 'AP-7'), apNew(MGR_A, { docId: 'RP-NONE' }))) && await no(setDoc(doc(db.a, 'approvals', 'AP-8'), apNew(MGR_A, { docType: 'shipment' }))) && await no(setDoc(doc(db.a, 'approvals', 'AP-9'), apNew(MGR_A, { docRev: 0 })))
+  && await no(setDoc(doc(db.a, 'approvals', 'AP-10'), apNew(MGR_A, { line: [{ uid: ROGUE, role: 'approve' }] }))) && await no(setDoc(doc(db.a, 'approvals', 'AP-11'), apNew(MGR_A, { line: [{ uid: MGR_A, role: 'approve' }] }))) && await no(setDoc(doc(db.a, 'approvals', 'AP-12'), apNew(MGR_A, { line: [{ uid: MGR_B, role: 'review' }, { uid: MGR_B, role: 'approve' }] }))));
+P('A3 차례 아닌 관리자 승인 거부 · 결재선 변경 거부 · 단계 건너뛰기 거부 · 결정 기록 없는 상태 변경 거부',
+  await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_C, 'approve', 0)], ...dat(0) })) && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_B, 'approve', 0)], ...dat(0), line: [{ uid: MGR_B, role: 'approve' }] }))
+  && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 2, decisions: [dec(MGR_B, 'approve', 0)], ...dat(0) })) && await no(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1 })));
+P('A4 현재 단계 관리자 승인 = 결정 1건 + 다음 단계(같은 쓰기) 허용', await ok(updateDoc(doc(db.b, 'approvals', 'AP-1'), { cur: 1, decisions: [dec(MGR_B, 'approve', 0)], ...dat(0) })));
 const d1 = (await raw('approvals', 'AP-1')).decisions;
-P('S24 결정 기록 위조 거부: 앞선 결정 수정 · 남 명의 결정 · 단계 번호 위조', await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [{ ...d1[0], action: 'reject' }, dec(MGR_C, 'approve', 1)], ...dat(1) })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_B, 'approve', 1)], ...dat(1) })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_C, 'approve', 0)], ...dat(1) })));
-P('S25 마지막 단계 승인 → approved · 이후 모든 수정 거부 · 삭제 거부', await ok(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_C, 'approve', 1)], ...dat(1) })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { title: '변경' })) && await no(updateDoc(doc(db.a, 'approvals', 'AP-1'), { state: 'withdrawn' })) && await no(deleteDoc(doc(db.a, 'approvals', 'AP-1'))));
-await setDoc(doc(db.a, 'approvals', 'AP-7'), apNew(MGR_A)); await setDoc(doc(db.a, 'approvals', 'AP-8'), apNew(MGR_A));
-P('S26 반려 = 현재 단계만 · 상신자 회수 = 결정 전만', await ok(updateDoc(doc(db.b, 'approvals', 'AP-7'), { state: 'rejected', decisions: [dec(MGR_B, 'reject', 0)], ...dat(0) })) && await ok(updateDoc(doc(db.a, 'approvals', 'AP-8'), { state: 'withdrawn' })) && await no(updateDoc(doc(db.a, 'approvals', 'AP-7'), { state: 'withdrawn' })));
-P('S27 결재 읽기: 관리자만 (익명·역할 없는 계정 거부)', await ok(getDoc(doc(db.c, 'approvals', 'AP-1'))) && await no(getDoc(doc(db.anon, 'approvals', 'AP-1'))) && await no(getDoc(doc(db.rogue, 'approvals', 'AP-1'))));
+P('A5 결정 기록 위조 거부: 앞선 결정 수정 · 남 명의 · 단계 번호 위조', await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [{ ...d1[0], action: 'reject' }, dec(MGR_C, 'approve', 1)], ...dat(1) })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_B, 'approve', 1)], ...dat(1) })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_C, 'approve', 0)], ...dat(1) })));
+P('A6 마지막 단계 승인 → approved · 이후 수정·회수·삭제 거부', await ok(updateDoc(doc(db.c, 'approvals', 'AP-1'), { state: 'approved', decisions: [...d1, dec(MGR_C, 'approve', 1)], ...dat(1) })) && await no(updateDoc(doc(db.c, 'approvals', 'AP-1'), { title: '변경' })) && await no(updateDoc(doc(db.a, 'approvals', 'AP-1'), { state: 'withdrawn' })) && await no(deleteDoc(doc(db.a, 'approvals', 'AP-1'))));
+await setDoc(doc(db.a, 'approvals', 'AP-20'), apNew(MGR_A)); await setDoc(doc(db.a, 'approvals', 'AP-21'), apNew(MGR_A));
+P('A7 반려 = 현재 단계만 · 상신자 회수 = 결정 전만', await ok(updateDoc(doc(db.b, 'approvals', 'AP-20'), { state: 'rejected', decisions: [dec(MGR_B, 'reject', 0)], ...dat(0) })) && await ok(updateDoc(doc(db.a, 'approvals', 'AP-21'), { state: 'withdrawn' })) && await no(updateDoc(doc(db.a, 'approvals', 'AP-20'), { state: 'withdrawn' })));
+P('A8 결재 읽기: 관리자만 (등록 기기·외부인·가입 계정 거부)', await ok(getDoc(doc(db.c, 'approvals', 'AP-1'))) && await no(getDoc(doc(db.dev, 'approvals', 'AP-1'))) && await no(getDoc(doc(db.out, 'approvals', 'AP-1'))) && await no(getDoc(doc(db.rogue, 'approvals', 'AP-1'))));
 
-// 알림·템플릿
-P('S28 알림: 받는 사람만 읽기 · 남의 알림 거부 · 쿼리는 to==나 조건만 · 발신자 위조 거부', await ok(getDoc(doc(db.b, 'events', 'EV-1'))) && await no(getDoc(doc(db.c, 'events', 'EV-1'))) && await ok(getDocs(query(collection(db.b, 'events'), where('to', '==', MGR_B)))) && await no(getDocs(collection(db.b, 'events'))) && await no(setDoc(doc(db.b, 'events', 'EV-2'), { from: MGR_A, to: MGR_C, ts: serverTimestamp() })));
-P('S29 알림 수정·삭제 거부 (읽음은 prefs 쪽 · 이벤트 불변)', await no(updateDoc(doc(db.b, 'events', 'EV-1'), { read: true })) && await no(deleteDoc(doc(db.b, 'events', 'EV-1'))));
-P('S30 개인 템플릿: 소유자(관리자)만 읽기·수정 · 다른 관리자 거부 · 익명 생성 거부 · 소유자 바꾸기 거부', await ok(getDoc(doc(db.a, 'report_templates', 'RT-1'))) && await no(getDoc(doc(db.b, 'report_templates', 'RT-1'))) && await no(getDoc(doc(db.anon, 'report_templates', 'RT-1'))) && await no(setDoc(doc(db.anon, 'report_templates', 'RT-2'), { owner_uid: ANON })) && await no(updateDoc(doc(db.a, 'report_templates', 'RT-1'), { owner_uid: MGR_B })) && await ok(updateDoc(doc(db.a, 'report_templates', 'RT-1'), { name: '바꾼 이름' })));
-P('S31 템플릿 목록 쿼리 = owner_uid==나 조건만 허용', await ok(getDocs(query(collection(db.a, 'report_templates'), where('owner_uid', '==', MGR_A)))) && await no(getDocs(collection(db.a, 'report_templates'))));
-P('S32 보고 요청: 받는 사람만 답변 · 상태는 submitted/declined 만', await ok(setDoc(doc(db.a, 'report_requests', 'RQ-1'), { from: MGR_A, to: MGR_B, state: 'requested' })) && await no(updateDoc(doc(db.c, 'report_requests', 'RQ-1'), { state: 'submitted', answeredAt: serverTimestamp() })) && await no(updateDoc(doc(db.b, 'report_requests', 'RQ-1'), { state: 'approved', answeredAt: serverTimestamp() })) && await ok(updateDoc(doc(db.b, 'report_requests', 'RQ-1'), { state: 'submitted', answeredAt: serverTimestamp() })));
+// ═══ 알림 · 보고 요청 · 템플릿 ═══
+P('N1 알림: 받는 사람만 읽기 · 남의 알림 거부 · 쿼리는 to==나 조건만 · 발신자 위조 거부 · 수정·삭제 거부', await ok(getDoc(doc(db.b, 'events', 'EV-1'))) && await no(getDoc(doc(db.c, 'events', 'EV-1'))) && await ok(getDocs(query(collection(db.b, 'events'), where('to', '==', MGR_B)))) && await no(getDocs(collection(db.b, 'events'))) && await no(setDoc(doc(db.b, 'events', 'EV-2'), { from: MGR_A, to: MGR_C, ts: serverTimestamp() })) && await no(updateDoc(doc(db.b, 'events', 'EV-1'), { read: true })) && await no(deleteDoc(doc(db.b, 'events', 'EV-1'))));
+P('N2 보고 요청 생성: 정상 허용 · 자기 자신에게 · 허용 밖 필드 · 처음부터 제출 상태 거부', await ok(setDoc(doc(db.a, 'report_requests', 'RQ-1'), { from: MGR_A, to: MGR_B, state: 'requested', title: '주간', createdAt: serverTimestamp() })) && await no(setDoc(doc(db.a, 'report_requests', 'RQ-2'), { from: MGR_A, to: MGR_A, state: 'requested', createdAt: serverTimestamp() })) && await no(setDoc(doc(db.a, 'report_requests', 'RQ-3'), { from: MGR_A, to: MGR_B, state: 'requested', createdAt: serverTimestamp(), report_id: 'RP-1' })) && await no(setDoc(doc(db.a, 'report_requests', 'RQ-4'), { from: MGR_A, to: MGR_B, state: 'submitted', createdAt: serverTimestamp() })));
+P('N3 보고 요청 답변: 받는 사람만 · 없는 보고서로 제출 거부 · 상태 approved 거부 · 실제 보고서로 제출 허용', await no(updateDoc(doc(db.c, 'report_requests', 'RQ-1'), { state: 'submitted', report_id: 'RP-1', answeredAt: serverTimestamp() })) && await no(updateDoc(doc(db.b, 'report_requests', 'RQ-1'), { state: 'submitted', report_id: 'RP-NONE', answeredAt: serverTimestamp() })) && await no(updateDoc(doc(db.b, 'report_requests', 'RQ-1'), { state: 'approved', answeredAt: serverTimestamp() })) && await ok(updateDoc(doc(db.b, 'report_requests', 'RQ-1'), { state: 'submitted', report_id: 'RP-1', answeredAt: serverTimestamp() })));
+P('N4 보고 요청 종료 상태(submitted) 재변경 거부 (declined 로 바꾸기 · 다른 보고서로 재제출)', await no(updateDoc(doc(db.b, 'report_requests', 'RQ-1'), { state: 'declined', answeredAt: serverTimestamp() })) && await no(updateDoc(doc(db.b, 'report_requests', 'RQ-1'), { state: 'submitted', report_id: 'RP-1', answeredAt: serverTimestamp() })));
+P('N5 개인 템플릿(owner_uid): 소유 관리자만 읽기·수정 · 다른 관리자·등록 기기 거부 · 익명 생성 거부 · 소유자 바꾸기 거부', await ok(getDoc(doc(db.a, 'report_templates', 'RT-1'))) && await no(getDoc(doc(db.b, 'report_templates', 'RT-1'))) && await no(getDoc(doc(db.dev, 'report_templates', 'RT-1'))) && await no(setDoc(doc(db.dev, 'report_templates', 'RT-2'), { owner_uid: DEV })) && await no(updateDoc(doc(db.a, 'report_templates', 'RT-1'), { owner_uid: MGR_B })) && await ok(updateDoc(doc(db.a, 'report_templates', 'RT-1'), { name: '바꾼 이름' })));
+P('N6 템플릿 목록 쿼리 = owner_uid==나 조건만 허용', await ok(getDocs(query(collection(db.a, 'report_templates'), where('owner_uid', '==', MGR_A)))) && await no(getDocs(collection(db.a, 'report_templates'))));
 
 await env.cleanup();
 if (R.length !== EXPECTED) R.push({ n: `항목 수 ${R.length} ≠ 기대 ${EXPECTED}`, ok: false });
@@ -5878,52 +6036,665 @@ const fail = R.filter(x => !x.ok).length;
 console.log(`\nRULES-V5 TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
 process.exit(fail ? 1 : 0);
 
+===== FILE: _verify-rules-compat.mjs =====
+// ★ Rules v5-r2 ↔ 실제 앱 저장 문서 호환성 시험 (GPT 2차 P1-3 「실앱 등록 payload 로 Rules v5 호환성 테스트」)
+// 입력 = _app-payloads.json (node _capture-app-payloads.js — 실제 앱 화면·함수가 만든 문서 · 쓰기 전/후 전체)
+// A = 지금 앱 그대로 보냈을 때 (기대: 원장 보호 경로는 거부 → 앱 수정 필요 항목 확정) · B = A-2 에서 바꿀 모양으로 보냈을 때 (기대: 허용)
+// 실행: npx firebase emulators:exec --only firestore --project vela-rules-test "node _verify-rules-compat.mjs"
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const DIR = path.dirname(fileURLToPath(import.meta.url));
+const RULES = fs.readFileSync(path.join(DIR, 'firestore.rules.v5-draft'), 'utf8');
+const CAP = JSON.parse(fs.readFileSync(path.join(DIR, '_app-payloads.json'), 'utf8'));
+if (!process.env.FIRESTORE_EMULATOR_HOST) { console.log('에뮬레이터 없음 → 미실행 (PASS 아님)'); process.exit(2); }
+const { initializeTestEnvironment, assertSucceeds, assertFails } = await import('@firebase/rules-unit-testing');
+const { doc, setDoc, serverTimestamp, Timestamp } = await import('firebase/firestore');
+const [host, port] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
+const env = await initializeTestEnvironment({ projectId: 'vela-rules-compat', firestore: { rules: RULES, host, port: +port } });
+const DEV = 'dev-1', MGR = 'mgr-a';
+const dev = env.authenticatedContext(DEV, { firebase: { sign_in_provider: 'anonymous' } }).firestore();
+const mgr = env.authenticatedContext(MGR, { firebase: { sign_in_provider: 'password' } }).firestore();
+const ok = async p => { try { await assertSucceeds(p); return true; } catch (e) { return false; } };
+const no = async p => { try { await assertFails(p); return true; } catch (e) { return false; } };
+const C = Object.fromEntries(CAP.map(c => [c.name, c]));
+const clean = d => JSON.parse(JSON.stringify(d));
+async function seed(extra) {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async c => {
+    const f = c.firestore();
+    await setDoc(doc(f, 'approvers', MGR), { userId: 'U-DEMO' });
+    await setDoc(doc(f, 'device_requests', DEV), { name: 'PC', code: '123456', createdAt: Timestamp.now() });
+    await setDoc(doc(f, 'devices', DEV), { status: 'approved', name: 'PC', approvedBy: MGR, approvedAt: Timestamp.now() });
+    const sh = C['shipment-create'].after;
+    await setDoc(doc(f, 'orders', sh.so_id), { itemCode: sh.itemCode, qty: 1000 });
+    await setDoc(doc(f, 'production_lots', sh.plot_no), { itemCode: sh.itemCode });
+    for (const [col, id, d] of (extra || [])) await setDoc(doc(f, col, id), clean(d));
+  });
+}
+const R = []; const P = (n, okv, note) => { R.push({ n, ok: okv }); console.log(`[${okv ? 'PASS' : 'FAIL'}] ${n}${note ? '  — ' + note : ''}`); };
+const put = (db, c, d) => setDoc(doc(db, c.col, c.id), clean(d), { merge: true });   // Firestore 어댑터와 같은 방식(전체 문서 · merge)
+
+// 출하 등록
+let c = C['shipment-create']; await seed();
+const a1 = await no(put(dev, c, c.after));
+await seed(); const b1 = await ok(put(dev, c, { ...c.after, by_uid: DEV }));
+P('K1 출하 등록 — A 지금 앱(by_uid 없음) 거부 · B 작성자 uid 추가 시 허용', a1 && b1, `앱 필드: ${Object.keys(c.after).filter(k => !k.startsWith('_')).sort().join(',')}`);
+// 구매 입고 등록
+c = C['purchase-receipt-create']; await seed();
+const a2 = await no(put(dev, c, c.after));
+await seed(); const b2 = await ok(put(dev, c, { ...c.after, by_uid: DEV }));
+P('K2 구매 입고 등록 — A 거부(by_uid 없음) · B 허용', a2 && b2, `po_id=${c.after.po_id} price=${c.after.price}`);
+// 출하 비고 수정 (속성 수정은 지금 앱 그대로 통과해야 함 — 정상 업무 유지)
+c = C['shipment-memo']; await seed([[c.col, c.id, { ...c.before, by_uid: DEV }]]);
+P('K3 출하 비고 수정 — 지금 앱 그대로 허용 (정상 업무 무변)', await ok(put(dev, c, { ...c.after, by_uid: DEV })));
+// 출하 취소 (voidDoc)
+c = C['shipment-void']; await seed([[c.col, c.id, { ...c.before, by_uid: DEV }]]);
+const a4 = await no(put(dev, c, { ...c.after, by_uid: DEV }));
+const vb = { void: { by_uid: DEV, reason: '중복 출하', at: serverTimestamp(), by: c.after.void.by }, void_hist: [{ action: 'cancel', actor_uid: DEV, reason: '중복 출하' }], 'void_hist_at': { '0': serverTimestamp() } };
+await seed([[c.col, c.id, { ...c.before, by_uid: DEV }]]);
+const b4 = await ok(setDoc(doc(dev, c.col, c.id), { ...clean({ ...c.after, by_uid: DEV }), ...vb }, { merge: true }));
+P('K4 출하 취소 — A 지금 voidDoc 모양({ts,by,reason}) 거부 · B void{by_uid·사유·서버시각}+이력 1건+이력 시각 허용', a4 && b4, `앱 void 키: ${Object.keys(c.after.void).join(',')}`);
+// 출하 복원 (unvoidDoc)
+c = C['shipment-unvoid'];
+await seed([[c.col, c.id, { ...c.before, by_uid: DEV }]]);   // 지금 앱의 취소 문서(이력 없음 = 레거시) 에서 복원
+const a5 = await no(put(dev, c, { ...c.after, by_uid: DEV }));
+const b5 = await ok(setDoc(doc(dev, c.col, c.id), { ...clean({ ...c.after, by_uid: DEV }), void: null, void_hist: [{ action: 'restore', actor_uid: DEV, reason: '정상 출하 확인' }], void_hist_at: { '0': serverTimestamp() } }, { merge: true }));
+P('K5 출하 복원 — A 지금 unvoidDoc(void:null 만) 거부 · B 복원 이력 1건 추가 시 허용 (레거시 취소 문서에서도)', a5 && b5);
+// 구매 입고 수량 정정 (docEditSave)
+c = C['pr-qty-fix']; await seed([[c.col, c.id, { ...c.before, by_uid: DEV }]]);
+const a6 = await no(put(dev, c, { ...c.after, by_uid: DEV }));
+const a6m = await no(put(mgr, c, { ...c.after, by_uid: DEV }));
+const h = c.after.qty_hist[0];
+const b6 = await ok(setDoc(doc(mgr, c.col, c.id), { ...clean({ ...c.after, by_uid: DEV }), qty_hist: [{ from: h.from, to: h.to, uid: MGR, reason: h.reason }], qty_hist_at: { '0': serverTimestamp() } }, { merge: true }));
+P('K6 구매 입고 수량 정정 — A 지금 앱(등록 기기 · 이력 {from,to,by,byId,ts,reason}) 거부 · 관리자라도 지금 이력 모양 거부 · B 관리자 계정 + {from,to,uid,reason} + 서버 시각 허용', a6 && a6m && b6, `앱 이력 키: ${Object.keys(h).join(',')}`);
+// 사용자 역할 변경
+c = C['user-role-change']; await seed([[c.col, c.id, c.before]]);
+const a7 = await no(put(dev, c, c.after));
+const b7 = await ok(put(mgr, c, c.after));
+P('K7 사용자 역할 변경 — A 등록 기기(지금 앱의 관리자 화면) 거부 · B 관리자 계정 인스턴스로 저장 시 허용', a7 && b7);
+// 비밀번호 변경
+c = C['user-pin-change']; await seed([[c.col, c.id, c.before]]);
+P('K8 비밀번호 변경 — 지금 앱 그대로 허용 (등록 기기)', await ok(put(dev, c, c.after)));
+
+await env.cleanup();
+if (R.length !== 8) R.push({ n: `항목 수 ${R.length} ≠ 8`, ok: false });
+const fail = R.filter(x => !x.ok).length;
+console.log(`\nRULES-COMPAT TOTAL ${R.length} · PASS ${R.length - fail} · FAIL ${fail}`);
+process.exit(fail ? 1 : 0);
+
+===== FILE: _capture-app-payloads.js =====
+// ★ v0.38.26-r2 — 실제 앱 저장 경로가 Firestore 로 보내는 문서 모양 수집 (Rules v5-r2 호환성 시험 입력) · 저장 = _app-payloads.json
+// 앱 함수·화면을 그대로 실행 (데모 · 로컬 · 서버 접속 0) → 쓰기 전/후 전체 문서를 기록 (Firestore 어댑터는 전체 문서를 set(merge) 로 보냄 [확인: DB.set → persist(col,id,next)])
+const fs = require('fs'), path = require('path');
+const { JSDOM, VirtualConsole } = require(path.join(__dirname, 'node_modules/jsdom'));
+const html = fs.readFileSync(path.resolve(__dirname, process.env.VELA_FILE || 'vela-mes-prototype.html'), 'utf8');
+const stripped = html.replace(/<script\s+src=[^>]*><\/script>/g, '').replace(/<link\s+rel="manifest"[^>]*>/g, '');
+const scripts = [...stripped.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+const vc = new VirtualConsole(); const errs = []; vc.on('jsdomError', e => errs.push(e.message));
+const dom = new JSDOM(stripped, { runScripts:'outside-only', pretendToBeVisual:true, virtualConsole:vc, url:'http://localhost/' });
+const win = dom.window; win.VELA_BACKEND = 'local';
+win.XLSX = { utils:{book_new:()=>({}),json_to_sheet:()=>({}),book_append_sheet:()=>{}}, writeFile:()=>{} };
+win.Html5Qrcode = function(){}; win.qrcode = function(){ return { addData(){}, make(){}, createSvgTag(){return ''}, createDataURL(){return ''} }; };
+win.matchMedia = q => ({ matches:false, media:q, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+win.eval(scripts.join('\n;\n') + `;window.__X = s => eval(s);`);
+const X = s => win.__X(s);
+const R = []; const P = (n, ok, note) => { R.push({ n, ok }); console.log(`[${ok?'PASS':'FAIL'}] ${n}${note?'  — '+note:''}`); };
+X(`sessionStorage.setItem('vela_demo','1'); seedDemoData(); seedDemoExtension(); SESSION.loggedIn=true; SESSION.role='manager'; SESSION.user='검증'; SESSION.userId='U-DEMO'; 1`);
+const snap = (col, id) => JSON.parse(X(`JSON.stringify(DB.allRaw('${col}').find(x => x.id === '${id}') || null)`));
+const out = [];
+const rec = (name, path, col, id, fn) => { const before = id ? snap(col, id) : null; const r = fn(); const nid = id || r; out.push({ name, path, col, id: nid, before, after: snap(col, nid) }); };
+// ① 출하 등록 (출하 › [+ 새 출하] 창 → [출하] 버튼 · 실제 onclick)
+rec('shipment-create', 'VIEWS.ship › #btn-ship-new › #sh-ok', 'shipments', null, () => X(`(()=>{ location.hash = '#ship'; router();
+  const before = new Set(DB.allRaw('shipments').map(x => x.id));
+  const soIds = (()=>{ document.getElementById('btn-ship-new').click(); const v = [...document.getElementById('sh-so').options].map(o => o.value).filter(Boolean); closeModal(); return v; })();
+  for(const sid of soIds){
+    document.getElementById('btn-ship-new').click();
+    const so = document.getElementById('sh-so'); so.value = sid; so.dispatchEvent(new window.Event('change'));
+    const lots = [...document.getElementById('sh-lot').options].map(o => o.value).filter(Boolean); closeModal();
+    for(const lv of lots){
+      document.getElementById('btn-ship-new').click();
+      const so2 = document.getElementById('sh-so'); so2.value = sid; so2.dispatchEvent(new window.Event('change'));
+      const lot = document.getElementById('sh-lot'); lot.value = lv; lot.dispatchEvent(new window.Event('change'));
+      document.getElementById('sh-qty').value = '1'; document.getElementById('sh-ok').click();
+      const nw = DB.allRaw('shipments').map(x => x.id).filter(id => !before.has(id));
+      if(document.getElementById('sh-ok')) closeModal();
+      if(nw.length) return nw[0];
+    }
+  }
+  return null; })()`));
+// ② 구매 입고 등록 (입고 › 구매품 › [+] → [입고 등록])
+rec('purchase-receipt-create', 'VIEWS._matinBuy › #mbuy-add › #pr-ok', 'purchase_receipts', null, () => X(`(()=>{ window._matinHub = { tab:'buy' }; location.hash = '#matin'; router(); document.getElementById('mbuy-add').click();
+  document.getElementById('pr-name').value = '장갑'; const u = document.getElementById('pr-unit'); u.value = 'box'; u.dispatchEvent(new window.Event('change')); document.getElementById('pr-qty').value = '3';
+  const before = new Set(DB.allRaw('purchase_receipts').map(x => x.id)); document.getElementById('pr-ok').click(); const nw = DB.allRaw('purchase_receipts').map(x => x.id).filter(id => !before.has(id)); if(document.getElementById('pr-ok')) closeModal(); return nw[0]; })()`));
+const shId = out[0].id, prId = out[1].id;
+// ③ 출하 취소 (voidDoc 1벌) · ④ 복원 (unvoidDoc)
+rec('shipment-void', 'voidDoc(col,id,reason)', 'shipments', shId, () => X(`voidDoc('shipments','${shId}','중복 출하')`));
+rec('shipment-unvoid', 'unvoidDoc(col,id)', 'shipments', shId, () => X(`unvoidDoc('shipments','${shId}')`));
+// ⑤ 출하 비고 수정 (속성 수정 docEditSave)
+rec('shipment-memo', 'docEditSave(비고)', 'shipments', shId, () => X(`docEditSave('shipments','${shId}',{ memo:'포장 확인' }, '')`));
+// ⑥ 구매 입고 수량 정정 (데모 시험 기능 · docEditSave)
+rec('pr-qty-fix', 'docEditSave(qty) · prQtyFixCheck', 'purchase_receipts', prId, () => X(`docEditSave('purchase_receipts','${prId}',{ qty:'4' }, '전표 대조')`));
+// ⑦ 사용자 역할 변경 (사용자 관리 — DB.set('users', id, { name, role }))
+rec('user-role-change', 'DB.set(users,{name,role}) — 사용자 관리 수정 저장', 'users', 'U-DEMO-W', () => X(`DB.set('users','U-DEMO-W',{ name:'홍길동', role:'manager' })`));
+// ⑧ 비밀번호 변경 (DB.set('users', id, { pin: hash }))
+rec('user-pin-change', 'DB.set(users,{pin}) — 비밀번호 변경', 'users', 'U-DEMO-W', () => X(`DB.set('users','U-DEMO-W',{ pin:'sha256:abc' })`));
+fs.writeFileSync(path.join(__dirname, '_app-payloads.json'), JSON.stringify(out, null, 1));
+const okAll = out.every(o => o.after);
+console.log(out.map(o => `${o.name}: ${o.col}/${o.id} keys=${Object.keys(o.after||{}).filter(k => !k.startsWith('_')).sort().join(',')}`).join('\n'));
+console.log(okAll ? 'CAPTURE OK ' + out.length : 'CAPTURE FAIL'); process.exit(okAll ? 0 : 1);
+
+===== FILE: _app-payloads.json =====
+[
+ {
+  "name": "shipment-create",
+  "path": "VIEWS.ship › #btn-ship-new › #sh-ok",
+  "col": "shipments",
+  "id": "SH-2026-D001",
+  "before": null,
+  "after": {
+   "id": "SH-2026-D001",
+   "so_id": "SO-2026-D005",
+   "itemCode": "HF-3312",
+   "plot_no": "PL-2026-D006",
+   "qty": 1,
+   "pallets": 0,
+   "pack_qty_actual": 200,
+   "ts": 1791589855082,
+   "by": "검증",
+   "_updated": 1791589855082,
+   "_logs": [
+    {
+     "ts": 1791589855082,
+     "op": "create",
+     "by": "검증"
+    }
+   ]
+  }
+ },
+ {
+  "name": "purchase-receipt-create",
+  "path": "VIEWS._matinBuy › #mbuy-add › #pr-ok",
+  "col": "purchase_receipts",
+  "id": "PR-2026-D001",
+  "before": null,
+  "after": {
+   "id": "PR-2026-D001",
+   "name": "장갑",
+   "spec": "",
+   "unit": "box",
+   "qty": 3,
+   "price": null,
+   "vendor": null,
+   "po_id": null,
+   "po_item_key": null,
+   "date": "2026-10-09",
+   "ts": 1791589855150,
+   "by": "검증",
+   "_updated": 1791589855150,
+   "_logs": [
+    {
+     "ts": 1791589855150,
+     "op": "create",
+     "by": "검증"
+    }
+   ]
+  }
+ },
+ {
+  "name": "shipment-void",
+  "path": "voidDoc(col,id,reason)",
+  "col": "shipments",
+  "id": "SH-2026-D001",
+  "before": {
+   "id": "SH-2026-D001",
+   "so_id": "SO-2026-D005",
+   "itemCode": "HF-3312",
+   "plot_no": "PL-2026-D006",
+   "qty": 1,
+   "pallets": 0,
+   "pack_qty_actual": 200,
+   "ts": 1791589855082,
+   "by": "검증",
+   "_updated": 1791589855082,
+   "_logs": [
+    {
+     "ts": 1791589855082,
+     "op": "create",
+     "by": "검증"
+    }
+   ]
+  },
+  "after": {
+   "id": "SH-2026-D001",
+   "so_id": "SO-2026-D005",
+   "itemCode": "HF-3312",
+   "plot_no": "PL-2026-D006",
+   "qty": 1,
+   "pallets": 0,
+   "pack_qty_actual": 200,
+   "ts": 1791589855082,
+   "by": "검증",
+   "_updated": 1791589855175,
+   "_logs": [
+    {
+     "ts": 1791589855082,
+     "op": "create",
+     "by": "검증"
+    },
+    {
+     "ts": 1791589855175,
+     "op": "void",
+     "by": "검증",
+     "reason": "중복 출하"
+    }
+   ],
+   "void": {
+    "ts": 1791589855175,
+    "by": "검증",
+    "reason": "중복 출하"
+   }
+  }
+ },
+ {
+  "name": "shipment-unvoid",
+  "path": "unvoidDoc(col,id)",
+  "col": "shipments",
+  "id": "SH-2026-D001",
+  "before": {
+   "id": "SH-2026-D001",
+   "so_id": "SO-2026-D005",
+   "itemCode": "HF-3312",
+   "plot_no": "PL-2026-D006",
+   "qty": 1,
+   "pallets": 0,
+   "pack_qty_actual": 200,
+   "ts": 1791589855082,
+   "by": "검증",
+   "_updated": 1791589855175,
+   "_logs": [
+    {
+     "ts": 1791589855082,
+     "op": "create",
+     "by": "검증"
+    },
+    {
+     "ts": 1791589855175,
+     "op": "void",
+     "by": "검증",
+     "reason": "중복 출하"
+    }
+   ],
+   "void": {
+    "ts": 1791589855175,
+    "by": "검증",
+    "reason": "중복 출하"
+   }
+  },
+  "after": {
+   "id": "SH-2026-D001",
+   "so_id": "SO-2026-D005",
+   "itemCode": "HF-3312",
+   "plot_no": "PL-2026-D006",
+   "qty": 1,
+   "pallets": 0,
+   "pack_qty_actual": 200,
+   "ts": 1791589855082,
+   "by": "검증",
+   "_updated": 1791589855175,
+   "_logs": [
+    {
+     "ts": 1791589855082,
+     "op": "create",
+     "by": "검증"
+    },
+    {
+     "ts": 1791589855175,
+     "op": "void",
+     "by": "검증",
+     "reason": "중복 출하"
+    },
+    {
+     "ts": 1791589855175,
+     "op": "unvoid",
+     "by": "검증"
+    }
+   ],
+   "void": null
+  }
+ },
+ {
+  "name": "shipment-memo",
+  "path": "docEditSave(비고)",
+  "col": "shipments",
+  "id": "SH-2026-D001",
+  "before": {
+   "id": "SH-2026-D001",
+   "so_id": "SO-2026-D005",
+   "itemCode": "HF-3312",
+   "plot_no": "PL-2026-D006",
+   "qty": 1,
+   "pallets": 0,
+   "pack_qty_actual": 200,
+   "ts": 1791589855082,
+   "by": "검증",
+   "_updated": 1791589855175,
+   "_logs": [
+    {
+     "ts": 1791589855082,
+     "op": "create",
+     "by": "검증"
+    },
+    {
+     "ts": 1791589855175,
+     "op": "void",
+     "by": "검증",
+     "reason": "중복 출하"
+    },
+    {
+     "ts": 1791589855175,
+     "op": "unvoid",
+     "by": "검증"
+    }
+   ],
+   "void": null
+  },
+  "after": {
+   "id": "SH-2026-D001",
+   "so_id": "SO-2026-D005",
+   "itemCode": "HF-3312",
+   "plot_no": "PL-2026-D006",
+   "qty": 1,
+   "pallets": 0,
+   "pack_qty_actual": 200,
+   "ts": 1791589855082,
+   "by": "검증",
+   "_updated": 1791589855175,
+   "_logs": [
+    {
+     "ts": 1791589855082,
+     "op": "create",
+     "by": "검증"
+    },
+    {
+     "ts": 1791589855175,
+     "op": "void",
+     "by": "검증",
+     "reason": "중복 출하"
+    },
+    {
+     "ts": 1791589855175,
+     "op": "unvoid",
+     "by": "검증"
+    },
+    {
+     "ts": 1791589855175,
+     "op": "correct",
+     "by": "검증",
+     "reason": "출하 수정: 비고·포장",
+     "prev": {
+      "memo": null
+     },
+     "next": {
+      "memo": "포장 확인"
+     }
+    }
+   ],
+   "void": null,
+   "memo": "포장 확인",
+   "_corrected": true,
+   "_correction_reason": "출하 수정: 비고·포장"
+  }
+ },
+ {
+  "name": "pr-qty-fix",
+  "path": "docEditSave(qty) · prQtyFixCheck",
+  "col": "purchase_receipts",
+  "id": "PR-2026-D001",
+  "before": {
+   "id": "PR-2026-D001",
+   "name": "장갑",
+   "spec": "",
+   "unit": "box",
+   "qty": 3,
+   "price": null,
+   "vendor": null,
+   "po_id": null,
+   "po_item_key": null,
+   "date": "2026-10-09",
+   "ts": 1791589855150,
+   "by": "검증",
+   "_updated": 1791589855150,
+   "_logs": [
+    {
+     "ts": 1791589855150,
+     "op": "create",
+     "by": "검증"
+    }
+   ]
+  },
+  "after": {
+   "id": "PR-2026-D001",
+   "name": "장갑",
+   "spec": "",
+   "unit": "box",
+   "qty": 4,
+   "price": null,
+   "vendor": null,
+   "po_id": null,
+   "po_item_key": null,
+   "date": "2026-10-09",
+   "ts": 1791589855150,
+   "by": "검증",
+   "_updated": 1791589855176,
+   "_logs": [
+    {
+     "ts": 1791589855150,
+     "op": "create",
+     "by": "검증"
+    },
+    {
+     "ts": 1791589855176,
+     "op": "correct",
+     "by": "검증",
+     "reason": "구매 입고 수정: 수량 정정 3 → 4 box · 전표 대조",
+     "prev": {
+      "qty": 3,
+      "qty_hist": null
+     },
+     "next": {
+      "qty": 4,
+      "qty_hist": [
+       {
+        "from": 3,
+        "to": 4,
+        "by": "검증",
+        "byId": "U-DEMO",
+        "ts": 1791589855176,
+        "reason": "수량 정정 3 → 4 box · 전표 대조"
+       }
+      ]
+     }
+    }
+   ],
+   "qty_hist": [
+    {
+     "from": 3,
+     "to": 4,
+     "by": "검증",
+     "byId": "U-DEMO",
+     "ts": 1791589855176,
+     "reason": "수량 정정 3 → 4 box · 전표 대조"
+    }
+   ],
+   "_corrected": true,
+   "_correction_reason": "구매 입고 수정: 수량 정정 3 → 4 box · 전표 대조"
+  }
+ },
+ {
+  "name": "user-role-change",
+  "path": "DB.set(users,{name,role}) — 사용자 관리 수정 저장",
+  "col": "users",
+  "id": "U-DEMO-W",
+  "before": {
+   "id": "U-DEMO-W",
+   "name": "홍길동",
+   "pin": "000000",
+   "role": "worker",
+   "active": true,
+   "created_at": 1791589853782,
+   "last_login": null,
+   "_updated": 1791589853782,
+   "_logs": [
+    {
+     "ts": 1791589853782,
+     "op": "create",
+     "by": "OP-001"
+    }
+   ]
+  },
+  "after": {
+   "id": "U-DEMO-W",
+   "name": "홍길동",
+   "pin": "000000",
+   "role": "manager",
+   "active": true,
+   "created_at": 1791589853782,
+   "last_login": null,
+   "_updated": 1791589855176,
+   "_logs": [
+    {
+     "ts": 1791589853782,
+     "op": "create",
+     "by": "OP-001"
+    },
+    {
+     "ts": 1791589855176,
+     "op": "update",
+     "by": "검증"
+    }
+   ]
+  }
+ },
+ {
+  "name": "user-pin-change",
+  "path": "DB.set(users,{pin}) — 비밀번호 변경",
+  "col": "users",
+  "id": "U-DEMO-W",
+  "before": {
+   "id": "U-DEMO-W",
+   "name": "홍길동",
+   "pin": "000000",
+   "role": "manager",
+   "active": true,
+   "created_at": 1791589853782,
+   "last_login": null,
+   "_updated": 1791589855176,
+   "_logs": [
+    {
+     "ts": 1791589853782,
+     "op": "create",
+     "by": "OP-001"
+    },
+    {
+     "ts": 1791589855176,
+     "op": "update",
+     "by": "검증"
+    }
+   ]
+  },
+  "after": {
+   "id": "U-DEMO-W",
+   "name": "홍길동",
+   "pin": "sha256:abc",
+   "role": "manager",
+   "active": true,
+   "created_at": 1791589853782,
+   "last_login": null,
+   "_updated": 1791589855176,
+   "_logs": [
+    {
+     "ts": 1791589853782,
+     "op": "create",
+     "by": "OP-001"
+    },
+    {
+     "ts": 1791589855176,
+     "op": "update",
+     "by": "검증"
+    },
+    {
+     "ts": 1791589855176,
+     "op": "update",
+     "by": "검증"
+    }
+   ]
+  }
+ }
+]
+
 ===== FILE: firestore.rules.v5-draft =====
-// VELA MES SYSTEM — Firestore Security Rules v5 「초안」 (B′ A-1 · GPT 판정 2026-10-10 반영)
-// ⚠ 초안 — 게시 금지. 실회사 프로젝트 게시는 ① 에뮬레이터 S1~S30 PASS ② GPT 재검토 ③ 시험용 프로젝트 확인 ④ 사용자 승인 후.
+// VELA MES SYSTEM — Firestore Security Rules v5 「초안 r2」 (B′ A-1 · GPT 결정 2026-10-10 반영)
+// ⚠ 초안 — 게시 금지. 순서: 에뮬레이터 → GPT 재검토 → 시험용 Firebase 프로젝트 → 사용자 승인 후 실회사.
 // 기준: 앱 v0.38.26 `_FS_COLLECTIONS`(61) · `MASTER_DEL_COLS`(11) · v4 = firestore.rules (v0.31.5)
 //
-// v4 대비 바뀌는 점
-//   1. 와일드카드 전체 허용(`match /{document=**}`) 제거 → 컬렉션 허용 목록 + 마지막 줄 전부 거부.
-//      Rules 는 겹치는 allow 를 OR 로 합치므로, 보호 컬렉션은 GENERAL 목록에 절대 넣지 않는다(S1 이 검사).
-//   2. 출하·구매 입고(수량 원장) = 별도 블록 (사용자 결정 S-1b 2026-10-10: 계정은 관리자만 → 등록은 지금처럼 익명 허용)
-//      · 생성: 형식 검사(출하 정수 ≥1 · 입고 > 0 · 단위 · 연결 필드) · 작성자 uid 기록 강제 · 처음부터 qty_hist 금지
-//      · 연결 필드(수주·LOT·품번 / 발주·품목 키 · 발주 연결 단위) 생성 후 변경 불가
-//      · 수량 변경 = 관리자(approvers)만 · qty_hist 정확히 1건 추가(from=이전 qty · to=새 qty · uid=본인 · 시각=서버) · 최대 5
-//      ⚠ GPT P0-1 「익명 사용자의 임의 수량 출하·입고 생성」 은 S-1b 결정으로 **미해결** — 형식만 검사. 수량 원장 서버 무결성 주장 불가
-//   3. 결재 = 결재선·문서 고정 · 상태 머신 · 현재 단계 uid 만 · 결정 기록(decisions)이 같은 문서·같은 쓰기 안에서 상태와 함께 바뀜 (GPT P0-2)
-//   4. 관리자 목록(approvers)·Rules 버전 표식(settings/server_rules) = 앱 쓰기 불가 (콘솔/Admin 만)
-//   5. 개인 보고서 템플릿 = 소유자 uid 만 읽기·쓰기 (계정 있는 관리자만 · 익명은 템플릿 없음)
+// r2 핵심 (r1 대비)
+//   E1 등록 기기만 데이터 접근 — 외부인은 익명 로그인을 해도 「등록 요청 1건」 외에는 읽기·쓰기 0
+//      member() = devices/{uid}.status == 'approved' (관리자가 승인한 익명 UID) 또는 관리자 계정(approvers)
+//      ※ 익명 UID 는 하드웨어·사람 신원이 아니다. 「관리자가 승인한 Firebase 인증 UID」 일 뿐 (브라우저 데이터 삭제 시 새 UID → 재승인)
+//   권한 상승 방지 — devices·approvers·settings/server_rules = 앱 일반 쓰기 0 · 등록 요청 문서로는 아무 권한도 생기지 않음
+//                    users 의 역할·권한·활성·신규 생성 = 관리자 계정만 (비밀번호·마지막 로그인·기기 토큰만 등록 기기가 변경 가능)
+//   마감·계산서 = 관리자 계정만 쓰기 · 마감된 월의 출하·구매 입고 수량·취소·날짜 변경 = 서버 거부 (마감 문서 존재·미취소로 판정 · KST 월)
+//   취소·복원 = 막지 않고 남김 — void_hist 정확히 1건 추가(action·actor_uid·reason) + void_hist_at.{n} = 서버 시각 + 현재 void 상태와 일치
+//   결재 — 대상 문서 실제 존재 · 결재선 중복·상신자 자기 결재 금지 · 보고 요청 종료 상태 불변 · 출하 itemCode 필수 + 수주·LOT 실재
 //
-// Rules 가 못 하는 것 (정직 표기 · 앱/A-4 몫)
-//   · 「LOT 출하 합 ≤ 인정양품」 「발주 입고 합 ≤ 발주량」 같은 여러 문서 합산 검사 — get() 은 요청당 최대 10건
-//     → A-4: PO/LOT 집계 문서(rev) 를 같은 트랜잭션에서 갱신하고 getAfter() 로 검사하는 설계 (별도 Gate)
-//   · 직원 계정이 정상 범위 안에서 틀린 수량을 넣는 것 (신원·기록은 남지만 막지는 못함)
+// Rules 가 보장하지 않는 것 (정직 표기)
+//   · 등록 기기 사용자가 정상 범위 안에서 넣는 틀린 수량 · 사유 내용의 진실성 · 사람 단위 신원 (S-1b: 계정은 관리자만)
+//   · 「LOT 출하 합 ≤ 인정양품」 「발주 입고 합 ≤ 발주량」 등 여러 문서 합산 (A-4 별도 Gate)
+//   · 계산서 발행 월 차단(수주→고객 2단 조회 필요) — 앱 검사 유지 · 등록 기기가 다른 직원의 비밀번호를 바꾸는 것(서버는 VELA 사용자 ID 를 모름)
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
 
     // ───────── 신원 ─────────
-    function authed()  { return request.auth != null; }
-    function uid()     { return request.auth.uid; }
-    function approver(){ return authed() && exists(/databases/$(db)/documents/approvers/$(uid())); }   // 관리자 = 콘솔이 만든 approvers/{uid} 가 있는 계정
-    function manager() { return approver(); }
-    function isApprover(u){ return exists(/databases/$(db)/documents/approvers/$(u)); }
+    function authed()   { return request.auth != null; }
+    function uid()      { return request.auth.uid; }
+    function P(col, id) { return /databases/$(db)/documents/$(col)/$(id); }
+    function approver() { return authed() && exists(P('approvers', uid())); }      // 관리자 = 콘솔이 만든 approvers/{uid}
+    function isApprover(u) { return exists(P('approvers', u)); }
+    function manager()  { return approver(); }
+    function device()   { return authed() && exists(P('devices', uid())) && get(P('devices', uid())).data.status == 'approved'; }
+    function member()   { return device() || approver(); }                          // E1: 데이터 접근 = 승인 기기 또는 관리자 계정
 
-    function nd() { return request.resource.data; }   // 새 상태
-    function od() { return resource.data; }           // 이전 상태
+    function nd() { return request.resource.data; }
+    function od() { return resource.data; }
     function changed() { return nd().diff(od()).affectedKeys(); }
 
-    // ───────── ① 일반 컬렉션 (v4 수준 유지 · 기술부채: 익명이면 누구나) ─────────
-    // 목록 = 앱 _FS_COLLECTIONS − {shipments, purchase_receipts} (보호 컬렉션은 아래 별도 블록) — 순서·철자 S1 이 앱과 대조
+    // 맵 newMap 에 키 k 하나만 새로 추가 · 값 = 서버 시각 · 이전 키 변경·삭제 불가 (serverTimestamp 는 배열 안 불가 — 에뮬레이터 실측)
+    function onlyAddedAt(newMap, oldMap, k) {
+      return newMap is map && newMap.diff(oldMap).addedKeys().hasOnly([k]) && newMap.diff(oldMap).addedKeys().hasAll([k])
+        && newMap.diff(oldMap).changedKeys().size() == 0 && newMap.diff(oldMap).removedKeys().size() == 0
+        && newMap[k] == request.time;
+    }
+
+    // ───────── 마감 월 (KST) ─────────
+    function mm(m) { return m < 10 ? '0' + string(m) : string(m); }
+    function kstMonth(ts) { return string(timestamp.value(int(ts) + 32400000).year()) + '-' + mm(timestamp.value(int(ts) + 32400000).month()); }
+    function docMonth(d) { return d.get('cl_month', null) != null ? d.cl_month : kstMonth(d.ts); }
+    function closedMonth(type, month) {
+      return exists(P('closings', 'CL-' + month + '-' + type)) && get(P('closings', 'CL-' + month + '-' + type)).data.get('void', null) == null;
+    }
+
+    // ───────── ① 일반 컬렉션 (등록 기기만) ─────────
+    // 목록 = 앱 _FS_COLLECTIONS − 별도 블록(shipments · purchase_receipts · users · closings · acct_invoices) — S1 이 앱과 대조
     function generalCols() {
-      return ['settings','company','users','workers','vendors','items','bom','processes','equipment','equipments','molds','tools','gauges',
+      return ['settings','company','workers','vendors','items','bom','processes','equipment','equipments','molds','tools','gauges',
               'quotes','orders','shipping_plans','work_orders','production_plans','lots','production_lots','heat_batches','records','rework',
               'material_receipts','os_dispatches','os_receipts','os_returns','os_lots','purchase_orders','materials','material_lots','consigned_materials',
-              'pallets','packings','closings','nonconformances','documents','drawings','nc_programs','ecn','audits','reviews','trainings','supplier_evals',
+              'pallets','packings','nonconformances','documents','drawings','nc_programs','ecn','audits','reviews','trainings','supplier_evals',
               'claims','risks','reports','nc_records','defect_types','customers','master_fields','import_logs','acct_receipts','acct_payments',
-              'acct_expenses','acct_invoices','expense_categories','price_agreements','concurrency_incidents'];
+              'acct_expenses','expense_categories','price_agreements','concurrency_incidents'];
     }
     function masterDelCols() {
       return ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -5931,55 +6702,74 @@ service cloud.firestore {
     function protectedDoc(col, id) { return col == 'settings' && id == 'server_rules'; }
 
     match /{col}/{id} {
-      allow read:   if authed() && col in generalCols();
-      allow create, update: if authed() && col in generalCols() && !protectedDoc(col, id);
-      allow delete: if authed() && col in masterDelCols();
+      allow read:   if member() && col in generalCols();
+      allow create, update: if member() && col in generalCols() && !protectedDoc(col, id);
+      allow delete: if member() && col in masterDelCols();
     }
 
-    // ───────── ② 수량 원장 — 출하 ─────────
+    // ───────── ② 사용자 (역할·권한 상승 방지) ─────────
+    match /users/{id} {
+      allow read: if member();
+      allow create: if approver();
+      allow delete: if false;
+      allow update: if approver()
+        || (device() && changed().hasOnly(['pin', 'last_login', 'devices', '_logs', '_updated']));
+    }
+
+    // ───────── ③ 마감 · 계산서 = 관리자 계정만 쓰기 ─────────
+    match /closings/{id}      { allow read: if member(); allow create, update: if approver(); allow delete: if false; }
+    match /acct_invoices/{id} { allow read: if member(); allow create, update: if approver(); allow delete: if false; }
+
+    // ───────── ④ 수량 원장 — 출하 ─────────
     match /shipments/{id} {
-      allow read: if authed();
-      allow create: if authed()
+      allow read: if member();
+      allow create: if member()
         && nd().by_uid == uid()
         && nd().so_id is string && nd().so_id.size() > 0
         && nd().plot_no is string && nd().plot_no.size() > 0
+        && nd().itemCode is string && nd().itemCode.size() > 0
+        && exists(P('orders', nd().so_id)) && exists(P('production_lots', nd().plot_no))
+        && get(P('orders', nd().so_id)).data.get('itemCode', '') == nd().itemCode
         && nd().qty is int && nd().qty >= 1
-        && !('qty_hist' in nd()) && !('qty_hist_at' in nd())
-        && !('void' in nd());
-      allow update: if authed()
-        && !changed().hasAny(['id', 'so_id', 'plot_no', 'itemCode', 'by_uid', 'ts_created'])
-        && qtyRule(1);
+        && nd().ts is int
+        && noHistOnCreate();
+      allow update: if member()
+        && !changed().hasAny(['id', 'so_id', 'plot_no', 'itemCode', 'by_uid'])
+        && ledgerOpen('sales', ['qty', 'qty_hist', 'qty_hist_at', 'void', 'void_hist', 'void_hist_at', 'ts', 'date', 'cl_month', 'pallets'])
+        && qtyRule(1) && voidRule();
       allow delete: if false;
     }
 
-    // ───────── ③ 수량 원장 — 구매 입고 ─────────
+    // ───────── ⑤ 수량 원장 — 구매 입고 ─────────
     match /purchase_receipts/{id} {
-      allow read: if authed();
-      allow create: if authed()
+      allow read: if member();
+      allow create: if member()
         && nd().by_uid == uid()
         && nd().qty is number && nd().qty > 0
         && nd().unit is string && nd().unit.size() > 0
-        && !('qty_hist' in nd()) && !('qty_hist_at' in nd())
-        && !('void' in nd())
-        && (!('po_id' in nd()) || nd().po_id == null || (nd().po_item_key is string && nd().po_item_key.size() > 0));
-      allow update: if authed()
-        && !changed().hasAny(['id', 'po_id', 'po_item_key', 'by_uid', 'ts_created'])
+        && nd().ts is int
+        && (nd().get('po_id', null) == null || (nd().get('po_item_key', '') is string && nd().get('po_item_key', '').size() > 0 && exists(P('purchase_orders', nd().po_id))))
+        && noHistOnCreate();
+      allow update: if member()
+        && !changed().hasAny(['id', 'po_id', 'po_item_key', 'by_uid'])
         && (od().get('po_id', null) == null || !changed().hasAny(['unit']))
-        && qtyRule(0);
+        && ledgerOpen('purchase', ['qty', 'qty_hist', 'qty_hist_at', 'void', 'void_hist', 'void_hist_at', 'ts', 'date', 'cl_month', 'price', 'unit', 'vendor'])
+        && qtyRule(0) && voidRule();
       allow delete: if false;
     }
 
-    // 수량 규칙 (출하·구매 입고 공용): 수량·이력 무변 = 통과 · 바꾸면 관리자 + 이력 정확히 1건 추가
-    //   minQty: 출하 1(정수) / 구매 입고 0 초과
-    // ★ 에뮬레이터 실측(2026-10-10): serverTimestamp() 는 배열 안에 넣을 수 없음 → 이력 시각은 맵 필드 qty_hist_at.{순번} 에 서버 시각으로
+    function noHistOnCreate() {
+      return !('qty_hist' in nd()) && !('qty_hist_at' in nd()) && !('void_hist' in nd()) && !('void_hist_at' in nd())
+        && nd().get('void', null) == null;
+    }
+    // 마감된 월(바꾸기 전 월 · 바꾼 뒤 월)이면 원장 영향 필드 변경 거부
+    function ledgerOpen(type, keys) {
+      return !changed().hasAny(keys) || (!closedMonth(type, docMonth(od())) && !closedMonth(type, docMonth(nd())));
+    }
+
+    // 수량 정정 (관리자 · 이력 정확히 1건 · 시각 = qty_hist_at.{n} 서버 시각)
     function qtyRule(minQty) {
       return !changed().hasAny(['qty', 'qty_hist', 'qty_hist_at']) || qtyFix(minQty);
-    }
-    // 맵 m 에 키 k 하나만 새로 추가되고 그 값이 서버 시각인지 (이전 키 변경·삭제 불가)
-    function onlyAddedAt(newMap, oldMap, k) {
-      return newMap is map && newMap.diff(oldMap).addedKeys().hasOnly([k]) && newMap.diff(oldMap).addedKeys().hasAll([k])
-        && newMap.diff(oldMap).changedKeys().size() == 0 && newMap.diff(oldMap).removedKeys().size() == 0
-        && newMap[k] == request.time;
     }
     function qtyFix(minQty) {
       let old = od().get('qty_hist', []);
@@ -5988,7 +6778,7 @@ service cloud.firestore {
         && n < 5
         && nd().qty_hist is list
         && nd().qty_hist.size() == n + 1
-        && (n == 0 || nd().qty_hist[0:n] == old)   // ★ 에뮬레이터 실측: 빈 구간 [0:0] 은 Index -1 평가 오류 → n==0 분기
+        && (n == 0 || nd().qty_hist[0:n] == old)          // 빈 구간 [0:0] 은 평가 오류(에뮬레이터 실측) → n==0 분기
         && nd().qty_hist[n].from == od().qty
         && nd().qty_hist[n].to == nd().qty
         && nd().qty_hist[n].uid == uid()
@@ -5998,35 +6788,86 @@ service cloud.firestore {
         && (minQty == 1 ? (nd().qty is int && nd().qty >= 1) : (nd().qty is number && nd().qty > 0));
     }
 
-    // ───────── ④ 관리 목록 — 앱 쓰기 0 (콘솔/Admin SDK 는 Rules 우회) ─────────
-    match /approvers/{u}   { allow read: if authed() && uid() == u; allow write: if false; }
-    match /settings/server_rules { allow read: if authed(); allow write: if false; }   // ① 블록도 protectedDoc 로 제외
+    // 취소·복원 (막지 않고 남김 · GPT 조건 7)
+    //   void_hist[n] = { action:'cancel'|'restore', actor_uid:본인, reason:2자 이상 } · void_hist_at.{n} = 서버 시각
+    //   cancel: 이전 void 없음 → void = { by_uid:본인, reason:같은 사유, at:서버 시각 } · restore: 이전 void 있음 → void = null
+    //   레거시(void_hist 없이 void 만 있는 옛 문서): 첫 이력으로 restore 가능 · 옛 void 내용은 서버 미검증 기록으로 앱이 구분 표시
+    function voidRule() {
+      return !changed().hasAny(['void', 'void_hist', 'void_hist_at']) || voidStep();
+    }
+    function voidStep() {
+      let old = od().get('void_hist', []);
+      let n = old.size();
+      let e = nd().void_hist[n];
+      let wasVoid = od().get('void', null) != null;
+      return n < 20
+        && nd().void_hist is list && nd().void_hist.size() == n + 1
+        && (n == 0 || nd().void_hist[0:n] == old)
+        && e.keys().hasOnly(['action', 'actor_uid', 'reason'])
+        && e.actor_uid == uid()
+        && e.reason is string && e.reason.size() >= 2
+        && onlyAddedAt(nd().get('void_hist_at', {}), od().get('void_hist_at', {}), string(n))
+        && ( (e.action == 'cancel' && !wasVoid
+               && nd().void is map && nd().void.keys().hasOnly(['by_uid', 'reason', 'at', 'by'])
+               && nd().void.by_uid == uid() && nd().void.reason == e.reason && nd().void.at == request.time)
+          || (e.action == 'restore' && wasVoid && nd().get('void', null) == null) );
+    }
 
-    // ───────── ⑤ 결재 (GPT P0-2) ─────────
-    // 문서: { docType, docId, docRev, snapshot, line:[{uid,role}], cur, state, decisions:[{step,uid,action,comment?}], decision_at:{ "0": 서버시각, … }, submittedUid, createdAt }
+    // ───────── ⑥ 관리 목록 · 기기 — 앱 일반 쓰기 0 ─────────
+    match /approvers/{u}   { allow read: if authed() && uid() == u; allow write: if false; }
+    match /settings/server_rules { allow read: if member(); allow write: if false; }
+    // 등록 요청: 미등록 익명이 자기 UID 문서 1건만 생성 · 데이터 접근 권한 0 · 관리자만 목록 조회
+    match /device_requests/{u} {
+      allow get: if authed() && (uid() == u || approver());
+      allow list: if approver();
+      allow create: if authed() && uid() == u
+        && nd().keys().hasOnly(['name', 'note', 'code', 'createdAt'])
+        && nd().name is string && nd().name.size() >= 1 && nd().name.size() <= 40
+        && nd().code is string && nd().code.matches('^[0-9]{6}$')
+        && nd().createdAt == request.time;
+      allow update, delete: if false;
+    }
+    // 기기 승인·해제 = 관리자 계정만 · 기기 스스로 자기 문서 변경 불가
+    match /devices/{u} {
+      allow get: if authed() && (uid() == u || approver());
+      allow list: if approver();
+      allow create: if approver() && exists(P('device_requests', u))
+        && nd().keys().hasOnly(['status', 'name', 'approvedBy', 'approvedAt'])
+        && nd().status == 'approved' && nd().approvedBy == uid() && nd().approvedAt == request.time;
+      allow update: if approver() && changed().hasOnly(['status', 'revokedBy', 'revokedAt', 'approvedBy', 'approvedAt'])
+        && ( (nd().status == 'revoked' && nd().revokedBy == uid() && nd().revokedAt == request.time)
+          || (nd().status == 'approved' && nd().approvedBy == uid() && nd().approvedAt == request.time) );
+      allow delete: if false;
+    }
+
+    // ───────── ⑦ 결재 ─────────
+    // { docType, docId, docRev, snapshot, line:[{uid,role}], cur, state, decisions:[{step,uid,action,comment?}], decision_at:{n:서버시각}, submittedUid, createdAt, title }
+    function apvCol(t) { return t == 'report' ? 'reports' : (t == 'po' ? 'purchase_orders' : 'closings'); }
     match /approvals/{id} {
       allow read: if approver();
       allow create: if approver()
         && nd().keys().hasOnly(['docType','docId','docRev','snapshot','line','cur','state','decisions','decision_at','submittedUid','createdAt','title'])
-        && nd().decision_at == {}
+        && nd().docType in ['report', 'po', 'closing']
+        && nd().docId is string && nd().docId.size() > 0 && exists(P(apvCol(nd().docType), nd().docId))
+        && nd().docRev is int && nd().docRev >= 1
+        && nd().decision_at == {} && nd().decisions == []
         && nd().submittedUid == uid()
         && nd().state == 'pending' && nd().cur == 0
-        && nd().decisions == []
         && nd().createdAt == request.time
         && nd().line is list && nd().line.size() >= 1 && nd().line.size() <= 5
-        && lineOk(nd().line);
-      allow update: if approver() && od().state == 'pending'
-        && (decide() || withdraw());
+        && lineOk(nd().line, uid());
+      allow update: if approver() && od().state == 'pending' && (decide() || withdraw());
       allow delete: if false;
     }
-    function lineOk(l) {
-      return isApprover(l[0].uid)
-        && (l.size() < 2 || isApprover(l[1].uid))
-        && (l.size() < 3 || isApprover(l[2].uid))
-        && (l.size() < 4 || isApprover(l[3].uid))
-        && (l.size() < 5 || isApprover(l[4].uid));
+    function lineAt(l, i, s) { return l.size() <= i || (isApprover(l[i].uid) && l[i].uid != s && l[i].keys().hasOnly(['uid', 'role'])); }
+    function lineOk(l, s) {
+      return lineAt(l, 0, s) && lineAt(l, 1, s) && lineAt(l, 2, s) && lineAt(l, 3, s) && lineAt(l, 4, s)
+        && lineUnique(l);
     }
-    // 결정 1건 = 결정 기록 1건 추가 + 상태/단계가 그 결정과 정확히 일치 (같은 쓰기 → 별도 history 위조 불가)
+    function lu(l, i) { return l.size() > i ? l[i].uid : 'none-' + string(i); }
+    function lineUnique(l) {
+      return [lu(l,0), lu(l,1), lu(l,2), lu(l,3), lu(l,4)].toSet().size() == 5;
+    }
     function decide() {
       let n = od().decisions.size();
       let d = nd().decisions[n];
@@ -6047,7 +6888,7 @@ service cloud.firestore {
         && changed().hasOnly(['state']) && nd().state == 'withdrawn';
     }
 
-    // ───────── ⑥ 알림 · 보고 요청 (관리자 ↔ 관리자) ─────────
+    // ───────── ⑧ 알림 · 보고 요청 (관리자 ↔ 관리자) ─────────
     match /events/{id} {
       allow read: if approver() && od().to == uid();
       allow create: if approver() && nd().from == uid() && isApprover(nd().to) && nd().ts == request.time;
@@ -6055,19 +6896,22 @@ service cloud.firestore {
     }
     match /report_requests/{id} {
       allow read: if approver() && (od().from == uid() || od().to == uid());
-      allow create: if approver() && nd().from == uid() && isApprover(nd().to) && nd().state == 'requested';
-      allow update: if approver() && od().to == uid() && changed().hasOnly(['state', 'report_id', 'answeredAt'])
-        && nd().state in ['submitted', 'declined'] && nd().answeredAt == request.time;
+      allow create: if approver() && nd().keys().hasOnly(['from', 'to', 'state', 'title', 'due', 'createdAt'])
+        && nd().from == uid() && nd().to != uid() && isApprover(nd().to) && nd().state == 'requested' && nd().createdAt == request.time;
+      allow update: if approver() && od().to == uid() && od().state == 'requested'      // 종료 상태(submitted·declined) 재변경 불가
+        && changed().hasOnly(['state', 'report_id', 'answeredAt'])
+        && nd().state in ['submitted', 'declined'] && nd().answeredAt == request.time
+        && (nd().state == 'declined' || (nd().report_id is string && exists(P('reports', nd().report_id))));
       allow delete: if false;
     }
 
-    // ───────── ⑦ 개인 보고서 템플릿 (보고서 빌더 R-2 · GPT R4) ─────────
+    // ───────── ⑨ 개인 보고서 템플릿 (owner_uid · 관리자 계정만 · 일반 구독 제외) ─────────
     match /report_templates/{id} {
-      allow delete: if false;
       allow get: if approver() && od().owner_uid == uid();
       allow list: if approver() && resource.data.owner_uid == uid();
       allow create: if approver() && nd().owner_uid == uid();
       allow update: if approver() && od().owner_uid == uid() && nd().owner_uid == uid();
+      allow delete: if false;
     }
 
     // ───────── 목록 밖 전부 거부 (하위 경로 포함) ─────────
