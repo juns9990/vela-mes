@@ -1426,7 +1426,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.27';
+const APP_VERSION = 'v0.38.28';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -16589,8 +16589,25 @@ function acctOverdueDays(info){
   return Math.floor((Date.now()-t)/86400000);
 }
 /* 월 경비 (귀속 월 = cl_month 우선 · date 파생 — 마감과 동일 규칙) */
+function _acctExpenseMonth(e){ return e.cl_month || (e.date||'').slice(0,7) || _tsMonth(e.ts); }
 function acctExpensesOf(month){
-  return DB.all('acct_expenses').filter(e => (e.cl_month || (e.date||'').slice(0,7) || _tsMonth(e.ts)) === month);
+  return DB.all('acct_expenses').filter(e => _acctExpenseMonth(e) === month);
+}
+/* ★ v0.38.28 (GPT r4 N-1) — 마감 확정 불변 범위 = 매출·매입·외주 · 경비는 실시간 원장 → 마감 뒤 바뀐 경비를 파생으로 표시 (저장 0)
+   기준 시각 = 그 월의 확정 마감(rows 있는 3종) 중 가장 이른 closed_at · 변경 = 등록(ts) 또는 _logs 의 수정·취소·복원 시각이 기준 이후
+   한계: 마감 뒤 다른 달로 옮겨 간 경비는 지금 문서 기준 월이 달라 이 목록에 안 잡힘 */
+function closingExpenseDrift(month){
+  const cls = ['sales','purchase','outsource'].map(t => getClosing(t, month)).filter(c => c && Array.isArray(c.rows) && +c.closed_at > 0);
+  if(!cls.length) return null;
+  const closedAt = Math.min(...cls.map(c => +c.closed_at));
+  const items = DB.allRaw('acct_expenses').filter(e => _acctExpenseMonth(e) === month).filter(e =>
+    (+e.ts || 0) > closedAt || (e._logs || []).some(l => l && l.op !== 'create' && (+l.ts || 0) > closedAt));
+  return { month, closedAt, count: items.length, amount: items.filter(e => !e.void).reduce((a, e) => a + (+e.amount || 0), 0),
+           voided: items.filter(e => e.void).length, items };
+}
+function closingExpenseDriftAll(){
+  const months = [...new Set(DB.all('closings').filter(c => c.month && Array.isArray(c.rows)).map(c => c.month))].sort();
+  return months.map(closingExpenseDrift).filter(d => d && d.count > 0);
 }
 /* 반복 경비 제안 1벌 — 이전 달 repeat_monthly 항목 중 이번 달 (분류|이름) 미등록분 */
 function _acctRepeatSuggestions(month){
@@ -17043,6 +17060,13 @@ VIEWS._acctPnl = () => {
     ${_acctHubBar('pnl')}
     <div class="card" style="margin-bottom:14px">
       <h3 style="margin-bottom:6px">월 관리 손익 <span class="tag">${month} · 간이·세전 — 마감 발생액 기준 · 세무 신고용 아님</span></h3>
+      ${(() => {   // ★ v0.38.28 (GPT r4 N-1) — 확정 불변 범위 명시
+        const conf = ['sales','purchase','outsource'].filter(t => { const c = getClosing(t, month); return c && Array.isArray(c.rows); });
+        if(!conf.length) return '';
+        const lab = { sales:'매출', purchase:'매입', outsource:'외주' };
+        const xd = closingExpenseDrift(month);
+        return `<div style="font-size:11px;color:var(--sub);margin-bottom:8px">🔒 마감 확정값: ${conf.map(t => lab[t]).join('·')} · <b>경비는 실시간</b>(마감 스냅샷 대상 아님)${xd && xd.count ? ` — <span style="color:var(--amber)">⚠ 마감 뒤 바뀐 경비 ${xd.count}건${xd.voided ? `(취소 ${xd.voided})` : ''} · 현재 ₩${fmtN(xd.amount)} → 이 달 관리 이익이 마감 당시와 다를 수 있음</span>` : ''}</div>`;
+      })()}
       ${p.missingCount>0?`<div style="font-size:11px;color:var(--amber);margin-bottom:8px">⚠ 단가 미지정 매입 ${p.missingCount}건 미집계 — 합계가 실제보다 작을 수 있습니다 (가짜 합계 금지 원칙)</div>`:''}
       <div class="tbl-wrap"><table>
         <tbody>
@@ -19306,7 +19330,13 @@ VIEWS.audit = () => {
         const ds = closingDriftAll(); const lab = { sales:'매출', purchase:'매입', outsource:'외주' };
         return `<h3>원장 정합성 · 마감 후 금액 변동 <span class="pill ${ds.length ? 'amber' : 'green'}" style="font-size:10px">${ds.length ? `${ds.length}건` : '0건'}</span></h3>
         ${ds.length ? `<div class="tbl-wrap"><table><thead><tr><th>마감</th><th class="num">확정 금액</th><th class="num">지금 재계산</th><th class="num">차이</th><th>거래처별 차이</th></tr></thead><tbody>${ds.map(d => `<tr><td><b>${_esc(d.month)}</b> ${_esc(lab[d.type] || d.type)}</td><td class="num">₩${d.snap.toLocaleString()}</td><td class="num">₩${d.live.toLocaleString()}</td><td class="num" style="color:var(--amber);font-weight:700">${d.diff > 0 ? '+' : ''}₩${d.diff.toLocaleString()}</td><td style="font-size:11px">${d.rows.slice(0, 4).map(r => `${_esc(DB.get('vendors', r.party)?.name || r.party)} ${r.diff > 0 ? '+' : ''}${r.diff.toLocaleString()}`).join(' · ')}${d.rows.length > 4 ? ` 외 ${d.rows.length - 4}` : ''}</td></tr>`).join('')}</tbody></table></div>` : `<div class="empty" style="padding:14px">확정 마감 금액과 지금 원장 재계산이 모두 같음</div>`}
-        <div style="font-size:11px;color:var(--sub);margin-top:7px">마감 뒤 단가(수주·품번·발주·외주)나 원장이 바뀌면 재계산 값이 달라집니다. 손익·미수·세금계산서·보고서는 <b>확정 금액</b>을 그대로 사용 · 반영하려면 마감 화면에서 [마감 취소] → 재마감</div>`;
+        <div style="font-size:11px;color:var(--sub);margin-top:7px">마감 뒤 단가(수주·품번·발주·외주)나 원장이 바뀌면 재계산 값이 달라집니다. 손익·미수·세금계산서·보고서는 <b>확정 금액</b>을 그대로 사용 · 반영하려면 마감 화면에서 [마감 취소] → 재마감</div>
+        ${(() => {   // ★ v0.38.28 (GPT r4 N-1) — 경비는 마감 스냅샷 대상이 아님 (실시간) → 마감 뒤 바뀐 경비를 따로 표시
+          const xs = closingExpenseDriftAll();
+          return `<div style="margin-top:12px;font-weight:700;font-size:12.5px">마감 뒤 바뀐 경비 <span class="pill ${xs.length ? 'amber' : 'green'}" style="font-size:10px">${xs.length ? `${xs.length}개월` : '0건'}</span></div>
+          ${xs.length ? `<div class="tbl-wrap"><table><thead><tr><th>월</th><th class="num">건수</th><th class="num">취소</th><th class="num">해당 경비 현재 합</th><th>항목</th></tr></thead><tbody>${xs.map(x => `<tr><td><b>${_esc(x.month)}</b></td><td class="num">${x.count}</td><td class="num">${x.voided}</td><td class="num">₩${fmtN(x.amount)}</td><td style="font-size:11px">${x.items.slice(0,5).map(e => _esc((e.category||'') + '·' + (e.name||e.id))).join(', ')}${x.items.length > 5 ? ' …' : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
+          <div style="font-size:11px;color:var(--sub);margin-top:6px">마감 확정 불변 범위 = <b>매출·매입·외주</b> · 경비는 실시간 원장이라 마감 뒤 등록·수정·취소하면 그 달 관리 이익이 바뀝니다 (경비 확정 스냅샷 = 별도 결정)</div>`;
+        })()}`;
       })()}
     </div>
 
