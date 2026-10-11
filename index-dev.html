@@ -1426,11 +1426,11 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.26';
+const APP_VERSION = 'v0.38.27';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-10-10';
+const APP_DATE    = '2026-10-11';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -7069,6 +7069,37 @@ function _monthAdd(month, delta){
 function getClosing(type, month){
   const doc = DB.get('closings', _closingId(type, month));
   return (doc && !doc.void) ? doc : null;
+}
+/* ★ v0.38.27 (GPT Rules r3 검토 P0-2) — 마감 확정값 우선 1벌
+   확정 마감(미취소)이 있는 월 = 마감 때 저장한 스냅샷(rows.amount) 이 그 월의 금액 · 없는 월 = calcClosing 라이브 계산.
+   이유: 마감 후 수주 단가·품번 단가·발주 단가·외주 단가 등을 고치면 calcClosing 재계산 값이 바뀌어 손익·미수·계산서·보고서가 과거 금액을 덮어쓰게 됨.
+   정상 단가 수정은 막지 않는다 — 대신 확정값은 그대로 두고 차이(closingDrift)를 감사 화면에 표시 · 반영하려면 마감 취소 → 재마감. */
+function closingBook(type, month){
+  const cl = getClosing(type, month);
+  if(cl && Array.isArray(cl.rows)){
+    const byParty = {};
+    cl.rows.forEach(r => { if(r && r.party) byParty[r.party] = { party: r.party, amount: +r.amount || 0, count: 0 }; });
+    return { byParty, missingCount: +cl.missingCount || 0, outflow: 0, inflow: 0, confirmed: true, closedAt: cl.closed_at || null };
+  }
+  return { ...calcClosing(type, month), confirmed: false, closedAt: null };
+}
+/* 확정 마감 vs 지금 원장 재계산 차이 (파생 · 저장 0) — 거래처별 · 원 단위 반올림 비교 */
+function closingDrift(type, month){
+  const cl = getClosing(type, month);
+  if(!cl || !Array.isArray(cl.rows)) return null;
+  const live = calcClosing(type, month).byParty;
+  const parties = new Set([...cl.rows.map(r => r.party), ...Object.keys(live)]);
+  const rows = [...parties].map(p => {
+    const snap = Math.round(+((cl.rows.find(r => r.party === p) || {}).amount) || 0);
+    const now = Math.round(+((live[p] || {}).amount) || 0);
+    return { party: p, snap, now, diff: now - snap };
+  }).filter(r => r.diff !== 0);
+  const snapT = cl.rows.reduce((a, r) => a + Math.round(+r.amount || 0), 0);
+  const liveT = Object.values(live).reduce((a, r) => a + Math.round(+r.amount || 0), 0);
+  return { type, month, snap: snapT, live: liveT, diff: liveT - snapT, rows, closedAt: cl.closed_at || null };
+}
+function closingDriftAll(){
+  return DB.all('closings').filter(c => c.type && c.month && Array.isArray(c.rows)).map(c => closingDrift(c.type, c.month)).filter(d => d && (d.diff !== 0 || d.rows.length));
 }
 // 어떤 월 이후(같은 유형)에 확정 마감이 있는가? (마감 취소 차단 판정)
 function _closingHasLaterLive(type, month){
@@ -16511,7 +16542,7 @@ function calcAcctFlows(){
   const flows = { sales:{}, purchase:{}, outsource:{}, missingCount:0 };
   _acctMonthsInData().forEach(m => {
     ['sales','purchase','outsource'].forEach(t => {
-      const cl = calcClosing(t, m);
+      const cl = closingBook(t, m);   // ★ v0.38.27 — 확정 마감 월은 스냅샷 금액
       Object.values(cl.byParty).forEach(r => { flows[t][r.party] = (flows[t][r.party]||0) + r.amount; });
       if(t==='purchase') flows.missingCount += cl.missingCount;
     });
@@ -16578,9 +16609,9 @@ function _acctRepeatSuggestions(month){
 /* 월 관리 손익 1벌 — 마감 발생액 기준 (간이·세전 · 세무 신고용 아님) */
 function calcAcctPnl(month){
   const sum = cl => Object.values(cl.byParty).reduce((s,r)=>s+r.amount,0);
-  const sales = calcClosing('sales', month);
-  const purchase = calcClosing('purchase', month);
-  const outsource = calcClosing('outsource', month);
+  const sales = closingBook('sales', month);          // ★ v0.38.27 — 확정 마감 월은 스냅샷 금액
+  const purchase = closingBook('purchase', month);
+  const outsource = closingBook('outsource', month);
   const expenses = acctExpensesOf(month).reduce((s,e)=>s+(+e.amount||0),0);
   const revenue = sum(sales), pur = sum(purchase), os = sum(outsource);
   return { month, revenue, purchase: pur, outsource: os, expenses,
@@ -16588,7 +16619,7 @@ function calcAcctPnl(month){
 }
 /* 세금계산서 대상 1벌 = 마감 매출 산식 그대로 (calcClosing) — "대상 = 마감 일치" 구조적 보장 */
 function calcInvoiceTargets(month){
-  const cl = calcClosing('sales', month);
+  const cl = closingBook('sales', month);   // ★ v0.38.27 — 확정 마감이 있으면 그 금액이 계산서 대상 (마감 일치 구조 유지)
   return Object.values(cl.byParty)
     .map(r => ({ vendor: r.party, name: DB.get('vendors', r.party)?.name || r.party, amount: r.amount }))
     .filter(x => x.amount > 0).sort((a,b)=>b.amount-a.amount);
@@ -19266,6 +19297,16 @@ VIEWS.audit = () => {
         ${isDemoMode() && rows.length ? `<div style="font-size:11.5px;color:var(--sub);background:var(--bg2);border:1px dashed var(--line2);border-radius:8px;padding:8px 11px;margin-bottom:10px">ⓘ 데모: 표시되는 초과 LOT 에는 시연용 데이터에 포함된 사례가 있습니다 — 실제 운영 데이터와 무관하며, 원장 정합성 검증 기능을 보여주기 위해 표시됩니다</div>` : ''}
         ${rows.length ? `<div class="tbl-wrap"><table><thead><tr><th>LOT</th><th>기준 공정</th><th class="num">인정양품</th><th class="num">출하 합</th><th class="num">초과</th></tr></thead><tbody>${rows.map(x => `<tr><td class="mono">${_esc(x.plot)}</td><td>${_esc(x.proc)}</td><td class="num">${x.good.toLocaleString()}</td><td class="num">${x.shipped.toLocaleString()}</td><td class="num"><b style="color:var(--amber)">${x.over.toLocaleString()}</b></td></tr>`).join('')}</tbody></table></div>
         <div style="font-size:11px;color:var(--sub);margin-top:7px">출하 등록 가드 이전·이관 데이터 등으로 출하 합이 LOT 인정양품을 넘은 상태 — 증가 출하·증가 정정은 차단 · 감소 정정은 허용(이력에 「확인 필요」) · 실적 누락 보정 또는 출하 정정으로 해소</div>` : `<div class="empty" style="padding:14px">출하 합이 인정양품을 넘는 LOT 없음</div>`}`;
+      })()}
+    </div>
+
+    <div class="card" data-sec-id="audit-closing-drift" data-sec-lock="safety">
+      ${(() => {
+        // ★ v0.38.27 (GPT Rules r3 P0-2) — 마감 확정값 vs 지금 원장 재계산 차이 (파생 · 저장 0) · 손익·미수·계산서·보고서는 확정값을 사용
+        const ds = closingDriftAll(); const lab = { sales:'매출', purchase:'매입', outsource:'외주' };
+        return `<h3>원장 정합성 · 마감 후 금액 변동 <span class="pill ${ds.length ? 'amber' : 'green'}" style="font-size:10px">${ds.length ? `${ds.length}건` : '0건'}</span></h3>
+        ${ds.length ? `<div class="tbl-wrap"><table><thead><tr><th>마감</th><th class="num">확정 금액</th><th class="num">지금 재계산</th><th class="num">차이</th><th>거래처별 차이</th></tr></thead><tbody>${ds.map(d => `<tr><td><b>${_esc(d.month)}</b> ${_esc(lab[d.type] || d.type)}</td><td class="num">₩${d.snap.toLocaleString()}</td><td class="num">₩${d.live.toLocaleString()}</td><td class="num" style="color:var(--amber);font-weight:700">${d.diff > 0 ? '+' : ''}₩${d.diff.toLocaleString()}</td><td style="font-size:11px">${d.rows.slice(0, 4).map(r => `${_esc(DB.get('vendors', r.party)?.name || r.party)} ${r.diff > 0 ? '+' : ''}${r.diff.toLocaleString()}`).join(' · ')}${d.rows.length > 4 ? ` 외 ${d.rows.length - 4}` : ''}</td></tr>`).join('')}</tbody></table></div>` : `<div class="empty" style="padding:14px">확정 마감 금액과 지금 원장 재계산이 모두 같음</div>`}
+        <div style="font-size:11px;color:var(--sub);margin-top:7px">마감 뒤 단가(수주·품번·발주·외주)나 원장이 바뀌면 재계산 값이 달라집니다. 손익·미수·세금계산서·보고서는 <b>확정 금액</b>을 그대로 사용 · 반영하려면 마감 화면에서 [마감 취소] → 재마감</div>`;
       })()}
     </div>
 
@@ -22866,9 +22907,9 @@ function buildReportData(scope, baseDate){
   // ─── 구매·자재 (material_receipts + calcClosing purchase/outsource + calcHeatLedger) ───
   const matRecs = DB.query('material_receipts', r => r.ts >= startTs && r.ts <= endTs);
   const matInKg = matRecs.reduce((s,r)=>s+(+r.kg||0), 0);
-  const purcClose = calcClosing('purchase', month);
+  const purcClose = closingBook('purchase', month);   // ★ v0.38.27 — 확정 마감 월은 스냅샷
   const purchaseAmount = Object.values(purcClose.byParty).reduce((s,g)=>s+(g.amount||0), 0);
-  const osClose = calcClosing('outsource', month);
+  const osClose = closingBook('outsource', month);
   const osCost = Object.values(osClose.byParty).reduce((s,g)=>s+(g.amount||0), 0);
   const osActiveDispatch = DB.query('os_dispatches', d => d.ts >= startTs && d.ts <= endTs)
     .filter(d => !DB.query('os_receipts', r => r.dispatch_id === d.id).length).length;
@@ -22916,7 +22957,7 @@ function buildReportData(scope, baseDate){
   }
 
   // ─── 경영·정산 (calcClosing sales + getClosing carry) ───
-  const salesClose = calcClosing('sales', month);
+  const salesClose = closingBook('sales', month);
   const salesClosing = Object.values(salesClose.byParty).reduce((s,g)=>s+(g.amount||0), 0);
   const salesClosed = getClosing('sales', month);
   const unpaid = salesClosed
