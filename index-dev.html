@@ -1426,7 +1426,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.30';
+const APP_VERSION = 'v0.38.31';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2148,8 +2148,8 @@ function _wireTs(v, path, tsPaths, FV){
    문서 통째 금액(견적·단가합의·보고서·마감·회계)은 분리 대신 컬렉션 단위로 읽기 차단 (Rules r7 priceCol·priceOk)
    한계(정직): 배열 안 단가(발주 품목)는 서버가 「원본에 단가 없음」 을 검사하지 못함(Rules 반복문 없음) — 앱이 분리 · 데모/로컬·기존 방식은 분리 안 함 */
 const SEC_SPEC = {
-  orders: { top: ['price'] }, items: { top: ['price'] }, materials: { top: ['price'] }, purchase_receipts: { top: ['price'] },
-  purchase_orders: { arr: { items: ['price'] } },
+  orders: { top: ['price', 'amount', 'unit_price'] }, items: { top: ['price', 'amount', 'unit_price'] }, materials: { top: ['price', 'amount', 'unit_price'] }, purchase_receipts: { top: ['price', 'amount', 'unit_price'] },
+  purchase_orders: { arr: { items: ['price', 'amount', 'unit_price'] } },   // ★ v0.38.31 — amount·unit_price 도 단가 문서로
 };
 const SEC_DOCS = { settings: ['cost_rates'] };
 const SEC_COLLECTIONS = ['sec_orders', 'sec_items', 'sec_materials', 'sec_purchase_receipts', 'sec_purchase_orders', 'sec_settings'];
@@ -2220,6 +2220,14 @@ async function secResidualCheck(){
   }
   for(const col of Object.keys(SEC_DOCS)) for(const id of SEC_DOCS[col]){ const d = await fs.collection(col).doc(id).get(); if(d.exists && Object.keys(d.data()).some(k => !['id', '_logs', '_updated', 'migrated_to'].includes(k))) out.price.push(col + '/' + id); }
   (await fs.collection('users').get()).docs.forEach(d => { const x = d.data(); if(['pin', 'pin_v', 'pin_proof', 'devices'].some(k => x[k] != null)) out.secret.push('users/' + d.id); });
+  // ★ v0.38.31 (GPT Q-1) — 정해 둔 필드 밖의 금액처럼 보이는 필드(이름에 price·amount·cost·total·단가·금액)도 찾아 「확인 필요」 로 보고 (0건 판정과 별도 · 사람이 확인)
+  out.suspect = [];
+  const SUS = /(price|amount|cost|total|단가|금액)/i;
+  for(const col of Object.keys(SEC_SPEC)){
+    (await fs.collection(col).get()).docs.forEach(d => { const x = d.data(); const keys = Object.keys(x).filter(k => SUS.test(k));
+      Object.keys(x).forEach(k => { if(Array.isArray(x[k])) x[k].forEach(it => { if(it && typeof it === 'object') Object.keys(it).filter(kk => SUS.test(kk)).forEach(kk => keys.push(k + '[].' + kk)); }); });
+      if(keys.length) out.suspect.push(col + '/' + d.id + ' (' + [...new Set(keys)].join(',') + ')'); });
+  }
   const v = await fs.collection('settings').doc('vendor').get(); if(v.exists && v.data().pin != null) out.secret.push('settings/vendor');
   out.total = out.price.length + out.secret.length;
   return out;
@@ -2529,11 +2537,12 @@ async function staffSetActive(userId, active){
   await afs.collection('staff_auth').doc(last).update({ active: !!active, by_uid: adminUid, at: FV.serverTimestamp() });
   return true;
 }
-// 신규 직원 기본 권한 (사용자 결정 2026-10-12 D2): 권한 지정 전 = 회사 기본 메뉴만 「보기」 · 나머지 「없음」 · 단가·금액 「없음」
+// 신규 직원 기본 권한 (사용자 결정 2026-10-12 D2 · ★ v0.38.31 사용자 최종 확정 M-3 2026-10-18 「기본 메뉴는 등록까지」):
+//   권한 지정 전 = 회사 기본 메뉴 「등록」(= 키 생략 · edit 기본값 — Rules canEdit 도 키 없음 = 등록) · 나머지 「없음」 · 대시보드 보기 · 단가·금액 「없음」
 function newStaffDefaultPerms(){
   const prim = (typeof getPrimaryMenu === 'function' ? getPrimaryMenu() : NAV_PRIMARY_DEFAULT) || [];
   const perms = {};
-  (typeof PAGES !== 'undefined' ? PAGES : []).forEach(p => { if(p.id === 'dash') perms.dash = 'view'; else if(!MANAGER_ONLY.includes(p.id)) perms[p.id] = prim.includes(p.id) ? 'view' : 'none'; });
+  (typeof PAGES !== 'undefined' ? PAGES : []).forEach(p => { if(p.id === 'dash') perms.dash = 'view'; else if(!MANAGER_ONLY.includes(p.id) && !prim.includes(p.id)) perms[p.id] = 'none'; });
   perms.price = 'none';
   return perms;
 }
@@ -6631,10 +6640,32 @@ function renderPinPad(){
       <button type="submit" class="gp-login-btn" id="gt-login">로그인</button>
       <div class="pw-hint">${isStaffMode() ? '처음이면 관리책임자에게 받은 <b style="color:var(--cyan)">임시 비밀번호</b> · 첫 로그인 때 새 비밀번호로 변경' : '초기 비밀번호 <b style="color:var(--cyan)">000000</b> · 첫 로그인 시 새 정책으로 변경'}</div>
     </form>
+    ${_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' && !isDemoMode() && !isDefaultFirebaseConfig() ? `<div style="text-align:center;margin:6px 0;font-size:12px;font-weight:700;color:var(--amber);border:1px solid var(--amber);border-radius:8px;padding:6px 8px">⚠ 운영이 아닌 서버에 연결됨 — ${_esc((loadFirestoreConfig() || {}).projectId || '?')} · <a href="javascript:void(0)" id="gt-srv-reset" style="color:var(--amber)">운영 서버로 되돌리기</a></div>` : ''}
+    ${!isDemoMode() ? `<div style="text-align:center;margin:2px 0;font-size:11px;color:var(--dim)"><a href="javascript:void(0)" id="gt-srv-test" style="color:var(--sub)">시험 서버 연결 (로그인 없이 · 이 기기만)</a></div>` : ''}
     ${_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' && !isDemoMode() ? `<div style="text-align:center;margin:6px 0 2px;font-size:11px;color:var(--dim)">로그인 방식: <b>${isStaffMode() ? '직원 계정' : '기존'}</b> · <a href="javascript:void(0)" id="gt-authmode" style="color:var(--sub)">${isStaffMode() ? '기존 방식으로' : '직원 계정 방식으로'} 바꾸기</a> <span title="서버 규칙 v5 r7 이 게시된 서버는 직원 계정 방식만 동작합니다">ⓘ</span></div>` : ''}
     <!-- ★ v0.22.0 — 데모 체험 진입 (보조 스타일 · 주 동선 방해 금지) -->
     <button class="gate-demo-btn" type="button" onclick="onDemoClick()" title="샘플 체험 또는 빈 상태 시연·테스트 (실데이터·서버와 완전 분리)">▶ 데모 · 테스트</button>
   `;
+  // ★ v0.38.31 (GPT 추가 주의) — 시험 서버 연결은 로그인 전 진입 화면에서 (운영 서버에 먼저 로그인하지 않음)
+  const _st = document.getElementById('gt-srv-test');
+  if(_st) _st.onclick = () => {
+    openModal(`<h2>시험 서버 연결 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+      <div style="font-size:11.5px;color:var(--sub);line-height:1.7">시험용 Firebase 프로젝트의 <b>firebaseConfig</b> 블록을 붙여넣으세요. 이 기기(브라우저)만 바뀌고 운영 서버에는 접속하지 않습니다.<br>
+        <span style="color:var(--amber)">권장: Chrome 의 별도 프로필(또는 다른 브라우저)에서 진행 — 운영용 브라우저와 섞이지 않게</span></div>
+      <textarea id="ts-cfg" rows="7" style="width:100%;font-family:'JetBrains Mono',monospace;font-size:11px" placeholder="const firebaseConfig = { apiKey: ..., projectId: ... };"></textarea>
+      <label style="display:flex;gap:6px;align-items:center;font-size:12px;margin:0"><input type="checkbox" id="ts-staff" checked> 직원 계정 방식으로 (규칙 r8 시험)</label>
+      <div class="pw-err" id="ts-err"></div>
+      <div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="ts-ok">${ico('save')}연결하고 다시 시작</button></div></div>`);
+    document.getElementById('ts-ok').onclick = () => {
+      const cfg = parseFirebaseConfig(document.getElementById('ts-cfg').value);
+      if(!cfg || !cfg.projectId || !cfg.apiKey){ document.getElementById('ts-err').textContent = 'firebaseConfig 를 읽지 못했습니다 (apiKey · projectId 필요)'; return; }
+      if(DEFAULT_FIREBASE_CONFIG && cfg.projectId === DEFAULT_FIREBASE_CONFIG.projectId){ document.getElementById('ts-err').textContent = '운영 프로젝트와 같은 projectId 입니다 — 시험 프로젝트 설정을 붙여넣으세요'; return; }
+      try { localStorage.setItem(_BACKEND_CONFIG_KEY, JSON.stringify(cfg)); localStorage.setItem(_AUTH_MODE_KEY, document.getElementById('ts-staff').checked ? 'staff' : 'legacy'); } catch(e){}
+      location.reload();
+    };
+  };
+  const _sr = document.getElementById('gt-srv-reset');
+  if(_sr) _sr.onclick = () => { try { localStorage.removeItem(_BACKEND_CONFIG_KEY); localStorage.removeItem(_AUTH_MODE_KEY); } catch(e){} location.reload(); };
   const _am = document.getElementById('gt-authmode');   // ★ v0.38.29 — 이 기기의 로그인 방식 (서버 규칙과 맞춰야 함)
   if(_am) _am.onclick = () => { try { localStorage.setItem(_AUTH_MODE_KEY, isStaffMode() ? 'legacy' : 'staff'); } catch(e){} location.reload(); };
   const nameEl = document.getElementById('gt-name');
@@ -17817,7 +17848,11 @@ function _drawFileExt(name){ const m = String(name||'').match(/\.([A-Za-z0-9]+)$
 function _drawSafeName(name){ return String(name||'file').replace(/[^\w.\-가-힣]/g, '_').slice(0, 120); }
 function _fmtBytes(b){ b=+b||0; if(b>=1048576) return (b/1048576).toFixed(1)+' MB'; if(b>=1024) return Math.round(b/1024)+' KB'; return b+' B'; }
 let _DW_STORAGE = null;
+// ★ v0.38.31 (GPT v0.38.30 판정) — Cloud Storage for Firebase 는 2026-02-03 부터 Blaze 필수 [GPT 확인 · Firebase 문서] → Spark 유지 동안 2MB 초과 첨부 = 꺼짐
+//   켜려면 요금제 결정(사용자) + storage.rules.v2-blaze-draft 게시 후 이 값을 true 로 (코드 1줄 · 승인 대상)
+const STORAGE_ENABLED = false;
 async function _drawEnsureStorage(){
+  if(!STORAGE_ENABLED) throw new Error(`${DW_STORE_MAX_MB}MB 초과 파일은 현재 무료 요금제에서 서버에 저장할 수 없습니다 — 파일을 줄이거나 [링크]·[PC 경로] 첨부를 쓰세요`);
   if(_DW_STORAGE) return _DW_STORAGE;
   if(DB._backend !== 'firestore') throw new Error('파일 업로드는 서버(Firebase) 연결 모드 전용입니다 — 데모/로컬 모드에서는 [링크 추가]를 사용하세요.');
   if(!window.firebase || !window.firebase.apps || !window.firebase.apps.length) throw new Error('서버 연결 준비 중 — 잠시 후 다시 시도하세요.');
@@ -26670,7 +26705,7 @@ function bindUserWorkerCards(){
       const next = (nums.length? Math.max(...nums) : 0) + 1;
       const id = `U-${String(next).padStart(3,'0')}`;
       if(isStaffMode()){
-        // ★ v0.38.29 — 직원 계정 모드: 비밀번호 값 저장 0 · 신규 기본 권한 = 회사 기본 메뉴 「보기」 만 (사용자 결정 D2) · 계정 발급 = 임시 비밀번호 1회 표시
+        // ★ v0.38.29 — 직원 계정 모드: 비밀번호 값 저장 0 · 신규 기본 권한 = 회사 기본 메뉴 「등록」 · 나머지 없음 (D2 · v0.38.31 M-3 확정) · 계정 발급 = 임시 비밀번호 1회 표시
         (async () => {
           if(!(await adminEnsure('사용자 등록·계정 발급은 관리자 계정만 할 수 있습니다.'))) return;
           DB.set('users', id, { id, name, role, active:true, created_at:Date.now(), last_login:null, perms: role === 'manager' ? {} : newStaffDefaultPerms() });
@@ -26821,7 +26856,8 @@ function bindUserWorkerCards(){
   if(_sc) _sc.onclick = async () => {
     try { const r = await secResidualCheck(); if(!r) return;
       openModal(`<h2>이관 검증 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
-        <div style="font-size:13px">원본에 남은 단가·원가 <b style="color:${r.price.length ? 'var(--red)' : 'var(--green)'}">${r.price.length}건</b> · 구형 비밀번호 값 <b style="color:${r.secret.length ? 'var(--red)' : 'var(--green)'}">${r.secret.length}건</b></div>
+        <div style="font-size:13px">원본에 남은 단가·원가 <b style="color:${r.price.length ? 'var(--red)' : 'var(--green)'}">${r.price.length}건</b> · 구형 비밀번호 값 <b style="color:${r.secret.length ? 'var(--red)' : 'var(--green)'}">${r.secret.length}건</b> · 금액처럼 보이는 기타 필드(확인 필요) <b style="color:${(r.suspect || []).length ? 'var(--amber)' : 'var(--green)'}">${(r.suspect || []).length}건</b></div>
+        ${(r.suspect || []).length ? `<div style="font-size:11px;color:var(--amber);margin-top:6px">확인 필요: ${_esc(r.suspect.slice(0, 15).join(' · '))}${r.suspect.length > 15 ? ' …' : ''} — 민감하면 Claude 에게 알려 분리 대상에 추가</div>` : ''}
         ${r.total ? `<div style="font-size:11px;color:var(--sub);margin-top:6px">${_esc(r.price.concat(r.secret).slice(0, 20).join(' · '))}${r.total > 20 ? ' …' : ''}</div><div style="font-size:12px;color:var(--amber);margin-top:8px">0건이 될 때까지 이관·정리를 다시 실행하세요 — 0건 전에는 sec_migrated 를 켜지 마세요</div>`
           : `<div style="font-size:12px;color:var(--green);margin-top:8px">0건 — Firebase 콘솔에서 settings/server_rules 의 sec_migrated 를 true 로 바꾸면 단가 권한 없는 직원도 업무 화면을 쓸 수 있습니다</div>`}
         <div class="actions"><button class="btn primary" onclick="closeModal()">확인</button></div></div>`);
