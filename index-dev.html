@@ -1426,11 +1426,11 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.29';
+const APP_VERSION = 'v0.38.30';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-10-12';
+const APP_DATE    = '2026-10-18';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -2089,31 +2089,45 @@ function _fsSend(fs, col, id, doc, meta, viaAdmin){
   if(meta && meta.strip){ const up = {}; meta.strip.forEach(k => { up[k] = FV.delete(); }); ref.update(up).catch(onErr); return; }
   if(!isStaffMode() || !meta || !meta.keys){ ref.set(doc, { merge: true }).catch(onErr); return; }
   // ★ v0.38.29 — 단가 분리 (원본에서 떼어 sec_* 로 · 단가 권한 없으면 단가 저장 안 함)
+  // ★ v0.38.30 (GPT P-2 ④) — 원본 + 단가 = writeBatch 1회 (한쪽만 반영 0 · 오프라인이면 함께 대기 후 함께 반영)
   const sp = _secSplitWrite(col, id, doc, meta.keys);
   if(sp){
-    if(sp.secKeys.length){
-      if(canSeePrice()) _fsSendPlain(fs.collection('sec_' + col).doc(String(id)), sp.sec, sp.secKeys, meta.tsPaths || [], col + '(단가)', id);
-      else if(sp.whole || sp.secKeys.some(k => sp.sec[k] != null)) toast('단가·금액 권한이 없어 단가는 저장되지 않았습니다', 'warn', 3500);
+    const secRef = fs.collection('sec_' + col).doc(String(id));
+    const doSec = sp.secKeys.length > 0 && canSeePrice();
+    if(sp.secKeys.length && !doSec && (sp.whole || sp.secKeys.some(k => sp.sec[k] != null))) toast('단가·금액 권한이 없어 단가는 저장되지 않았습니다', 'warn', 3500);
+    if(col === 'purchase_orders' && Array.isArray(doc.items) && doc.items.length > 20) toast('발주 1건의 품목은 최대 20개입니다 — 나눠서 등록하세요 (서버 규칙)', 'err', 6000);
+    if(sp.whole){ if(doSec){ const w = _fsWire(sp.sec, { ...meta, keys: sp.secKeys, prevHas: {} }, FV); if(w.fields.length) secRef.set(w.wire, { mergeFields: w.fields }).catch(onErr); } return; }
+    const mw = _fsWire(sp.main, { ...meta, keys: sp.mainKeys }, FV);
+    if(doSec){
+      const sw = _fsWire(sp.sec, { ...meta, keys: sp.secKeys, prevHas: {} }, FV);
+      const b = fs.batch();
+      if(mw.fields.length) b.set(ref, mw.wire, { mergeFields: mw.fields });
+      if(sw.fields.length) b.set(secRef, sw.wire, { mergeFields: sw.fields });
+      b.commit().catch(onErr);
+      return;
     }
-    if(sp.whole) return;
-    doc = sp.main; meta = { ...meta, keys: sp.mainKeys };
+    if(mw.fields.length) ref.set(mw.wire, { mergeFields: mw.fields }).catch(onErr);
+    return;
   }
-  // staff 모드: 바뀐 필드만 · 서버 시각 경로는 점 경로로 (기존 맵 항목 보존)
+  const w = _fsWire(doc, meta, FV);
+  if(!w.fields.length) return;
+  ref.set(w.wire, { mergeFields: w.fields }).catch(onErr);
+}
+// staff 모드 쓰기 본문: 바뀐 필드만 · 서버 시각 경로는 점 경로로 (기존 맵 항목 보존)
+function _fsWire(doc, meta, FV){
   const tsPaths = meta.tsPaths || [];
   const wire = {}; const fields = [];
-  meta.keys.forEach(k => {
+  (meta.keys || []).forEach(k => {
     if(!(k in doc)) return;
     const sub = tsPaths.filter(p => p.startsWith(k + '.'));
     const v = doc[k];
     if(sub.length && v && typeof v === 'object' && !Array.isArray(v) && meta.prevHas && meta.prevHas[k]){
-      // 기존 맵에 항목 추가(void_hist_at.{n}) — 그 항목만 보낸다
       sub.forEach(p => { const leaf = p.slice(k.length + 1); if(!wire[k]) wire[k] = {}; wire[k][leaf] = FV.serverTimestamp(); fields.push(p); });
     } else {
       wire[k] = _wireTs(v, k, tsPaths, FV); fields.push(k);
     }
   });
-  if(!fields.length) return;
-  ref.set(wire, { mergeFields: fields }).catch(onErr);
+  return { wire, fields };
 }
 function _fsSendPlain(ref, data, keys, tsPaths, col, id){
   const FV = window.firebase.firestore.FieldValue; const wire = {}; const fields = [];
@@ -2193,6 +2207,23 @@ function secMigrationReport(){
   Object.keys(SEC_DOCS).forEach(col => SEC_DOCS[col].forEach(id => { const d = DB.get(col, id); if(d && Object.keys(d).some(k => !['id', '_logs', '_updated', 'migrated_to'].includes(k))) out.push({ col, id, whole: true }); }));
   return out;
 }
+// ★ v0.38.30 (GPT P-2 ②) — 이관 검증: 서버 원본 문서를 직접 읽어 남은 단가·원가·구형 비밀번호 필드 수를 센다 (메모리는 단가를 합쳐 보이므로 쓰지 않음)
+async function secResidualCheck(){
+  if(!isStaffMode()) throw Object.assign(new Error('직원 계정 방식에서만 실행'), { ui: true });
+  if(!(await adminEnsure('이관 검증은 관리자 계정만 할 수 있습니다.'))) return null;
+  const fs = _STAFF.isApprover ? _ACTIVE_ADAPTER._fs : _ADMIN.fs;
+  const out = { price: [], secret: [], total: 0 };
+  for(const col of Object.keys(SEC_SPEC)){
+    const sp = SEC_SPEC[col]; const snap = await fs.collection(col).get();
+    snap.docs.forEach(d => { const x = d.data();
+      if((sp.top || []).some(k => x[k] != null) || Object.keys(sp.arr || {}).some(k => Array.isArray(x[k]) && x[k].some(it => it && sp.arr[k].some(f => it[f] != null)))) out.price.push(col + '/' + d.id); });
+  }
+  for(const col of Object.keys(SEC_DOCS)) for(const id of SEC_DOCS[col]){ const d = await fs.collection(col).doc(id).get(); if(d.exists && Object.keys(d.data()).some(k => !['id', '_logs', '_updated', 'migrated_to'].includes(k))) out.price.push(col + '/' + id); }
+  (await fs.collection('users').get()).docs.forEach(d => { const x = d.data(); if(['pin', 'pin_v', 'pin_proof', 'devices'].some(k => x[k] != null)) out.secret.push('users/' + d.id); });
+  const v = await fs.collection('settings').doc('vendor').get(); if(v.exists && v.data().pin != null) out.secret.push('settings/vendor');
+  out.total = out.price.length + out.secret.length;
+  return out;
+}
 async function secMigrateAll(){
   if(!isStaffMode()) throw Object.assign(new Error('직원 계정 방식에서만 실행'), { ui: true });
   if(!(await adminEnsure('단가 분리 이관은 관리자 계정만 할 수 있습니다.'))) return null;
@@ -2202,15 +2233,17 @@ async function secMigrateAll(){
     const d = DB.get(it.col, it.id); if(!d) continue;
     if(it.whole){
       const data = {}; Object.keys(d).forEach(k => { if(!['id', '_logs', '_updated', 'migrated_to'].includes(k)) data[k] = d[k]; });
-      await fs.collection('sec_' + it.col).doc(it.id).set(data, { merge: true });
       const del = { migrated_to: 'sec_' + it.col }; Object.keys(data).forEach(k => { del[k] = FV.delete(); });
-      await fs.collection(it.col).doc(it.id).update(del); n++; continue;
+      const b = fs.batch(); b.set(fs.collection('sec_' + it.col).doc(it.id), data, { merge: true }); b.update(fs.collection(it.col).doc(it.id), del);
+      await b.commit(); n++; continue;
     }
     const sp = SEC_SPEC[it.col]; const keys = (sp.top || []).filter(k => d[k] != null).concat(Object.keys(sp.arr || {}).filter(k => Array.isArray(d[k])));
     const r = _secSplitWrite(it.col, it.id, d, keys);
-    if(r.secKeys.length) await fs.collection('sec_' + it.col).doc(it.id).set(r.sec, { merge: true });
     const up = {}; (sp.top || []).forEach(k => { if(d[k] != null) up[k] = FV.delete(); }); Object.keys(sp.arr || {}).forEach(k => { if(Array.isArray(d[k])) up[k] = r.main[k]; });
-    if(Object.keys(up).length) await fs.collection(it.col).doc(it.id).update(up);
+    const b = fs.batch();   // ★ v0.38.30 — 문서마다 단가 이동 + 원본 제거 = 한 번에
+    if(r.secKeys.length) b.set(fs.collection('sec_' + it.col).doc(it.id), r.sec, { merge: true });
+    if(Object.keys(up).length) b.update(fs.collection(it.col).doc(it.id), up);
+    await b.commit();
     n++;
   }
   return { moved: n, total: list.length };
@@ -2286,7 +2319,7 @@ function _fsStartSync(fs, adapter){
       if(_FS_STATE.snapshotRoundsDone === 1){
         // 서버에 없는 부팅 시드(메모리 전용)는 걷어냄 → 기존 방식만 「정말 빈 컬렉션」 에 시드 (서버 저장) · 직원 계정 모드는 시드 안 함
         try { const st = adapter._state; (_SEED_DONE || []).forEach(([c, i]) => { if(st[c] && !(_FS_STATE.serverIds[c] && _FS_STATE.serverIds[c].has(String(i)))) delete st[c][i]; }); _SEED_DONE = []; } catch(e){}
-        if(!isStaffMode()){ try { seedIfEmpty(); } catch(e){ console.warn('[VELA] seedIfEmpty(서버 도착 후) 실패', e); } }
+        // ★ v0.38.30 (GPT P-4) — 서버 모드(기존·직원 계정 모두)는 예시·기본 기준정보를 자동 생성하지 않음 · 새 업체 기본 구성 = 설정 › 산업 팩 설치(명시적 선택)
       }
       resolveRound();
       try {
@@ -17847,9 +17880,11 @@ async function _dwStoreUpload(col, refId, file){
   return fid;
 }
 /* 앱 내 저장 열람 — 조각 재조립 → Blob → 새 탭 (PDF·이미지 = 열람+인쇄 · 그 외 다운로드) */
-async function _dwStoreOpen(att){
+async function _dwStoreOpen(att, col){
   const fs = _dwFsDirect();
-  const snap = await fs.collection('drawing_file_chunks').where('fid','==',att.fid).get();
+  // ★ v0.38.30 — 원본 컬렉션(ref_col) 조건을 함께 걸어 조회 (Rules: 금액 문서 첨부 = 단가 권한 · 목록 조회는 조건으로 증명돼야 허용)
+  let q = fs.collection('drawing_file_chunks').where('fid','==',att.fid); if(col) q = q.where('ref_col','==',col);
+  const snap = await q.get();
   const parts = snap.docs.map(d=>d.data()).sort((a,b)=>a.seq-b.seq);
   if(!parts.length || parts.some(p=>!p.data)) throw new Error('파일 조각 없음 — 삭제되었거나 손상됨');
   const b64 = parts.map(p=>p.data).join('');
@@ -17862,11 +17897,12 @@ async function _dwStoreOpen(att){
   setTimeout(()=>URL.revokeObjectURL(url), 120000);
 }
 /* 앱 내 저장 삭제 — 조각 data 비우기(용량 회수 · delete 금지 규칙과 무충돌) */
-async function _dwStoreDelete(att){
+async function _dwStoreDelete(att, col){
   const fs = _dwFsDirect();
-  const snap = await fs.collection('drawing_file_chunks').where('fid','==',att.fid).get();
+  let q = fs.collection('drawing_file_chunks').where('fid','==',att.fid); if(col) q = q.where('ref_col','==',col);
+  const snap = await q.get();
   for(const doc of snap.docs){
-    await doc.ref.set({ id:doc.id, fid:att.fid, seq:doc.data().seq, data:'', purged:Date.now() });
+    await doc.ref.set({ id:doc.id, fid:att.fid, seq:doc.data().seq, data:'', purged:Date.now(), ref_col: doc.data().ref_col || col || '' });
   }
 }
 /* ★ v0.28.2 — 첨부 모달 공용화 (도면·단가합의서 등 컬렉션 무관 · 1벌 — 복사 구현 금지)
@@ -17999,7 +18035,7 @@ VIEWS._attFilesModal = (col, id) => {
     const a = _drawAttList(DB.get(col, id)).find(x => x.fid === b.dataset.dwfOpen);
     if(!a) return;
     if(a.kind === 'store'){
-      try { toast('파일 여는 중…','ok',1200); await _dwStoreOpen(a); }
+      try { toast('파일 여는 중…','ok',1200); await _dwStoreOpen(a, col); }
       catch(e){ toast('열기 실패 — ' + (e.message||e), 'err', 4000); }
       return;
     }
@@ -18026,7 +18062,7 @@ VIEWS._attFilesModal = (col, id) => {
     if(!confirm(`'${a.name}' 첨부를 삭제할까요?\n(파일 원본 삭제 · 삭제 이력은 남습니다)`)) return;
     try {
       if(a.kind === 'store'){
-        await _dwStoreDelete(a);   // 조각 비우기 — 용량 회수 (delete 금지 규칙과 무충돌)
+        await _dwStoreDelete(a, col);   // 조각 비우기 — 용량 회수 (delete 금지 규칙과 무충돌)
       } else if(a.kind === 'file' && a.path){
         const st = await _drawEnsureStorage();
         try { await st.ref(a.path).delete(); }
@@ -26470,7 +26506,11 @@ function _userWorkerCardsHTML(){
         ${isStaffMode() ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" id="usr-issue-all">${ico('plus')}계정 미발급 직원 전원 발급</button>
           <button class="btn" id="usr-strip-legacy">구형 비밀번호 값 정리 (백업 후)</button>
-        </div>` : ''}
+          <button class="btn" id="usr-sec-migrate">단가 분리 이관 (백업 후)</button>
+          <button class="btn" id="usr-sec-check">이관 검증 (남은 단가·비밀번호 0건 확인)</button>
+        </div>
+        <div style="font-size:11px;color:var(--sub);line-height:1.6">운영 전환 순서: 백업 → 단가 분리 이관 → 구형 비밀번호 정리 → <b>이관 검증 0건</b> → Firebase 콘솔에서 <code>settings/server_rules.sec_migrated = true</code> (그 전엔 단가 권한 없는 직원의 업무 조회를 서버가 막음) → 계정 발급<br>
+        첫 로그인 비밀번호 변경 = <b>앱 정책</b> (서버는 「실제로 바꿨는지」 확인하지 못함 — 변경 전엔 업무 접근 0 이지만, 기술적으로 표시만 해제하는 우회는 막지 못함)</div>` : ''}
       </div>` : ''}
     </div>
 
@@ -26768,6 +26808,24 @@ function bindUserWorkerCards(){
     try { if(typeof exportFullBackup === 'function') exportFullBackup(); } catch(e){}
     const done = legacySecretFieldsStrip();
     toast(`구형 비밀번호 값 정리 — ${done.total}건 (필드만 제거 · 업무 기록 무변)`, 'ok', 4000); renderUsers();
+  };
+  const _sm = document.getElementById('usr-sec-migrate');
+  if(_sm) _sm.onclick = async () => {
+    const list = secMigrationReport();
+    if(!confirm(`원본 문서 ${list.length}건(메모리 기준)의 단가·원가를 단가 문서(sec_*)로 옮기고 원본에서 지웁니다.\n먼저 전체 백업 파일을 내려받습니다. 계속할까요?`)) return;
+    if(!(await adminEnsure('단가 분리 이관은 관리자 계정만 할 수 있습니다.'))) return;
+    try { exportFullBackup('before-sec-migration'); } catch(e){}
+    try { const r = await secMigrateAll(); toast(`단가 분리 이관 — ${r ? r.moved : 0}건 · 이어서 [이관 검증]`, 'ok', 5000); } catch(e){ toast('이관 실패 — ' + (e && e.message || e), 'err', 6000); }
+  };
+  const _sc = document.getElementById('usr-sec-check');
+  if(_sc) _sc.onclick = async () => {
+    try { const r = await secResidualCheck(); if(!r) return;
+      openModal(`<h2>이관 검증 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+        <div style="font-size:13px">원본에 남은 단가·원가 <b style="color:${r.price.length ? 'var(--red)' : 'var(--green)'}">${r.price.length}건</b> · 구형 비밀번호 값 <b style="color:${r.secret.length ? 'var(--red)' : 'var(--green)'}">${r.secret.length}건</b></div>
+        ${r.total ? `<div style="font-size:11px;color:var(--sub);margin-top:6px">${_esc(r.price.concat(r.secret).slice(0, 20).join(' · '))}${r.total > 20 ? ' …' : ''}</div><div style="font-size:12px;color:var(--amber);margin-top:8px">0건이 될 때까지 이관·정리를 다시 실행하세요 — 0건 전에는 sec_migrated 를 켜지 마세요</div>`
+          : `<div style="font-size:12px;color:var(--green);margin-top:8px">0건 — Firebase 콘솔에서 settings/server_rules 의 sec_migrated 를 true 로 바꾸면 단가 권한 없는 직원도 업무 화면을 쓸 수 있습니다</div>`}
+        <div class="actions"><button class="btn primary" onclick="closeModal()">확인</button></div></div>`);
+    } catch(e){ toast('검증 실패 — ' + (e && e.message || e), 'err', 6000); }
   };
   renderUsers();
 
