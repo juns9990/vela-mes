@@ -1084,6 +1084,43 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 @media(max-width:640px){ .am-cols{columns:1} }
 /* 활성 메뉴 — 솔리드 시안 → 은은한 브랜드 틴트 (두 테마 공통 · 아이콘도 동색) */
 .tabnav button.on{background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan);font-weight:700}
+/* ★ v0.39.3 — 사무직 폰 화면 */
+.p-links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.p-link{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel);color:var(--ink);text-decoration:none;font-weight:700;font-size:14px}
+.p-link span{font-size:10.5px;font-weight:500;color:var(--dim)}
+.p-find{display:flex;gap:8px} .p-find input{flex:1;font-size:16px;min-height:48px}
+.p-home-fab{position:fixed;left:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:60;background:#0b0f14;color:#fff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 16px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+@media print{ .p-home-fab{display:none!important} }
+#app.m-mode #modal{max-height:92vh;overflow-y:auto}
+/* ★ v0.39.2 — 계획 끌어 놓기 · 작업지시 공정별 진행 칩 */
+.pln-dragging{opacity:.45}
+.pln-drop-on{outline:2px dashed var(--mint);outline-offset:-2px;background:var(--mint-bg)!important}
+[data-plan-drag]{cursor:grab}
+.wo-steps{display:flex;flex-wrap:wrap;gap:4px}
+.wo-step{font-size:10.5px;padding:2px 7px;border-radius:99px;border:1px solid var(--line);color:var(--sub);background:var(--bg2);white-space:nowrap}
+.wo-step em{font-style:normal;color:var(--dim);margin-left:4px;font-size:10px}
+.wo-step.run{border-color:var(--sky);color:var(--sky);background:var(--sky-bg)}
+.wo-step.done{border-color:var(--mint);color:var(--mint-ink);background:var(--mint-bg)}
+tr.wo-flash td{background:var(--mint-bg)!important;transition:background 1.5s}
+/* ★ v0.39.0 — 밝은 사이드바 · 블랙·민트 (GPT 인계서 §4.2): 「내 업무」 + 부서 묶음 · 선택 = 옅은 민트 + 왼쪽 표시선 · 좁은 화면 = 내 업무 칩만 */
+.tabnav .nav-sec{display:none}
+.tabnav .nav-depts{display:none}
+@media(min-width:1101px){
+  .tabnav .nav-sec{display:block;font-size:10.5px;font-weight:800;color:var(--ink);letter-spacing:1.2px;padding:6px 12px 6px}
+  .tabnav .nav-depts{display:flex;flex-direction:column;gap:2px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+  .tabnav .nav-dept-h{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;font-weight:700;color:var(--ink)!important;padding:8px 12px}
+  .tabnav .nav-dept-h::after{content:'';width:6px;height:6px;border-right:1.6px solid var(--dim);border-bottom:1.6px solid var(--dim);transform:rotate(-45deg);margin-left:8px;transition:transform .15s}
+  .tabnav .nav-dept.open .nav-dept-h::after{transform:rotate(45deg)}
+  .tabnav .nav-dept-n{margin-left:auto;font-size:10px;font-weight:600;color:var(--dim);font-family:'JetBrains Mono',monospace}
+  .tabnav .nav-dept-b{display:none;flex-direction:column;gap:1px;padding:0 0 6px 8px}
+  .tabnav .nav-dept.open .nav-dept-b{display:flex}
+  .tabnav .nav-dept-b button{font-size:12.4px;padding:7px 12px;color:var(--sub)}
+  .tabnav button.on{box-shadow:inset 3px 0 0 var(--mint)}
+}
+:root{--mint:#2dd4bf;--mint-bg:rgba(45,212,191,.13);--mint-ink:#5eead4;--lav:#a78bfa;--lav-bg:rgba(167,139,250,.12);--sky:#7dd3fc;--sky-bg:rgba(125,211,252,.12);--peach:#fdba74;--peach-bg:rgba(253,186,116,.13)}
+html[data-theme="light"]{--mint:#14b8a6;--mint-bg:#e6f7f3;--mint-ink:#0f5f56;--lav:#6d28d9;--lav-bg:#f1edfe;--sky:#0369a1;--sky-bg:#e8f4fd;--peach:#c2410c;--peach-bg:#fff1e6;--prim:#0b0f14}
+html[data-theme="light"] .tabnav button.on{background:var(--mint-bg);color:var(--mint-ink)}
+html[data-theme="light"] .btn.primary{background:#0b0f14;border-color:#0b0f14}
 .tabnav button.on svg{stroke:currentColor}
 
 /* ★ v0.32.2 — 홈 '오늘 챙길 일' (대시보드 최상단 카드 — 클릭 시 해당 메뉴 이동) */
@@ -1426,11 +1463,11 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.38.32';
+const APP_VERSION = 'v0.39.3';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-10-21';
+const APP_DATE    = '2026-10-22';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -2233,75 +2270,114 @@ async function secResidualCheck(){
   out.total = out.price.length + out.secret.length;
   return out;
 }
-// ★ v0.38.32 (GPT v0.38.31 확인 ③) — 이관 대조: 이관 직전 백업 파일 ↔ 서버 문서를 문서 수 · 단가 값으로 비교 (「의심 필드 0건」 만으로 끝내지 않음)
-//   core = 순수 함수 (시험용) · backup = DB.snapshot() 형식 {col:{id:doc}} · server = {col:{id:data}, sec_col:{id:data}}
+// ★ v0.38.33 (GPT v0.38.32 피드백 ③) — 이관 = 서버 원본 기준 (화면 메모리 아님)
+//   순서: 서버 전체 대상 조회 → 이관 백업 파일(서버 데이터 · 대상 ID 집합) 내려받기 → 대상 ID 집합 해시를 settings/sec_migration_log 에 기록 → 이관
+//   대조: 백업 파일 ID 집합 = 이관 기록(건수·해시) → 서버 재조회 → 대상마다 단가 문서 존재·필드·값 · 원본 문서 존재 · 원본에 남은 단가(목록에서 함께 빠진 문서도 여기서 잡힘)
 function _secStable(v){ if(Array.isArray(v)) return '[' + v.map(_secStable).join(',') + ']'; if(v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + _secStable(v[k])).join(',') + '}'; return JSON.stringify(v); }
-function secReconcileCore(backup, server){
-  const out = { counts: {}, checked: 0, ok: 0, mismatch: [], missingSec: [], missingBase: [] };
+function _secHasSensitive(col, d){
+  const sp = SEC_SPEC[col]; if(!sp || !d) return false;
+  return (sp.top || []).some(k => d[k] != null) || Object.keys(sp.arr || {}).some(k => Array.isArray(d[k]) && d[k].some(it => it && sp.arr[k].some(f => it[f] != null)));
+}
+function _secWholeData(d){ const data = {}; Object.keys(d || {}).forEach(k => { if(!['id', '_logs', '_updated', 'migrated_to'].includes(k)) data[k] = d[k]; }); return data; }
+// 서버 원본(이관 전)에서 대상 목록 · 백업 데이터 만들기 (순수)
+function secTargetsFrom(server){
+  const targets = {}, data = {};
+  Object.keys(SEC_SPEC).forEach(col => { targets[col] = []; data[col] = {}; Object.keys((server && server[col]) || {}).forEach(id => { const d = server[col][id]; if(_secHasSensitive(col, d)){ targets[col].push(id); data[col][id] = d; } }); targets[col].sort(); });
+  Object.keys(SEC_DOCS).forEach(col => SEC_DOCS[col].forEach(id => { const d = server && server[col] && server[col][id]; if(d && Object.keys(_secWholeData(d)).length){ (targets['@' + col] = targets['@' + col] || []).push(id); (data[col] = data[col] || {})[id] = d; } }));
+  return { targets, data };
+}
+function secIdsKey(targets){ return Object.keys(targets || {}).sort().map(c => c + ':' + (targets[c] || []).slice().sort().join(',')).join('|'); }
+function secCount(targets){ return Object.values(targets || {}).reduce((s, a) => s + (a || []).length, 0); }
+// 대조 (순수) — backup = 이관 백업 파일 { kind, targets, data } · server = 이관 후 서버 {col:{id:data}, sec_col:{...}} · logOk = 백업 ID 집합 해시 = 이관 기록
+function secReconcileCore(backup, server, logOk, logTotal){
+  const out = { counts: {}, checked: 0, ok: 0, mismatch: [], missingSec: [], missingBase: [], residual: [], logOk: !!logOk, verdict: 'FAIL', reasons: [] };
+  if(!backup || backup.kind !== 'vela-sec-migration-backup' || !backup.targets || !backup.data){ out.reasons.push('이관 백업 파일 형식 아님'); return out; }
+  const T = backup.targets;
   Object.keys(SEC_SPEC).forEach(col => {
-    const bk = (backup && backup[col]) || {}, sv = (server && server[col]) || {}, sc = (server && server['sec_' + col]) || {};
-    out.counts[col] = { backup: Object.keys(bk).length, server: Object.keys(sv).length };
-    Object.keys(bk).forEach(id => {
-      const d = bk[id]; if(!d || typeof d !== 'object') return;
+    const ids = T[col] || [], sv = (server && server[col]) || {}, sc = (server && server['sec_' + col]) || {};
+    out.counts[col] = { targets: ids.length, sec: Object.keys(sc).length, base: Object.keys(sv).length };
+    ids.forEach(id => {
+      const d = backup.data[col] && backup.data[col][id];
+      out.checked++;
+      if(!d){ out.mismatch.push(col + '/' + id + ' (백업에 데이터 없음)'); return; }
       if(!(id in sv)) out.missingBase.push(col + '/' + id);
       const sp = SEC_SPEC[col];
-      const keys = (sp.top || []).filter(k => d[k] != null).concat(Object.keys(sp.arr || {}).filter(k => Array.isArray(d[k]) && d[k].some(it => it && sp.arr[k].some(f => it[f] != null))));
-      if(!keys.length) return;
-      out.checked++;
+      const keys = (sp.top || []).filter(k => d[k] != null).concat(Object.keys(sp.arr || {}).filter(k => Array.isArray(d[k])));
       const exp = _secSplitWrite(col, id, d, keys).sec; const got = sc[id];
       if(!got){ out.missingSec.push(col + '/' + id); return; }
       const bad = Object.keys(exp).filter(k => _secStable(exp[k]) !== _secStable(got[k]));
       if(bad.length) out.mismatch.push(col + '/' + id + ' (' + bad.join(',') + ')'); else out.ok++;
     });
+    Object.keys(sv).forEach(id => { if(_secHasSensitive(col, sv[id])) out.residual.push(col + '/' + id); });   // 대상 목록에서 빠졌어도 원본에 단가가 남으면 여기서 잡힘
   });
-  Object.keys(SEC_DOCS).forEach(col => SEC_DOCS[col].forEach(id => {
-    const d = backup && backup[col] && backup[col][id]; if(!d) return;
-    const data = {}; Object.keys(d).forEach(k => { if(!['id', '_logs', '_updated', 'migrated_to'].includes(k)) data[k] = d[k]; });
-    if(!Object.keys(data).length) return;
+  Object.keys(SEC_DOCS).forEach(col => (T['@' + col] || []).forEach(id => {
     out.checked++;
+    const data = _secWholeData(backup.data[col] && backup.data[col][id]);
     const got = server && server['sec_' + col] && server['sec_' + col][id];
     if(!got){ out.missingSec.push(col + '/' + id); return; }
     const bad = Object.keys(data).filter(k => _secStable(data[k]) !== _secStable(got[k]));
     if(bad.length) out.mismatch.push(col + '/' + id + ' (' + bad.join(',') + ')'); else out.ok++;
   }));
-  out.total = out.mismatch.length + out.missingSec.length + out.missingBase.length;
+  Object.keys(SEC_DOCS).forEach(col => SEC_DOCS[col].forEach(id => { const d = server && server[col] && server[col][id]; if(d && Object.keys(_secWholeData(d)).length) out.residual.push(col + '/' + id); }));
+  const fails = out.mismatch.length + out.missingSec.length + out.missingBase.length + out.residual.length;
+  if(!out.logOk) out.reasons.push('백업 파일의 대상 목록이 이관 기록(건수·해시)과 다름');
+  if(out.checked !== secCount(T)) out.reasons.push('비교 건수 불일치');
+  if(logTotal != null && logTotal !== secCount(T)) out.reasons.push('이관 기록 건수 ≠ 백업 대상 수');
+  if(fails) out.reasons.push('불일치·누락·잔여 ' + fails + '건');
+  if(!out.reasons.length) out.verdict = out.checked === 0 ? 'EMPTY' : 'PASS';   // EMPTY = 이관 대상 없음 (기록·백업·잔여 모두 0 일 때만)
+  out.total = fails;
   return out;
 }
+async function _secSha(s){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(v => v.toString(16).padStart(2, '0')).join(''); }
+async function _secFetchServer(fs, cols){ const server = {}; for(const col of cols){ if(server[col]) continue; server[col] = {}; (await fs.collection(col).get()).docs.forEach(d => { server[col][d.id] = d.data(); }); } return server; }
 async function secReconcileCheck(backup){
   if(!isStaffMode()) throw Object.assign(new Error('직원 계정 방식에서만 실행'), { ui: true });
-  if(!backup || typeof backup !== 'object' || !Object.keys(SEC_SPEC).some(c => backup[c])) throw Object.assign(new Error('백업 파일 형식이 아닙니다 (vela-mes-backup_before-sec-migration_… .json)'), { ui: true });
+  if(!backup || backup.kind !== 'vela-sec-migration-backup') throw Object.assign(new Error('이관 백업 파일이 아닙니다 (vela-mes-sec-migration-backup_….json — [단가 분리 이관] 때 자동으로 내려받은 파일)'), { ui: true });
   if(!(await adminEnsure('이관 대조는 관리자 계정만 할 수 있습니다.'))) return null;
   const fs = _STAFF.isApprover ? _ACTIVE_ADAPTER._fs : _ADMIN.fs;
-  const server = {};
-  for(const col of Object.keys(SEC_SPEC).concat(Object.keys(SEC_SPEC).map(c => 'sec_' + c), Object.keys(SEC_DOCS).map(c => 'sec_' + c))){
-    if(server[col]) continue; server[col] = {};
-    (await fs.collection(col).get()).docs.forEach(d => { server[col][d.id] = d.data(); });
-  }
-  return secReconcileCore(backup, server);
+  const log = await fs.collection('settings').doc('sec_migration_log').get();
+  const lg = log.exists ? log.data() : null;
+  const logOk = !!lg && lg.ids_hash === await _secSha(secIdsKey(backup.targets)) && lg.total === secCount(backup.targets);
+  const cols = Object.keys(SEC_SPEC).concat(Object.keys(SEC_SPEC).map(c => 'sec_' + c), Object.keys(SEC_DOCS), Object.keys(SEC_DOCS).map(c => 'sec_' + c));
+  const server = await _secFetchServer(fs, cols);
+  const r = secReconcileCore(backup, server, logOk, lg ? lg.total : null);
+  if(!lg) r.reasons.unshift('이관 기록(settings/sec_migration_log) 없음');
+  return r;
 }
 async function secMigrateAll(){
   if(!isStaffMode()) throw Object.assign(new Error('직원 계정 방식에서만 실행'), { ui: true });
   if(!(await adminEnsure('단가 분리 이관은 관리자 계정만 할 수 있습니다.'))) return null;
   const fs = _STAFF.isApprover ? _ACTIVE_ADAPTER._fs : _ADMIN.fs; const FV = window.firebase.firestore.FieldValue;
-  const list = secMigrationReport(); let n = 0;
-  for(const it of list){
-    const d = DB.get(it.col, it.id); if(!d) continue;
-    if(it.whole){
-      const data = {}; Object.keys(d).forEach(k => { if(!['id', '_logs', '_updated', 'migrated_to'].includes(k)) data[k] = d[k]; });
-      const del = { migrated_to: 'sec_' + it.col }; Object.keys(data).forEach(k => { del[k] = FV.delete(); });
-      const b = fs.batch(); b.set(fs.collection('sec_' + it.col).doc(it.id), data, { merge: true }); b.update(fs.collection(it.col).doc(it.id), del);
-      await b.commit(); n++; continue;
-    }
-    const sp = SEC_SPEC[it.col]; const keys = (sp.top || []).filter(k => d[k] != null).concat(Object.keys(sp.arr || {}).filter(k => Array.isArray(d[k])));
-    const r = _secSplitWrite(it.col, it.id, d, keys);
+  // ① 서버 전체 대상 조회 (조회 실패 = 중단 · 메모리 사용 0)
+  const server = await _secFetchServer(fs, Object.keys(SEC_SPEC).concat(Object.keys(SEC_DOCS)));
+  const { targets, data } = secTargetsFrom(server);
+  const total = secCount(targets);
+  // ② 이관 백업 파일 (서버 데이터 · 대상 ID 집합)
+  const backup = { kind: 'vela-sec-migration-backup', v: 1, at: Date.now(), by: SESSION.user || '', app: APP_VERSION, targets, data };
+  try { const blob = new Blob([JSON.stringify(backup, null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `vela-mes-sec-migration-backup_${fmtDate(Date.now())}.json`; a.click(); } catch(e){}
+  window._SEC_LAST_BACKUP = backup;
+  // ③ 대상 ID 집합 기록 (건수 + 해시 · 관리자 계정)
+  await fs.collection('settings').doc('sec_migration_log').set({ id: 'sec_migration_log', at: FV.serverTimestamp(), by: SESSION.user || '', app: APP_VERSION, total,
+    counts: Object.fromEntries(Object.keys(targets).map(c => [c, targets[c].length])), ids_hash: await _secSha(secIdsKey(targets)) });
+  // ④ 이관 (서버 원본 데이터 기준 · 문서마다 단가 이동 + 원본 제거 = 한 배치)
+  let n = 0;
+  for(const col of Object.keys(SEC_SPEC)) for(const id of targets[col]){
+    const d = server[col][id]; const sp = SEC_SPEC[col];
+    const keys = (sp.top || []).filter(k => d[k] != null).concat(Object.keys(sp.arr || {}).filter(k => Array.isArray(d[k])));
+    const r = _secSplitWrite(col, id, d, keys);
     const up = {}; (sp.top || []).forEach(k => { if(d[k] != null) up[k] = FV.delete(); }); Object.keys(sp.arr || {}).forEach(k => { if(Array.isArray(d[k])) up[k] = r.main[k]; });
-    const b = fs.batch();   // ★ v0.38.30 — 문서마다 단가 이동 + 원본 제거 = 한 번에
-    if(r.secKeys.length) b.set(fs.collection('sec_' + it.col).doc(it.id), r.sec, { merge: true });
-    if(Object.keys(up).length) b.update(fs.collection(it.col).doc(it.id), up);
-    await b.commit();
-    n++;
+    const b = fs.batch();
+    if(r.secKeys.length) b.set(fs.collection('sec_' + col).doc(id), r.sec, { merge: true });
+    if(Object.keys(up).length) b.update(fs.collection(col).doc(id), up);
+    await b.commit(); n++;
   }
-  return { moved: n, total: list.length };
+  for(const col of Object.keys(SEC_DOCS)) for(const id of (targets['@' + col] || [])){
+    const dd = _secWholeData(server[col][id]);
+    const del = { migrated_to: 'sec_' + col }; Object.keys(dd).forEach(k => { del[k] = FV.delete(); });
+    const b = fs.batch(); b.set(fs.collection('sec_' + col).doc(id), dd, { merge: true }); b.update(fs.collection(col).doc(id), del);
+    await b.commit(); n++;
+  }
+  return { moved: n, total, backup };
 }
 
 /* ── 부팅 · 동기화 ── */
@@ -6092,9 +6168,30 @@ function toast(msg, type='ok', ms=2400){
   clearTimeout(toast._h);
   toast._h = setTimeout(()=>{t.className=''}, ms);
 }
+/* ★ v0.39.0 (GPT 인계서 §4.3) — 작성창 공통: 열 때 누른 버튼 기억 → 닫으면 그 버튼으로 포커스 복귀 · Tab 은 창 안에서만 · Esc = 닫기
+   · 입력이 바뀐 뒤 사용자가 [×]·[취소]·Esc 로 닫으면 한 번 확인 (저장 후 프로그램 닫기는 확인 없음) · 뒤 화면의 검색·필터·스크롤은 그대로 (재렌더 0) */
+let _modalOpener = null, _modalDirty = false;
+function _modalUserClose(){
+  if(_modalDirty){ let ok = true; try { ok = window.confirm('작성 중인 내용이 있습니다. 닫을까요? (저장되지 않습니다)'); } catch(e){} if(!ok) return; }
+  closeModal();
+}
+document.addEventListener('keydown', e => {
+  const bg = document.getElementById('modal-bg'); if(!bg || !bg.classList.contains('show')) return;
+  if(e.key === 'Escape'){ if(typeof _calPopup !== 'undefined' && _calPopup){ return; } e.preventDefault(); _modalUserClose(); return; }
+  if(e.key === 'Tab'){
+    const md = document.getElementById('modal'); const f = [...md.querySelectorAll('button,input,select,textarea,a[href],[tabindex]:not([tabindex="-1"])')].filter(el => !el.disabled && el.offsetParent !== null);
+    if(!f.length) return; const i = f.indexOf(document.activeElement);
+    if(e.shiftKey && (i <= 0)){ e.preventDefault(); f[f.length - 1].focus(); } else if(!e.shiftKey && (i === f.length - 1 || i < 0)){ e.preventDefault(); f[0].focus(); }
+  }
+});
 function openModal(html, opts={}){
   const bg = document.getElementById('modal-bg');
   const md = document.getElementById('modal');
+  if(!bg.classList.contains('show')){ _modalOpener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null; }
+  _modalDirty = false;
+  if(!md._dirtyBound){ md._dirtyBound = true; md.addEventListener('input', () => { _modalDirty = true; }); md.addEventListener('change', e => { if(e.target && e.target.matches && e.target.matches('input,select,textarea')) _modalDirty = true; });
+    md.addEventListener('click', e => { const t = e.target && e.target.closest ? e.target.closest('button') : null; if(!t) return; if(t.classList.contains('x') || /^\s*(취소|닫기)\s*$/.test(t.textContent || '')){ if(_modalDirty){ e.stopImmediatePropagation(); e.preventDefault(); _modalUserClose(); } } }, true); }
+  md.setAttribute('role', 'dialog'); md.setAttribute('aria-modal', 'true');
   // ★ v0.16.10 — 폭 재설정 (opts.width 지정 시 override, 아니면 기본 CSS max-width)
   md.style.maxWidth = opts.width ? opts.width : '';
   md.innerHTML = html;
@@ -6104,9 +6201,13 @@ function openModal(html, opts={}){
   // ★ v0.32.4 — 모달 내 규칙·가드 안내 접기
   try { if(typeof _ruleNoteEnhance === 'function') _ruleNoteEnhance(); } catch(e){}
   // ★ v0.16.8 — 바깥 클릭 닫힘 기본 차단 (입력 소실 방지). 명시적으로 closeOnBg:true 준 곳만 유지.
-  bg.onclick = e => { if(e.target===bg && opts.closeOnBg===true) closeModal(); };
+  bg.onclick = e => { if(e.target===bg && opts.closeOnBg===true) _modalUserClose(); };
+  setTimeout(() => { try { if(md.contains(document.activeElement)) return; const f = [...md.querySelectorAll('input:not([type=hidden]):not([readonly]):not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea')].find(el => !el._velaCalBound && el.offsetParent !== null); if(f && !opts.noAutoFocus && !(window.matchMedia && window.matchMedia('(pointer:coarse)').matches)) f.focus({ preventScroll: true }); /* 터치 기기 = 자동 키보드 0 */ } catch(e){} }, 30);
 }
-function closeModal(){ if(typeof _closeCal==='function') _closeCal(); document.getElementById('modal-bg').classList.remove('show'); }
+function closeModal(){ if(typeof _closeCal==='function') _closeCal(); document.getElementById('modal-bg').classList.remove('show'); _modalDirty = false;
+  const o = _modalOpener; _modalOpener = null; try { if(o && o.isConnected && typeof o.focus === 'function') o.focus({ preventScroll: true }); } catch(e){}
+  if(window._pReturn){ const r = window._pReturn; window._pReturn = null; setTimeout(() => { if(!document.getElementById('modal-bg').classList.contains('show')) location.hash = r; }, 0); }   // ★ v0.39.3 — 폰에서 연 등록 창을 닫으면 폰 화면으로
+}
 
 /* ★ v0.20.2 — 공용 달력 팝업 유틸 (라이브러리 금지 · 유틸 1벌)
    attachCalendar(inputEl): 날짜 input 클릭/포커스 시 미니 달력 팝업.
@@ -6903,7 +7004,8 @@ function enterAsUser(u){
   // ★ v0.22.0 — DEMO 배지 노출 (데모 모드에서만)
   const db = document.getElementById('demo-badge');
   if(db) db.hidden = !isDemoMode();
-  if(mobileEntryDefault() && !isMobileHash()) location.hash = '#m/home';   // ★ v0.37.0 — 자동 진입 = 현장 모드 「내 작업」 노출 (자동 작업 시작 아님)
+  if(mobileEntryDefault() && !isMobileHash()) location.hash = '#m/home';
+  else if(phoneEntryDefault() && !isPhoneHash() && !isMobileHash()) location.hash = '#p/home';   // ★ v0.39.3 — 폰(사무직·관리책임자) = 폰 홈 · [PC 화면으로] 이후 이 기기는 PC   // ★ v0.37.0 — 자동 진입 = 현장 모드 「내 작업」 노출 (자동 작업 시작 아님)
   renderNav(); router();
   renderSyncPill();   // ★ v0.20.0 — 로그인 진입 시 동기화 pill 갱신
 }
@@ -7018,6 +7120,57 @@ function getUserPerm(userId, pageId){
 // ★ v0.38.32 (GPT v0.38.31 확인 · 사용자 승인 2026-10-21) — 적지 않은 메뉴의 기본값 1벌: perms._base === 'none' 이면 「없음」 (신규 직원 · 권한 창 저장 사용자)
 //   _base 없는 옛 사용자 = 「등록」 (기존 호환) · Rules r10 pBase()/pOf() 와 같은 규칙 — 앞으로 새 메뉴가 생겨도 자동 등록 0
 function permBase(u){ return u && u.perms && u.perms._base === 'none' ? 'none' : 'edit'; }
+/* ★ v0.38.33 (GPT v0.38.32 피드백 ①) — 옛 형식 직원(_base 없음) 권한 전환: 자동 검색 → 전후 비교 → 관리자 확인 → 선택 일괄 전환 → 재검사
+   전환 = 지금 실효 권한을 그대로 직접 적고 _base:'none' (권한이 늘거나 줄지 않음 · 앞으로 생길 메뉴만 「없음」) · 중요 권한(등록·단가·회계·마감)은 따로 표시
+   제외: manager(역할 = 모든 업무 메뉴 등록 · perms 미사용 — 서버 sMgr 동일) · 개발자(users 문서 아님 · approvers) */
+const PERM_CRITICAL = ['closing', 'acct', 'cost', 'report', 'quote'];
+function permIsConverted(u){ return !!(u && u.perms && u.perms._base === 'none'); }
+function permConvertPlan(u){
+  const after = { _base: 'none' };
+  const p = (u && u.perms) || {};
+  if(p.dash === 'view') after.dash = 'view';
+  (typeof PAGES !== 'undefined' ? PAGES : []).forEach(pg => { if(pg.id === 'dash' || MANAGER_ONLY.includes(pg.id)) return; after[pg.id] = PERM_LEVELS.includes(p[pg.id]) ? p[pg.id] : 'edit'; });
+  after.price = p.price === 'none' ? 'none' : 'view';
+  const critical = PERM_CRITICAL.filter(k => after[k] === 'edit').map(k => (PAGES.find(pg => pg.id === k) || {}).title || k);
+  if(after.price === 'view') critical.push('단가·금액 열람');
+  const editN = Object.keys(after).filter(k => !k.startsWith('_') && k !== 'price' && after[k] === 'edit').length;
+  return { after, critical, editN };
+}
+function permUnconvertedList(){
+  const users = DB.all('users').concat(DB.allRaw('users').filter(u => u.active === false)).filter((u, i, a) => a.findIndex(v => v.id === u.id) === i);
+  const todo = [], excluded = [];
+  users.forEach(u => {
+    if(u.role === 'manager'){ excluded.push({ u, why: '관리책임자 — 역할 기준으로 모든 업무 메뉴 등록 (권한 표 미사용 · 서버도 같은 기준)' }); return; }
+    if(!permIsConverted(u)) todo.push(u);
+  });
+  return { todo, excluded };
+}
+function openPermConvertModal(opts){
+  opts = opts || {};
+  const { todo, excluded } = permUnconvertedList();
+  const list = opts.only ? todo.filter(u => u.id === opts.only) : todo;
+  const rows = list.map(u => { const pl = permConvertPlan(u); return `<tr>
+      <td><input type="checkbox" data-pc-id="${_esc(u.id)}" checked></td>
+      <td><b>${_esc(u.name || u.id)}</b> ${u.active === false ? '<span class="pill gray" style="font-size:9px">퇴사</span>' : ''}</td>
+      <td class="num">${pl.editN}</td>
+      <td>${pl.critical.length ? `<span style="color:var(--red);font-weight:700">${_esc(pl.critical.join(' · '))}</span>` : '<span class="muted">없음</span>'}</td>
+    </tr>`; }).join('');
+  openModal(`<h2>권한 전환 점검 ${opts.only ? '— 재활성 전 확인' : ''} <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+    <div style="font-size:12.5px">옛 형식 직원 <b style="color:${todo.length ? 'var(--amber)' : 'var(--green)'}">${todo.length}명</b> — 지금은 <b>적지 않은 메뉴 = 등록</b>으로 동작합니다. 전환하면 <b>지금 권한을 그대로 적고</b> 앞으로 생길 메뉴만 「없음」 이 됩니다 (권한이 늘거나 줄지 않음).</div>
+    ${list.length ? `<div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th></th><th>직원</th><th class="num">등록 메뉴 수</th><th>중요 권한 (전환 후에도 유지 — 필요 없으면 전환 뒤 [권한] 에서 줄이세요)</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div style="color:var(--green);margin-top:8px">전환할 직원 없음</div>'}
+    ${excluded.length ? `<div style="font-size:11px;color:var(--sub);margin-top:8px">제외 ${excluded.length}명: ${excluded.map(e => _esc((e.u.name || e.u.id) + ' — ' + e.why)).join(' / ')}</div>` : ''}
+    <div class="actions"><button class="btn" onclick="closeModal()">취소</button>${list.length ? `<button class="btn primary" id="pc-go">${opts.only ? '전환 후 재활성' : '선택 직원 전환'}</button>` : ''}</div></div>`, { width: '640px' });
+  const go = document.getElementById('pc-go');
+  if(go) go.onclick = () => {
+    const ids = [...document.querySelectorAll('[data-pc-id]')].filter(c => c.checked).map(c => c.dataset.pcId);
+    if(!ids.length){ toast('선택된 직원 없음', 'warn'); return; }
+    ids.forEach(id => { const u = DB.get('users', id) || DB.allRaw('users').find(v => v.id === id); if(!u) return; const pl = permConvertPlan(u);
+      DB.set('users', id, opts.only ? { perms: pl.after, active: true } : { perms: pl.after }); });
+    if(opts.only && isStaffMode()) staffSetActive(opts.only, true).catch(() => {});
+    setTimeout(() => { const left = permUnconvertedList().todo.length; toast(`권한 전환 ${ids.length}명 · 남은 옛 형식 ${left}명`, left ? 'warn' : 'ok', 5000); if(typeof opts.done === 'function') opts.done(); }, 300);
+    closeModal();
+  };
+}
 function currentPagePerm(){
   if(typeof SESSION === 'undefined' || !SESSION.loggedIn) return 'edit';
   if(SESSION.role === 'manager' || SESSION.role === 'vendor') return 'edit';
@@ -7055,6 +7208,21 @@ const NAV_GROUPS = [
    · 전체 메뉴 창 = 검색 + NAV_GROUPS 묶음 + ☆/★(즉시 저장) + 회사 기본 복원 — 목록은 renderNav 와 같은 menuCanSee 1벌 (관리책임자가 열어주지 않은 메뉴는 없음)
    · 개인화 = 표시 항목과 순서만. 계산·원장·권한·write path 무변. 회사 기본 = settings/menu.primary (설정 › 메뉴 순서) 무변. */
 const NAV_PRIMARY_DEFAULT = ['dash','so','plan','scan','perf','lot','qc','ship'];
+/* ★ v0.39.0 — PC 사이드바 부서 묶음 (GPT 인계서 2026-10-22 §4.1 · '부' 접미어 없음) · 메뉴 매핑 = PAGES 28개 전부 (누락 = 「기타」 로 자동 · 정적 시험 NV1)
+   권한·게이팅 무변: 묶음은 표시 위치만 · 각 버튼은 menuCanSee 를 통과한 것만 · 회계·마감·권한 기능은 기존 메뉴 그대로 「관리」 아래 */
+const NAV_DEPTS = [
+  { key:'sales',   label:'영업',      ids:['so','quote'] },
+  { key:'prod',    label:'생산',      ids:['wo','plan','perf','scan','autoplan','lot','eqstatus'] },
+  { key:'buy',     label:'구매·자재', ids:['po','matin','inv','os'] },
+  { key:'qual',    label:'품질',      ids:['qc','mold','draw'] },
+  { key:'ship',    label:'출하',      ids:['ship','pallet'] },
+  { key:'admin',   label:'관리',      ids:['closing','acct','cost','report','docs','audit'] },
+  { key:'master',  label:'기준정보',  ids:['masters','proc'] },
+  { key:'setting', label:'설정',      ids:['set'] },
+];
+// 펼친 묶음 = 이 기기 편의 설정 (localStorage · 실패해도 동작)
+function _navOpenGet(){ try { return new Set(JSON.parse(localStorage.getItem('vela_nav_open') || '[]')); } catch(e){ return new Set(); } }
+function _navOpenSet(k, on){ try { const s = _navOpenGet(); if(on) s.add(k); else s.delete(k); localStorage.setItem('vela_nav_open', JSON.stringify([...s])); } catch(e){} }
 /* ★ v0.37.7 — 개인 설정 문서 settings/prefs.{userId} (users = 인증·역할·권한·기기 / prefs = 개인 취향 · GPT §5 권장)
    어댑터가 서브컬렉션을 지원하지 않아 문서 id 로 표현 · 신규 컬렉션 0 · 필드: menu_primary (v0.38.0 에서 dash_cards·report_sections·report_format 추가 예정) */
 const PREFS_FIELDS = ['menu_primary','dash_cards','report_sections','report_format','sec_off'];   // 개인화 필드 화이트리스트 (v0.38.0 3개 예약) — 이 밖의 키는 setPrefs 가 버린다 · ★ v0.38.17 sec_off = 화면 단락 끄기 {화면id:제목 → true}
@@ -7160,15 +7328,30 @@ function renderNav(){
   // ★ v0.37.7 — 사이드바 = 내 메뉴만(회사 메뉴 순서 유지 · 아이콘 없음) + 「⋯ 전체 메뉴」 버튼 1개. 나머지는 전체 메뉴 창(openAllMenuModal) — 기능 숨김 0.
   const primary = getPrimaryMenu();
   const prim = ordered.filter(p => primary.includes(p.id));
-  let out = prim.map(p => `<button data-page="${p.id}">${_esc(p.title)}</button>`).join('');
-  out += `<button class="nav-all-btn" data-allmenu title="관리책임자가 열어준 전체 메뉴 · ★ 로 내 메뉴 고르기">☰ 전체 메뉴</button>`;
+  // ★ v0.39.0 (PC 개편 U-01·U-04 · GPT 승인) — 사이드바 = 「내 업무」(★ 고른 메뉴) + 부서 묶음(접기 · '부' 없음) · 게이팅 = menuCanSee 1벌 그대로 (위치 이동 = 권한 확대 0)
+  let out = `<div class="nav-sec">내 업무</div>` + prim.map(p => `<button data-page="${p.id}">${_esc(p.title)}</button>`).join('');
+  const openSet = _navOpenGet(); const cur = (location.hash || '#dash').replace('#', '').split('/')[0];
+  const used = new Set(['dash']);
+  let depts = '';
+  NAV_DEPTS.forEach(g => {
+    const ps = g.ids.map(id => ordered.find(p => p.id === id)).filter(Boolean); if(!ps.length) return;   // 묶음 안 순서 = 업무 순서 (작업지시 → 생산계획 → 실적)
+    ps.forEach(p => used.add(p.id));
+    const open = openSet.has(g.key) || ps.some(p => p.id === cur);
+    depts += `<div class="nav-dept${open ? ' open' : ''}" data-dept="${g.key}"><button type="button" class="nav-dept-h" data-dept-h="${g.key}" aria-expanded="${open}">${_esc(g.label)}<span class="nav-dept-n">${ps.length}</span></button><div class="nav-dept-b">${ps.map(p => `<button data-page="${p.id}">${_esc(p.title)}</button>`).join('')}</div></div>`;
+  });
+  const rest = ordered.filter(p => !used.has(p.id));
+  if(rest.length) depts += `<div class="nav-dept${openSet.has('etc') ? ' open' : ''}" data-dept="etc"><button type="button" class="nav-dept-h" data-dept-h="etc">기타<span class="nav-dept-n">${rest.length}</span></button><div class="nav-dept-b">${rest.map(p => `<button data-page="${p.id}">${_esc(p.title)}</button>`).join('')}</div></div>`;
+  out += `<div class="nav-depts">${depts}</div>`;
+  out += `<button class="nav-all-btn" data-allmenu title="메뉴 찾기 · ★ 로 내 업무 고르기">☰ 메뉴 찾기 · ★</button>`;
   nav.innerHTML = out;
   nav.querySelectorAll('button[data-page]').forEach(b=>b.onclick=()=>location.hash='#'+b.dataset.page);
+  nav.querySelectorAll('[data-dept-h]').forEach(b => b.onclick = () => { const d = b.closest('.nav-dept'); const on = !d.classList.contains('open'); d.classList.toggle('open', on); b.setAttribute('aria-expanded', on); _navOpenSet(b.dataset.deptH, on); });
   nav.querySelector('[data-allmenu]').onclick = openAllMenuModal;
   renderUserPill();
 }
 function setActive(id){
   document.querySelectorAll('#nav button[data-page]').forEach(b=>b.classList.toggle('on', b.dataset.page===id));
+  document.querySelectorAll('#nav .nav-dept').forEach(d => { if(d.querySelector('button.on')){ d.classList.add('open'); const h = d.querySelector('[data-dept-h]'); if(h) h.setAttribute('aria-expanded', 'true'); } });   // ★ v0.39.0 — 현재 화면의 묶음 펼침
   // ★ v0.37.7 — 현재 화면이 내 메뉴에 없으면(전체 메뉴에서 이동) 「전체 메뉴」 버튼에 활성 표시 + 화면 이름(위치 힌트)
   const nav = document.getElementById('nav'); const all = nav && nav.querySelector('[data-allmenu]');
   if(!all) return;
@@ -7182,8 +7365,10 @@ function router(){
   if(!SESSION.loggedIn) return;
   // ★ v0.37.0 — Mobile Shop Floor: #m/ 접두 = 별도 UI 아키텍처 (같은 원장·같은 규칙 · PC 화면 무변)
   if(isMobileHash()){ mobileRouter(); return; }
+  if(isPhoneHash()){ if(isWorkerRole()){ location.hash = '#m/home'; return; } phoneRouter(); return; }   // ★ v0.39.3 — 사무직·관리책임자 폰 화면
   if(isWorkerRole()){ location.hash = '#m/home'; return; }   // ★ v0.37.2 — 현장 작업자 = 역할상 현장 화면 (PC 해시 직접 접근도 현장으로 · hashchange 가 다시 router 호출)
   document.getElementById('app').classList.remove('m-mode');
+  _phoneFab();   // ★ v0.39.3 — 폰에서 PC 화면을 연 사무직 = 「폰 홈」 돌아가기 버튼
   const id = (location.hash||'#dash').replace('#','');
   // ★ v0.15.2 — MANAGER_ONLY 직접 hash 접근 차단 (v0.15.4 — vendor 도 허용)
   if(MANAGER_ONLY.includes(id) && SESSION.role !== 'manager' && SESSION.role !== 'vendor'){
@@ -9298,6 +9483,142 @@ function mobileTabs(active){
   let n = 0; try { n = mobileJobs(SES.get()).attention.length; } catch(e){}
   return `<nav class="m-tabs" id="m-tabs">${tabs.map(([id,l,ic]) => `<a href="#m/${id}" class="${active===id?'on':''}"><span class="ic">${ic}${id==='check'&&n?`<b class="m-badge">${n}</b>`:''}</span><span>${l}</span></a>`).join('')}</nav>`;
 }
+/* ★ v0.39.3 — 사무직·관리책임자 폰 화면 (SPEC 「스마트폰 UI 간소화 v0.2」 · M-1 표 그대로 · M-2 조회 + 출하·입고 등록 · 사용자 확정 2026-10-18)
+   현장 작업자 화면(#m/)과 별개 라우트 #p/ · 화면만 바꾼다 — 계산·원장·권한·쓰기 경로 무변: 숫자 = 기존 헬퍼 1벌(calcSoRows·heldPlotSet·lockedPlotSet·ncIsPending·calcPoStatus) · 등록 = PC 등록 창을 그대로 연다(저장 함수 동일)
+   진입: 폰(터치 ∧ 폭 ≤ 768) + 현장 작업자 아님 → 로그인 후 #p/home · [PC 화면으로] = 이 기기 취향 'pc' · 메뉴 노출 = menuCanSee 1벌 */
+function isPhoneDevice(){ try { return window.matchMedia('(pointer:coarse)').matches && Math.min(screen.width || 9999, window.innerWidth || 9999) <= 768; } catch(e){ return false; } }
+function isPhoneHash(h){ h = h == null ? (location.hash || '') : h; return h === '#p' || h.startsWith('#p/'); }
+function phoneEntryDefault(){ if(isWorkerRole()) return false; let pref = null; try { pref = localStorage.getItem(M_UI_KEY); } catch(e){} if(pref === 'pc') return false; return pref === 'phone' || isPhoneDevice(); }
+function _pCan(id){ const pg = PAGES.find(x => x.id === id); return !!pg && menuCanSee(pg); }
+function _pEdit(id){ return _pCan(id) && (SESSION.role === 'manager' || SESSION.role === 'vendor' || getUserPerm(SESSION.userId, id) === 'edit'); }
+function phoneTabs(active){
+  const tabs = [['home', '홈', '🏠'], ['todo', '할 일', '✅'], ['find', '조회', '🔍'], ['more', '더보기', '☰']];
+  let n = 0; try { n = phoneTodo().total; } catch(e){}
+  return `<nav class="m-tabs" id="p-tabs">${tabs.map(([id, l, ic]) => `<a href="#p/${id}" class="${active === id ? 'on' : ''}"><span class="ic">${ic}${id === 'todo' && n ? `<b class="m-badge">${n}</b>` : ''}</span><span>${l}</span></a>`).join('')}</nav>`;
+}
+function phoneShell(active, inner){
+  document.getElementById('app').classList.add('m-mode');
+  document.getElementById('view').innerHTML = `<div class="m-shell p-shell">${inner}</div>${phoneTabs(active)}`;
+}
+// 할 일 = 지금 사람이 봐야 하는 것 (파생 · 저장 0) — 권한 있는 메뉴만
+function phoneTodo(){
+  const out = { late: [], soon: [], hold: [], nc: [], po: [], lock: 0, total: 0 };
+  if(_pCan('so')){ const rows = calcSoRows(); out.late = rows.filter(r => r.status.label === '지연'); out.soon = rows.filter(r => r.status.label === '납기임박'); }
+  if(_pCan('qc')){ out.hold = [...heldPlotSet()]; out.nc = DB.query('nc_records', n => ncIsPending(n)); }
+  if(_pCan('po')){ out.po = DB.all('purchase_orders').map(po => ({ po, st: calcPoStatus(po) })).filter(x => x.st.state === '지연'); }
+  if(SESSION.role === 'manager' || SESSION.role === 'vendor'){ try { out.lock = lockedPlotSet().size; } catch(e){} }
+  out.total = out.late.length + out.hold.length + out.nc.length + out.po.length + out.lock;
+  return out;
+}
+// 등록 = PC 등록 창 그대로 (같은 저장 함수) · 닫으면 폰 화면으로 복귀
+function phoneOpenForm(kind){
+  window._pReturn = location.hash && isPhoneHash() ? location.hash : '#p/home';
+  const go = (hash, prep, btn) => { try { if(prep) prep(); location.hash = hash; router(); const b = document.getElementById(btn); if(!b) throw new Error('권한 또는 기능 설정으로 등록 화면을 열 수 없습니다'); b.click(); } catch(e){ window._pReturn = null; toast(e.message || String(e), 'warn'); location.hash = '#p/home'; } };
+  if(kind === 'ship') go('#ship', null, 'btn-ship-new');
+  else if(kind === 'buy') go('#matin', () => { (window._matinHub = window._matinHub || {}).tab = 'buy'; }, 'mbuy-add');
+  else if(kind === 'material') go('#matin', () => { (window._matinHub = window._matinHub || {}).tab = 'material'; }, 'matin-add');
+}
+function _phoneFab(){
+  let f = document.getElementById('p-home-fab');
+  const show = !isWorkerRole() && isPhoneDevice() && !isPhoneHash() && !isMobileHash();
+  if(!show){ if(f) f.hidden = true; return; }
+  if(!f){ f = document.createElement('a'); f.id = 'p-home-fab'; f.href = '#p/home'; f.textContent = '📱 폰 홈'; f.className = 'p-home-fab'; f.onclick = () => setUiMode('phone'); document.body.appendChild(f); }
+  f.hidden = false;
+}
+function phoneRouter(){
+  const parts = (location.hash || '#p/home').replace(/^#p\/?/, '').split('/').map(decodeURIComponent);
+  const page = parts[0] || 'home';
+  const fab = document.getElementById('p-home-fab'); if(fab) fab.hidden = true;
+  const fn = { home: VIEWS.p_home, todo: VIEWS.p_todo, find: VIEWS.p_find, more: VIEWS.p_more, so: VIEWS.p_so }[page] || VIEWS.p_home;
+  fn(parts.slice(1));
+}
+VIEWS.p_home = () => {
+  const t = phoneTodo(); const today = fmtDate(Date.now());
+  const isMgr = SESSION.role === 'manager' || SESSION.role === 'vendor';
+  const cards = [];
+  if(t.total) cards.push(`<a class="m-stat red" href="#p/todo"><span>오늘 챙길 일</span><b>${t.total}</b></a>`); else cards.push(`<a class="m-stat" href="#p/todo"><span>오늘 챙길 일</span><b style="color:var(--green)">0</b></a>`);
+  if(_pCan('so')) cards.push(`<a class="m-stat ${t.late.length ? 'red' : 'blue'}" href="#p/so"><span>납기 지연 · 임박</span><b>${t.late.length}·${t.soon.length}</b></a>`);
+  if(_pCan('perf') || isMgr){ const recs = DB.query('records', r => fmtDate(r.ts) === today); const good = recs.reduce((s, r) => s + (+r.good || 0), 0); cards.push(`<div class="m-stat blue"><span>오늘 생산 (양품)</span><b>${good.toLocaleString()}</b></div>`); }
+  if(_pCan('ship')){ const sh = DB.query('shipments', s => fmtDate(s.ts || s.date) === today || s.date === today); cards.push(`<div class="m-stat"><span>오늘 출하</span><b>${sh.length}</b></div>`); }
+  const acts = [];
+  if(_pEdit('ship')) acts.push(`<button class="m-btn primary" data-p-form="ship">🚚 출하 등록</button>`);
+  if(_pEdit('matin')) acts.push(`<div class="m-strip"><button class="m-btn" data-p-form="buy">📦 구매품 입고</button><button class="m-btn" data-p-form="material">🧱 소재 입고</button></div>`);
+  phoneShell('home', `
+    <div class="m-head"><span>안녕하세요, <b style="color:var(--ink)">${_esc(SESSION.user || '')}</b> 님</span><span class="mono dim">${today}</span></div>
+    <div class="m-strip">${cards.join('')}</div>
+    ${acts.length ? `<div class="m-sec">등록</div>${acts.join('')}` : ''}
+    <div class="m-sec">바로 가기</div>
+    <div class="p-links">${[['so', '수주'], ['ship', '출하'], ['matin', '입고'], ['po', '구매'], ['lot', 'LOT 추적'], ['qc', '품질'], ['plan', '생산계획'], ['wo', '작업지시']].filter(([id]) => _pCan(id)).map(([id, l]) => `<a class="p-link" href="#${id}" data-p-pc="${id}">${l}<span>PC 화면 ↗</span></a>`).join('')}</div>
+    <div class="m-foot">VELA MES SYSTEM · ${APP_VERSION} · 폰 화면 · MADE BY JUNS</div>`);
+  document.querySelectorAll('[data-p-form]').forEach(b => b.onclick = () => phoneOpenForm(b.dataset.pForm));
+};
+VIEWS.p_todo = () => {
+  const t = phoneTodo();
+  const soCard = r => `<a class="m-card" href="#p/so/${encodeURIComponent(r.o.id)}"><div class="m-row1"><b class="mono">${_esc(r.o.id)}</b> · ${_esc(DB.get('vendors', r.o.cust)?.name || r.o.cust || '')}</div><div class="m-row2">${_esc(r.o.itemCode)} · 미납 ${(+r.remain || 0).toLocaleString()} · 납기 <b class="${r.status.label === '지연' ? 'red' : 'amber'}">${_esc(r.o.due || '')}</b></div></a>`;
+  phoneShell('todo', `
+    <div class="m-title">할 일</div>
+    ${t.lock ? `<div class="m-ban red">동시성 사고 ${t.lock}건<div>PC 화면 › 변경 이력에서 판정</div></div>` : ''}
+    ${t.late.length ? `<div class="m-sec">납기 지연 ${t.late.length}</div>${t.late.map(soCard).join('')}` : ''}
+    ${t.hold.length ? `<div class="m-sec">품질 HOLD ${t.hold.length}</div>${t.hold.map(pl => `<div class="m-card static"><div class="m-row1 mono"><b>${_esc(pl)}</b></div><div class="m-row2">출하·반출 차단 중 — 품질 판정 필요 (PC 화면 › 품질)</div></div>`).join('')}` : ''}
+    ${t.nc.length ? `<div class="m-sec">판정 대기 부적합 ${t.nc.length}</div>${t.nc.slice(0, 20).map(n => `<div class="m-card static"><div class="m-row1"><b class="mono">${_esc(n.plot_no || n.id)}</b> · ${_esc(n.type || n.defect_type || '')}</div><div class="m-row2">${(+n.qty || 0).toLocaleString()}ea · ${fmtDate(n.ts)}</div></div>`).join('')}` : ''}
+    ${t.po.length ? `<div class="m-sec">입고 지연 발주 ${t.po.length}</div>${t.po.slice(0, 20).map(x => `<div class="m-card static"><div class="m-row1"><b class="mono">${_esc(x.po.id)}</b> · ${_esc(DB.get('vendors', x.po.vendor)?.name || x.po.vendor || '')}</div><div class="m-row2">납기 ${_esc(x.po.due || '')} · 미입고</div></div>`).join('')}` : ''}
+    ${t.soon.length ? `<div class="m-sec">납기 임박 ${t.soon.length}</div>${t.soon.map(soCard).join('')}` : ''}
+    ${!t.total && !t.soon.length ? `<div class="m-empty">챙길 일이 없습니다<div class="sub">납기 지연 · HOLD · 판정 대기 · 입고 지연 0</div></div>` : ''}`);
+};
+VIEWS.p_so = (args) => {
+  const id = args && args[0];
+  if(id){
+    const o = DB.get('orders', id); if(!o){ location.hash = '#p/so'; return; }
+    const row = calcSoRows().find(r => r.o.id === id);
+    phoneShell('home', `<a class="m-back" href="#p/so">← 수주 목록</a>
+      <div class="m-title mono">${_esc(o.id)}</div>
+      <div class="m-card static">
+        <div class="m-kv"><span>거래처</span><b>${_esc(DB.get('vendors', o.cust)?.name || o.cust || '—')}</b></div>
+        <div class="m-kv"><span>품번</span><b class="mono">${_esc(o.itemCode)} ${_esc(DB.get('items', o.itemCode)?.name || '')}</b></div>
+        <div class="m-kv"><span>수주</span><b class="mono">${(+o.qty || 0).toLocaleString()}</b></div>
+        <div class="m-kv"><span>출하</span><b class="mono">${soShippedQty(o).toLocaleString()}</b></div>
+        <div class="m-kv big"><span>미납</span><b class="mono">${soOpenQty(o).toLocaleString()}</b></div>
+        <div class="m-kv"><span>납기</span><b class="${row && row.status.label === '지연' ? 'red' : ''}">${_esc(o.due || '—')} ${row ? '· ' + _esc(row.status.label) : ''}</b></div>
+      </div>
+      ${_pEdit('ship') && soOpenQty(o) > 0 ? `<button class="m-btn primary" data-p-form="ship">🚚 이 수주 출하 등록</button>` : ''}`);
+    document.querySelectorAll('[data-p-form]').forEach(b => b.onclick = () => phoneOpenForm(b.dataset.pForm));
+    return;
+  }
+  const rows = calcSoRows().filter(r => r.remain > 0).sort((a, b) => (a.o.due || '').localeCompare(b.o.due || ''));
+  phoneShell('home', `<a class="m-back" href="#p/home">← 홈</a><div class="m-title">수주 잔량 <span class="dim" style="font-size:13px">${rows.length}건 · 납기순</span></div>
+    ${rows.length ? rows.slice(0, 60).map(r => `<a class="m-card" href="#p/so/${encodeURIComponent(r.o.id)}"><div class="m-row1"><b class="mono">${_esc(r.o.id)}</b> · ${_esc(DB.get('vendors', r.o.cust)?.name || r.o.cust || '')}</div><div class="m-row2">${_esc(r.o.itemCode)} · 미납 <b>${(+r.remain || 0).toLocaleString()}</b> · 납기 <span class="${r.status.label === '지연' ? 'red' : r.status.label === '납기임박' ? 'amber' : ''}">${_esc(r.o.due || '—')}</span></div></a>`).join('') : '<div class="m-empty">미납 수주 없음</div>'}`);
+};
+VIEWS.p_find = (args) => {
+  const q = String((args && args[0]) || '').trim().toLowerCase();
+  const res = [];
+  if(q){
+    const hit = s => String(s || '').toLowerCase().includes(q);
+    if(_pCan('so')) DB.all('orders').filter(o => hit(o.id) || hit(o.itemCode) || hit(DB.get('vendors', o.cust)?.name)).slice(0, 20).forEach(o => res.push(`<a class="m-card" href="#p/so/${encodeURIComponent(o.id)}"><div class="m-row1"><span class="pill cyan" style="font-size:9.5px">수주</span> <b class="mono">${_esc(o.id)}</b></div><div class="m-row2">${_esc(o.itemCode)} · ${_esc(DB.get('vendors', o.cust)?.name || '')} · 미납 ${soOpenQty(o).toLocaleString()}</div></a>`));
+    DB.all('items').filter(i => hit(i.code) || hit(i.name)).slice(0, 15).forEach(i => res.push(`<div class="m-card static"><div class="m-row1"><span class="pill" style="font-size:9.5px">품번</span> <b class="mono">${_esc(i.code)}</b> ${_esc(i.name || '')}</div><div class="m-row2">${_esc(i.mat || '')}${+i.dia ? ' · Ø' + (+i.dia) : ''}${i.active === false ? ' · 비활성' : ''}</div></div>`));
+    DB.all('vendors').filter(v => hit(v.name) || hit(v.code)).slice(0, 10).forEach(v => res.push(`<div class="m-card static"><div class="m-row1"><span class="pill" style="font-size:9.5px">거래처</span> <b>${_esc(v.name)}</b></div><div class="m-row2">${_esc(v.code || '')}${v.tel ? ' · ' + _esc(v.tel) : ''}${v.manager ? ' · ' + _esc(v.manager) : ''}</div></div>`));
+    if(_pCan('lot')) DB.all('production_lots').filter(l => hit(l.plot_no) || hit(l.itemCode)).slice(0, 15).forEach(l => res.push(`<a class="m-card" href="#lot" data-p-pc="lot"><div class="m-row1"><span class="pill" style="font-size:9.5px">LOT</span> <b class="mono">${_esc(l.plot_no)}</b>${heldPlotSet().has(l.plot_no) ? ' <span class="pill red" style="font-size:9.5px">HOLD</span>' : ''}</div><div class="m-row2">${_esc(l.itemCode)} · 지시 ${(+l.qty_initial || 0).toLocaleString()} · PC 화면 ↗</div></a>`));
+  }
+  phoneShell('find', `<div class="m-title">조회</div>
+    <form id="p-find-f" class="p-find"><input id="p-find-q" value="${_esc(q)}" placeholder="수주번호 · 품번 · 품명 · 거래처 · LOT" autocomplete="off" enterkeyhint="search"><button class="m-btn primary" type="submit" style="width:auto;padding:0 18px">검색</button></form>
+    ${q ? (res.length ? res.join('') : '<div class="m-empty">결과 없음</div>') : '<div class="m-empty">찾을 말을 넣고 검색<div class="sub">수주 · 품번 · 거래처 · LOT (권한 있는 것만)</div></div>'}`);
+  document.getElementById('p-find-f').onsubmit = e => { e.preventDefault(); location.hash = '#p/find/' + encodeURIComponent(document.getElementById('p-find-q').value.trim()); };
+};
+VIEWS.p_more = () => {
+  const isMgr = SESSION.role === 'manager' || SESSION.role === 'vendor';
+  let acct = ''; if(isMgr){ const us = DB.all('users'); const left = (typeof permUnconvertedList === 'function') ? permUnconvertedList().todo.length : 0; acct = `<div class="m-card static"><div class="m-kv"><span>활성 직원</span><b>${us.filter(u => u.active !== false).length}명</b></div><div class="m-kv"><span>권한 옛 형식</span><b class="${left ? 'amber' : ''}">${left}명</b></div><div class="m-row3">직원 계정·권한 변경은 PC 화면 › 기준정보 › 사용자</div></div>`; }
+  phoneShell('more', `<div class="m-title">더보기</div>
+    <div class="m-card static"><div class="m-kv"><span>사용자</span><b>${_esc(SESSION.user || '')}</b></div><div class="m-kv"><span>역할</span><b>${SESSION.role === 'manager' ? '관리책임자' : SESSION.role === 'vendor' ? '개발자' : '일반'}</b></div></div>
+    ${acct}
+    <div class="m-card static" style="display:flex;flex-direction:column;gap:10px"><div style="font-size:13px;color:var(--sub)">화면 모드 <span class="dim">— 이 폰에만 저장</span></div>
+      <div class="m-seg">${[['auto', '◐ 자동'], ['light', '☀ 밝게'], ['dark', '🌙 어둡게']].map(([v, l]) => `<button type="button" class="m-seg-btn ${getThemePref() === v ? 'on' : ''}" data-theme-pick="${v}">${l}</button>`).join('')}</div></div>
+    ${_pCan('scan') ? `<a class="m-btn ghost" href="#m/home">🏭 현장 모드 (실적 등록)</a>` : ''}
+    <button class="m-btn ghost" id="p-pc">🖥 PC 화면으로</button>
+    <button class="m-btn ghost" id="p-logout">로그아웃</button>
+    <div class="m-foot">VELA MES SYSTEM · ${APP_VERSION} · MADE BY JUNS</div>`);
+  document.querySelectorAll('[data-theme-pick]').forEach(b => b.onclick = () => { applyTheme(b.dataset.themePick); VIEWS.p_more(); });
+  document.getElementById('p-pc').onclick = () => { setUiMode('pc'); document.getElementById('app').classList.remove('m-mode'); renderNav(); location.hash = '#dash'; };
+  document.getElementById('p-logout').onclick = () => doLogout();
+};
 function mobileShell(active, inner){
   document.getElementById('app').classList.add('m-mode');
   document.getElementById('view').innerHTML = `<div class="m-shell">${inner}</div>${mobileTabs(active)}`;
@@ -9690,12 +10011,12 @@ VIEWS.wo = () => {
       <div class="pgtools">
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${woState.voidView?'rgba(248,113,113,.08)':'var(--bg2)'}"><input type="checkbox" id="wo-void-view" ${woState.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
         <button class="btn" onclick="exportXlsx(DB.all('work_orders'),'WO','작업지시_${fmtDate(Date.now())}.xlsx')">${ico('excel')}엑셀</button>
-        <button class="btn primary" id="btn-wo-new">${ico('plus')}새 작업지시</button>
+        <button class="btn primary" id="btn-wo-new">${ico('plus')}작업지시 작성</button>
       </div>
     </div>
     <div class="card">
       <div class="tbl-wrap"><table>
-        <thead><tr><th>WO번호</th><th>수주</th><th>품번 · 품명</th><th>소재 규격</th><th>생산LOT</th><th class="num">지시수량</th><th>상태</th><th>생성</th><th></th></tr></thead>
+        <thead><tr><th>WO번호</th><th>수주</th><th>품번 · 품명</th><th>소재 규격</th><th>생산LOT</th><th class="num">지시수량</th><th>공정별 진행 · 설비</th><th>생성</th><th></th></tr></thead>
         <tbody>${wos.length? wos.map(w=>{
           const lot = DB.get('production_lots', w.plot_no);
           const next = lot ? LOT.nextProcess(w.plot_no) : null;
@@ -9711,14 +10032,14 @@ VIEWS.wo = () => {
           const soCell = w.so_id
             ? `<div style="font-size:11px"><b>${_esc(w.so_id)}</b>${custName?`<div style="color:var(--sub);font-size:10px">${_esc(custName)}</div>`:''}</div>`
             : '<span class="muted" style="font-size:10.5px">재고생산</span>';
-          return `<tr style="${rowStyle}">
+          return `<tr style="${rowStyle}" class="${w.id === window._woFlash ? 'wo-flash' : ''}">
             <td><b>${w.id}</b>${voidBadge}</td>
             <td>${soCell}</td>
             <td>${_esc(w.itemCode)}<div style="font-size:11px;color:var(--sub)">${_esc(DB.get('items', w.itemCode)?.name || '—')}</div></td>
             <td class="muted" style="font-size:11.5px">${(()=>{ const it = DB.get('items', w.itemCode); const bom = getBOM(w.itemCode); const mat = bom?.material?.type || it?.mat || ''; const dia = bom?.material?.dia ?? it?.dia; const wkg = bom?.material?.weight ?? it?.weight; return mat ? `${_esc(mat)}${dia?` · Ø${dia}`:''}${wkg?` · ${wkg}kg`:''}${lot?.heat_nos?.length?`<div class="mono" style="font-size:10.5px;color:var(--dim)">${lot.heat_nos.map(_esc).join(', ')}</div>`:''}` : '—'; })()}</td>
             <td><span class="pill cyan">${w.plot_no}</span></td>
             <td class="num">${(w.qty||0).toLocaleString()}</td>
-            <td>${next? `<span class="pill heat">${next.name} 대기</span>` : `<span class="pill green">완료</span>`}</td>
+            <td><div class="wo-steps">${woProcSteps(w).map(s => `<span class="wo-step ${s.state}" title="${_esc(s.name)}${s.eq ? ' · ' + _esc(s.eq) : ''} · ${s.done.toLocaleString()}/${(w.qty||0).toLocaleString()}">${s.state === 'done' ? '✓' : s.state === 'run' ? '●' : '○'} ${_esc(s.name)}${s.eq ? `<em>${_esc(s.eq)}</em>` : ''}</span>`).join('')}</div>${next? `<span class="pill heat" style="margin-top:4px">${next.name} 대기</span>` : `<span class="pill green" style="margin-top:4px">완료</span>`}</td>
             <td class="muted">${fmtDate(w.created)}</td>
             <td>${actionBtns}</td>
           </tr>`;
@@ -9745,12 +10066,40 @@ VIEWS.wo = () => {
     toast('WO·LOT 복원','ok'); router();
   });
   document.getElementById('btn-wo-new').onclick = () => VIEWS._woNew();
+  if(window._woFlash){ const r = document.querySelector('tr.wo-flash'); if(r) try { r.scrollIntoView({ block: 'center' }); } catch(e){} setTimeout(() => { window._woFlash = null; document.querySelectorAll('tr.wo-flash').forEach(t => t.classList.remove('wo-flash')); }, 2500); }
 };
 
 /* ★ v0.16.2 — 새 작업지시 3 STEP 폼
    STEP1 수주 연결(잔량 있는 SO / 재고생산) → STEP2 라우팅 체인 + 공정별 계획 설비 → STEP3 소재·수량 힌트.
    LOT 관통 구조·LOT.create·getRoute·calcSoFulfillment 는 수정하지 않는다. wo.so_id·wo.plan_eq 필드만 추가.
    ★ v0.20.1 — pre 인자로 프리필 지원 (계획 → 지시 발행): { so_id, itemCode, qty, from_plan } · 저장 후 plan.wo_id 병합. */
+/* ★ v0.39.1 — 작업지시 간편 발행 헬퍼 (GPT 인계서 §6 · Claude 조정안 승인: 저장 = 상위 지시 1건 + LOT 1개 · 공정별 설비 plan_eq · 화면·출력은 공정별) */
+// 제안 설비: ① 같은 품번의 최근 지시에서 그 공정에 쓴 설비 ② 그 공정 설비가 1대뿐 ③ 없으면 null (임의 설비 0 — 사용자가 확인)
+function woSuggestEq(itemCode, proc){
+  const prev = DB.all('work_orders').filter(w => w.itemCode === itemCode && w.plan_eq && w.plan_eq[proc]).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+  const list = getEquipment(proc) || [];
+  if(prev && list.includes(prev.plan_eq[proc])) return prev.plan_eq[proc];
+  return list.length === 1 ? list[0] : null;
+}
+// 이 수주로 이미 발행한 지시수량 (취소 제외)
+function woIssuedForSo(soId){ return DB.all('work_orders').filter(w => w.so_id === soId).reduce((s, w) => s + (+w.qty || 0), 0); }
+function fmtMin(m){ m = Math.round(+m || 0); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`; }
+// 예상 시간 = 셋팅(분) + 수량 ÷ 시간당 수량 × 60 · 사이클타임(초/개)이 있으면 그것이 기준 (planTimeBasis 1벌)
+function woEstimate(itemCode, proc, eqName, qty){
+  if(!eqName) return { min: null, text: '설비 미지정' };
+  const b = planTimeBasis(itemCode, proc, eqName);
+  if(!b.rate) return { min: null, text: '시간 기준 없음' };
+  const work = qty / b.rate * 60; const min = b.setup + work;
+  return { min, text: `예상 ${fmtMin(min)} (셋팅 ${b.setup}분 + 작업 ${fmtMin(work)} · ${b.basis})` };
+}
+// 공정별 진행 (표시 전용 · 저장 0): 공정마다 등록 수량(양품+불량) · 상태 ✓ 완료 / ● 진행 / ○ 대기
+function woProcSteps(w){
+  return getRoute(w.itemCode).map(r => {
+    const p = DB.get('processes', r.proc);
+    const done = DB.query('records', x => x.plot_no === w.plot_no && x.proc === r.proc).reduce((s, x) => s + (+x.good || 0) + (+x.defect || 0), 0);
+    return { proc: r.proc, name: p?.name || r.proc, mode: r.mode, eq: (w.plan_eq || {})[r.proc] || '', done, state: done >= (+w.qty || 0) && done > 0 ? 'done' : done > 0 ? 'run' : 'wait' };
+  });
+}
 VIEWS._woNew = (pre) => {
   pre = pre || {};
   const items    = getActiveItems();
@@ -9765,12 +10114,12 @@ VIEWS._woNew = (pre) => {
   }).filter(x => x.remain>0).sort((a,b)=>(a.o.due||'').localeCompare(b.o.due||''));
 
   openModal(`
-    <h2>새 작업지시 <span style="color:var(--dim);font-size:12px;font-weight:400;margin-left:8px">3 STEP · 수주 연결 → 라우팅 → 소재</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <h2>작업지시 작성 <span style="color:var(--dim);font-size:12px;font-weight:400;margin-left:8px">수주 → 수량 → 공정별 설비 → 발행 (번호·소재는 자동)</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
 
       <!-- STEP 1 — 수주 연결 -->
       <div class="step-block" style="border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px;background:var(--bg2)">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="pill cyan" style="font-size:10px">STEP 1</span><b style="font-size:13px">수주 연결</b></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="pill cyan" style="font-size:10px">1</span><b style="font-size:13px">수주 · 수량</b></div>
         <div><label>수주 (잔량 있음)</label>
           <select id="wo-so">
             <option value="">재고생산 — 수주 연결 없음</option>
@@ -9783,27 +10132,29 @@ VIEWS._woNew = (pre) => {
           </select>
           <div id="wo-so-hint" style="font-size:11px;color:var(--sub);margin-top:6px">재고생산 선택 — 수주 없이 재고 확보용 지시</div>
         </div>
+        <div class="grid g2" style="margin-top:10px">
+          <div><label>품번</label>
+            <select id="wo-item">${items.map(i=>`<option value="${i.code}">${_esc(i.code)} · ${_esc(i.name)}</option>`).join('')}</select></div>
+          <div><label>작업수량 (ea) — 모든 공정에 공통</label>
+            <input id="wo-qty" type="number" placeholder="예: 800"></div>
+        </div>
+        <div id="wo-over" style="display:none;margin-top:8px;font-size:12px;color:var(--amber);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);border-radius:9px;padding:8px 10px"></div>
       </div>
 
       <!-- STEP 2 — 라우팅 + 계획 설비 -->
       <div class="step-block" style="border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px;background:var(--bg2)">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="pill cyan" style="font-size:10px">STEP 2</span><b style="font-size:13px">라우팅 체인 + 공정별 계획 설비</b><span style="color:var(--dim);font-size:10.5px;margin-left:6px">미지정 허용 — 확정은 실적 등록 시</span></div>
-        <div><label>품번</label>
-          <select id="wo-item">${items.map(i=>`<option value="${i.code}">${_esc(i.code)} · ${_esc(i.name)}</option>`).join('')}</select></div>
-        <div id="wo-route-wrap" style="margin-top:10px"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="pill cyan" style="font-size:10px">2</span><b style="font-size:13px">공정별 설비 <span style="font-weight:400;color:var(--sub);font-size:11.5px">— 기준정보 공정 순서 · 제안 미리 선택</span></b><span style="color:var(--dim);font-size:10.5px;margin-left:6px">미지정 허용 — 확정은 실적 등록 시</span></div>
+        <div id="wo-route-wrap"></div>
       </div>
 
       <!-- STEP 3 — 소재·수량 -->
-      <div class="step-block" style="border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px;background:var(--bg2)">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="pill cyan" style="font-size:10px">STEP 3</span><b style="font-size:13px">소재 · 수량</b></div>
+      <details class="step-block" style="border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:12px;background:var(--bg2)">
+        <summary style="cursor:pointer;font-size:12.5px;font-weight:700">추가 항목 <span style="font-weight:400;color:var(--sub)">— 지시번호 · 생산LOT · 소재 (자동 · 필요할 때만 수정)</span></summary>
+        <div style="height:10px"></div>
         <div><label>지시번호 (자동 · 수정 가능)</label>
           <input id="wo-id" value="${nextDocNo('WO')}" placeholder="${nextDocNo('WO')}" style="font-family:'JetBrains Mono',monospace;letter-spacing:.3px" autocomplete="off"></div>
-        <div class="grid g2" style="margin-top:10px">
-          <div><label>생산LOT 번호 (자동 · 수정 가능)</label>
+        <div style="margin-top:10px"><label>생산LOT 번호 (자동 · 수정 가능)</label>
             <input id="wo-plot" placeholder="${nextDocNo('PL')}" value="${nextDocNo('PL')}" style="font-family:'JetBrains Mono',monospace;letter-spacing:.3px" autocomplete="off"></div>
-          <div><label>지시수량 (ea)</label>
-            <input id="wo-qty" type="number" placeholder="예: 800"></div>
-        </div>
         <!-- ★ v0.35.9 — 소재LOT 자동 배정(선입선출) + 직접 선택은 같은 규격만 (파일럿 담당자 피드백 · GPT 승인 §8: 저장 전 배정은 '제안' · 차감은 기존 실적 경로) -->
         <div style="margin-top:10px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><label style="margin:0">소재LOT (heat)</label>
@@ -9818,11 +10169,11 @@ VIEWS._woNew = (pre) => {
           </div>
           <div id="wo-mat-hint" style="font-size:11px;color:var(--sub);margin-top:8px">소재 필요량 힌트: 지시수량 × 단중 = ? kg — 품번·수량 입력 시 표시</div>
         </div>
-      </div>
+      </details>
 
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
-        <button class="btn primary" id="wo-ok">${ico('save')}생성</button>
+        <button class="btn primary" id="wo-ok">${ico('save')}발행</button>
       </div>
     </div>
   `);
@@ -9892,14 +10243,35 @@ VIEWS._woNew = (pre) => {
           <option value="">미지정 — 실적 때 확정</option>
           ${opts}
         </select>
+        <div class="wo-est" data-proc="${_esc(r.proc)}" style="font-size:10.5px;color:var(--sub);margin-top:4px"></div>
       </div>`;
     }).join('');
     routeWrap.innerHTML = `
       <div style="font-size:11px;color:var(--sub);margin-bottom:8px">라우팅 체인 (품번 BOM 기준)</div>
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;margin-bottom:10px">${chips}</div>
-      <div style="font-size:11px;color:var(--sub);margin-bottom:6px">공정별 계획 설비 (미지정 허용)</div>
+      <div style="font-size:11px;color:var(--sub);margin-bottom:6px">공정별 설비 — 제안을 확인하고 필요하면 바꾸세요 (미지정 허용 · 실적 때 확정)</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">${slots}</div>
+      <div id="wo-est-sum" style="font-size:11px;color:var(--sub);margin-top:8px"></div>
     `;
+    // ★ v0.39.1 — 제안 설비 미리 선택 (woSuggestEq 1벌: 같은 품번 최근 지시 → 공정 설비가 1대뿐 · 모르면 미지정) + 공정별 예상 시간
+    routeWrap.querySelectorAll('.wo-plan-eq').forEach(s => { if(s.dataset.mode === 'out') return; const sug = woSuggestEq(code, s.dataset.proc); if(sug && [...s.options].some(o => o.value === sug)){ s.value = sug; s.dataset.sug = sug; } s.onchange = updEst; });
+    updEst();
+  }
+  // ★ v0.39.1 — 공정별 예상 시간 (계산 엔진 재사용: planRateFor · 교체시간 = 금형/설비 setup_min) · 기준 없으면 「시간 기준 없음」 (0 으로 보지 않음)
+  function updEst(){
+    const code = itemSel.value, q = +qtyEl.value || 0; let tot = 0, unknown = 0;
+    routeWrap.querySelectorAll('.wo-plan-eq').forEach(s => {
+      const el = [...routeWrap.querySelectorAll('.wo-est')].find(e => e.dataset.proc === s.dataset.proc); if(!el) return;
+      if(s.dataset.mode === 'out'){ el.textContent = '외주 — 시간 계산 제외'; return; }
+      if(s.dataset.proc === 'SHIP'){ el.textContent = '출하 — 시간 계산 제외'; return; }
+      if(!q){ el.textContent = s.dataset.sug && s.value === s.dataset.sug ? '제안 설비 · 수량 입력 후 예상 시간' : ''; return; }
+      const est = woEstimate(code, s.dataset.proc, s.value, q);
+      el.innerHTML = (s.dataset.sug && s.value === s.dataset.sug ? '<span class="pill" style="font-size:9px;background:var(--mint-bg);color:var(--mint-ink)">제안</span> ' : '') + _esc(est.text);
+      if(est.min != null) tot += est.min; else if(s.value) unknown++;
+    });
+    const sum = document.getElementById('wo-est-sum');
+    const anyEst = [...routeWrap.querySelectorAll('.wo-plan-eq')].some(s => s.value && s.dataset.mode !== 'out' && s.dataset.proc !== 'SHIP' && woEstimate(code, s.dataset.proc, s.value, q).min != null);
+    if(sum) sum.textContent = !q ? '' : anyEst ? `예상 합계 ${fmtMin(tot)}${unknown ? ` · 시간 기준 없는 공정 ${unknown}개 (기준정보 › 품번 › 공정별 시간)` : ''}` : '예상 합계 — 설비를 고르고 시간 기준(사이클타임)이 있으면 계산됩니다';
   }
 
   // STEP1 — 수주 변경 → 품번·수량·힌트 동기화
@@ -9926,10 +10298,19 @@ VIEWS._woNew = (pre) => {
     } else {
       soHint.innerHTML = '재고생산 선택 — 수주 없이 재고 확보용 지시';
     }
-    renderRoute(); updMatHint();
+    renderRoute(); updMatHint(); updOver();
   };
   itemSel.onchange = ()=>{ renderRoute(); matShowAll = false; renderMatSel(); updMatHint(); };
-  qtyEl.oninput = updMatHint;
+  // ★ v0.39.1 — 수주 잔량 대비 초과 발행 = 사유 확인 체크 필요 (기발행 지시수량 포함 · 차단 아님 — 기존 규칙 계승: 초과 생산은 보류 판정 경로)
+  function updOver(){
+    const box = document.getElementById('wo-over'); const so = soSel.value; const q = +qtyEl.value || 0;
+    if(!so || !q){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    const o = DB.get('orders', so); const remain = o ? soOpenQty(o) : 0; const issued = woIssuedForSo(so);
+    const over = issued + q - remain;
+    if(over > 0){ box.style.display = ''; box.innerHTML = `⚠ 수주 잔량 ${remain.toLocaleString()} · 이미 발행 ${issued.toLocaleString()} → 이번 ${q.toLocaleString()} 이면 <b>${over.toLocaleString()}ea 초과</b> <label style="display:inline-flex;gap:6px;align-items:center;margin:0 0 0 8px;font-weight:700"><input type="checkbox" id="wo-over-ok" style="width:auto"> 초과 발행 확인 (예비·불량 대비)</label>`; }
+    else { box.style.display = issued ? '' : 'none'; box.style.color = 'var(--sub)'; box.innerHTML = issued ? `이 수주로 이미 발행한 지시 ${issued.toLocaleString()}ea · 남은 발행 가능 ${(remain - issued).toLocaleString()}ea` : ''; }
+  }
+  qtyEl.oninput = () => { updMatHint(); updEst(); updOver(); };
   // ★ v0.35.9 — 소재 자동 배정(선입선출) · 직접 선택은 같은 규격만 · 배정 결과는 '제안'(원장 차감은 절단 실적 경로 그대로)
   let matMode = 'auto', matShowAll = false, matAlloc = { rows:[], short:0 };
   const matAutoBox = document.getElementById('wo-mat-auto'), matManualBox = document.getElementById('wo-mat-manual-box');
@@ -10031,8 +10412,10 @@ VIEWS._woNew = (pre) => {
         if(manual) mats = [manual];
       }
       if(!plot) throw new Error('생산LOT 번호 입력');
-      if(!qty || qty<=0) throw new Error('지시수량 입력');
+      if(!qty || qty<=0) throw new Error('작업수량 입력');
       assertSoOpen(so_id, '작업지시 발행');   // ★ v0.38.7 — 종결 수주 연결 차단 (저장 직전)
+      if(so_id){ const o = DB.get('orders', so_id); const over = woIssuedForSo(so_id) + qty - (o ? soOpenQty(o) : 0); if(over > 0 && !document.getElementById('wo-over-ok')?.checked) throw new Error(`수주 잔량 ${over.toLocaleString()}ea 초과 — 「초과 발행 확인」 을 체크하세요`); }
+      const okBtn = document.getElementById('wo-ok'); if(okBtn.disabled) return; okBtn.disabled = true; setTimeout(() => { okBtn.disabled = false; }, 1500);   // ★ v0.39.1 — 연속 클릭 1회만 (같은 번호 재발행은 아래 중복 차단)
 
       // 계획 설비 수집 — 미지정(빈 값) 공정은 키 생략
       const plan_eq = {};
@@ -10065,7 +10448,8 @@ VIEWS._woNew = (pre) => {
       if(pre.from_plan){
         DB.correct('production_plans', pre.from_plan, { wo_id: wo.id }, `WO ${wo.id} 발행`);
       }
-      toast(so_id ? `작업지시 생성 · ${so_id} 연결` : '작업지시 생성 (재고생산)','ok');
+      toast(so_id ? `작업지시 발행 · ${wo.id} · ${so_id} 연결 · 공정 ${getRoute(itemCode).length}개` : `작업지시 발행 · ${wo.id} (재고생산)`,'ok');
+      window._woFlash = wo.id;   // 목록에서 방금 발행한 지시 강조
       closeModal(); router();
     } catch(e){ toast(e.message,'err'); }
   };
@@ -17893,9 +18277,51 @@ function _drawAttRestore(d, fid, by){
   return (d?.attachments || []).map(a => a.fid === fid && a.removed && !a.removed.purged
     ? { ...a, removed: null, restored: [ ...(a.restored || []), { ts: Date.now(), by: by || 'system', was: a.removed } ] } : a);
 }
+/* ★ v0.38.33 (GPT v0.38.32 피드백 ②) — 첨부 상태·이력 = 서버가 지키는 기록 (Rules r11 ⑬)
+   attachment_state/{fid} = 현재 상태(active/hidden/purged) · attachment_events = 행위 이력(생성만) · 둘을 한 배치로 · 시각·작성자 = 서버(request.time · 인증 uid)
+   문서의 attachments 배열 = 표시용 사본 (배열 안 removed 이력은 참고용 · 판정은 상태 문서) · 서버 모드만 (데모·로컬 = 배열만) */
+const ATT_NEXT = { upload: 'active', hide: 'hidden', restore: 'active', purge: 'purged' };
+function attStateOn(){ return DB._backend === 'firestore' && typeof _ACTIVE_ADAPTER !== 'undefined' && _ACTIVE_ADAPTER && !!_ACTIVE_ADAPTER._fs; }
+async function attStateWrite(att, col, id, action){
+  if(!attStateOn()) return null;
+  const fs = _dwFsDirect(); const FV = window.firebase.firestore.FieldValue; const TS = FV.serverTimestamp();
+  const uid = (window.firebase.auth && window.firebase.auth().currentUser) ? window.firebase.auth().currentUser.uid : '';
+  const sref = fs.collection('attachment_state').doc(att.fid); const eref = fs.collection('attachment_events').doc();
+  const cur = await sref.get();
+  const last = { last_eid: eref.id, last_action: action, last_by_uid: uid, last_at: TS, state: ATT_NEXT[action] };
+  const b = fs.batch();
+  if(cur.exists) b.update(sref, last);
+  else b.set(sref, { fid: att.fid, ref_col: col, ref_id: String(id), name: String(att.name || ''), created_by_uid: uid, created_at: TS, ...last });
+  b.set(eref, { fid: att.fid, ref_col: col, ref_id: String(id), action, by_uid: uid, at: TS });
+  await b.commit();
+  _ATT_STATE_CACHE[col + '/' + id] = null;
+  return eref.id;
+}
+const _ATT_STATE_CACHE = {};
+async function attStatesFor(col, id){
+  if(!attStateOn()) return null;
+  const k = col + '/' + id; if(_ATT_STATE_CACHE[k]) return _ATT_STATE_CACHE[k];
+  const fs = _dwFsDirect(); const out = { states: {}, events: [] };
+  const s = await fs.collection('attachment_state').where('ref_col', '==', col).where('ref_id', '==', String(id)).get();
+  s.docs.forEach(d => { out.states[d.id] = d.data(); });
+  if(attCanPurge()){
+    try { const e = await fs.collection('attachment_events').where('ref_col', '==', col).where('ref_id', '==', String(id)).get();
+      out.events = e.docs.map(d => d.data()).sort((a, b) => ((b.at && b.at.toMillis ? b.at.toMillis() : 0) - (a.at && a.at.toMillis ? a.at.toMillis() : 0))); } catch(e){}
+  }
+  _ATT_STATE_CACHE[k] = out; return out;
+}
+// 상태 문서 기준 목록 분리 (상태 문서가 없는 첨부 = 배열의 removed 기준 · 옛 첨부 호환)
+function attSplit(d, st){
+  const all = (d?.attachments || []);
+  const stOf = a => st && st.states && st.states[a.fid] ? st.states[a.fid].state : null;
+  const visible = all.filter(a => { const s = stOf(a); return s ? s === 'active' : !a.removed; });
+  const hidden = all.filter(a => { const s = stOf(a); return s ? s === 'hidden' : (a.removed && !a.removed.purged); });
+  return { visible, hidden };
+}
 function attCanPurge(){ return typeof SESSION !== 'undefined' && (SESSION.role === 'manager' || SESSION.role === 'vendor'); }
 async function attPurge(col, id, a){
   if(!attCanPurge()) throw new Error('영구 삭제는 관리책임자만 할 수 있습니다');
+  await attStateWrite(a, col, id, 'purge');   // ★ v0.38.33 — 상태 확정이 먼저 (서버: purged 상태 첨부만 조각 비우기 허용)
   if(a.kind === 'store') await _dwStoreDelete(a, col);   // 조각 비우기 — 용량 회수 (delete 금지 규칙과 무충돌)
   else if(a.kind === 'file' && a.path){
     const st = await _drawEnsureStorage();
@@ -18032,7 +18458,8 @@ async function attUploadFiles(col, id, list){
           data: b64, rev: cur?.current_rev ?? '', ts: Date.now(), by: SESSION.user,
         })});
       } else if(f.size <= DW_STORE_MAX_MB*1048576){
-        await _dwStoreUpload(col, id, f);   // ★ v0.27.6 — 소형: 앱 내 저장 (무료 · Firestore 분할)
+        const fid = await _dwStoreUpload(col, id, f);   // ★ v0.27.6 — 소형: 앱 내 저장 (무료 · Firestore 분할)
+        try { await attStateWrite({ fid, name: f.name }, col, id, 'upload'); } catch(e){ console.warn('[VELA] 첨부 상태 기록 실패(업로드는 완료)', e); }   // ★ v0.38.33
       } else {
         const st = await _drawEnsureStorage();   // 대형: Firebase Storage (Blaze)
         const path = `${col}/${id}/${Date.now()}_${_drawSafeName(f.name)}`;
@@ -18079,7 +18506,12 @@ function attPendingDropZone(host, opts){
 }
 VIEWS._attFilesModal = (col, id) => {
   const d = DB.get(col, id); if(!d) return;
-  const files = _drawAttList(d);
+  // ★ v0.38.33 — 서버 모드: 첨부 상태 문서를 먼저 읽고 그 기준으로 목록 (표시용 배열을 직접 고쳐도 숨김·영구 삭제가 풀리지 않음)
+  const stKey = col + '/' + id;
+  if(attStateOn() && !_ATT_STATE_CACHE[stKey]){ attStatesFor(col, id).then(() => VIEWS._attFilesModal(col, id)).catch(e => { _ATT_STATE_CACHE[stKey] = { states: {}, events: [], err: String(e && e.message || e) }; VIEWS._attFilesModal(col, id); }); return; }
+  const _st = _ATT_STATE_CACHE[stKey] || null;
+  const _sp = attSplit(d, _st);
+  const files = _sp.visible;
   const isServer = DB._backend === 'firestore';
   const _dwBadge = a => a.kind==='link' ? '<span class="pill blue" style="font-size:9px">링크</span>'
     : a.kind==='path' ? '<span class="pill gray" style="font-size:9px">PC 경로</span>'
@@ -18101,15 +18533,16 @@ VIEWS._attFilesModal = (col, id) => {
     </tr>`).join('') : `<tr><td colspan="5" class="empty">첨부 없음 — 아래에서 파일 업로드 · 링크 · PC 경로 추가</td></tr>`;
   // ★ v0.38.32 — 삭제된 첨부 (관리책임자·개발자만 보임) · [복원] = 목록으로 되돌림 · [영구 삭제] = 파일 내용 비우기(복구 불가 · Rules r10 관리자만)
   const canPurge = attCanPurge();
-  const removed = canPurge ? _drawAttRemoved(d) : [];
+  const removed = canPurge ? _sp.hidden : [];
+  const evHtml = canPurge && _st && _st.events && _st.events.length ? `<div style="font-size:10.5px;color:var(--sub);margin-top:6px">서버 이력 (최근 ${Math.min(8, _st.events.length)}건): ${_st.events.slice(0, 8).map(e => `${_esc({ upload: '업로드', hide: '숨김', restore: '복원', purge: '영구 삭제' }[e.action] || e.action)} ${e.at && e.at.toDate ? fmtDate(e.at.toDate().getTime()) : ''}`).join(' · ')}</div>` : '';
   const removedHtml = removed.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--sub)">삭제된 첨부 ${removed.length}건 (관리책임자)</summary>
       <div class="tbl-wrap" style="margin-top:6px"><table><tbody>${removed.map(a => `<tr>
         <td>${_dwBadge(a)} <span style="font-size:12px;margin-left:6px">${_esc(a.name)}</span></td>
-        <td class="muted">삭제 ${fmtDate(a.removed.ts)} · ${_esc(a.removed.by || '')}</td>
+        <td class="muted">${a.removed ? `삭제 ${fmtDate(a.removed.ts)} · ${_esc(a.removed.by || '')}` : '숨김'}</td>
         <td><div style="display:flex;gap:6px;justify-content:flex-end">
           <button class="btn ghost" data-dwf-restore="${_esc(a.fid)}">복원</button>
           ${a.kind === 'store' || (a.kind === 'file' && a.path) ? `<button class="btn ghost" data-dwf-purge="${_esc(a.fid)}" style="color:var(--red)">영구 삭제</button>` : ''}
-        </div></td></tr>`).join('')}</tbody></table></div></details>` : '';
+        </div></td></tr>`).join('')}</tbody></table></div>${evHtml}</details>` : (evHtml ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--sub)">첨부 이력</summary>${evHtml}</details>` : '');
   openModal(`
     <h2>첨부 파일 — ${_esc(d.id)} ${d.current_rev!=null?`<span class="pill cyan" style="font-size:10px">Rev ${_esc(String(d.current_rev))}</span>`:''} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
@@ -18171,23 +18604,23 @@ VIEWS._attFilesModal = (col, id) => {
   });
   document.querySelectorAll('[data-dwf-del]').forEach(b => b.onclick = async () => {
     const cur = DB.get(col, id);
-    const a = _drawAttList(cur).find(x => x.fid === b.dataset.dwfDel);
+    const a = files.find(x => x.fid === b.dataset.dwfDel);   // ★ v0.38.33 — 상태 문서 기준 목록
     if(!a) return;
     // ★ v0.38.32 (사용자 결정 2026-10-21) — [삭제] = 목록에서 숨김만 (파일은 서버에 보관 · 삭제 이력 · 관리책임자 복원 가능) · 내용 영구 삭제는 아래 「삭제된 첨부」 에서 관리책임자만
     if(!confirm(`'${a.name}' 첨부를 목록에서 삭제할까요?\n(파일은 서버에 보관 · 삭제 이력이 남고 관리책임자가 복원할 수 있습니다)`)) return;
     try {
+      await attStateWrite(a, col, id, 'hide');   // ★ v0.38.33 — 서버 상태·이력 먼저 (실패하면 목록도 그대로)
       DB.set(col, id, { attachments: _drawAttRemove(cur, a.fid, SESSION.user) });
       toast(`첨부 삭제(목록) — ${a.name}`,'warn'); reopen();
     } catch(e){ toast('삭제 실패 — ' + (e.message||e), 'err', 4000); }
   });
-  document.querySelectorAll('[data-dwf-restore]').forEach(b => b.onclick = () => {
-    const cur = DB.get(col, id);
-    try { DB.set(col, id, { attachments: _drawAttRestore(cur, b.dataset.dwfRestore, SESSION.user) }); toast('첨부 복원', 'ok'); reopen(); }
+  document.querySelectorAll('[data-dwf-restore]').forEach(b => b.onclick = async () => {
+    const a = removed.find(x => x.fid === b.dataset.dwfRestore); if(!a) return;
+    try { await attStateWrite(a, col, id, 'restore'); DB.set(col, id, { attachments: _drawAttRestore(DB.get(col, id), a.fid, SESSION.user) }); toast('첨부 복원', 'ok'); reopen(); }
     catch(e){ toast('복원 실패 — ' + (e.message||e), 'err', 4000); }
   });
   document.querySelectorAll('[data-dwf-purge]').forEach(b => b.onclick = async () => {
-    const cur = DB.get(col, id);
-    const a = _drawAttRemoved(cur).find(x => x.fid === b.dataset.dwfPurge); if(!a) return;
+    const a = removed.find(x => x.fid === b.dataset.dwfPurge); if(!a) return;
     if(!confirm(`'${a.name}' 파일 내용을 서버에서 영구 삭제할까요?\n복구할 수 없습니다 (삭제 이력은 남습니다)`)) return;
     try { await attPurge(col, id, a); toast(`영구 삭제 — ${a.name}`, 'warn'); reopen(); }
     catch(e){ toast('영구 삭제 실패 — ' + (e.message||e), 'err', 5000); }
@@ -20513,6 +20946,11 @@ function planRateFor(itemCode, eqName){
   const it = DB.get('items', itemCode);
   const cav = Math.max(1, Math.floor(+(it?.cav||0)) || 1);
   const isMold = proc ? !!DB.get('processes', proc)?.mold_linked : false;
+  // ★ v0.39.2 (GPT: 기준값 1개 · 나머지는 환산 표시) — 0순위 = 품번 공정별 사이클타임 CT(초/개 · 기준정보 › 품번 › 공정별 시간) → 시간당 = 3600 ÷ CT
+  if(proc){
+    const ct = +(it?.proc_times?.[proc]?.ct) || 0;
+    if(ct > 0) return { rate: 3600 / ct, basis: `사이클타임 ${ct}초/개` };
+  }
   if(proc){
     const step = getRoute(itemCode).find(r => r.proc === proc);
     if(step && +step.uph > 0) return { rate: step.uph * (isMold ? cav : 1), basis: `라우트 ${(+step.uph).toLocaleString()}타/h${isMold && cav>1 ? `×${cav}cav` : ''}` };
@@ -20530,6 +20968,21 @@ function planRateFor(itemCode, eqName){
   }
   if(eq && +eq.hourly_capa > 0) return { rate: (+eq.hourly_capa) * (isMold ? cav : 1), basis: '설비 능력' };
   return { rate: 0, basis: '타수 정보 없음' };
+}
+/* ★ v0.39.2 — 공정·설비 기준 시간 1벌 (작업지시 예상 · 계획 등록 요약 공통) — 계산 = planRateFor 재사용 (별도 계산식 0)
+   셋팅(분) = 품번 공정별 셋팅 → 금형 교체시간 → 설비 교체시간 → 0 · 시간 기준 없음 = rate 0 (0분으로 보지 않음) */
+function planTimeBasis(itemCode, proc, eqName){
+  const it = DB.get('items', itemCode);
+  const ct = +(it?.proc_times?.[proc]?.ct) || 0;
+  let rate = 0, basis = '';
+  if(ct > 0){ rate = 3600 / ct; basis = `사이클타임 ${ct}초/개`; }
+  else { const r = planRateFor(itemCode, eqName); rate = r.rate; basis = r.basis; }
+  const eq = DB.query('equipment', e => e.name === eqName)[0] || null;
+  const isMold = proc ? !!DB.get('processes', proc)?.mold_linked : false;
+  const mold = isMold ? planMoldFor(itemCode) : null;
+  const ps = it?.proc_times?.[proc]?.setup;
+  const setup = ps != null && ps !== '' ? +ps : (mold && +mold.setup_min) ? +mold.setup_min : +(eq?.setup_min) || 0;
+  return { rate, basis, setup };
 }
 function planMoldFor(itemCode){
   return DB.query('molds', m => Array.isArray(m.itemCodes) && m.itemCodes.includes(itemCode) && m.active !== false)[0] || null;
@@ -20564,7 +21017,7 @@ function planDayTimeline(dateStr, plans){
     }).filter(x => x.remain > 0 || x.pr.state !== '완료');
     // 금형 수명 상태 (레인 내 공유 — 순번 진행하며 소모)
     const moldUse = {};   // mold.id → 계획 누적 타
-    let prevMoldId = null;
+    let prevMoldId = null, prevItem = null;   // ★ v0.39.2 — 품번 공정별 셋팅(금형 없는 공정): 그 레인의 첫 작업 · 품번이 바뀔 때 적용 (같은 품번 연속 = 생략 · 금형 공정은 기존 금형 교체 규칙 그대로)
     const shiftsOut = shifts.map(sh => ({ sh, avail: shiftMinutes(sh), used: 0, entries: [] }));
     let si = 0;
     let stopped = false;
@@ -20586,6 +21039,15 @@ function planDayTimeline(dateStr, plans){
           shiftsOut[si].entries.push({ type:'setup', mold, min:setup, from, to:_shClock(shiftsOut[si].sh, shiftsOut[si].used) });
         }
       }
+      else if(!mold){
+        const ps = +(it?.proc_times?.[eq?.proc]?.setup) || 0;
+        if(ps > 0 && prevItem !== p.itemCode){
+          const from = _shClock(shiftsOut[si].sh, shiftsOut[si].used);
+          shiftsOut[si].used += ps;
+          shiftsOut[si].entries.push({ type:'setup', mold: null, min:ps, from, to:_shClock(shiftsOut[si].sh, shiftsOut[si].used), label:'셋팅' });
+        }
+      }
+      prevItem = p.itemCode;
       // ② 수명 도달 예측 (계획 타발 누적 vs 잔여)
       if(mold && +mold.life_limit > 0){
         const remainShots = Math.max(0, (+mold.life_limit) - moldShotsPerUnit(mold) - Math.ceil((moldUse[mold.id]||0)));
@@ -20753,7 +21215,7 @@ VIEWS.plan = () => {
         const loadClr = loadPct > 100 ? 'var(--red)' : loadPct >= 85 ? 'var(--ink)' : 'var(--green)';
         let seq = 0;
         const rows = so.entries.map(en => {
-          if(en.type === 'setup') return `<div class="pln-gap"><span>🔧 금형교체 <b>${en.min}분</b></span><span class="ln"></span><span class="t">${_esc(en.from)} ~ ${_esc(en.to)}</span></div>`;
+          if(en.type === 'setup') return `<div class="pln-gap"><span>🔧 ${en.label || '금형교체'} <b>${en.min}분</b></span><span class="ln"></span><span class="t">${_esc(en.from)} ~ ${_esc(en.to)}</span></div>`;
           if(en.type === 'life')  return `<div class="pln-gap"><span>⚠ 수명도달 → 예비벌 교체 <b>${en.min}분</b> <span style="color:var(--dim)">(약 ${(+en.atQty||0).toLocaleString()}개째)</span></span><span class="ln"></span></div>`;
           if(en.type === 'stop')  return `<div class="pln-gap stop"><span>⛔ 금형 준비 필요 (${_esc(en.mold?.id||'')} · 예비벌 없음) — 이후 일정 미정</span><span class="ln"></span><span><button class="btn ghost" style="font-size:10.5px;padding:2px 8px;color:var(--red)" onclick="location.hash='#mold'">금형 ↗</button></span></div>`;
           seq += 1;
@@ -20763,7 +21225,7 @@ VIEWS.plan = () => {
           const lateRisk = so2?.due && so2.due <= state.anchor && (en.overflow || en.carryOut || String(en.to).includes('이월'));
           const prodKg = it?.product_weight_g ? (it.product_weight_g/1000).toFixed(2) : '—';
           const matKg  = +it?.weight ? (+it.weight).toFixed(2) : '—';
-          return `<div class="pln-row${lateRisk?' late':''}" title="${_esc(en.basis||'')}${en.pr && en.pr.actual>0 ? ` · 실적 ${en.pr.actual.toLocaleString()}` : ''}">
+          return `<div class="pln-row${lateRisk?' late':''}" draggable="true" data-plan-drag="${_esc(p.id)}" title="${_esc(en.basis||'')}${en.pr && en.pr.actual>0 ? ` · 실적 ${en.pr.actual.toLocaleString()}` : ''}">
             <span class="pln-seq" style="background:${lateRisk?'var(--red)':seqBg(siIdx)}">${seq}</span>
             <span style="min-width:150px"><b class="mono">${_esc(p.itemCode)}</b><br><span class="muted" style="font-size:10.5px">${_esc(it?.name||'')}${en.carry?' · 이월분':''}</span></span>
             <span class="mono" style="font-size:11px;min-width:110px">${_esc(it?.mat||'—')}${+it?.dia?`<br><span class="muted" style="font-size:10px">Ø${+it.dia}</span>`:''}</span>
@@ -20772,13 +21234,13 @@ VIEWS.plan = () => {
             <span class="mono num" style="font-size:11px;min-width:60px;border-bottom:1px dashed var(--line2);cursor:help" title="${_esc(en.basis||'타수 정보 없음')}">${en.rate>0?en.rate.toLocaleString()+'/h':'—'}</span>
             <span class="mono" style="font-size:11px;min-width:128px">${_esc(en.from||'')} → ${_esc(en.to||'')}</span>
             <span style="font-size:11px;min-width:52px;${lateRisk?'color:var(--red);font-weight:700':''}">${_esc(due||'—')}</span>
-            <span class="pln-mv"><button class="btn ghost" style="padding:1px 6px;font-size:9px" onclick="VIEWS._planSeqMove('${_esc(p.id)}',-1)">▲</button><button class="btn ghost" style="padding:1px 6px;font-size:9px" onclick="VIEWS._planSeqMove('${_esc(p.id)}',1)">▼</button></span>
+            <span class="pln-mv"><button class="btn ghost" style="padding:1px 6px;font-size:9px" title="날짜·설비 옮기기 (끌어서 다른 설비로 놓아도 됨)" onclick="VIEWS._planMove('${_esc(p.id)}')">⇄</button><button class="btn ghost" style="padding:1px 6px;font-size:9px" onclick="VIEWS._planSeqMove('${_esc(p.id)}',-1)">▲</button><button class="btn ghost" style="padding:1px 6px;font-size:9px" onclick="VIEWS._planSeqMove('${_esc(p.id)}',1)">▼</button></span>
           </div>`;
         }).join('');
         return `<div class="pln-shift" style="background:${shiftBg(siIdx)}">${_esc(so.sh.icon||'')} ${_esc(so.sh.name)} <span class="rng">${_esc(so.sh.start)} ~ ${_esc(so.sh.end)}</span>
           <span class="ldw"><span class="ldb"><i style="width:${Math.min(100,loadPct).toFixed(0)}%;background:${loadPct>100?'var(--red)':'var(--cyan-dim)'}"></i></span><span class="ldt" style="color:${loadClr}">${loadPct.toFixed(0)}%</span></span></div>${rows}`;
       }).join('');
-      return `<div class="pln-lane">
+      return `<div class="pln-lane" data-plan-drop-eq="${_esc(l.eqName)}" data-plan-drop-date="${_esc(state.anchor)}">
         <div class="pln-head"><b>${_esc(l.eqName)}</b><span class="muted" style="font-size:11px">${_esc(DB.get('processes', l.eq?.proc)?.name || l.eq?.proc || '')}</span>${l.stopped?'<span class="pill red" style="font-size:9.5px">금형 확인 필요</span>':''}</div>
         ${bands || '<div style="padding:10px 15px;color:var(--dim);font-size:11.5px">이 날짜 계획 없음</div>'}
       </div>`;
@@ -20876,11 +21338,11 @@ VIEWS.plan = () => {
                     loadFoot = `<div style="font-size:9.5px;color:${clr};${wt};margin-top:3px;letter-spacing:.2px">부하 ${ld.pct.toFixed(0)}%${un}</div>`;
                   }
                 }
-                return `<td style="${hi};vertical-align:top">${cell.length? cell.map(p => {
+                return `<td style="${hi};vertical-align:top" data-plan-drop-date="${_esc(d)}" ${state.axis === 'eq' ? `data-plan-drop-eq="${_esc(k === '__none__' ? '' : k)}"` : ''}>${cell.length? cell.map(p => {
                   const pr = calcPlanProgress(p);
                   const mat = calcPlanMaterial(p);
                   const cls = stateColor(pr.state);
-                  return `<span class="pill ${cls}" style="font-size:10px;margin:1px 2px;display:inline-flex;align-items:center;gap:3px;cursor:pointer" onclick="VIEWS._planNav('${_esc(p.date)}')" title="${_esc(p.itemCode)} · ${pr.state} · 실적 ${pr.actual}/${p.qty}${mat? (mat.ok?' · 소재 OK':' · 소재 부족 '+Math.round(mat.shortage)+'kg'):''}">${matDot(mat)}${(+p.qty||0).toLocaleString()}</span>`;
+                  return `<span class="pill ${cls}" draggable="true" data-plan-drag="${_esc(p.id)}" style="font-size:10px;margin:1px 2px;display:inline-flex;align-items:center;gap:3px;cursor:pointer" onclick="VIEWS._planNav('${_esc(p.date)}')" title="${_esc(p.itemCode)} · ${pr.state} · 실적 ${pr.actual}/${p.qty}${mat? (mat.ok?' · 소재 OK':' · 소재 부족 '+Math.round(mat.shortage)+'kg'):''}">${matDot(mat)}${(+p.qty||0).toLocaleString()}</span>`;
                 }).join('') : '<span style="color:var(--dim);font-size:10px">·</span>'}${loadFoot}</td>`;
               }).join('')}
             </tr>
@@ -21042,6 +21504,7 @@ VIEWS.plan = () => {
 
   // 이벤트 바인딩
   document.querySelectorAll('[data-ptab]').forEach(b => b.onclick = ()=>{ state.tab=b.dataset.ptab; router(); });
+  _planBindDnd();
   document.querySelectorAll('[data-paxis]').forEach(b => b.onclick = ()=>{ state.axis=b.dataset.paxis; router(); });
   let qT;
   bindSearch('plan-q', v => { state.q = v; });   // ★ v0.35.9 — Search Contract
@@ -21138,6 +21601,79 @@ VIEWS._planEdit = (id) => {
     toast('설비 배정 완료', 'ok'); closeModal(); router();
   };
 };
+/* ★ v0.39.2 (GPT 인계서 §7.4) — 계획 옮기기: 카드 끌어 놓기(일간 = 다른 설비 레인 · 주간 = 다른 날짜/설비 칸) 또는 [⇄] → 확인 창(미리보기 · 아직 저장 안 됨)
+   확정 전 검사: 완료된 계획 = 이동 불가 · 실적 있는 계획 = 경고 · 설비 공정 적합성(품번 공정 경로) · 옮긴 날 부하(calcDayLoad 재사용) · 동시 수정(열었을 때 버전 ≠ 저장 직전 → 거부)
+   저장 = 기존 계획 쓰기 경로(DB.set production_plans) 그대로 · 순번 = 옮긴 레인 맨 뒤 · 취소 = 아무것도 안 바뀜 */
+function _planBindDnd(){
+  document.querySelectorAll('[data-plan-drag]').forEach(el => {
+    el.addEventListener('dragstart', e => { try { e.dataTransfer.setData('text/vela-plan', el.dataset.planDrag); e.dataTransfer.effectAllowed = 'move'; } catch(_){} el.classList.add('pln-dragging'); });
+    el.addEventListener('dragend', () => { el.classList.remove('pln-dragging'); document.querySelectorAll('.pln-drop-on').forEach(t => t.classList.remove('pln-drop-on')); });
+  });
+  document.querySelectorAll('[data-plan-drop-date]').forEach(t => {
+    t.addEventListener('dragover', e => { if([...(e.dataTransfer?.types || [])].includes('text/vela-plan')){ e.preventDefault(); t.classList.add('pln-drop-on'); } });
+    t.addEventListener('dragleave', () => t.classList.remove('pln-drop-on'));
+    t.addEventListener('drop', e => { e.preventDefault(); t.classList.remove('pln-drop-on'); let id = ''; try { id = e.dataTransfer.getData('text/vela-plan'); } catch(_){}
+      if(!id) return; const preset = { date: t.dataset.planDropDate }; if(t.hasAttribute('data-plan-drop-eq')) preset.equipment = t.dataset.planDropEq || '';
+      VIEWS._planMove(id, preset); });
+  });
+}
+function planMoveCheck(p, date, eqName){
+  const out = { block: [], warn: [], load: null, est: null };
+  if(!p){ out.block.push('계획 없음'); return out; }
+  const pr = calcPlanProgress(p);
+  if(pr.state === '완료') out.block.push('완료된 계획은 옮길 수 없습니다');
+  else if(pr.actual > 0) out.warn.push(`실적 ${pr.actual.toLocaleString()}ea 가 이미 있습니다 — 남은 수량만 새 일정에 반영됩니다`);
+  if(!date) out.block.push('작업일을 고르세요');
+  if(eqName){
+    const proc = getEqProcCode(eqName);
+    const route = getRoute(p.itemCode).map(r => r.proc);
+    if(proc && route.length && !route.includes(proc)) out.block.push(`이 설비(${eqName})의 공정은 품번 ${p.itemCode} 의 공정 경로에 없습니다`);
+    const ld = calcDayLoad(date, eqName, [{ itemCode: p.itemCode, qty: Math.max(0, (+p.qty || 0) - (pr.actual || 0)) }], p.id);
+    out.load = ld; if(ld.pct > 100) out.warn.push(`${date} ${eqName} 부하 ${ld.pct.toFixed(0)}% (${ld.usedH.toFixed(1)}h / ${ld.capH}h) — 가능 시간 초과`);
+    const est = woEstimate(p.itemCode, proc, eqName, Math.max(0, (+p.qty || 0) - (pr.actual || 0))); out.est = est;
+  }
+  return out;
+}
+VIEWS._planMove = (id, preset) => {
+  const p = DB.get('production_plans', id); if(!p){ toast('계획 없음', 'err'); return; }
+  preset = preset || {};
+  const ver = p._updated || p.ts || 0;
+  const date0 = preset.date || p.date, eq0 = preset.equipment !== undefined ? preset.equipment : (p.equipment || '');
+  const eqs = DB.all('equipment').filter(e => e.active !== false);
+  const route = getRoute(p.itemCode).map(r => r.proc);
+  const it = DB.get('items', p.itemCode);
+  openModal(`
+    <h2>계획 옮기기 — ${_esc(p.itemCode)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div style="font-size:12.5px"><b class="mono">${_esc(p.itemCode)}</b> ${_esc(it?.name || '')} · ${(+p.qty||0).toLocaleString()}ea · 지금 <b>${_esc(p.date || '')}</b> · <b>${_esc(p.equipment || '미배정')}</b></div>
+      <div class="grid g2" style="margin-top:10px">
+        <div><label>작업일</label><input id="pm-date" type="date" value="${_esc(date0)}"></div>
+        <div><label>설비</label><select id="pm-eq"><option value="">미배정</option>${eqs.map(e => { const ok = !route.length || !e.proc || route.includes(e.proc); return `<option value="${_esc(e.name)}" ${eq0 === e.name ? 'selected' : ''} ${ok ? '' : 'disabled'}>${_esc(e.name)} (${_esc(DB.get('processes', e.proc)?.name || e.proc || '')})${ok ? '' : ' — 공정 경로 밖'}</option>`; }).join('')}</select></div>
+      </div>
+      <div id="pm-chk" style="margin-top:10px;font-size:12px"></div>
+      <div style="font-size:10.5px;color:var(--dim);margin-top:6px">아직 저장되지 않았습니다 — [옮기기 확정] 을 눌러야 바뀝니다 · 시작 시각은 그 날 설비 순서(맨 뒤)에 따라 자동 계산</div>
+      <div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="pm-ok">${ico('save')}옮기기 확정</button></div>
+    </div>`);
+  const dEl = document.getElementById('pm-date'), eEl = document.getElementById('pm-eq'), cEl = document.getElementById('pm-chk'), okEl = document.getElementById('pm-ok');
+  const upd = () => {
+    const c = planMoveCheck(p, dEl.value, eEl.value);
+    cEl.innerHTML = (c.block.length ? `<div style="color:var(--red);font-weight:700">⛔ ${c.block.map(_esc).join(' · ')}</div>` : '')
+      + (c.warn.length ? `<div style="color:var(--amber)">⚠ ${c.warn.map(_esc).join(' · ')}</div>` : '')
+      + (c.est ? `<div style="color:var(--sub)">${_esc(c.est.text)}</div>` : '')
+      + (!c.block.length && !c.warn.length ? '<div style="color:var(--green)">옮길 수 있습니다</div>' : '');
+    okEl.disabled = c.block.length > 0;
+  };
+  dEl.onchange = upd; eEl.onchange = upd; upd();
+  okEl.onclick = () => {
+    const cur = DB.get('production_plans', id);
+    if(!cur || (cur._updated || cur.ts || 0) !== ver){ toast('다른 사용자가 이 계획을 먼저 바꿨습니다 — 창을 닫고 최신 내용을 확인하세요', 'err', 5000); return; }
+    const c = planMoveCheck(cur, dEl.value, eEl.value); if(c.block.length){ toast(c.block[0], 'err'); return; }
+    const sibs = getLivePlans().filter(x => x.id !== id && x.date === dEl.value && (x.equipment || '') === eEl.value);
+    const seq = (sibs.reduce((m, x) => Math.max(m, +x.seq || 0), 0) || sibs.length * 10) + 10;
+    DB.set('production_plans', id, { date: dEl.value, equipment: eEl.value, seq });
+    toast(`계획 옮김 — ${dEl.value} · ${eEl.value || '미배정'}`, 'ok'); closeModal(); router();
+  };
+};
 /* ★ v0.35.0 — 생산계획서 출력 (설비별 1장 · 교대 구분 · 교체/수명 행 · 중량 소재/제품 · 결재란 · 소재 소요 합계)
    화면(planDayTimeline)과 동일 계산 1벌 — 표시만 종이/엑셀로. */
 function _planSheetData(dateStr){
@@ -21156,7 +21692,7 @@ VIEWS._planSheetPrint = (dateStr) => {
       if(!so.entries.length) return '';
       let seq = 0;
       const trs = so.entries.map(en => {
-        if(en.type === 'setup'){ setupMin += en.min; setupCnt++; return `<tr class="gap"><td colspan="12">🔧 금형교체 ${en.min}분 (${_esc(en.from)}~${_esc(en.to)})</td></tr>`; }
+        if(en.type === 'setup'){ setupMin += en.min; setupCnt++; return `<tr class="gap"><td colspan="12">🔧 ${en.label || '금형교체'} ${en.min}분 (${_esc(en.from)}~${_esc(en.to)})</td></tr>`; }
         if(en.type === 'life'){ setupMin += en.min; setupCnt++; return `<tr class="gap"><td colspan="12">⚠ 수명도달 → 예비벌 교체 ${en.min}분 (약 ${(+en.atQty||0).toLocaleString()}개째)</td></tr>`; }
         if(en.type === 'stop') return `<tr class="gap stop"><td colspan="12">⛔ 금형 준비 필요 (${_esc(en.mold?.id||'')} · 예비벌 없음) — 이후 일정 미정</td></tr>`;
         seq++;
@@ -21225,7 +21761,7 @@ VIEWS._planSheetXlsx = (dateStr) => {
       aoa.push([`${so.sh.icon||''} ${so.sh.name} ${so.sh.start}~${so.sh.end}`]);
       let seq = 0;
       so.entries.forEach(en => {
-        if(en.type === 'setup'){ aoa.push(['—', `🔧 금형교체 ${en.min}분`, '', '', '', '', '', '', '', en.from, en.to, '']); return; }
+        if(en.type === 'setup'){ aoa.push(['—', `🔧 ${en.label || '금형교체'} ${en.min}분`, '', '', '', '', '', '', '', en.from, en.to, '']); return; }
         if(en.type === 'life'){ aoa.push(['—', `⚠ 수명도달 → 예비벌 교체 ${en.min}분 (약 ${en.atQty}개째)`, '', '', '', '', '', '', '', '', '', '']); return; }
         if(en.type === 'stop'){ aoa.push(['—', `⛔ 금형 준비 필요 (${en.mold?.id||''}) — 일정 미정`, '', '', '', '', '', '', '', '', '', '']); return; }
         seq++;
@@ -22687,7 +23223,7 @@ VIEWS._mstItemEdit = (code) => {
       <div style="margin-top:12px;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:8px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <b style="font-size:12.5px">공정별 시간</b>
-          <span class="tag">CT(초/개) ↔ 시간당 타수(개/h) 자동 · 저장은 CT 기준 · 선택 입력</span>
+          <span class="tag">CT(초/개) = 기준값 · 시간당 타수는 환산 표시 · 셋팅(분) = 작업 시작 전 준비 · 작업지시 예상시간·생산계획에 사용 · 선택 입력</span>
         </div>
         ${isNew ? `<div style="font-size:11px;color:var(--dim);padding:8px 0">품번 저장 후 라우트(BOM) 등록 시 여기서 공정별 CT 관리</div>`
         : !routeProcs.length ? `<div style="font-size:11px;color:var(--dim);padding:8px 0">라우트 없음 — BOM 라우트 등록 후 표시</div>`
@@ -22697,6 +23233,7 @@ VIEWS._mstItemEdit = (code) => {
               <th>공정</th>
               <th style="width:130px" class="num">CT(초/개)</th>
               <th style="width:130px" class="num">시간당 타수(개/h)</th>
+              <th style="width:110px" class="num">셋팅(분)</th>
             </tr></thead>
             <tbody>${routeProcs.map(p => {
               const ct = +pt[p.code]?.ct || '';
@@ -22706,6 +23243,7 @@ VIEWS._mstItemEdit = (code) => {
                 <td><b>${_esc(p.name||p.code)}</b> <span class="muted" style="font-size:10.5px">${_esc(p.code)}</span></td>
                 <td class="num"><input type="number" min="0" step="0.01" class="mi-ct" data-proc="${_esc(p.code)}" value="${ct}" placeholder="예: 12" style="font-family:'JetBrains Mono',monospace;text-align:right;width:100%"></td>
                 <td class="num"><input type="number" min="0" step="1" class="mi-uph" data-proc="${_esc(p.code)}" value="${uph}" placeholder="예: 300" style="font-family:'JetBrains Mono',monospace;text-align:right;width:100%"></td>
+                <td class="num"><input type="number" min="0" step="1" class="mi-setup" data-proc="${_esc(p.code)}" value="${pt[p.code]?.setup ?? ''}" placeholder="예: 30" style="font-family:'JetBrains Mono',monospace;text-align:right;width:100%"></td>
               </tr>`;
             }).join('')}</tbody>
           </table></div>`}
@@ -22858,7 +23396,8 @@ VIEWS._mstItemEdit = (code) => {
     document.querySelectorAll('.mi-ct').forEach(el => {
       const proc = el.dataset.proc;
       const v = +el.value;
-      if(v > 0) nextPt[proc] = { ct: v };
+      const su = document.querySelector(`.mi-setup[data-proc="${proc}"]`); const sv = su && su.value !== '' ? Math.max(0, +su.value || 0) : null;   // ★ v0.39.2 — 공정별 셋팅(분)
+      if(v > 0 || sv != null){ nextPt[proc] = {}; if(v > 0) nextPt[proc].ct = v; if(sv != null) nextPt[proc].setup = sv; }
       else delete nextPt[proc];
     });
     const custom = readCustomFieldsInputs('items');
@@ -26620,14 +27159,15 @@ function _userWorkerCardsHTML(){
         <div style="font-size:12.5px;font-weight:700">서버 로그인 방식 <span class="tag">v0.38.29 · 이 기기 설정</span></div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px">
           <label style="display:inline-flex;gap:6px;align-items:center;margin:0"><input type="radio" name="auth-mode" value="legacy" ${authMode()==='legacy'?'checked':''}> 기존 방식 (운영 규칙 v4 · 앱 비밀번호)</label>
-          <label style="display:inline-flex;gap:6px;align-items:center;margin:0"><input type="radio" name="auth-mode" value="staff" ${authMode()==='staff'?'checked':''}> 직원 계정 (규칙 v5 r7 게시 후 · Firebase 비밀번호)</label>
+          <label style="display:inline-flex;gap:6px;align-items:center;margin:0"><input type="radio" name="auth-mode" value="staff" ${authMode()==='staff'?'checked':''}> 직원 계정 (규칙 v5 r11 게시 후 · Firebase 비밀번호)</label>
         </div>
-        <div style="font-size:11px;color:var(--sub);line-height:1.6">직원 계정 방식은 <b>서버 규칙 v5 r7 이 게시된 뒤</b>에만 동작합니다 (게시 전엔 로그인 불가). 바꾸면 이 기기가 다시 시작됩니다.</div>
+        <div style="font-size:11px;color:var(--sub);line-height:1.6">직원 계정 방식은 <b>서버 규칙 v5 r11 이 게시된 뒤</b>에만 동작합니다 (게시 전엔 로그인 불가). 바꾸면 이 기기가 다시 시작됩니다.</div>
         ${isStaffMode() ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" id="usr-issue-all">${ico('plus')}계정 미발급 직원 전원 발급</button>
           <button class="btn" id="usr-strip-legacy">구형 비밀번호 값 정리 (백업 후)</button>
           <button class="btn" id="usr-sec-migrate">단가 분리 이관 (백업 후)</button>
           <button class="btn" id="usr-sec-check">이관 검증 (남은 단가·비밀번호 0건 확인)</button>
+          <button class="btn" id="usr-perm-conv">권한 전환 점검 (옛 형식 ${permUnconvertedList().todo.length}명)</button>
         </div>
         <div style="font-size:11px;color:var(--sub);line-height:1.6">운영 전환 순서: 백업 → 단가 분리 이관 → 구형 비밀번호 정리 → <b>이관 검증 0건</b> → Firebase 콘솔에서 <code>settings/server_rules.sec_migrated = true</code> (그 전엔 단가 권한 없는 직원의 업무 조회를 서버가 막음) → 계정 발급<br>
         첫 로그인 비밀번호 변경 = <b>앱 정책</b> (서버는 「실제로 바꿨는지」 확인하지 못함 — 변경 전엔 업무 접근 0 이지만, 기술적으로 표시만 해제하는 우회는 막지 못함)</div>` : ''}
@@ -26906,7 +27446,9 @@ function bindUserWorkerCards(){
     };
   }
   function usrReactivate(id){
-    const u = DB.get('users', id); if(!u) return;
+    const u = DB.get('users', id) || DB.allRaw('users').find(v => v.id === id); if(!u) return;
+    // ★ v0.38.33 (GPT v0.38.32 ①) — 옛 형식 권한인 직원은 재활성 전에 전환 확인
+    if(u.role !== 'manager' && !permIsConverted(u)){ openPermConvertModal({ only: id, done: renderUsers }); return; }
     DB.set('users', id, { active:true });
     if(isStaffMode()) staffSetActive(id, true).catch(() => {});
     toast(`재활성 — ${u.name}`,'ok');
@@ -26934,12 +27476,13 @@ function bindUserWorkerCards(){
   };
   const _sm = document.getElementById('usr-sec-migrate');
   if(_sm) _sm.onclick = async () => {
-    const list = secMigrationReport();
-    if(!confirm(`원본 문서 ${list.length}건(메모리 기준)의 단가·원가를 단가 문서(sec_*)로 옮기고 원본에서 지웁니다.\n먼저 전체 백업 파일을 내려받습니다. 계속할까요?`)) return;
+    let frozenNow = null; try { const sr = await _ACTIVE_ADAPTER._fs.collection('settings').doc('server_rules').get(); frozenNow = sr.exists ? sr.data().write_freeze === true : false; } catch(e){}
+    if(!confirm(`서버 원본에서 단가·원가가 있는 문서를 찾아 단가 문서(sec_*)로 옮기고 원본에서 지웁니다.\n먼저 ① 전체 백업 ② 이관 백업(서버 원본 · 대조용) 두 파일을 내려받습니다.\n쓰기 중지(콘솔 settings/server_rules.write_freeze): ${frozenNow === true ? '켜짐' : frozenNow === false ? '꺼짐 — 이관 중 직원 수정이 섞일 수 있음 (켜고 진행 권장)' : '확인 불가'}\n계속할까요?`)) return;
     if(!(await adminEnsure('단가 분리 이관은 관리자 계정만 할 수 있습니다.'))) return;
     try { exportFullBackup('before-sec-migration'); } catch(e){}
     try { const r = await secMigrateAll(); toast(`단가 분리 이관 — ${r ? r.moved : 0}건 · 이어서 [이관 검증]`, 'ok', 5000); } catch(e){ toast('이관 실패 — ' + (e && e.message || e), 'err', 6000); }
   };
+  const _pcv = document.getElementById('usr-perm-conv'); if(_pcv) _pcv.onclick = () => openPermConvertModal({ done: renderUsers });
   const _sc = document.getElementById('usr-sec-check');
   if(_sc) _sc.onclick = async () => {
     try { const r = await secResidualCheck(); if(!r) return;
@@ -26949,7 +27492,7 @@ function bindUserWorkerCards(){
         ${r.total ? `<div style="font-size:11px;color:var(--sub);margin-top:6px">${_esc(r.price.concat(r.secret).slice(0, 20).join(' · '))}${r.total > 20 ? ' …' : ''}</div><div style="font-size:12px;color:var(--amber);margin-top:8px">0건이 될 때까지 이관·정리를 다시 실행하세요 — 0건 전에는 sec_migrated 를 켜지 마세요</div>`
           : `<div style="font-size:12px;color:var(--green);margin-top:8px">0건 — Firebase 콘솔에서 settings/server_rules 의 sec_migrated 를 true 로 바꾸면 단가 권한 없는 직원도 업무 화면을 쓸 수 있습니다</div>`}
         <div style="margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:12px">
-          <b>이관 대조</b> — 이관 직전에 내려받은 백업 파일(vela-mes-backup_before-sec-migration_….json)과 서버 단가 문서를 문서 수 · 값으로 비교
+          <b>이관 대조</b> — [단가 분리 이관] 때 자동으로 내려받은 <b>이관 백업 파일</b>(vela-mes-sec-migration-backup_….json · 서버 원본 기준)을 선택 → 이관 기록 · 서버 단가 문서 · 원본 잔여를 문서 ID·필드·값으로 대조
           <div style="margin-top:6px"><input type="file" id="sec-rc-file" accept=".json,application/json"></div>
           <div id="sec-rc-out" style="margin-top:6px"></div>
         </div>
@@ -26959,10 +27502,13 @@ function bindUserWorkerCards(){
         const f = _rf.files && _rf.files[0]; if(!f) return; const outEl = document.getElementById('sec-rc-out');
         try {
           const rc = await secReconcileCheck(JSON.parse(await f.text())); if(!rc) return;
-          const cnt = Object.keys(rc.counts).map(c => `${c} ${rc.counts[c].backup}→${rc.counts[c].server}`).join(' · ');
-          outEl.innerHTML = `<div>단가가 있던 문서 <b>${rc.checked}건</b> 중 일치 <b style="color:var(--green)">${rc.ok}</b> · 값 다름 <b style="color:${rc.mismatch.length ? 'var(--red)' : 'var(--green)'}">${rc.mismatch.length}</b> · 단가 문서 없음 <b style="color:${rc.missingSec.length ? 'var(--red)' : 'var(--green)'}">${rc.missingSec.length}</b> · 원본 문서 사라짐 <b style="color:${rc.missingBase.length ? 'var(--red)' : 'var(--green)'}">${rc.missingBase.length}</b></div>
-            <div style="color:var(--sub);margin-top:4px">문서 수 (백업→서버): ${_esc(cnt)}</div>
-            ${rc.total ? `<div style="color:var(--amber);margin-top:4px">${_esc(rc.mismatch.concat(rc.missingSec, rc.missingBase).slice(0, 20).join(' · '))}${rc.total > 20 ? ' …' : ''} — 이관 뒤 정상 수정된 문서일 수 있음 · 하나씩 확인</div>` : `<div style="color:var(--green);margin-top:4px">전부 일치 — 백업의 단가가 서버 단가 문서와 같습니다</div>`}`;
+          const cnt = Object.keys(rc.counts).map(c => `${c} 대상 ${rc.counts[c].targets} · 단가 문서 ${rc.counts[c].sec}`).join(' · ');
+          const vd = { PASS: ['var(--green)', '합격 — 대상 전부 일치 · 원본 잔여 0 · 이관 기록 일치'], EMPTY: ['var(--green)', '이관 대상 없음 (기록·백업·원본 잔여 모두 0)'], FAIL: ['var(--red)', '불합격'] }[rc.verdict] || ['var(--red)', rc.verdict];
+          outEl.innerHTML = `<div style="font-weight:700;color:${vd[0]}">${vd[1]}</div>
+            <div>대상 <b>${rc.checked}건</b> · 일치 <b>${rc.ok}</b> · 값 다름 <b>${rc.mismatch.length}</b> · 단가 문서 없음 <b>${rc.missingSec.length}</b> · 원본 사라짐 <b>${rc.missingBase.length}</b> · 원본에 남은 단가 <b>${rc.residual.length}</b> · 이관 기록 ${rc.logOk ? '일치' : '<b style="color:var(--red)">불일치</b>'}</div>
+            <div style="color:var(--sub);margin-top:4px">${_esc(cnt)}</div>
+            ${rc.reasons.length ? `<div style="color:var(--red);margin-top:4px">${_esc(rc.reasons.join(' · '))}</div>` : ''}
+            ${rc.total ? `<div style="color:var(--amber);margin-top:4px">${_esc(rc.mismatch.concat(rc.missingSec, rc.missingBase, rc.residual).slice(0, 20).join(' · '))}${rc.total > 20 ? ' …' : ''}</div>` : ''}`;
         } catch(e){ outEl.innerHTML = `<span style="color:var(--red)">${_esc(e && e.message || String(e))}</span>`; }
       };
     } catch(e){ toast('검증 실패 — ' + (e && e.message || e), 'err', 6000); }
