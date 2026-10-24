@@ -1463,11 +1463,11 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.39.3';
+const APP_VERSION = 'v0.39.4';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-10-22';
+const APP_DATE    = '2026-10-24';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1935,18 +1935,37 @@ const DB = (() => {
     restore(s){
       // 참조 유지 in-place 교체 → 어댑터의 _state 도 자동 동기 (같은 객체)
       _rev++;
+      // ★ v0.39.4 (GPT v0.39.3 피드백 — T17) — 서버 복원 = 바뀐 문서만 · 백업 뒤 추가된 필드는 지움 · 직원 계정 모드는 단가 분리 경로 그대로 · 계정·보안 기록은 복원 제외
+      const before = _ACTIVE_ADAPTER.name === 'local' ? null : JSON.parse(JSON.stringify(state));
+      const report = { changed: 0, same: 0, skipped: [], newer: 0 };
+      if(before){
+        // 보안·계정·파생 기록은 백업 값으로 되돌리지 않음 (현재 값 유지 — 메모리도 유지)
+        RESTORE_SKIP_COLS.forEach(c => { if(s && s[c]) report.skipped.push(c); if(s) s[c] = before[c] || {}; });
+        if(s && s.settings){ RESTORE_SKIP_SETTINGS.forEach(id => { if(before.settings && before.settings[id]) s.settings[id] = before.settings[id]; else delete s.settings[id]; }); }
+      }
       Object.keys(state).forEach(k => delete state[k]);
       Object.assign(state, s||{});
-      // ★ v0.21.0 — 로컬: whole-state 재직렬화 (기존 동작). 파이어스토어: 문서별 setDoc(merge) 이관.
+      // ★ v0.21.0 — 로컬: whole-state 재직렬화 (기존 동작). 파이어스토어: 문서별 이관.
       if(_ACTIVE_ADAPTER.name === 'local'){
         persist(null, null, null);
       } else {
+        const st = v => JSON.stringify(v, Object.keys(v || {}).sort());
         Object.keys(state).forEach(col => {
+          if(RESTORE_SKIP_COLS.includes(col)) return;
           Object.keys(state[col] || {}).forEach(id => {
-            persist(col, id, state[col][id]);
+            const next = state[col][id], prev = before[col] && before[col][id];
+            if(prev && _restoreSame(prev, next)){ report.same++; return; }
+            // 바뀐 필드만 (서버 시각 등 그대로인 필드는 다시 쓰지 않음 — JSON 백업의 시각 값이 지도 형태로 덮어써지는 것 방지)
+            const keys = Object.keys(next || {}).filter(k => !prev || !_restoreSame(prev[k], next[k]));
+            const del = prev ? Object.keys(prev).filter(k => !(k in (next || {})) && k !== 'id') : [];
+            persist(col, id, next, { keys, prev: prev || null, changed: next, del, restore: true, prevHas: prev ? Object.fromEntries(Object.keys(prev).map(k => [k, true])) : {} });
+            report.changed++;
           });
+          Object.keys(before[col] || {}).forEach(id => { if(!(state[col] || {})[id]){ state[col][id] = before[col][id]; report.newer++; } });   // 백업 뒤 생긴 문서 = 그대로 둠 (물리 삭제 0)
         });
       }
+      this._lastRestore = report;
+      return report;
     },
     // 모든 컬렉션 키
     cols(){ return Object.keys(state); },
@@ -2030,6 +2049,10 @@ function _emuAttach(app, fs){
 }
 // 서버 시각 표식 — DB.set 이 로컬엔 Date.now(), 서버엔 serverTimestamp() 로 보낸다 (Rules 의 request.time 검사용)
 const SERVER_TS = Object.freeze({ __vela_server_ts: true });
+// ★ v0.39.4 — 백업 복원 제외 (서버 모드): 계정·보안·서버 기록·단가 문서(원본 복원 때 분리 경로로 다시 씀)
+const RESTORE_SKIP_COLS = ['users', 'approvers', 'devices', 'staff_auth', 'staff_login', 'staff_probe', 'attachment_state', 'attachment_events', 'sec_orders', 'sec_items', 'sec_materials', 'sec_purchase_receipts', 'sec_purchase_orders', 'sec_settings'];
+const RESTORE_SKIP_SETTINGS = ['server_rules', 'vendor', 'sec_migration_log'];
+function _restoreSame(a, b){ const n = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)) ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = x[kk]; return o; }, {}) : x); try { return n(a) === n(b); } catch(e){ return false; } }
 function _isServerTs(v){ return !!(v && typeof v === 'object' && v.__vela_server_ts === true); }
 function _resolveServerTs(obj, prefix, paths){
   if(!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
@@ -2124,7 +2147,11 @@ function _fsSend(fs, col, id, doc, meta, viaAdmin){
   const onErr = e => _fsWriteRejected(col, id, e);
   if(doc === null && meta && meta.op === 'delete'){ ref.delete().catch(e => console.warn('[VELA] firestore delete 거부', col, id, e)); return; }
   if(meta && meta.strip){ const up = {}; meta.strip.forEach(k => { up[k] = FV.delete(); }); ref.update(up).catch(onErr); return; }
-  if(!isStaffMode() || !meta || !meta.keys){ ref.set(doc, { merge: true }).catch(onErr); return; }
+  if(!isStaffMode() || !meta || !meta.keys){
+    if(meta && meta.restore){ const w = {}; (meta.keys || []).forEach(k => { if(k in doc) w[k] = doc[k]; }); (meta.del || []).forEach(k => { w[k] = FV.delete(); }); if(Object.keys(w).length) ref.set(w, { merge: true }).catch(onErr); return; }   // ★ v0.39.4 — 복원: 바뀐 필드만 + 백업 뒤 추가된 필드 지움
+    ref.set(doc, { merge: true }).catch(onErr); return; }
+  const _secTop = (SEC_SPEC[col] && SEC_SPEC[col].top) || [];
+  const _delMain = (meta.del || []).filter(k => !_secTop.includes(k)), _delSec = (meta.del || []).filter(k => _secTop.includes(k));
   // ★ v0.38.29 — 단가 분리 (원본에서 떼어 sec_* 로 · 단가 권한 없으면 단가 저장 안 함)
   // ★ v0.38.30 (GPT P-2 ④) — 원본 + 단가 = writeBatch 1회 (한쪽만 반영 0 · 오프라인이면 함께 대기 후 함께 반영)
   const sp = _secSplitWrite(col, id, doc, meta.keys);
@@ -2135,8 +2162,10 @@ function _fsSend(fs, col, id, doc, meta, viaAdmin){
     if(col === 'purchase_orders' && Array.isArray(doc.items) && doc.items.length > 20) toast('발주 1건의 품목은 최대 20개입니다 — 나눠서 등록하세요 (서버 규칙)', 'err', 6000);
     if(sp.whole){ if(doSec){ const w = _fsWire(sp.sec, { ...meta, keys: sp.secKeys, prevHas: {} }, FV); if(w.fields.length) secRef.set(w.wire, { mergeFields: w.fields }).catch(onErr); } return; }
     const mw = _fsWire(sp.main, { ...meta, keys: sp.mainKeys }, FV);
+    _delMain.forEach(k => { mw.wire[k] = FV.delete(); mw.fields.push(k); });
     if(doSec){
       const sw = _fsWire(sp.sec, { ...meta, keys: sp.secKeys, prevHas: {} }, FV);
+      _delSec.forEach(k => { sw.wire[k] = FV.delete(); sw.fields.push(k); });
       const b = fs.batch();
       if(mw.fields.length) b.set(ref, mw.wire, { mergeFields: mw.fields });
       if(sw.fields.length) b.set(secRef, sw.wire, { mergeFields: sw.fields });
@@ -2147,6 +2176,7 @@ function _fsSend(fs, col, id, doc, meta, viaAdmin){
     return;
   }
   const w = _fsWire(doc, meta, FV);
+  _delMain.forEach(k => { w.wire[k] = FV.delete(); w.fields.push(k); });
   if(!w.fields.length) return;
   ref.set(w.wire, { mergeFields: w.fields }).catch(onErr);
 }
@@ -2378,6 +2408,141 @@ async function secMigrateAll(){
     await b.commit(); n++;
   }
   return { moved: n, total, backup };
+}
+
+
+/* ★ v0.39.4 (GPT v0.39.3 피드백 · 사용자 승인 2026-10-24) — 시험 데이터 준비 · 자동 점검 (시험 프로젝트 전용)
+   목적: 사람이 긴 시험표를 반복하지 않게 — 계정·데이터 준비 + 서버 직접 요청으로 권한 허용/거부 · 단가 잔여 · 이관 대조 · 중복 검사를 자동 실행 → 보고서
+   차단: 운영 프로젝트(내장 설정 · 운영 projectId)에서는 실행 0 · 관리자 계정(approvers) 로그인 필요 · 시험 데이터 id 접두 T- · 비밀번호는 화면에만(저장 0) */
+const TP_PREFIX = 'T-';
+function isTestProject(){
+  try { const c = loadFirestoreConfig(); const prod = (typeof DEFAULT_FIREBASE_CONFIG !== 'undefined' && DEFAULT_FIREBASE_CONFIG) ? DEFAULT_FIREBASE_CONFIG.projectId : 'vela-mes-juns';
+    return DB._backend === 'firestore' && !isDefaultFirebaseConfig() && !!(c && c.projectId) && c.projectId !== prod && c.projectId !== 'vela-mes-juns'; } catch(e){ return false; }
+}
+const TP_USERS = [
+  { id: 'T-U-NEW', name: '시험신규', role: 'operator', kind: 'new', perms: () => newStaffDefaultPerms() },
+  { id: 'T-U-OFC', name: '시험사무', role: 'operator', kind: 'office', perms: () => ({ _base: 'none', dash: 'view', so: 'edit', ship: 'edit', matin: 'edit', po: 'view', lot: 'view', price: 'view' }) },
+  { id: 'T-U-NOP', name: '시험단가없음', role: 'operator', kind: 'noprice', perms: () => ({ _base: 'none', dash: 'view', so: 'edit', draw: 'edit', price: 'none' }) },
+  { id: 'T-U-OLD', name: '시험구형', role: 'operator', kind: 'old', perms: () => ({ so: 'view', acct: 'none' }) },
+  { id: 'T-U-MGR', name: '시험관리책임자', role: 'manager', kind: 'mgr', perms: () => ({}) },
+];
+const _TP = { cred: {}, report: null };
+function _tpGuard(){ if(!isTestProject()) throw Object.assign(new Error('시험 프로젝트에서만 실행됩니다 (운영 서버 차단)'), { ui: true }); if(!isStaffMode() || !_STAFF.isApprover) throw Object.assign(new Error('직원 계정 방식 + 관리자 계정(이메일) 로그인 상태에서 실행하세요'), { ui: true }); }
+async function _tpSession(email, pw){
+  const fb = window.firebase; const app = fb.initializeApp(loadFirestoreConfig(), 'vela-tp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6));
+  const fs = app.firestore(); _emuAttach(app, fs); try { app.auth().setPersistence(fb.auth.Auth.Persistence.NONE); } catch(e){}
+  await app.auth().signInWithEmailAndPassword(email, pw);
+  return { app, fs, uid: app.auth().currentUser.uid, end: async () => { try { await app.auth().signOut(); } catch(e){} try { await app.delete(); } catch(e){} } };
+}
+async function _tpTry(fn){ try { await fn(); return 'allow'; } catch(e){ const m = String((e && (e.code || e.message)) || e); return /permission|insufficient/i.test(m) ? 'deny' : 'error: ' + m.slice(0, 80); } }
+// 1. 준비: 시험 사용자 5명 + 계정 발급·활성화(첫 비밀번호 변경까지) + 가상 기준정보·수주·도면·단가합의
+async function tpPrepare(log){
+  _tpGuard(); log = log || (() => {});
+  const proc = (getProcesses()[0] || {}).code || 'T-CUT';
+  if(!DB.get('processes', proc)) DB.set('processes', proc, { id: proc, code: proc, name: '시험공정', seq: 10, type: 'in' });
+  if(!DB.get('equipments', 'T-EQ-1')) DB.set('equipments', 'T-EQ-1', { id: 'T-EQ-1', name: '시험설비 1호', procCode: proc, work_hours: 8, active: true });
+  if(!DB.get('items', 'T-ITEM-1')) DB.set('items', 'T-ITEM-1', { id: 'T-ITEM-1', code: 'T-ITEM-1', name: '시험품', mat: 'S45C', dia: 30, weight: 0.3, active: true, price: 1000, proc_times: { [proc]: { ct: 90, setup: 30 } } });
+  if(!DB.get('bom', 'T-ITEM-1')) DB.set('bom', 'T-ITEM-1', { code: 'T-ITEM-1', name: '시험품', rev: 'A', material: { type: 'S45C', dia: 30, weight: 0.3 }, route: [{ seq: 10, proc, mode: 'in' }] });
+  if(!DB.get('orders', 'T-SO-1')) DB.set('orders', 'T-SO-1', { id: 'T-SO-1', itemCode: 'T-ITEM-1', qty: 200, price: 1000, due: fmtDate(Date.now() + 7 * 86400000) });
+  if(!DB.get('drawings', 'T-DWG-1')) DB.set('drawings', 'T-DWG-1', { id: 'T-DWG-1', name: '시험 도면', attachments: [] });
+  if(!DB.get('price_agreements', 'T-PA-1')) DB.set('price_agreements', 'T-PA-1', { id: 'T-PA-1', items: [], memo: '시험 단가합의' });
+  for(const t of TP_USERS){ if(!DB.get('users', t.id)) DB.set('users', t.id, { id: t.id, name: t.name, role: t.role, active: true, created_at: Date.now(), perms: t.perms() }); }
+  await new Promise(r => setTimeout(r, 2500));
+  for(const t of TP_USERS){
+    if(_TP.cred[t.id]) continue;
+    const r = await staffProvision(t.id); const pw = 'Tp#' + Math.random().toString(36).slice(2, 10) + 'a9';
+    const s = await _tpSession(r.email, r.tempPw);
+    try { await s.app.auth().currentUser.updatePassword(pw); await s.fs.collection('staff_auth').doc(s.uid).update({ must_change: false, changed_at: window.firebase.firestore.FieldValue.serverTimestamp() }); } finally { await s.end(); }
+    _TP.cred[t.id] = { email: r.email, pw, name: t.name }; log(`계정 준비 — ${t.name}`);
+  }
+  return { proc, users: TP_USERS.map(t => t.name) };
+}
+// 2. 점검: 계정마다 서버에 직접 요청 → 허용/거부가 기대와 같은지 (화면 숨김이 아니라 서버 판정)
+async function tpProbe(log){
+  _tpGuard(); log = log || (() => {});
+  const rows = []; const add = (who, what, expect, got) => rows.push({ who, what, expect, got, ok: got === expect });
+  const as = async (id, fn) => { const c = _TP.cred[id]; if(!c) { rows.push({ who: id, what: '계정 없음 — 먼저 [준비]', expect: '-', got: '-', ok: false }); return; } const s = await _tpSession(c.email, c.pw); try { await fn(s.fs, s.uid); } finally { await s.end(); } };
+  const T = Date.now();
+  const sr = (await _ACTIVE_ADAPTER._fs.collection('settings').doc('server_rules').get()).data() || {};
+  const FZ = sr.write_freeze === true; const W = FZ ? 'deny' : 'allow'; const fz = FZ ? ' [쓰기 중지 중 → 거부가 정상]' : '';   // 쓰기 중지 켜짐이면 직원 업무 쓰기는 거부가 기대값
+  await as('T-U-NEW', async fs => {
+    add('신규(기본 권한)', '기본 메뉴 수주 저장' + fz, W, await _tpTry(() => fs.collection('orders').doc('T-SO-1').set({ memo: 'tp ' + T }, { merge: true })));
+    add('신규(기본 권한)', '기본 밖 메뉴 발주 생성', 'deny', await _tpTry(() => fs.collection('purchase_orders').doc('T-PO-N' + T).set({ id: 'T-PO-N' + T, items: [] })));
+    add('신규(기본 권한)', '수주 원본 읽기' + (sr.sec_migrated === true ? ' (이관 완료 후 = 허용)' : ' (이관 완료 전 = 서버 차단이 정상)'), sr.sec_migrated === true ? 'allow' : 'deny', await _tpTry(() => fs.collection('orders').doc('T-SO-1').get()));   // T12 서버 근거
+    add('신규(기본 권한)', '단가 문서 읽기', 'deny', await _tpTry(() => fs.collection('sec_orders').doc('T-SO-1').get()));
+    add('신규(기본 권한)', '회계 원장 목록 읽기', 'deny', await _tpTry(() => fs.collection('acct_receipts').limit(1).get()));
+    add('신규(기본 권한)', '서버 스위치(server_rules) 변경', 'deny', await _tpTry(() => fs.collection('settings').doc('server_rules').set({ sec_migrated: true }, { merge: true })));
+    add('신규(기본 권한)', '본인 권한 바꾸기(_base 지우기 · 구매 등록 추가)', 'deny', await _tpTry(() => fs.collection('users').doc('T-U-NEW').update({ 'perms._base': window.firebase.firestore.FieldValue.delete(), 'perms.po': 'edit' })));
+  });
+  await as('T-U-OFC', async fs => {
+    add('사무직', '수주 저장' + fz, W, await _tpTry(() => fs.collection('orders').doc('T-SO-1').set({ memo2: 'tp ' + T }, { merge: true })));
+    add('사무직', '단가 문서 읽기 (단가 보기 권한)', 'allow', await _tpTry(() => fs.collection('sec_orders').doc('T-SO-1').get()));
+    add('사무직', '발주 생성 (구매 = 보기)', 'deny', await _tpTry(() => fs.collection('purchase_orders').doc('T-PO-O' + T).set({ id: 'T-PO-O' + T, items: [] })));
+  });
+  await as('T-U-NOP', async fs => {
+    add('단가 없음', '단가 문서 읽기', 'deny', await _tpTry(() => fs.collection('sec_orders').doc('T-SO-1').get()));
+    add('단가 없음', '단가합의(금액 문서) 읽기', 'deny', await _tpTry(() => fs.collection('price_agreements').doc('T-PA-1').get()));
+    add('단가 없음', '허위 첨부 이력 만들기', 'deny', await _tpTry(() => fs.collection('attachment_events').doc('T-EV-' + T).set({ fid: 'X', ref_col: 'drawings', ref_id: 'T-DWG-1', action: 'purge', by_uid: 'x', at: window.firebase.firestore.FieldValue.serverTimestamp() })));
+  });
+  const oldProbe = async tag => as('T-U-OLD', async fs => {
+    add('구형 권한 ' + tag, '적지 않은 메뉴(구매) 발주 생성 = 옛 규칙대로 허용' + fz, W, await _tpTry(() => fs.collection('purchase_orders').doc('T-PO-L' + tag + T).set({ id: 'T-PO-L' + tag + T, items: [] })));
+    add('구형 권한 ' + tag, '회계 「없음」 원장 읽기', 'deny', await _tpTry(() => fs.collection('acct_receipts').limit(1).get()));
+  });
+  await oldProbe('(전환 전)');
+  const ou = DB.get('users', 'T-U-OLD');
+  if(ou && !permIsConverted(ou)){ DB.set('users', 'T-U-OLD', { perms: permConvertPlan(ou).after }); await new Promise(r => setTimeout(r, 2000)); }
+  await oldProbe('(전환 후)');
+  await as('T-U-MGR', async fs => {
+    add('관리책임자', '발주 생성' + fz, W, await _tpTry(() => fs.collection('purchase_orders').doc('T-PO-M' + T).set({ id: 'T-PO-M' + T, items: [] })));
+    add('관리책임자', '단가 문서 읽기', 'allow', await _tpTry(() => fs.collection('sec_orders').doc('T-SO-1').get()));
+  });
+  // 외부 가입 계정 (직원 연결 없음)
+  try { const fb = window.firebase; const app = fb.initializeApp(loadFirestoreConfig(), 'vela-tp-x' + T); const fs = app.firestore(); _emuAttach(app, fs); try { app.auth().setPersistence(fb.auth.Auth.Persistence.NONE); } catch(e){}
+    await app.auth().createUserWithEmailAndPassword('tp-outsider-' + T + '@example.invalid', 'Out#' + T);
+    add('외부 가입 계정', '수주 읽기', 'deny', await _tpTry(() => fs.collection('orders').doc('T-SO-1').get()));
+    add('외부 가입 계정', '사용자 목록 읽기', 'deny', await _tpTry(() => fs.collection('users').limit(1).get()));
+    try { await app.auth().currentUser.delete(); } catch(e){} try { await app.delete(); } catch(e){}
+  } catch(e){ rows.push({ who: '외부 가입 계정', what: '가입 실패 — 이메일 가입이 꺼져 있으면 정상', expect: '-', got: String(e.code || e.message).slice(0, 60), ok: true }); }
+  // 데이터 점검
+  const data = [];
+  try { const r = await secResidualCheck(); data.push({ what: '원본에 남은 단가·원가', val: r ? r.price.length : '?', ok: r && (r.price.length === 0 || sr.sec_migrated !== true), note: sr.sec_migrated === true ? '이관 완료 상태 → 0 이어야 함' : '이관 전 (참고)' }); } catch(e){ data.push({ what: '원본 잔여 단가', val: 'error', ok: false, note: e.message }); }
+  if(window._SEC_LAST_BACKUP){ try { const rc = await secReconcileCheck(window._SEC_LAST_BACKUP); data.push({ what: '이관 대조 (이 기기에서 실행한 이관)', val: rc.verdict, ok: rc.verdict !== 'FAIL', note: rc.reasons.join(' · ') }); } catch(e){ data.push({ what: '이관 대조', val: 'error', ok: false, note: e.message }); } }
+  else data.push({ what: '이관 대조', val: '파일 선택 필요', ok: true, note: '[이관 검증] 창에서 이관 백업 파일로 확인' });
+  const plots = {}; DB.all('work_orders').forEach(w => { plots[w.plot_no] = (plots[w.plot_no] || 0) + 1; });
+  const dup = Object.keys(plots).filter(k => plots[k] > 1);
+  data.push({ what: '같은 LOT 에 작업지시 중복', val: dup.length, ok: dup.length === 0, note: dup.slice(0, 5).join(', ') });
+  data.push({ what: '권한 옛 형식 직원', val: permUnconvertedList().todo.length, ok: true, note: '운영 전환 전 0 이 되게' });
+  data.push({ what: '쓰기 중지 스위치(write_freeze)', val: sr.write_freeze === true ? '켜짐' : '꺼짐', ok: true, note: '이관 직전 켜고 · 끝나면 끔' });
+  data.push({ what: 'sec_migrated', val: String(sr.sec_migrated === true), ok: true, note: '이관 대조 합격 뒤에만 true' });
+  const rep = { at: new Date().toISOString(), project: (loadFirestoreConfig() || {}).projectId, app: APP_VERSION, rows, data, pass: rows.filter(r => r.ok).length, fail: rows.filter(r => !r.ok).length };
+  _TP.report = rep; return rep;
+}
+function tpReportText(rep){
+  const L = [`# VELA MES 시험 자동 점검 보고서`, `- 시각 ${rep.at} · 프로젝트 ${rep.project} · 앱 ${rep.app}`, `- 서버 권한 점검 ${rep.rows.length}건: 합격 ${rep.pass} · 불합격 ${rep.fail}`, '', '| 계정 | 요청 | 기대 | 결과 | 판정 |', '|---|---|---|---|---|'];
+  rep.rows.forEach(r => L.push(`| ${r.who} | ${r.what} | ${r.expect} | ${r.got} | ${r.ok ? 'PASS' : '**FAIL**'} |`));
+  L.push('', '| 데이터 점검 | 값 | 판정 | 메모 |', '|---|---|---|---|'); rep.data.forEach(d => L.push(`| ${d.what} | ${d.val} | ${d.ok ? 'OK' : '**확인**'} | ${d.note || ''} |`));
+  L.push('', '## 사람이 확인할 것 (화면)', '- 시험신규·시험사무·시험단가없음 계정으로 로그인: 메뉴·단가 표시 · 「🔒 단가 권한 없음」 안내', '- 작업지시 작성 → 발행 · 계획 카드 끌어 놓기 · 폰(시험사무) 출하 등록', '', '(시험 프로젝트 전용 · 운영 서버 실행 0 · 비밀번호는 보고서에 넣지 않음)');
+  return L.join('\n');
+}
+function openTpModal(){
+  if(!isTestProject()){ toast('시험 프로젝트에서만 쓸 수 있습니다 (운영 서버 차단)', 'warn'); return; }
+  const render = (body) => openModal(`<h2>시험 자동 점검 <span class="pill amber" style="font-size:10px">시험 프로젝트 전용</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+    <div style="font-size:12px;color:var(--sub);line-height:1.6">① [준비] 시험 계정 5명(신규·사무직·단가없음·구형 권한·관리책임자)과 가상 데이터(T- 로 시작)를 만들고 첫 비밀번호 변경까지 자동 · ② [점검] 계정마다 서버에 직접 요청해 허용/거부를 확인 + 단가 잔여·이관 대조·중복 검사 → 보고서</div>
+    <div id="tp-out" style="margin-top:10px;font-size:12px">${body || ''}</div>
+    <div class="actions"><button class="btn" id="tp-prep">① 준비</button><button class="btn primary" id="tp-run">② 점검</button>${_TP.report ? '<button class="btn" id="tp-dl">보고서 내려받기</button>' : ''}</div></div>`, { width: '760px' });
+  const bind = () => {
+    const out = () => document.getElementById('tp-out');
+    document.getElementById('tp-prep').onclick = async () => { const lines = []; try { out().textContent = '준비 중…'; await tpPrepare(m => { lines.push(m); out().textContent = lines.join(' · '); });
+      render(`<div style="color:var(--green)">준비 완료</div><div class="tbl-wrap" style="margin-top:6px"><table><thead><tr><th>시험 계정 (이름으로 로그인)</th><th>비밀번호 (이 창에만 · 저장 안 함)</th></tr></thead><tbody>${Object.values(_TP.cred).map(c => `<tr><td>${_esc(c.name)}</td><td class="mono">${_esc(c.pw)}</td></tr>`).join('')}</tbody></table></div>`); bind(); }
+      catch(e){ out().innerHTML = `<span style="color:var(--red)">${_esc(e.message || String(e))}</span>`; } };
+    document.getElementById('tp-run').onclick = async () => { try { out().textContent = '점검 중… (계정마다 로그인해 서버에 직접 요청)'; const rep = await tpProbe();
+      render(`<div style="font-weight:700;color:${rep.fail ? 'var(--red)' : 'var(--green)'}">서버 권한 점검 ${rep.rows.length}건 · 합격 ${rep.pass} · 불합격 ${rep.fail}</div>
+        <div class="tbl-wrap" style="margin-top:6px;max-height:40vh;overflow:auto"><table><thead><tr><th>계정</th><th>요청</th><th>기대</th><th>결과</th></tr></thead><tbody>${rep.rows.map(r => `<tr style="${r.ok ? '' : 'background:rgba(248,113,113,.1)'}"><td>${_esc(r.who)}</td><td>${_esc(r.what)}</td><td>${_esc(r.expect)}</td><td><b style="color:${r.ok ? 'var(--green)' : 'var(--red)'}">${_esc(r.got)}</b></td></tr>`).join('')}</tbody></table></div>
+        <div class="tbl-wrap" style="margin-top:6px"><table><tbody>${rep.data.map(d => `<tr><td>${_esc(d.what)}</td><td><b style="color:${d.ok ? 'var(--ink)' : 'var(--red)'}">${_esc(String(d.val))}</b></td><td class="muted">${_esc(d.note || '')}</td></tr>`).join('')}</tbody></table></div>`); bind(); }
+      catch(e){ out().innerHTML = `<span style="color:var(--red)">${_esc(e.message || String(e))}</span>`; } };
+    const dl = document.getElementById('tp-dl'); if(dl) dl.onclick = () => { const blob = new Blob([tpReportText(_TP.report)], { type: 'text/markdown' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `vela-mes-시험점검_${fmtDate(Date.now())}.md`; a.click(); };
+  };
+  render(''); bind();
 }
 
 /* ── 부팅 · 동기화 ── */
@@ -10075,9 +10240,15 @@ VIEWS.wo = () => {
    ★ v0.20.1 — pre 인자로 프리필 지원 (계획 → 지시 발행): { so_id, itemCode, qty, from_plan } · 저장 후 plan.wo_id 병합. */
 /* ★ v0.39.1 — 작업지시 간편 발행 헬퍼 (GPT 인계서 §6 · Claude 조정안 승인: 저장 = 상위 지시 1건 + LOT 1개 · 공정별 설비 plan_eq · 화면·출력은 공정별) */
 // 제안 설비: ① 같은 품번의 최근 지시에서 그 공정에 쓴 설비 ② 그 공정 설비가 1대뿐 ③ 없으면 null (임의 설비 0 — 사용자가 확인)
+// ★ v0.39.4 (GPT) — 제안 전 재검사: 지금 활성 설비 목록(getEquipment = 그 공정 · active) 안에 있고 · 정지/정비 상태가 아닌 설비만
+function eqUsable(name){
+  const m = DB.query('equipments', e => e.name === name)[0]; if(m && m.active === false) return false;
+  const e = DB.query('equipment', x => x.name === name)[0]; if(e && ['down', 'stop', 'maint', 'repair', 'broken'].includes(String(e.status || ''))) return false;
+  return true;
+}
 function woSuggestEq(itemCode, proc){
   const prev = DB.all('work_orders').filter(w => w.itemCode === itemCode && w.plan_eq && w.plan_eq[proc]).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
-  const list = getEquipment(proc) || [];
+  const list = (getEquipment(proc) || []).filter(eqUsable);
   if(prev && list.includes(prev.plan_eq[proc])) return prev.plan_eq[proc];
   return list.length === 1 ? list[0] : null;
 }
@@ -10090,7 +10261,7 @@ function woEstimate(itemCode, proc, eqName, qty){
   const b = planTimeBasis(itemCode, proc, eqName);
   if(!b.rate) return { min: null, text: '시간 기준 없음' };
   const work = qty / b.rate * 60; const min = b.setup + work;
-  return { min, text: `예상 ${fmtMin(min)} (셋팅 ${b.setup}분 + 작업 ${fmtMin(work)} · ${b.basis})` };
+  return { min, shared: !!b.shared, text: `예상 ${fmtMin(min)} (셋팅 ${b.setup}분 + 작업 ${fmtMin(work)} · ${b.basis})${b.shared ? ' · ⚠ 설비 공통 CT — 이 설비 속도가 다르면 확인' : ''}` };
 }
 // 공정별 진행 (표시 전용 · 저장 0): 공정마다 등록 수량(양품+불량) · 상태 ✓ 완료 / ● 진행 / ○ 대기
 function woProcSteps(w){
@@ -10307,7 +10478,7 @@ VIEWS._woNew = (pre) => {
     if(!so || !q){ box.style.display = 'none'; box.innerHTML = ''; return; }
     const o = DB.get('orders', so); const remain = o ? soOpenQty(o) : 0; const issued = woIssuedForSo(so);
     const over = issued + q - remain;
-    if(over > 0){ box.style.display = ''; box.innerHTML = `⚠ 수주 잔량 ${remain.toLocaleString()} · 이미 발행 ${issued.toLocaleString()} → 이번 ${q.toLocaleString()} 이면 <b>${over.toLocaleString()}ea 초과</b> <label style="display:inline-flex;gap:6px;align-items:center;margin:0 0 0 8px;font-weight:700"><input type="checkbox" id="wo-over-ok" style="width:auto"> 초과 발행 확인 (예비·불량 대비)</label>`; }
+    if(over > 0){ const prev = (document.getElementById('wo-over-reason') || {}).value || ''; box.style.display = ''; box.style.color = 'var(--amber)'; box.innerHTML = `⚠ 수주 잔량 ${remain.toLocaleString()} · 이미 발행 ${issued.toLocaleString()} → 이번 ${q.toLocaleString()} 이면 <b>${over.toLocaleString()}ea 초과</b><div style="margin-top:6px"><label style="margin:0 0 4px">초과 발행 사유 (필수 · 작업지시에 기록)</label><input id="wo-over-reason" placeholder="예: 불량 대비 예비 · 고객 추가 요청 예정" value="${_esc(prev)}"></div>`; }   // ★ v0.39.4 사용자 결정(2026-10-24): 누구나 · 사유 필수
     else { box.style.display = issued ? '' : 'none'; box.style.color = 'var(--sub)'; box.innerHTML = issued ? `이 수주로 이미 발행한 지시 ${issued.toLocaleString()}ea · 남은 발행 가능 ${(remain - issued).toLocaleString()}ea` : ''; }
   }
   qtyEl.oninput = () => { updMatHint(); updEst(); updOver(); };
@@ -10414,7 +10585,9 @@ VIEWS._woNew = (pre) => {
       if(!plot) throw new Error('생산LOT 번호 입력');
       if(!qty || qty<=0) throw new Error('작업수량 입력');
       assertSoOpen(so_id, '작업지시 발행');   // ★ v0.38.7 — 종결 수주 연결 차단 (저장 직전)
-      if(so_id){ const o = DB.get('orders', so_id); const over = woIssuedForSo(so_id) + qty - (o ? soOpenQty(o) : 0); if(over > 0 && !document.getElementById('wo-over-ok')?.checked) throw new Error(`수주 잔량 ${over.toLocaleString()}ea 초과 — 「초과 발행 확인」 을 체크하세요`); }
+      let overRec = null;
+      if(so_id){ const o = DB.get('orders', so_id); const over = woIssuedForSo(so_id) + qty - (o ? soOpenQty(o) : 0);
+        if(over > 0){ const reason = String((document.getElementById('wo-over-reason') || {}).value || '').trim(); if(reason.length < 2) throw new Error(`수주 잔량 ${over.toLocaleString()}ea 초과 — 초과 발행 사유를 적어 주세요`); overRec = { qty: over, reason, by: SESSION.user || '', at: Date.now() }; } }
       const okBtn = document.getElementById('wo-ok'); if(okBtn.disabled) return; okBtn.disabled = true; setTimeout(() => { okBtn.disabled = false; }, 1500);   // ★ v0.39.1 — 연속 클릭 1회만 (같은 번호 재발행은 아래 중복 차단)
 
       // 계획 설비 수집 — 미지정(빈 값) 공정은 키 생략
@@ -10443,6 +10616,7 @@ VIEWS._woNew = (pre) => {
         so_id, plan_eq,
         created:Date.now(), by:SESSION.user
       };
+      if(overRec) wo.over_issue = overRec;   // ★ v0.39.4 — 초과 발행 기록 (수량 · 사유 · 누가 · 언제)
       DB.set('work_orders', wo.id, wo);
       // ★ v0.20.1 — 계획에서 발행된 경우 plan.wo_id 병합 (원본 보존)
       if(pre.from_plan){
@@ -20949,7 +21123,7 @@ function planRateFor(itemCode, eqName){
   // ★ v0.39.2 (GPT: 기준값 1개 · 나머지는 환산 표시) — 0순위 = 품번 공정별 사이클타임 CT(초/개 · 기준정보 › 품번 › 공정별 시간) → 시간당 = 3600 ÷ CT
   if(proc){
     const ct = +(it?.proc_times?.[proc]?.ct) || 0;
-    if(ct > 0) return { rate: 3600 / ct, basis: `사이클타임 ${ct}초/개` };
+    if(ct > 0) return { rate: 3600 / ct, basis: `사이클타임 ${ct}초/개${planCtShared(proc) ? ' · 설비 공통값 — 설비마다 속도가 다르면 예상시간 확인' : ''}`, shared: planCtShared(proc) };
   }
   if(proc){
     const step = getRoute(itemCode).find(r => r.proc === proc);
@@ -20977,13 +21151,15 @@ function planTimeBasis(itemCode, proc, eqName){
   let rate = 0, basis = '';
   if(ct > 0){ rate = 3600 / ct; basis = `사이클타임 ${ct}초/개`; }
   else { const r = planRateFor(itemCode, eqName); rate = r.rate; basis = r.basis; }
+  const shared = ct > 0 && planCtShared(proc);   // ★ v0.39.4 (GPT) — 품번 CT 는 설비 공통값 · 그 공정 설비가 2대 이상이면 「예상시간 확인 필요」
   const eq = DB.query('equipment', e => e.name === eqName)[0] || null;
   const isMold = proc ? !!DB.get('processes', proc)?.mold_linked : false;
   const mold = isMold ? planMoldFor(itemCode) : null;
   const ps = it?.proc_times?.[proc]?.setup;
   const setup = ps != null && ps !== '' ? +ps : (mold && +mold.setup_min) ? +mold.setup_min : +(eq?.setup_min) || 0;
-  return { rate, basis, setup };
+  return { rate, basis, setup, shared };
 }
+function planCtShared(proc){ try { return (getEquipment(proc) || []).length >= 2; } catch(e){ return false; } }
 function planMoldFor(itemCode){
   return DB.query('molds', m => Array.isArray(m.itemCodes) && m.itemCodes.includes(itemCode) && m.active !== false)[0] || null;
 }
@@ -26888,8 +27064,8 @@ VIEWS.set = () => {
       `);
       document.getElementById('bk-restore-ok').onclick = () => {
         try {
-          DB.restore(parsed);
-          toast(`복원 완료 · ${docCount.toLocaleString()}건`, 'ok');
+          const rep = DB.restore(parsed);
+          toast(rep && DB._backend === 'firestore' ? `복원 완료 · 바뀐 문서 ${rep.changed}건 서버 반영 · 같음 ${rep.same} · 백업 뒤 생긴 문서 ${rep.newer}건은 그대로 · 사용자·계정·보안 기록은 복원 제외` : `복원 완료 · ${docCount.toLocaleString()}건`, 'ok', 7000);
           closeModal();
           renderNav(); router();
         } catch(err){
@@ -27168,6 +27344,7 @@ function _userWorkerCardsHTML(){
           <button class="btn" id="usr-sec-migrate">단가 분리 이관 (백업 후)</button>
           <button class="btn" id="usr-sec-check">이관 검증 (남은 단가·비밀번호 0건 확인)</button>
           <button class="btn" id="usr-perm-conv">권한 전환 점검 (옛 형식 ${permUnconvertedList().todo.length}명)</button>
+          ${isTestProject() ? `<button class="btn" id="usr-tp" style="border-color:var(--amber);color:var(--amber)">시험 자동 점검 (시험 프로젝트 전용)</button>` : ''}
         </div>
         <div style="font-size:11px;color:var(--sub);line-height:1.6">운영 전환 순서: 백업 → 단가 분리 이관 → 구형 비밀번호 정리 → <b>이관 검증 0건</b> → Firebase 콘솔에서 <code>settings/server_rules.sec_migrated = true</code> (그 전엔 단가 권한 없는 직원의 업무 조회를 서버가 막음) → 계정 발급<br>
         첫 로그인 비밀번호 변경 = <b>앱 정책</b> (서버는 「실제로 바꿨는지」 확인하지 못함 — 변경 전엔 업무 접근 0 이지만, 기술적으로 표시만 해제하는 우회는 막지 못함)</div>` : ''}
@@ -27483,6 +27660,7 @@ function bindUserWorkerCards(){
     try { const r = await secMigrateAll(); toast(`단가 분리 이관 — ${r ? r.moved : 0}건 · 이어서 [이관 검증]`, 'ok', 5000); } catch(e){ toast('이관 실패 — ' + (e && e.message || e), 'err', 6000); }
   };
   const _pcv = document.getElementById('usr-perm-conv'); if(_pcv) _pcv.onclick = () => openPermConvertModal({ done: renderUsers });
+  const _tpb = document.getElementById('usr-tp'); if(_tpb) _tpb.onclick = openTpModal;
   const _sc = document.getElementById('usr-sec-check');
   if(_sc) _sc.onclick = async () => {
     try { const r = await secResidualCheck(); if(!r) return;
