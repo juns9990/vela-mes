@@ -1463,7 +1463,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.39.6';
+const APP_VERSION = 'v0.39.7';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2300,16 +2300,18 @@ function _fsSend(fs, col, id, doc, meta, viaAdmin){
     if(meta && meta.restore){ const w = {}; (meta.keys || []).forEach(k => { if(k in doc) w[k] = doc[k]; }); (meta.del || []).forEach(k => { w[k] = FV.delete(); }); if(Object.keys(w).length) T(ref.set(w, { merge: true })); return; }   // ★ v0.39.4 — 복원: 바뀐 필드만 + 백업 뒤 추가된 필드 지움
     T(ref.set(doc, { merge: true })); return; }
   const _secTop = (SEC_SPEC[col] && SEC_SPEC[col].top) || [];
-  const _delMain = (meta.del || []).filter(k => !_secTop.includes(k)), _delSec = (meta.del || []).filter(k => _secTop.includes(k));
+  const _secArr = Object.keys((SEC_SPEC[col] && SEC_SPEC[col].arr) || {});
+  const _delMain = (meta.del || []).filter(k => !_secTop.includes(k)), _delSec = (meta.del || []).filter(k => _secTop.includes(k)).concat((meta.del || []).filter(k => _secArr.includes(k)).map(k => k + '_sec'));   // ★ v0.39.7 (GPT v0.39.6 ③) — 배열 단가 묶음도 함께 지움
   // ★ v0.38.29 — 단가 분리 (원본에서 떼어 sec_* 로 · 단가 권한 없으면 단가 저장 안 함)
   // ★ v0.38.30 (GPT P-2 ④) — 원본 + 단가 = writeBatch 1회 (한쪽만 반영 0 · 오프라인이면 함께 대기 후 함께 반영)
   const sp = _secSplitWrite(col, id, doc, meta.keys);
   if(sp){
     const secRef = fs.collection('sec_' + col).doc(String(id));
-    const doSec = sp.secKeys.length > 0 && canSeePrice();
+    const _delWhole = sp.whole ? (meta.del || []).filter(k => k !== 'id') : [];
+    const doSec = (sp.secKeys.length > 0 || _delSec.length > 0 || _delWhole.length > 0) && canSeePrice();   // ★ v0.39.7 (GPT v0.39.6 ③) — 단가 필드 「삭제만」 있어도 단가 문서에 보냄
     if(sp.secKeys.length && !doSec && (sp.whole || sp.secKeys.some(k => sp.sec[k] != null))) toast('단가·금액 권한이 없어 단가는 저장되지 않았습니다', 'warn', 3500);
     if(col === 'purchase_orders' && Array.isArray(doc.items) && doc.items.length > 20) toast('발주 1건의 품목은 최대 20개입니다 — 나눠서 등록하세요 (서버 규칙)', 'err', 6000);
-    if(sp.whole){ if(doSec){ const w = _fsWire(sp.sec, { ...meta, keys: sp.secKeys, prevHas: {} }, FV); if(w.fields.length) T(secRef.set(w.wire, { mergeFields: w.fields })); } return; }
+    if(sp.whole){ if(doSec){ const w = _fsWire(sp.sec, { ...meta, keys: sp.secKeys, prevHas: {} }, FV); _delWhole.forEach(k => { w.wire[k] = FV.delete(); w.fields.push(k); }); if(w.fields.length) T(secRef.set(w.wire, { mergeFields: w.fields })); } return; }   // ★ v0.39.7 — 통째 단가 문서(cost_rates)도 지운 필드 반영
     const mw = _fsWire(sp.main, { ...meta, keys: sp.mainKeys }, FV);
     _delMain.forEach(k => { mw.wire[k] = FV.delete(); mw.fields.push(k); });
     if(doSec){
@@ -3060,8 +3062,14 @@ async function _restoreServerCols(cols){
 async function restoreLockState(){
   if(DB._backend !== 'firestore') return { mode: 'local', ok: true };
   if(!_ACTIVE_ADAPTER._ready || !_ACTIVE_ADAPTER._fs) return { mode: 'offline', ok: false, msg: '서버 연결 전 — 연결된 뒤 다시' };
+  // ★ v0.39.7 (GPT v0.39.6 ① · 규칙 r12) — 복구 모드(server_rules.recovery_uid): 서버가 그 기기만 쓰기 허용 → 이 기기면 체크 없이 실행 · 다른 기기·계정은 실행 0
+  let srv = null; try { const d = await _ACTIVE_ADAPTER._fs.collection('settings').doc('server_rules').get({ source: 'server' }); srv = d.exists ? d.data() : {}; } catch(e){ srv = null; }
+  let myUid = null; try { myUid = window.firebase && window.firebase.auth().currentUser ? window.firebase.auth().currentUser.uid : null; } catch(e){}
+  const rec = srv && srv.recovery_uid ? String(srv.recovery_uid) : '';
+  if(rec){ return rec === myUid ? { mode: 'recovery', ok: true } : { mode: isStaffMode() ? 'staff' : 'legacy', ok: false, msg: '복구 모드 중 — 서버가 복구 기기(' + rec.slice(0, 6) + '…)만 저장 허용' }; }
   if(!isStaffMode()) return { mode: 'legacy', ok: true, needConfirm: true };
-  let fz = null; try { const d = await _ACTIVE_ADAPTER._fs.collection('settings').doc('server_rules').get({ source: 'server' }); fz = d.exists ? d.data().write_freeze === true : false; } catch(e){ return { mode: 'staff', ok: false, msg: '서버 스위치 확인 실패 — ' + (e.code || e.message) }; }
+  if(!srv) return { mode: 'staff', ok: false, msg: '서버 스위치 확인 실패' };
+  const fz = srv.write_freeze === true;
   if(!_STAFF.isApprover && !_ADMIN.user) return { mode: 'staff', ok: false, freeze: fz, msg: '관리자 계정으로 로그인해야 복원할 수 있습니다' };
   return fz ? { mode: 'staff', ok: true, freeze: true } : { mode: 'staff', ok: false, freeze: false, msg: '쓰기 중지가 꺼져 있습니다 — 콘솔 settings/server_rules.write_freeze = true 로 켠 뒤 [다시 확인] (복원 중 다른 직원 저장을 서버가 막도록)' };
 }
@@ -3088,20 +3096,31 @@ function _settle(list, ms){
 async function restoreVerifyServer(written){
   if(DB._backend !== 'firestore' || !written || !written.length) return { checked: 0, diffs: [] };
   const fs = _ACTIVE_ADAPTER._fs; const cols = [...new Set(written.map(w => w.col))]; const diffs = [];
-  const staff = isStaffMode(); const secCols = staff ? cols.filter(c => (SEC_SPEC[c] && (SEC_SPEC[c].top || []).length) || SEC_DOCS[c]).map(c => 'sec_' + c) : [];
+  const staff = isStaffMode(); const secCols = staff ? cols.filter(c => SEC_SPEC[c] || SEC_DOCS[c]).map(c => 'sec_' + c) : [];   // ★ v0.39.7 — 배열 단가(발주 품목) 컬렉션도
   let srv; try { srv = await _restoreServerCols(cols.concat(canSeePrice() ? secCols : [])); } catch(e){ return { checked: 0, diffs: written.map(w => ({ col: w.col, id: w.id, key: '*', why: '서버 조회 실패 ' + (e.code || e.message) })) }; }
   written.forEach(w => {
     if(staff && (SEC_DOCS[w.col] || []).includes(w.id)){   // 통째로 단가 문서로 가는 설정 문서 = sec_* 쪽만 대조
-      if(!canSeePrice()) return; const sd = (srv['sec_' + w.col] || {})[w.id] || {};
-      (w.keys || []).forEach(k => { if(k === 'id' || k.startsWith('_')) return; if(!_restoreSame(sd[k], w.doc[k])) diffs.push({ col: w.col, id: w.id, key: k, why: '단가 문서 값 다름' }); }); return; }
+      if(!canSeePrice()){ diffs.push({ col: w.col, id: w.id, key: '*', why: '단가 권한 없음 — 단가 문서 대조 불가' }); return; } const sd = (srv['sec_' + w.col] || {})[w.id] || {};
+      (w.keys || []).forEach(k => { if(k === 'id' || k.startsWith('_')) return; if(!_restoreSame(sd[k], w.doc[k])) diffs.push({ col: w.col, id: w.id, key: k, why: '단가 문서 값 다름' }); });
+      (w.del || []).forEach(k => { if(k !== 'id' && k in sd) diffs.push({ col: w.col, id: w.id, key: k, why: '단가 문서에 지워야 할 필드 남음' }); });   // ★ v0.39.7 (GPT ③)
+      return; }
     const main = (srv[w.col] || {})[w.id] || null; const top = staff && SEC_SPEC[w.col] ? (SEC_SPEC[w.col].top || []) : [];
     const sec = top.length ? ((srv['sec_' + w.col] || {})[w.id] || {}) : null;
     if(!main){ diffs.push({ col: w.col, id: w.id, key: '*', why: '서버에 문서 없음' }); return; }
+    const arrKeys = staff && SEC_SPEC[w.col] ? Object.keys(SEC_SPEC[w.col].arr || {}) : [];
+    const secDoc = (staff && SEC_SPEC[w.col]) ? ((srv['sec_' + w.col] || {})[w.id] || {}) : null;
     (w.keys || []).forEach(k => { if(k === 'id' || k.startsWith('_')) return;
-      const want = staff && SEC_SPEC[w.col] && SEC_SPEC[w.col].arr && SEC_SPEC[w.col].arr[k] ? _secStripCmp(w.col, { [k]: w.doc[k] })[k] : w.doc[k];
-      if(top.includes(k)){ if(!canSeePrice()) return; if(!_restoreSame((sec || {})[k], want)) diffs.push({ col: w.col, id: w.id, key: k, why: '단가 문서 값 다름' }); if(k in main) diffs.push({ col: w.col, id: w.id, key: k, why: '원본에 단가 남음' }); return; }
-      if(!_restoreSame(main[k], want)) diffs.push({ col: w.col, id: w.id, key: k, why: '서버 값 다름' }); });
-    (w.del || []).forEach(k => { if(k in main) diffs.push({ col: w.col, id: w.id, key: k, why: '지워야 할 필드 남음' }); });
+      const want = arrKeys.includes(k) ? _secStripCmp(w.col, { [k]: w.doc[k] })[k] : w.doc[k];
+      if(top.includes(k)){ if(!canSeePrice()){ diffs.push({ col: w.col, id: w.id, key: k, why: '단가 권한 없음 — 단가 문서 대조 불가' }); return; } if(!_restoreSame((sec || {})[k], want)) diffs.push({ col: w.col, id: w.id, key: k, why: '단가 문서 값 다름' }); if(k in main) diffs.push({ col: w.col, id: w.id, key: k, why: '원본에 단가 남음' }); return; }
+      if(!_restoreSame(main[k], want)) diffs.push({ col: w.col, id: w.id, key: k, why: '서버 값 다름' });
+      // ★ v0.39.7 (GPT v0.39.6 ②) — 배열 안 단가(발주 품목 price·amount·unit_price) = 단가 문서 sec_*.{k}_sec 도 대조
+      if(arrKeys.includes(k)){ if(!canSeePrice()){ diffs.push({ col: w.col, id: w.id, key: k + '_sec', why: '단가 권한 없음 — 품목 단가 대조 불가' }); return; }
+        const sp = _secSplitWrite(w.col, w.id, { [k]: w.doc[k] }, [k]); const wantSec = sp && sp.sec ? (sp.sec[k + '_sec'] || {}) : {};
+        if(!_restoreSame(secDoc[k + '_sec'] || {}, wantSec)) diffs.push({ col: w.col, id: w.id, key: k + '_sec', why: '품목 단가(단가 문서) 값 다름' }); } });
+    (w.del || []).forEach(k => { if(k in main) diffs.push({ col: w.col, id: w.id, key: k, why: '지워야 할 필드 남음' });
+      // ★ v0.39.7 (GPT v0.39.6 ③) — 지운 단가 필드가 단가 문서에 남아 있으면 차이
+      if(top.includes(k) && canSeePrice() && sec && (k in sec)) diffs.push({ col: w.col, id: w.id, key: k, why: '단가 문서에 지워야 할 단가 남음' });
+      if(arrKeys.includes(k) && canSeePrice() && secDoc && Object.keys(secDoc[k + '_sec'] || {}).length) diffs.push({ col: w.col, id: w.id, key: k + '_sec', why: '단가 문서에 지워야 할 품목 단가 남음' }); });
   });
   return { checked: written.length, diffs };
 }
@@ -3124,6 +3143,7 @@ function openRestorePreview(parsed, fname, colCount, docCount, opts){
     const hn = _restoreHealthHtml(plan.healthNew); const exN = plan.exclude ? Object.keys(plan.exclude).reduce((s, k) => s + plan.exclude[k].length, 0) : 0;
     const lockHtml = !lock ? '<div style="font-size:12px;color:var(--sub)">잠금 확인 중…</div>'
       : lock.mode === 'legacy' ? `<label style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:8px;padding:8px;border:1px solid var(--amber);border-radius:8px"><input type="checkbox" id="bk-lock-ok"> <span><b>다른 기기(직원 PC·폰) 모두 로그아웃 확인</b> — 기존 방식(v4)은 서버가 다른 사람 저장을 막지 못함 · 복원 뒤 서버 대조로 충돌을 표시</span></label>`
+      : lock.ok && lock.mode === 'recovery' ? `<div style="font-size:12px;color:var(--green);margin-top:8px">복구 모드 — 서버가 이 기기만 저장 허용 (직원·관리자·다른 기기 저장 거부 · 규칙 r12)</div>`
       : lock.ok ? `<div style="font-size:12px;color:var(--green);margin-top:8px">쓰기 중지 켜짐 — 복원 중 다른 직원 저장은 서버가 거부</div>`
       : `<div style="font-size:12px;color:var(--red);margin-top:8px">${_esc(lock.msg || '잠금 확인 실패')} <button class="btn ghost" id="bk-lock-re">다시 확인</button></div>`;
     const canRun = !plan.blocked && lock && lock.ok;
@@ -3285,9 +3305,9 @@ async function cutoverStatus(opts){
   const m = _cutLoad(); const resid = m.resid || null; const secret = legacySecretFieldsReport().total;
   st.mem = m; st.logAt = logAt;
   const S = (id, title, ok, msg, extra) => st.steps.push(Object.assign({ id, title, ok: !!ok, msg }, extra || {}));
-  S('server', '서버 확인 — 규칙 r11 · 관리자 계정', probe === 'deny' && (+sr.version || 0) >= 11 && isStaffMode() && _STAFF.isApprover,
-    `접속 서버 ${st.project}${st.test ? ' (시험)' : ' (운영)'} · 회차 ${st.run} · 규칙 확인 요청 ${probe === 'deny' ? '거부 = r11 동작' : probe === 'allow' ? '허용 = 아직 v4' : probe} · version ${sr.version ?? '없음'} · 관리자 계정 ${_STAFF.isApprover ? '예' : '아니오'}`,
-    { console: '콘솔: settings/server_rules 에 version=11 · write_freeze=true · sec_migrated=false · legacy_device=false → Firestore 규칙 r11 게시 (이 순간부터 기존 방식 사용자 업무 중단)' });
+  S('server', '서버 확인 — 규칙 r12 · 관리자 계정', probe === 'deny' && (+sr.version || 0) >= 11 && isStaffMode() && _STAFF.isApprover && !sr.recovery_uid,
+    `${sr.recovery_uid ? '⚠ 복구 모드 중(recovery_uid) — 전환 단계 진행 전 해제 · ' : ''}접속 서버 ${st.project}${st.test ? ' (시험)' : ' (운영)'} · 회차 ${st.run} · 규칙 확인 요청 ${probe === 'deny' ? '거부 = r11 동작' : probe === 'allow' ? '허용 = 아직 v4' : probe} · version ${sr.version ?? '없음'} · 관리자 계정 ${_STAFF.isApprover ? '예' : '아니오'}`,
+    { console: '콘솔: settings/server_rules 에 version=12 · write_freeze=true · sec_migrated=false · legacy_device=false · recovery_uid 없음 → Firestore 규칙 r12 게시 (이 순간부터 기존 방식 사용자 업무 중단)' });
   S('freeze', '쓰기 중지 켜짐 (직원 업무 저장 차단)', sr.write_freeze === true || final, `write_freeze = ${sr.write_freeze === true ? '켜짐' : '꺼짐'}`, { console: '콘솔: settings/server_rules.write_freeze = true' });
   const b = m.backup; const bOk = !!(b && b.verified) && (!m.migratedHere || b.at < m.migratedHere);   // 이 회차 이관보다 먼저 받은 백업만
   S('backup', '전체 백업 + 파일 확인 (SHA-256·문서 수)', bOk, b ? `${b.name} · 문서 ${b.docs} · ${b.verified ? '파일 확인 완료' : '[백업 파일 확인] 으로 내려받은 파일을 골라 주세요'}` : '아직 안 함',
@@ -3314,7 +3334,7 @@ async function cutoverStatus(opts){
 }
 const CUTOVER_RECOVER = [
   ['서버 확인 ~ 직원 계정 단계에서 멈춤', '규칙 r11 그대로 · 복구 기기 승인 불필요 (데이터 변화 없음) → 콘솔에서 규칙 v4 다시 게시 → 모든 기기 「기존 방식」 로그인 → 업무 계속'],
-  ['단가 이관 ~ 대조 단계에서 실패', '규칙 r11 그대로 둠(다른 직원 접속 차단 유지) → 관리자 PC 를 「기존 방식」 으로 열어 로그인 화면의 「이 기기 ID (복구용)」 확인 → 콘솔: devices/{ID} = {status:"approved"} · server_rules.legacy_device = true · write_freeze = false → 그 PC 에서 설정 › 백업 복원(이번 회차 전체 백업 파일 · 미리보기·대조) → 「완료」 확인 → 그 뒤에만 규칙 v4 게시 → 승인 해제(devices/{ID}.status = "revoked" · legacy_device = false) → 직원 업무 재개'],
+  ['단가 이관 ~ 대조 단계에서 실패', '규칙 r12 그대로 둠 → 관리자 PC 를 「기존 방식」 으로 열어 로그인 화면의 「이 기기 ID (복구용)」 확인 → 콘솔: devices/{ID} = {status:"approved"} · server_rules.recovery_uid = ID (복구 모드: 서버가 이 기기만 저장 허용 — 직원·관리자·다른 승인 기기 저장 거부 · 쓰기 중지는 켜 둔 채) → 그 PC 에서 설정 › 백업 복원(이번 회차 전체 백업 파일 · 미리보기·대조) → 「완료」 확인 → 그 뒤에만 규칙 v4 게시 → recovery_uid 비우기 · devices/{ID}.status = "revoked" → 직원 업무 재개'],
   ['업무 재개 뒤 문제', '쓰기 중지 다시 켬 → 원인 확인 · 복원이 필요하면 미리보기의 연결 검사에 따라 범위 조정 (재개 뒤 입력분은 유지됨)'],
 ];
 function cutoverReportText(st){
@@ -7375,7 +7395,7 @@ function renderGate(){
       <div class="fr-sub" style="line-height:1.6">운영 규칙이 직원 계정 방식(r11)으로 바뀌어 기존 방식 접속이 막혔습니다. 직원은 관리자 안내를 기다려 주세요.</div>
       <div class="fld"><label>이 기기 ID (복구용)</label><input id="gr-uid" readonly value="${_esc(uid)}" style="font-family:'JetBrains Mono',monospace;font-size:12px"></div>
       <button class="reg-btn" id="gr-copy" type="button">ID 복사</button>
-      <div class="fr-note">복구 담당 관리자 기기만: Firebase 콘솔 › <code>devices/{이 ID}</code> = <code>{status:"approved"}</code> · <code>settings/server_rules</code> 의 <code>legacy_device = true</code> · <code>write_freeze = false</code> → 새로고침 → 로그인 → 백업 복원 · 끝나면 승인 해제(<code>status = "revoked"</code> · <code>legacy_device = false</code>)</div>`;
+      <div class="fr-note">복구 담당 관리자 기기만: Firebase 콘솔 › <code>devices/{이 ID}</code> = <code>{status:"approved"}</code> · <code>settings/server_rules.recovery_uid = 이 ID</code> (규칙 r12 복구 모드 — 서버가 이 기기만 저장 허용 · 직원·관리자·다른 기기 저장 거부) → 새로고침 → 로그인 → 백업 복원 · 끝나면 <code>recovery_uid</code> 비우기 + <code>devices/{이 ID}.status = "revoked"</code></div>`;
     const cp = document.getElementById('gr-copy'); if(cp) cp.onclick = () => { const v = document.getElementById('gr-uid'); try { navigator.clipboard.writeText(v.value).then(() => toast('기기 ID 복사', 'ok'), () => { v.select(); }); } catch(e){ v.select(); } };
   } else if(rec){ rec.remove(); }
   if(DB.all('users').length === 0 && !isStaffMode() && !_denied){   // ★ v0.38.29 — 직원 계정 모드: 로그인 전엔 서버를 읽지 않으므로 최초 등록 카드 없음 (첫 관리자 = 관리자 계정 이메일 로그인)
