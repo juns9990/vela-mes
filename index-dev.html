@@ -1463,7 +1463,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.39.9';
+const APP_VERSION = 'v0.39.10';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -22557,33 +22557,88 @@ function planPendCheck(pend){
   pend = pend || _PLAN_PEND; const rows = [];
   Object.keys(pend).forEach(id => { const mv = pend[id]; const cur = DB.get('production_plans', id); const r = { id, mv, p: cur, block: [], warn: [] };
     if(!cur){ r.block.push('계획 없음(취소됨)'); rows.push(r); return; }
-    if((cur._updated || cur.ts || 0) !== mv.ver) r.block.push('모은 뒤 다른 사용자가 이 계획을 바꿨습니다');
+    if((cur._updated || cur.ts || 0) !== mv.ver){ if(_planAt(cur, mv)) r.applied = true; else r.block.push('모은 뒤 다른 사용자가 이 계획을 바꿨습니다'); }   // ★ v0.39.10 — 이미 옮길 곳에 있음 = 앞선 시도 반영(막지 않음 · 서버 검사가 최종)
     const c = planMoveCheck(cur, mv.date, mv.equipment); r.block.push(...c.block); r.warn.push(...c.warn.filter(w => !/부하/.test(w)));
     if(mv.equipment){ const ld = planPendLoad(mv.date, mv.equipment, pend); r.load = ld; if(ld.pct > 100) r.warn.push(`${mv.date} ${mv.equipment} 부하 ${ld.pct.toFixed(0)}% (모은 이동 함께 반영) — 가능 시간 초과`); }
     rows.push(r); });
   return { rows, blocked: rows.filter(r => r.block.length).length, warned: rows.filter(r => r.warn.length).length };
 }
-function planPendCommit(){
-  const chk = planPendCheck(); if(!chk.rows.length) return { saved: 0 };
-  if(chk.blocked) return { saved: 0, blocked: chk.blocked, rows: chk.rows };
-  const seqAt = {}; let n = 0;
-  chk.rows.sort((a, b) => a.mv.at - b.mv.at).forEach(r => { const k = r.mv.date + '|' + (r.mv.equipment || '');
+/* ★ v0.39.10 (GPT v0.39.9 판정 필수) — 「모두 확정」 = 서버에서 전부 저장 또는 전부 거부
+   서버 모드 = Firestore 트랜잭션 1회: 계획마다 서버 최신 문서를 읽어 ① 이미 옮길 곳에 있으면(앞선 시도가 반영됨) 건너뜀 ② 아니면 서버 버전(_updated) = 모을 때 버전이어야 함
+   → 하나라도 다르거나 없거나(취소) 서버가 거부하면 트랜잭션 전체 실패 = 아무것도 저장 안 함 (Firestore 원자성) · 쓰기 = 날짜·설비·순번 + _updated + _logs(서버 문서 기준 누적)
+   결과는 서버 확인 뒤에만: 완료(목록 비움) / 충돌·거부(목록 유지 · 원인) / 처리 중(응답 없음 · 목록 유지 · [다시 확정] = 같은 검사로 안전 재시도)
+   로컬·데모 = 메모리에서 같은 검사 뒤 한 번에 반영 (동기 · 부분 반영 0) */
+const PLAN_TX_TIMEOUT_MS = 20000;
+function _planPendSeq(rows){
+  const seqAt = {}; const out = {};
+  rows.slice().sort((a, b) => a.mv.at - b.mv.at).forEach(r => { const k = r.mv.date + '|' + (r.mv.equipment || '');
     if(seqAt[k] == null){ const sibs = getLivePlans().filter(x => !_PLAN_PEND[x.id] && x.date === r.mv.date && (x.equipment || '') === (r.mv.equipment || '')); seqAt[k] = sibs.reduce((m, x) => Math.max(m, +x.seq || 0), 0) || sibs.length * 10; }
-    seqAt[k] += 10; DB.set('production_plans', r.id, { date: r.mv.date, equipment: r.mv.equipment, seq: seqAt[k] }); n++; });
-  _PLAN_PEND = {}; return { saved: n };
+    seqAt[k] += 10; out[r.id] = seqAt[k]; });
+  return out;
 }
+function _planAt(d, mv){ return !!d && d.date === mv.date && (d.equipment || '') === (mv.equipment || ''); }
+let _PLAN_COMMIT_BUSY = false;
+async function planPendCommit(opts){
+  opts = opts || {};
+  if(_PLAN_COMMIT_BUSY) return { status: 'busy', saved: 0, why: '이미 확정 중' };
+  const chk = planPendCheck(); if(!chk.rows.length) return { status: 'empty', saved: 0 };
+  if(chk.blocked) return { status: 'blocked', saved: 0, blocked: chk.blocked, rows: chk.rows };
+  if(_permBlockWrite('production_plans')) return { status: 'blocked', saved: 0, blocked: chk.rows.length, rows: chk.rows, why: '보기 전용 권한' };
+  const seq = _planPendSeq(chk.rows);
+  const moves = chk.rows.map(r => ({ id: r.id, date: r.mv.date, equipment: r.mv.equipment || '', seq: seq[r.id], ver: r.mv.ver }));
+  const by = SESSION.user || 'system';
+  _PLAN_COMMIT_BUSY = true;
+  try {
+    if(DB._backend !== 'firestore' || !_ACTIVE_ADAPTER._fs){
+      // 로컬·데모: 메모리 검사 = 서버 검사와 같은 규칙 → 전부 반영
+      const bad = moves.filter(m => { const cur = DB.get('production_plans', m.id); return !cur || (!_planAt(cur, m) && (cur._updated || cur.ts || 0) !== m.ver); });
+      if(bad.length) return { status: 'conflict', saved: 0, why: '모은 뒤 바뀐 계획 ' + bad.length + '건 — 아무것도 저장 안 함', ids: bad.map(m => m.id) };
+      let n = 0, skip = 0; moves.forEach(m => { const cur = DB.get('production_plans', m.id); if(_planAt(cur, m)){ skip++; return; } DB.set('production_plans', m.id, { date: m.date, equipment: m.equipment, seq: m.seq }); n++; });
+      _PLAN_PEND = {}; return { status: 'done', saved: n, skipped: skip };
+    }
+    const fs = _ACTIVE_ADAPTER._fs; const col = fs.collection('production_plans');
+    const txp = fs.runTransaction(async tx => {
+      const snaps = []; for(const m of moves) snaps.push(await tx.get(col.doc(String(m.id))));   // 읽기 전부 먼저 (Firestore 트랜잭션 규칙)
+      const writes = []; const conflict = [];
+      moves.forEach((m, i) => { const sn = snaps[i]; const d = sn.exists ? sn.data() : null;
+        if(!d || d.void){ conflict.push(m.id + ' (없음·취소)'); return; }
+        if(_planAt(d, m)) return;   // 이미 반영됨 (앞선 시도) → 쓰지 않음
+        if((d._updated || d.ts || 0) !== m.ver){ conflict.push(m.id); return; }
+        const now = Date.now(); writes.push({ m, w: { date: m.date, equipment: m.equipment, seq: m.seq, _updated: now, _logs: (d._logs || []).concat([{ ts: now, op: 'update', by, reason: '모아 옮기기 확정' }]).slice(-50) } }); });
+      if(conflict.length) throw Object.assign(new Error('서버 최신 버전과 다름: ' + conflict.join(', ')), { planConflict: conflict });
+      writes.forEach(x => tx.set(col.doc(String(x.m.id)), x.w, { merge: true }));
+      return writes;
+    });
+    const res = await Promise.race([txp.then(w => ({ w })), new Promise(r => setTimeout(() => r({ timeout: true }), opts.timeoutMs || PLAN_TX_TIMEOUT_MS))]);
+    if(res.timeout){ txp.then(() => {}, () => {}); return { status: 'pending', saved: 0, why: '서버 응답 대기 — 연결 확인 후 [다시 확정] (이미 반영된 계획은 건너뜀 · 버전 검사 그대로)' }; }
+    // 서버 확인 뒤에만 메모리 반영 (구독도 곧 같은 값을 보냄)
+    const st = _ACTIVE_ADAPTER._state; res.w.forEach(x => { if(st && st.production_plans && st.production_plans[x.m.id]) st.production_plans[x.m.id] = { ...st.production_plans[x.m.id], ...x.w }; });
+    _PLAN_PEND = {}; return { status: 'done', saved: res.w.length, skipped: moves.length - res.w.length };
+  } catch(e){
+    if(e && e.planConflict) return { status: 'conflict', saved: 0, why: '모은 뒤 다른 사용자가 바꾼 계획 ' + e.planConflict.length + '건 (서버 기준) — 아무것도 저장 안 함 · 목록에서 빼거나 다시 모으세요', ids: e.planConflict };
+    const m = String((e && (e.code || e.message)) || e);
+    if(/permission|insufficient/i.test(m)) return { status: 'rejected', saved: 0, why: '서버가 거부 (권한·쓰기 중지 등) — 아무것도 저장 안 함 · ' + m.slice(0, 80) };
+    if(/unavailable|offline|network|failed-precondition/i.test(m)) return { status: 'offline', saved: 0, why: '서버 연결 필요 — 아무것도 저장 안 함 · 목록 유지 · ' + m.slice(0, 80) };
+    return { status: 'rejected', saved: 0, why: '서버 저장 실패 — 아무것도 저장 안 함 · ' + m.slice(0, 120) };
+  } finally { _PLAN_COMMIT_BUSY = false; }
+}
+const PLAN_COMMIT_LABEL = { done: '한 번에 확정 — 서버 반영 확인', blocked: '막힌 이동이 있어 저장 안 함', conflict: '충돌 — 아무것도 저장 안 함', rejected: '서버 거부 — 아무것도 저장 안 함', offline: '연결 없음 — 아무것도 저장 안 함', pending: '처리 중 — 서버 응답 대기', busy: '이미 확정 중', empty: '옮길 계획 없음' };
 VIEWS._planPendModal = () => {
   const chk = planPendCheck();
   openModal(`<h2>모아 옮기기 — ${chk.rows.length}건 <span class="pill amber" style="font-size:10px">아직 저장 안 됨</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
     <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>품번</th><th class="num">수량</th><th>지금</th><th>옮길 곳</th><th>검사</th><th></th></tr></thead><tbody>${chk.rows.map(r => `<tr>
       <td class="mono">${_esc(r.p ? r.p.itemCode : r.id)}</td><td class="num">${r.p ? (+r.p.qty || 0).toLocaleString() : ''}</td><td class="muted">${_esc(r.mv.from.date)} · ${_esc(r.mv.from.equipment || '미배정')}</td><td><b>${_esc(r.mv.date)} · ${_esc(r.mv.equipment || '미배정')}</b></td>
-      <td>${r.block.length ? `<span style="color:var(--red);font-weight:700">⛔ ${r.block.map(_esc).join(' · ')}</span>` : r.warn.length ? `<span style="color:var(--amber)">⚠ ${r.warn.map(_esc).join(' · ')}</span>` : '<span style="color:var(--green)">가능</span>'}</td>
+      <td>${r.block.length ? `<span style="color:var(--red);font-weight:700">⛔ ${r.block.map(_esc).join(' · ')}</span>` : r.applied ? '<span style="color:var(--green)">이미 반영됨 (앞선 시도 · 건너뜀)</span>' : r.warn.length ? `<span style="color:var(--amber)">⚠ ${r.warn.map(_esc).join(' · ')}</span>` : '<span style="color:var(--green)">가능</span>'}</td>
       <td><button class="btn ghost" data-pend-del="${_esc(r.id)}">${ico('x')}</button></td></tr>`).join('')}</tbody></table></div>
-    <div style="font-size:11px;color:var(--sub);margin-top:6px">${chk.blocked ? `<b style="color:var(--red)">막힌 이동 ${chk.blocked}건 — 빼거나 고친 뒤 확정 (일부만 저장하지 않음)</b>` : '확정하면 위 이동을 한 번에 저장합니다 · 부하 = 모은 이동을 함께 반영한 값'}</div>
+    ${window._planLastCommit && window._planLastCommit.status !== 'done' ? `<div style="margin-top:6px;font-size:12px;color:${window._planLastCommit.status === 'pending' ? 'var(--amber)' : 'var(--red)'}"><b>지난 확정: ${_esc(PLAN_COMMIT_LABEL[window._planLastCommit.status] || window._planLastCommit.status)}</b>${window._planLastCommit.why ? ' — ' + _esc(window._planLastCommit.why) : ''}</div>` : ''}
+    <div style="font-size:11px;color:var(--sub);margin-top:6px">${chk.blocked ? `<b style="color:var(--red)">막힌 이동 ${chk.blocked}건 — 빼거나 고친 뒤 확정 (일부만 저장하지 않음)</b>` : '확정 = 서버가 계획마다 최신 버전을 확인하고 전부 저장하거나 전부 거부합니다 (일부만 저장 0) · 결과는 서버 확인 뒤에만 표시 · 부하 = 모은 이동을 함께 반영한 값'}</div>
     <div class="actions"><button class="btn" id="pend-clear">모두 취소</button><button class="btn" onclick="closeModal()">닫기</button><button class="btn primary" id="pend-ok" ${chk.blocked || !chk.rows.length ? 'disabled' : ''}>${ico('save')}모두 확정 (${chk.rows.length}건)</button></div></div>`, { width: '820px' });
   document.querySelectorAll('[data-pend-del]').forEach(b => b.onclick = () => { delete _PLAN_PEND[b.dataset.pendDel]; closeModal(); router(); VIEWS._planPendModal(); });
-  document.getElementById('pend-clear').onclick = () => { _PLAN_PEND = {}; closeModal(); toast('모은 이동 모두 취소 — 저장된 것 없음', 'info'); router(); };
-  document.getElementById('pend-ok').onclick = () => { const r = planPendCommit(); if(r.blocked){ toast(`막힌 이동 ${r.blocked}건 — 아무것도 저장 안 함`, 'err', 5000); closeModal(); VIEWS._planPendModal(); return; } closeModal(); toast(`계획 ${r.saved}건 옮김 (한 번에 확정)`, 'ok'); router(); };
+  document.getElementById('pend-clear').onclick = () => { _PLAN_PEND = {}; window._planLastCommit = null; closeModal(); toast('모은 이동 모두 취소 — 저장된 것 없음', 'info'); router(); };
+  document.getElementById('pend-ok').onclick = async () => { const ok = document.getElementById('pend-ok'); if(ok.disabled) return; ok.disabled = true; ok.textContent = '서버 확인 중…';   // ★ v0.39.10 — 서버 확인 전 성공 표시 0
+    const r = await planPendCommit(); window._planLastCommit = r; window._planLastResult = r;
+    if(r.status === 'done'){ window._planLastCommit = null; closeModal(); toast(`계획 ${r.saved}건 옮김 — ${PLAN_COMMIT_LABEL.done}${r.skipped ? ` (이미 반영 ${r.skipped}건 건너뜀)` : ''}`, 'ok'); router(); return; }
+    toast(`${PLAN_COMMIT_LABEL[r.status] || r.status}${r.why ? ' · ' + r.why : ''} · 목록은 그대로`, r.status === 'pending' ? 'warn' : 'err', 7000); closeModal(); router(); VIEWS._planPendModal(); };
 };
 VIEWS._planMove = (id, preset) => {
   const p = DB.get('production_plans', id); if(!p){ toast('계획 없음', 'err'); return; }
