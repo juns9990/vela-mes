@@ -1463,7 +1463,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.39.11';
+const APP_VERSION = 'v0.39.12';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -22570,10 +22570,13 @@ function planPendCheck(pend){
      → 하나라도 다르거나 없거나(취소) 서버가 거부하면 트랜잭션 전체 실패 = 아무것도 저장 안 함 (Firestore 원자성)
    요청 번호 = 확정 1회마다 새로 (MV-…) · 쓰기 = 날짜·설비·순번 + move_req(요청 번호) + _updated + _logs{req} → 「내 요청이 반영됐는지」 = 서버 문서의 요청 번호로만 판정
    결과 미확정(20초 응답 없음 · 새로고침) = 요청 기록을 이 기기에 남기고 목록 잠금(추가·삭제·취소·다시 확정 0) → [결과 확인] = 서버 문서에서 요청 번호를 찾음
-     · 찾음 = 반영됨(완료) · 원래 요청이 아직 진행 중 = 처리 중 유지 · 실패로 끝남 = 저장 0 확정 · 새로고침 뒤라 원래 요청을 볼 수 없으면 보낸 지 60초 지나 서버에 없을 때만 「반영 안 됨」
+     · 찾음 = 반영됨(완료) · 원래 요청이 아직 진행 중 = 처리 중 유지 · 실패로 끝남 = 저장 0 확정
+   ★ v0.39.12 (GPT v0.39.11 판정 ②) — 시간 경과로 「반영 안 됨」 을 확정하지 않는다. 원래 요청을 볼 수 없으면(새로고침 뒤) [결과 확인] = 서버 트랜잭션 1회로
+     요청 번호가 있으면 완료 · 없으면 같은 트랜잭션에서 계획 문서마다 차단 기록(move_fences += 요청 번호)을 써서 원래 요청이 더는 저장될 수 없게 만든 뒤에만 「반영 안 됨」
+     (원래 요청의 커밋 = 읽은 시점 문서 갱신시각 조건 → 차단 기록 뒤 도착하면 서버가 거부 · 원래 요청이 다시 시도되면 본문이 차단 기록을 보고 중단)
+     차단 기록이 서버에서 확인되기 전(응답 없음·거부·연결 없음) = 결과 미확정 · 잠금 유지 · 버전(_updated)은 바꾸지 않음
    로컬·데모 = 메모리에서 같은 검사 뒤 한 번에 반영 (동기 · 미확정 상태 없음) */
 const PLAN_TX_TIMEOUT_MS = 20000;
-const PLAN_REQ_SETTLE_MS = 60000;
 function _planPendSeq(rows){
   const seqAt = {}; const out = {};
   rows.slice().sort((a, b) => a.mv.at - b.mv.at).forEach(r => { const k = r.mv.date + '|' + (r.mv.equipment || '');
@@ -22607,8 +22610,31 @@ async function planReqCheck(){
     _planReqFinish('done'); return { status: 'done', saved: rq.moves.length, reqId: rq.reqId };
   }
   if(rq.promise && !rq.settled) return { status: 'pending', reqId: rq.reqId, why: '원래 요청이 아직 서버 응답을 기다리는 중 — 잠시 뒤 다시 [결과 확인]' };
-  if(Date.now() - (rq.sentAt || 0) < PLAN_REQ_SETTLE_MS) return { status: 'pending', reqId: rq.reqId, why: '보낸 지 60초 전 — 서버가 아직 처리할 수 있어 판정 보류 · 잠시 뒤 다시 [결과 확인]' };
-  _planReqFinish('notApplied'); return { status: 'notApplied', reqId: rq.reqId, why: '서버에 이 요청 번호가 없음 = 반영 안 됨 확정 · 목록을 되돌림 (다시 확정 = 새 요청)' };
+  // ★ v0.39.12 — 원래 요청을 볼 수 없음(새로고침 뒤) → 서버에서 차단 후 확정 (시간 기준 0)
+  const fr = await _planReqFence(rq);
+  if(fr.status === 'done'){ const st = _ACTIVE_ADAPTER._state; rq.moves.forEach((m, i) => { const d = fr.docs[i]; if(d && st && st.production_plans && st.production_plans[m.id]) st.production_plans[m.id] = { ...st.production_plans[m.id], ...d, id: m.id }; }); _planReqFinish('done'); return { status: 'done', saved: rq.moves.length, reqId: rq.reqId }; }
+  if(fr.status === 'fenced'){ _planReqFinish('notApplied', { fenced: true }); return { status: 'notApplied', reqId: rq.reqId, fenced: true, why: '서버에서 이 요청을 차단한 뒤 확인 = 반영 안 됨 확정 (이후 도착해도 저장 불가) · 목록을 되돌림 (다시 확정 = 새 요청)' }; }
+  return { status: 'pending', reqId: rq.reqId, why: fr.why };
+}
+// ★ v0.39.12 — 차단 확인 트랜잭션: 읽기 전부 → 요청 번호 있음 = done(쓰기 0) · 없음 = move_fences 기록(버전 무변) → 서버 커밋 확인 뒤에만 fenced
+async function _planReqFence(rq, opts){
+  opts = opts || {};
+  const fs = _ACTIVE_ADAPTER._fs; const col = fs.collection('production_plans'); const by = SESSION.user || 'system';
+  const txp = fs.runTransaction(async tx => {
+    const snaps = []; for(const m of rq.moves) snaps.push(await tx.get(col.doc(String(m.id))));
+    const docs = snaps.map(x => x.exists ? x.data() : null);
+    if(docs.some(d => _planDocHasReq(d, rq.reqId))) return { status: 'done', docs };
+    const now = Date.now(); let n = 0;
+    rq.moves.forEach((m, i) => { const d = docs[i]; if(!d) return; n++;
+      tx.set(col.doc(String(m.id)), { move_fences: (Array.isArray(d.move_fences) ? d.move_fences : []).filter(x => x !== rq.reqId).concat([rq.reqId]).slice(-20),
+        _logs: (d._logs || []).concat([{ ts: now, op: 'fence', by, reason: '확정 요청 결과 확인 — 반영 안 됨 확정(차단)', fence: rq.reqId }]).slice(-50) }, { merge: true }); });
+    return { status: n ? 'fenced' : 'none', docs };
+  });
+  const res = await Promise.race([txp.then(v => ({ v }), e => ({ e })), new Promise(r => setTimeout(() => r({ timeout: true }), opts.timeoutMs || PLAN_TX_TIMEOUT_MS))]);
+  if(res.timeout) return { status: 'pending', why: '서버 확인 응답 대기 — 결과 미확정 유지 · 잠시 뒤 다시 [결과 확인]' };
+  if(res.e){ const m = String((res.e && (res.e.code || res.e.message)) || res.e); return { status: 'pending', why: (/permission|insufficient/i.test(m) ? '서버가 확인 기록을 거부' : /unavailable|offline|network/i.test(m) ? '서버 연결 필요' : '서버 확인 실패') + ' — 결과 미확정 유지 (반영 여부 모름) · ' + m.slice(0, 60) }; }
+  if(res.v.status === 'none') return { status: 'pending', why: '계획 문서를 서버에서 찾지 못함 — 결과 미확정 유지' };
+  return res.v;
 }
 async function planPendCommit(opts){
   opts = opts || {};
@@ -22632,6 +22658,7 @@ async function planPendCommit(opts){
   const rq = _PLAN_REQ;
   const txp = fs.runTransaction(async tx => {
     const snaps = []; for(const m of moves) snaps.push(await tx.get(col.doc(String(m.id))));   // 읽기 전부 먼저 (Firestore 트랜잭션 규칙)
+    if(snaps.some(x => x.exists && Array.isArray(x.data().move_fences) && x.data().move_fences.includes(reqId))) throw Object.assign(new Error('이 요청은 결과 확인에서 차단됨'), { planFenced: true });   // ★ v0.39.12 — 차단된 요청이 다시 시도돼도 저장 0
     const conflict = [];
     moves.forEach((m, i) => { const d = snaps[i].exists ? snaps[i].data() : null;
       if(!d || d.void) conflict.push(m.id + ' (없음·취소)');
@@ -22643,7 +22670,8 @@ async function planPendCommit(opts){
     return writes;
   });
   rq.promise = txp;
-  const classify = e => { if(e && e.planConflict) return { status: 'conflict', why: '모은 뒤 다른 사용자가 바꾼 계획 ' + e.planConflict.length + '건 (서버 기준) — 아무것도 저장 안 함 · 목록에서 빼거나 다시 모으세요', ids: e.planConflict };
+  const classify = e => { if(e && e.planFenced) return { status: 'notApplied', why: '결과 확인에서 차단된 요청 — 저장 0' };
+    if(e && e.planConflict) return { status: 'conflict', why: '모은 뒤 다른 사용자가 바꾼 계획 ' + e.planConflict.length + '건 (서버 기준) — 아무것도 저장 안 함 · 목록에서 빼거나 다시 모으세요', ids: e.planConflict };
     const m = String((e && (e.code || e.message)) || e);
     if(/permission|insufficient/i.test(m)) return { status: 'rejected', why: '서버가 거부 (권한·쓰기 중지 등) — 아무것도 저장 안 함 · ' + m.slice(0, 80) };
     if(/unavailable|offline|network|failed-precondition/i.test(m)) return { status: 'offline', why: '서버 연결 필요 — 아무것도 저장 안 함 · 목록 유지 · ' + m.slice(0, 80) };
@@ -22663,7 +22691,7 @@ VIEWS._planPendModal = () => {
   if(rq){   // ★ v0.39.11 — 결과 미확정 = 잠금 화면 (수정·삭제·취소·다시 확정 0 · 결과 확인만)
     openModal(`<h2>확정 요청 결과 확인 — ${_esc(rq.reqId)} <span class="pill amber" style="font-size:10px">결과 미확정 · 목록 잠금</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
       <div style="font-size:12px;line-height:1.7">보낸 시각 ${fmtDate(rq.sentAt)} ${fmtTime(rq.sentAt)} · 계획 ${rq.moves.length}건 · 서버가 반영했는지 아직 모릅니다 — <b>「저장 안 됨」 도 「완료」 도 아닙니다</b><br>
-      [결과 확인] = 서버 문서에서 이 요청 번호를 찾음 (있으면 완료 · 원래 요청이 실패로 끝났거나 보낸 지 60초 지나 서버에 없으면 「반영 안 됨」 확정 → 목록 되돌림)</div>
+      [결과 확인] = 서버 문서에서 이 요청 번호를 찾음 (있으면 완료 · 원래 요청이 실패로 끝났거나, 서버에서 이 요청을 차단한 뒤에만 「반영 안 됨」 확정 → 목록 되돌림 · 확인 전엔 잠금 유지)</div>
       <div class="tbl-wrap" style="margin-top:8px"><table style="font-size:12px"><thead><tr><th>계획</th><th>옮길 곳</th><th class="num">순번</th></tr></thead><tbody>${rq.moves.map(m => `<tr><td class="mono">${_esc(m.id)}</td><td><b>${_esc(m.date)} · ${_esc(m.equipment || '미배정')}</b></td><td class="num">${m.seq}</td></tr>`).join('')}</tbody></table></div>
       <div id="req-msg" style="margin-top:6px;font-size:12px;color:var(--amber)">${window._planReqMsg ? _esc(window._planReqMsg) : ''}</div>
       <div class="actions"><button class="btn" onclick="closeModal()">닫기</button><button class="btn primary" id="req-check">${ico('refresh')}결과 확인</button></div></div>`, { width: '720px' });
