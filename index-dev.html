@@ -1463,11 +1463,11 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.39.12';
+const APP_VERSION = 'v0.39.13';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-10-28';
+const APP_DATE    = '2026-10-29';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -3250,7 +3250,7 @@ function openRestorePreview(parsed, fname, colCount, docCount, opts){
     const hn = _restoreHealthHtml(plan.healthNew); const exN = plan.exclude ? Object.keys(plan.exclude).reduce((s, k) => s + plan.exclude[k].length, 0) : 0;
     const lockHtml = !lock ? '<div style="font-size:12px;color:var(--sub)">잠금 확인 중…</div>'
       : lock.mode === 'legacy' ? `<label style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:8px;padding:8px;border:1px solid var(--amber);border-radius:8px"><input type="checkbox" id="bk-lock-ok"> <span><b>다른 기기(직원 PC·폰) 모두 로그아웃 확인</b> — 기존 방식(v4)은 서버가 다른 사람 저장을 막지 못함 · 복원 뒤 서버 대조로 충돌을 표시</span></label>`
-      : lock.ok && lock.mode === 'recovery' ? `<div style="font-size:12px;color:var(--green);margin-top:8px">복구 모드 — 서버가 이 기기만 저장 허용 (직원·관리자·다른 기기 저장 거부 · 규칙 r13)${lock.secMigrated ? ' · 이관 완료 → 단가는 단가 문서로 나눠 저장 (원본 단가 저장 = 서버 거부)' : ''}</div>`
+      : lock.ok && lock.mode === 'recovery' ? `<div style="font-size:12px;color:var(--green);margin-top:8px">복구 모드 — 서버가 이 기기만 저장 허용 (직원·관리자·다른 기기 저장 거부 · 규칙 r14)${lock.secMigrated ? ' · 이관 완료 → 단가는 단가 문서로 나눠 저장 (원본 단가 저장 = 서버 거부)' : ''}</div>`
       : lock.ok ? `<div style="font-size:12px;color:var(--green);margin-top:8px">쓰기 중지 켜짐 — 복원 중 다른 직원 저장은 서버가 거부</div>`
       : `<div style="font-size:12px;color:var(--red);margin-top:8px">${_esc(lock.msg || '잠금 확인 실패')} <button class="btn ghost" id="bk-lock-re">다시 확인</button></div>`;
     const canRun = !plan.blocked && lock && lock.ok;
@@ -3406,8 +3406,8 @@ async function cutoverStatus(opts){
   let sr = {}; try { sr = (fs && (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data()) || {}; } catch(e){ st.srErr = String(e.code || e.message); }
   let log = null; try { const l = await fs.collection('settings').doc('sec_migration_log').get({ source: 'server' }); log = l.exists ? l.data() : null; } catch(e){}
   let probe = 'unknown'; try { await fs.collection('vela_rules_probe').doc('x').get({ source: 'server' }); probe = 'allow'; } catch(e){ probe = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
-  // ★ v0.39.8 (GPT v0.39.7 필수 2) — 설정값(version)이 아니라 실제 게시 규칙 확인: rules_probe/r13 읽기는 r13 만 허용 (r12 이하 = 거부)
-  let probe13 = 'unknown'; try { await fs.collection('rules_probe').doc('r13').get({ source: 'server' }); probe13 = 'allow'; } catch(e){ probe13 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
+  // ★ v0.39.8 (GPT v0.39.7 필수 2) — 설정값(version)이 아니라 실제 게시 규칙 확인 · ★ v0.39.13 = rules_probe/r14 (r14 만 허용 · r13 이하 = 거부 — 요청 판정 기록 plan_move_reqs 필요)
+  let probe13 = 'unknown'; try { await fs.collection('rules_probe').doc('r14').get({ source: 'server' }); probe13 = 'allow'; } catch(e){ probe13 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
   if(sr && Object.keys(sr).length) _SRV_LAST = sr;
   st.test = isTestProject(); st.sr = sr; st.probe = probe; st.probe13 = probe13;
   const logAt = log ? _tsMs(log.at) : 0; const final = sr.sec_migrated === true && sr.write_freeze !== true;
@@ -3420,9 +3420,9 @@ async function cutoverStatus(opts){
   const m = _cutLoad(); const resid = m.resid || null; const secret = legacySecretFieldsReport().total;
   st.mem = m; st.logAt = logAt;
   const S = (id, title, ok, msg, extra) => st.steps.push(Object.assign({ id, title, ok: !!ok, msg }, extra || {}));
-  S('server', '서버 확인 — 규칙 r13 · 관리자 계정', probe === 'deny' && probe13 === 'allow' && (+sr.version || 0) >= 13 && isStaffMode() && _STAFF.isApprover && !sr.recovery_uid,
-    `${sr.recovery_uid ? '⚠ 복구 모드 중(recovery_uid) — 전환 단계 진행 전 해제 · ' : ''}접속 서버 ${st.project}${st.test ? ' (시험)' : ' (운영)'} · 회차 ${st.run} · 규칙 확인 ${probe === 'allow' ? '허용 = 아직 v4' : probe13 === 'allow' ? '게시된 규칙 = r13 (확인 요청 rules_probe/r13 허용)' : probe13 === 'deny' ? 'r13 아님 (r12 이하 · rules_probe/r13 거부) — r13 게시 필요' : probe13} · version ${sr.version ?? '없음'}${(+sr.version || 0) < 13 ? ' (13 으로)' : ''} · 관리자 계정 ${_STAFF.isApprover ? '예' : '아니오'}`,
-    { console: '콘솔: settings/server_rules 에 version=13 · write_freeze=true · sec_migrated=false · legacy_device=false · recovery_uid 없음 → Firestore 규칙 r13 게시 (이 순간부터 기존 방식 사용자 업무 중단)' });
+  S('server', '서버 확인 — 규칙 r14 · 관리자 계정', probe === 'deny' && probe13 === 'allow' && (+sr.version || 0) >= 14 && isStaffMode() && _STAFF.isApprover && !sr.recovery_uid,
+    `${sr.recovery_uid ? '⚠ 복구 모드 중(recovery_uid) — 전환 단계 진행 전 해제 · ' : ''}접속 서버 ${st.project}${st.test ? ' (시험)' : ' (운영)'} · 회차 ${st.run} · 규칙 확인 ${probe === 'allow' ? '허용 = 아직 v4' : probe13 === 'allow' ? '게시된 규칙 = r14 (확인 요청 rules_probe/r14 허용)' : probe13 === 'deny' ? 'r14 아님 (r13 이하 · rules_probe/r14 거부) — r14 게시 필요' : probe13} · version ${sr.version ?? '없음'}${(+sr.version || 0) < 14 ? ' (14 로)' : ''} · 관리자 계정 ${_STAFF.isApprover ? '예' : '아니오'}`,
+    { console: '콘솔: settings/server_rules 에 version=14 · write_freeze=true · sec_migrated=false · legacy_device=false · recovery_uid 없음 → Firestore 규칙 r14 게시 (이 순간부터 기존 방식 사용자 업무 중단)' });
   S('freeze', '쓰기 중지 켜짐 (직원 업무 저장 차단)', sr.write_freeze === true || final, `write_freeze = ${sr.write_freeze === true ? '켜짐' : '꺼짐'}`, { console: '콘솔: settings/server_rules.write_freeze = true' });
   const b = m.backup; const bOk = !!(b && b.verified) && (!m.migratedHere || b.at < m.migratedHere);   // 이 회차 이관보다 먼저 받은 백업만
   S('backup', '전체 백업 + 파일 확인 (SHA-256·문서 수)', bOk, b ? `${b.name} · 문서 ${b.docs} · ${b.verified ? '파일 확인 완료' : '[백업 파일 확인] 으로 내려받은 파일을 골라 주세요'}` : '아직 안 함',
@@ -3448,9 +3448,9 @@ async function cutoverStatus(opts){
   return st;
 }
 const CUTOVER_RECOVER = [
-  ['서버 확인 ~ 직원 계정 단계에서 멈춤', '규칙 r13 그대로 · 복구 기기 승인 불필요 (데이터 변화 없음) → 콘솔에서 규칙 v4 다시 게시 → 모든 기기 「기존 방식」 로그인 → 업무 계속'],
-  ['단가 이관 ~ 대조 단계에서 실패', '규칙 r13 그대로 둠 → 관리자 PC 를 「기존 방식」 으로 열어 로그인 화면의 「이 기기 ID (복구용)」 확인 → 콘솔: devices/{ID} = {status:"approved"} · server_rules.recovery_uid = ID (복구 모드: 서버가 이 기기만 저장 허용 — 직원·관리자·다른 승인 기기 저장 거부 · 쓰기 중지는 켜 둔 채) → 그 PC 에서 설정 › 백업 복원(이번 회차 전체 백업 파일 · 미리보기·대조) → 「완료」 확인 → 그 뒤에만 규칙 v4 게시 → recovery_uid 비우기 · devices/{ID}.status = "revoked" → 직원 업무 재개'],
-  ['업무 재개 뒤 문제', '쓰기 중지 다시 켬 → 원인 확인 · 복원이 필요하면 미리보기의 연결 검사에 따라 범위 조정 (재개 뒤 입력분은 유지됨) · 복구 기기로 복원하면 이관 완료 상태라 단가는 단가 문서로 나눠 저장됨(규칙 r13 이 원본 단가 저장 거부) → 복원 결과 「서버 원본 단가 0건」 확인 뒤에만 recovery_uid 비우기'],
+  ['서버 확인 ~ 직원 계정 단계에서 멈춤', '규칙 r14 그대로 · 복구 기기 승인 불필요 (데이터 변화 없음) → 콘솔에서 규칙 v4 다시 게시 → 모든 기기 「기존 방식」 로그인 → 업무 계속'],
+  ['단가 이관 ~ 대조 단계에서 실패', '규칙 r14 그대로 둠 → 관리자 PC 를 「기존 방식」 으로 열어 로그인 화면의 「이 기기 ID (복구용)」 확인 → 콘솔: devices/{ID} = {status:"approved"} · server_rules.recovery_uid = ID (복구 모드: 서버가 이 기기만 저장 허용 — 직원·관리자·다른 승인 기기 저장 거부 · 쓰기 중지는 켜 둔 채) → 그 PC 에서 설정 › 백업 복원(이번 회차 전체 백업 파일 · 미리보기·대조) → 「완료」 확인 → 그 뒤에만 규칙 v4 게시 → recovery_uid 비우기 · devices/{ID}.status = "revoked" → 직원 업무 재개'],
+  ['업무 재개 뒤 문제', '쓰기 중지 다시 켬 → 원인 확인 · 복원이 필요하면 미리보기의 연결 검사에 따라 범위 조정 (재개 뒤 입력분은 유지됨) · 복구 기기로 복원하면 이관 완료 상태라 단가는 단가 문서로 나눠 저장됨(규칙 r14 가 원본 단가 저장 거부) → 복원 결과 「서버 원본 단가 0건」 확인 뒤에만 recovery_uid 비우기'],
 ];
 function cutoverReportText(st){
   const L = ['# VELA MES 운영 전환 점검 결과', `- 시각 ${new Date(st.at).toISOString()} · 서버 ${st.project}${st.test ? ' (시험)' : ''} · 회차 ${st.run} · 앱 ${APP_VERSION}`, `- ${st.done ? '전환 완료 — 모든 단계 통과' : '진행 중 — 통과 ' + st.steps.filter(s => s.ok).length + '/' + st.steps.length}`, ''];
@@ -7510,7 +7510,7 @@ function renderGate(){
       <div class="fr-sub" style="line-height:1.6">운영 규칙이 직원 계정 방식(r11)으로 바뀌어 기존 방식 접속이 막혔습니다. 직원은 관리자 안내를 기다려 주세요.</div>
       <div class="fld"><label>이 기기 ID (복구용)</label><input id="gr-uid" readonly value="${_esc(uid)}" style="font-family:'JetBrains Mono',monospace;font-size:12px"></div>
       <button class="reg-btn" id="gr-copy" type="button">ID 복사</button>
-      <div class="fr-note">복구 담당 관리자 기기만: Firebase 콘솔 › <code>devices/{이 ID}</code> = <code>{status:"approved"}</code> · <code>settings/server_rules.recovery_uid = 이 ID</code> (규칙 r13 복구 모드 — 서버가 이 기기만 저장 허용 · 직원·관리자·다른 기기 저장 거부 · 이관 뒤엔 원본 단가 저장도 거부) → 새로고침 → 로그인 → 백업 복원 · 결과의 「서버 원본 단가 0건」 확인 뒤 <code>recovery_uid</code> 비우기 + <code>devices/{이 ID}.status = "revoked"</code></div>`;
+      <div class="fr-note">복구 담당 관리자 기기만: Firebase 콘솔 › <code>devices/{이 ID}</code> = <code>{status:"approved"}</code> · <code>settings/server_rules.recovery_uid = 이 ID</code> (규칙 r14 복구 모드 — 서버가 이 기기만 저장 허용 · 직원·관리자·다른 기기 저장 거부 · 이관 뒤엔 원본 단가 저장도 거부) → 새로고침 → 로그인 → 백업 복원 · 결과의 「서버 원본 단가 0건」 확인 뒤 <code>recovery_uid</code> 비우기 + <code>devices/{이 ID}.status = "revoked"</code></div>`;
     const cp = document.getElementById('gr-copy'); if(cp) cp.onclick = () => { const v = document.getElementById('gr-uid'); try { navigator.clipboard.writeText(v.value).then(() => toast('기기 ID 복사', 'ok'), () => { v.select(); }); } catch(e){ v.select(); } };
   } else if(rec){ rec.remove(); }
   if(DB.all('users').length === 0 && !isStaffMode() && !_denied){   // ★ v0.38.29 — 직원 계정 모드: 로그인 전엔 서버를 읽지 않으므로 최초 등록 카드 없음 (첫 관리자 = 관리자 계정 이메일 로그인)
@@ -22575,6 +22575,9 @@ function planPendCheck(pend){
      요청 번호가 있으면 완료 · 없으면 같은 트랜잭션에서 계획 문서마다 차단 기록(move_fences += 요청 번호)을 써서 원래 요청이 더는 저장될 수 없게 만든 뒤에만 「반영 안 됨」
      (원래 요청의 커밋 = 읽은 시점 문서 갱신시각 조건 → 차단 기록 뒤 도착하면 서버가 거부 · 원래 요청이 다시 시도되면 본문이 차단 기록을 보고 중단)
      차단 기록이 서버에서 확인되기 전(응답 없음·거부·연결 없음) = 결과 미확정 · 잠금 유지 · 버전(_updated)은 바꾸지 않음
+   ★ v0.39.13 (GPT v0.39.12 판정) — 판정 근거 = 요청 번호별 서버 기록 plan_move_reqs/{요청 번호} 1개 (계획 문서의 move_req·_logs(최근 50)·move_fences(최근 20) 로 판정하지 않음)
+     확정 트랜잭션 = 계획 저장 + 이 기록 {state:'done'} 을 함께 만듦 · 차단 = 같은 기록을 {state:'fenced'} 로 만듦 → 두 트랜잭션 모두 「기록 없음」 을 읽고 만들기 때문에 서버가 먼저 온 하나만 받음
+     규칙 r14 = 이 기록은 만들기만(수정·삭제 거부) → 완료·차단이 다른 작업에 밀려 사라지는 일 0 · 원래 요청이 다시 실행돼도 본문이 기록을 보고 중단
    로컬·데모 = 메모리에서 같은 검사 뒤 한 번에 반영 (동기 · 미확정 상태 없음) */
 const PLAN_TX_TIMEOUT_MS = 20000;
 function _planPendSeq(rows){
@@ -22598,42 +22601,39 @@ function _planReqFinish(kind, info){   // kind: 'done' | 'failed' | 'notApplied'
   else { rq.moves.forEach(m => { if(!_PLAN_PEND[m.id]) _PLAN_PEND[m.id] = { date: m.date, equipment: m.equipment, ver: m.ver, from: m.from || { date: '', equipment: '' }, at: m.at || rq.sentAt }; }); }   // 반영 안 됨 = 같은 목록으로 되돌림 (다시 확정하면 새 요청 번호 · 버전 검사 그대로)
   window._planReqLast = { kind, reqId: rq.reqId, at: Date.now(), ...(info || {}) };
 }
-function _planDocHasReq(d, reqId){ return !!d && (d.move_req === reqId || (Array.isArray(d._logs) && d._logs.some(l => l && l.req === reqId))); }
+function _planReqRef(fs, reqId){ return fs.collection('plan_move_reqs').doc(String(reqId)); }
+function _planReqRec(rq, state){ return { state, ids: rq.moves.map(m => String(m.id)), by: SESSION.user || 'system', by_uid: (typeof currentAuthUid === 'function' && currentAuthUid()) || '', at: Date.now() }; }
 async function planReqCheck(){
   const rq = _planReqLoad(); if(!rq) return { status: 'none' };
   if(rq.settled === 'failed'){ const why = rq.why; _planReqFinish('failed', { why }); return { status: 'failed', why, reqId: rq.reqId }; }
   if(DB._backend !== 'firestore' || !_ACTIVE_ADAPTER._fs) return { status: 'pending', why: '서버 연결 전' };
-  let docs; try { const col = _ACTIVE_ADAPTER._fs.collection('production_plans'); docs = []; for(const m of rq.moves){ const d = await col.doc(String(m.id)).get({ source: 'server' }); docs.push(d.exists ? d.data() : null); } }
-  catch(e){ return { status: 'pending', reqId: rq.reqId, why: '서버 조회 실패(' + String(e.code || e.message).slice(0, 40) + ') — 연결 뒤 다시 [결과 확인]' }; }
-  if(docs.some(d => _planDocHasReq(d, rq.reqId))){   // 트랜잭션 = 원자적 → 1건이라도 요청 번호가 있으면 요청 전체가 반영된 것
-    const st = _ACTIVE_ADAPTER._state; rq.moves.forEach((m, i) => { if(docs[i] && st && st.production_plans && st.production_plans[m.id]) st.production_plans[m.id] = { ...st.production_plans[m.id], ...docs[i], id: m.id }; });
-    _planReqFinish('done'); return { status: 'done', saved: rq.moves.length, reqId: rq.reqId };
-  }
-  if(rq.promise && !rq.settled) return { status: 'pending', reqId: rq.reqId, why: '원래 요청이 아직 서버 응답을 기다리는 중 — 잠시 뒤 다시 [결과 확인]' };
-  // ★ v0.39.12 — 원래 요청을 볼 수 없음(새로고침 뒤) → 서버에서 차단 후 확정 (시간 기준 0)
-  const fr = await _planReqFence(rq);
-  if(fr.status === 'done'){ const st = _ACTIVE_ADAPTER._state; rq.moves.forEach((m, i) => { const d = fr.docs[i]; if(d && st && st.production_plans && st.production_plans[m.id]) st.production_plans[m.id] = { ...st.production_plans[m.id], ...d, id: m.id }; }); _planReqFinish('done'); return { status: 'done', saved: rq.moves.length, reqId: rq.reqId }; }
-  if(fr.status === 'fenced'){ _planReqFinish('notApplied', { fenced: true }); return { status: 'notApplied', reqId: rq.reqId, fenced: true, why: '서버에서 이 요청을 차단한 뒤 확인 = 반영 안 됨 확정 (이후 도착해도 저장 불가) · 목록을 되돌림 (다시 확정 = 새 요청)' }; }
-  return { status: 'pending', reqId: rq.reqId, why: fr.why };
+  const fs = _ACTIVE_ADAPTER._fs;
+  let rec; try { const d = await _planReqRef(fs, rq.reqId).get({ source: 'server' }); rec = d.exists ? d.data() : null; }
+  catch(e){ return { status: 'pending', reqId: rq.reqId, why: '서버 조회 실패(' + String(e.code || e.message).slice(0, 40) + ') — 결과 미확정 유지 · 연결 뒤 다시 [결과 확인]' }; }
+  if(!rec && rq.promise && !rq.settled) return { status: 'pending', reqId: rq.reqId, why: '원래 요청이 아직 서버 응답을 기다리는 중 — 잠시 뒤 다시 [결과 확인]' };
+  // ★ v0.39.13 — 기록이 없고 원래 요청을 볼 수 없음(새로고침 뒤) → 차단 기록을 만들어 확정 (시간 기준 0)
+  const fr = rec ? { status: rec.state === 'done' ? 'done' : rec.state === 'fenced' ? 'fenced' : 'unknown' } : await _planReqFence(rq);
+  if(fr.status === 'done'){ await _planReqSyncMem(rq); _planReqFinish('done'); return { status: 'done', saved: rq.moves.length, reqId: rq.reqId }; }
+  if(fr.status === 'fenced'){ _planReqFinish('notApplied', { fenced: true }); return { status: 'notApplied', reqId: rq.reqId, fenced: true, why: '서버 요청 기록 = 차단 확정 (이후 도착해도 저장 불가) · 목록을 되돌림 (다시 확정 = 새 요청)' }; }
+  return { status: 'pending', reqId: rq.reqId, why: fr.why || '요청 기록 상태를 알 수 없음 — 결과 미확정 유지' };
 }
-// ★ v0.39.12 — 차단 확인 트랜잭션: 읽기 전부 → 요청 번호 있음 = done(쓰기 0) · 없음 = move_fences 기록(버전 무변) → 서버 커밋 확인 뒤에만 fenced
+async function _planReqSyncMem(rq){   // 완료 확인 뒤 이 기기 메모리를 서버 계획 문서로 맞춤 (판정과 무관 · 실패해도 구독이 맞춤)
+  try { const col = _ACTIVE_ADAPTER._fs.collection('production_plans'); const st = _ACTIVE_ADAPTER._state;
+    for(const m of rq.moves){ const d = await col.doc(String(m.id)).get({ source: 'server' }); if(d.exists && st && st.production_plans && st.production_plans[m.id]) st.production_plans[m.id] = { ...st.production_plans[m.id], ...d.data(), id: m.id }; } } catch(e){}
+}
+// ★ v0.39.13 — 차단 트랜잭션: 요청 기록을 읽음 → 있으면 그 상태(done/fenced) 그대로 · 없으면 {state:'fenced'} 만들기 → 서버 커밋 확인 뒤에만 fenced
+//   원래 확정 트랜잭션도 같은 기록을 「없음」 으로 읽고 만들기 때문에, 먼저 커밋된 쪽만 서버가 받음 (다른 쪽 = 조건 실패 → 다시 읽어 상대 상태 확인)
 async function _planReqFence(rq, opts){
   opts = opts || {};
-  const fs = _ACTIVE_ADAPTER._fs; const col = fs.collection('production_plans'); const by = SESSION.user || 'system';
+  const fs = _ACTIVE_ADAPTER._fs; const ref = _planReqRef(fs, rq.reqId);
   const txp = fs.runTransaction(async tx => {
-    const snaps = []; for(const m of rq.moves) snaps.push(await tx.get(col.doc(String(m.id))));
-    const docs = snaps.map(x => x.exists ? x.data() : null);
-    if(docs.some(d => _planDocHasReq(d, rq.reqId))) return { status: 'done', docs };
-    const now = Date.now(); let n = 0;
-    rq.moves.forEach((m, i) => { const d = docs[i]; if(!d) return; n++;
-      tx.set(col.doc(String(m.id)), { move_fences: (Array.isArray(d.move_fences) ? d.move_fences : []).filter(x => x !== rq.reqId).concat([rq.reqId]).slice(-20),
-        _logs: (d._logs || []).concat([{ ts: now, op: 'fence', by, reason: '확정 요청 결과 확인 — 반영 안 됨 확정(차단)', fence: rq.reqId }]).slice(-50) }, { merge: true }); });
-    return { status: n ? 'fenced' : 'none', docs };
+    const d = await tx.get(ref);
+    if(d.exists){ const st = d.data().state; return { status: st === 'done' ? 'done' : st === 'fenced' ? 'fenced' : 'unknown' }; }
+    tx.set(ref, _planReqRec(rq, 'fenced')); return { status: 'fenced' };
   });
   const res = await Promise.race([txp.then(v => ({ v }), e => ({ e })), new Promise(r => setTimeout(() => r({ timeout: true }), opts.timeoutMs || PLAN_TX_TIMEOUT_MS))]);
   if(res.timeout) return { status: 'pending', why: '서버 확인 응답 대기 — 결과 미확정 유지 · 잠시 뒤 다시 [결과 확인]' };
-  if(res.e){ const m = String((res.e && (res.e.code || res.e.message)) || res.e); return { status: 'pending', why: (/permission|insufficient/i.test(m) ? '서버가 확인 기록을 거부' : /unavailable|offline|network/i.test(m) ? '서버 연결 필요' : '서버 확인 실패') + ' — 결과 미확정 유지 (반영 여부 모름) · ' + m.slice(0, 60) }; }
-  if(res.v.status === 'none') return { status: 'pending', why: '계획 문서를 서버에서 찾지 못함 — 결과 미확정 유지' };
+  if(res.e){ const m = String((res.e && (res.e.code || res.e.message)) || res.e); return { status: 'pending', why: (/permission|insufficient/i.test(m) ? '서버가 차단 기록을 거부 (규칙 r14 게시 확인)' : /unavailable|offline|network/i.test(m) ? '서버 연결 필요' : '서버 확인 실패') + ' — 결과 미확정 유지 (반영 여부 모름) · ' + m.slice(0, 60) }; }
   return res.v;
 }
 async function planPendCommit(opts){
@@ -22656,9 +22656,11 @@ async function planPendCommit(opts){
   const fs = _ACTIVE_ADAPTER._fs; const col = fs.collection('production_plans');
   _PLAN_REQ = { reqId, moves, sentAt: Date.now(), promise: null, settled: null }; _planReqSave();   // 보내기 전에 기록 → 새로고침해도 결과 확인 가능
   const rq = _PLAN_REQ;
+  const reqRef = _planReqRef(fs, reqId);
   const txp = fs.runTransaction(async tx => {
+    const rs = await tx.get(reqRef);   // ★ v0.39.13 — 요청 기록 먼저 읽음 (없음 = 커밋 조건 「아직 없음」 → 차단이 먼저 만들어지면 서버가 이 커밋을 거부)
+    if(rs.exists){ if(rs.data().state === 'fenced') throw Object.assign(new Error('이 요청은 결과 확인에서 차단됨'), { planFenced: true }); throw Object.assign(new Error('이미 처리된 요청 번호'), { planDup: true }); }
     const snaps = []; for(const m of moves) snaps.push(await tx.get(col.doc(String(m.id))));   // 읽기 전부 먼저 (Firestore 트랜잭션 규칙)
-    if(snaps.some(x => x.exists && Array.isArray(x.data().move_fences) && x.data().move_fences.includes(reqId))) throw Object.assign(new Error('이 요청은 결과 확인에서 차단됨'), { planFenced: true });   // ★ v0.39.12 — 차단된 요청이 다시 시도돼도 저장 0
     const conflict = [];
     moves.forEach((m, i) => { const d = snaps[i].exists ? snaps[i].data() : null;
       if(!d || d.void) conflict.push(m.id + ' (없음·취소)');
@@ -22667,10 +22669,12 @@ async function planPendCommit(opts){
     const now = Date.now();
     const writes = moves.map((m, i) => ({ m, w: { date: m.date, equipment: m.equipment, seq: m.seq, move_req: reqId, _updated: now, _logs: (snaps[i].data()._logs || []).concat([{ ts: now, op: 'update', by, reason: '모아 옮기기 확정', req: reqId }]).slice(-50) } }));
     writes.forEach(x => tx.set(col.doc(String(x.m.id)), x.w, { merge: true }));
+    tx.set(reqRef, _planReqRec(rq, 'done'));   // ★ v0.39.13 — 완료 기록 = 계획 저장과 같은 트랜잭션 (규칙 r14: 첫 계획의 move_req = 이 요청 번호일 때만)
     return writes;
   });
   rq.promise = txp;
   const classify = e => { if(e && e.planFenced) return { status: 'notApplied', why: '결과 확인에서 차단된 요청 — 저장 0' };
+    if(e && e.planDup) return { status: 'rejected', why: '같은 요청 번호 기록이 이미 있음 — 저장 0' };
     if(e && e.planConflict) return { status: 'conflict', why: '모은 뒤 다른 사용자가 바꾼 계획 ' + e.planConflict.length + '건 (서버 기준) — 아무것도 저장 안 함 · 목록에서 빼거나 다시 모으세요', ids: e.planConflict };
     const m = String((e && (e.code || e.message)) || e);
     if(/permission|insufficient/i.test(m)) return { status: 'rejected', why: '서버가 거부 (권한·쓰기 중지 등) — 아무것도 저장 안 함 · ' + m.slice(0, 80) };
@@ -22691,7 +22695,7 @@ VIEWS._planPendModal = () => {
   if(rq){   // ★ v0.39.11 — 결과 미확정 = 잠금 화면 (수정·삭제·취소·다시 확정 0 · 결과 확인만)
     openModal(`<h2>확정 요청 결과 확인 — ${_esc(rq.reqId)} <span class="pill amber" style="font-size:10px">결과 미확정 · 목록 잠금</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
       <div style="font-size:12px;line-height:1.7">보낸 시각 ${fmtDate(rq.sentAt)} ${fmtTime(rq.sentAt)} · 계획 ${rq.moves.length}건 · 서버가 반영했는지 아직 모릅니다 — <b>「저장 안 됨」 도 「완료」 도 아닙니다</b><br>
-      [결과 확인] = 서버 문서에서 이 요청 번호를 찾음 (있으면 완료 · 원래 요청이 실패로 끝났거나, 서버에서 이 요청을 차단한 뒤에만 「반영 안 됨」 확정 → 목록 되돌림 · 확인 전엔 잠금 유지)</div>
+      [결과 확인] = 서버 문서에서 이 요청 번호를 찾음 (있으면 완료 · 서버 요청 기록이 「완료」 면 완료 · 원래 요청이 실패로 끝났거나 서버 요청 기록이 「차단」 으로 만들어진 뒤에만 「반영 안 됨」 확정 → 목록 되돌림 · 확인 전엔 잠금 유지)</div>
       <div class="tbl-wrap" style="margin-top:8px"><table style="font-size:12px"><thead><tr><th>계획</th><th>옮길 곳</th><th class="num">순번</th></tr></thead><tbody>${rq.moves.map(m => `<tr><td class="mono">${_esc(m.id)}</td><td><b>${_esc(m.date)} · ${_esc(m.equipment || '미배정')}</b></td><td class="num">${m.seq}</td></tr>`).join('')}</tbody></table></div>
       <div id="req-msg" style="margin-top:6px;font-size:12px;color:var(--amber)">${window._planReqMsg ? _esc(window._planReqMsg) : ''}</div>
       <div class="actions"><button class="btn" onclick="closeModal()">닫기</button><button class="btn primary" id="req-check">${ico('refresh')}결과 확인</button></div></div>`, { width: '720px' });
