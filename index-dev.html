@@ -1455,6 +1455,9 @@ td.ra-cell{white-space:nowrap;text-align:right}
 .th-sort[aria-sort="descending"]::after{content:' ▼';font-size:9px;color:var(--mint-ink)}
 #set-ed-box[aria-busy="true"] :is(input,select,textarea){opacity:.55;cursor:not-allowed}
 #set-ed-box[aria-busy="true"]{position:relative}
+.fl-def{font-size:10.5px;font-weight:700;color:var(--red);margin-left:2px}
+.fl-def-t{color:var(--red)}
+.fl-def-t b{color:var(--red)}
 .pg-desc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:var(--dim)!important;font-size:12px!important;line-height:1.5!important;margin:-4px 0 14px!important}
 .pg-desc.open{white-space:normal}
 .pg-desc:hover{color:var(--sub)!important}
@@ -1604,7 +1607,7 @@ td.ra-cell{white-space:nowrap;text-align:right}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.4';
+const APP_VERSION = 'v0.40.5';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -14602,9 +14605,10 @@ VIEWS._matinOs = () => {
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${PAGES.find(p=>p.id==='matin').icon}</svg>입고 <span class="pill cyan">${APP_VERSION} · 외주</span></div>
       <div class="pgtools">
         <a href="#os" class="btn ghost" style="text-decoration:none">외주 화면 열기 →</a>
+        <button class="btn primary" id="mi-os-recv"${waiting.length ? '' : ' disabled title="입고 대기 반출 없음"'}>${ico('plus')}외주 입고</button>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">외주 반출 후 아직 입고되지 않은 건 · [입고 처리]는 기존 외주 로직(VIEWS._osRecv) 그대로 호출.</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">외주 반출 후 아직 입고되지 않은 건 · [외주 입고] 또는 각 줄의 [입고 처리]로 입고합니다 (외주 화면과 같은 입고 창).</div>
 
     <div class="card">
       <h3>입고 대기 <span class="tag">${waiting.length}건 · 반출 잔량 있음</span></h3>
@@ -14647,12 +14651,24 @@ VIEWS._matinOs = () => {
           </tr>`).join('') : '<tr><td colspan="6" class="empty">입고 이력 없음</td></tr>'}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;margin-top:10px;line-height:1.7">
-        <b style="color:var(--cyan)">위임</b> 입고 처리·취소·파렛트 회수 = 외주 화면(<a href="#os" style="color:var(--cyan)">#os</a>) 로직 재사용. 이 탭은 진입점 + 이월 토글만 제공합니다.
+        <b style="color:var(--cyan)">안내</b> 입고 처리·취소·파렛트 회수는 <a href="#os" style="color:var(--cyan)">외주 화면</a>과 같은 기능입니다. 여기서는 입고와 이월 표시만 합니다.
       </div>
     </div>
   `;
   _matinBindHubTabs();
   bindClToggleButtons();
+  // ★ v0.40.5 (사용자 요청) — [외주 입고]: 입고 대기 1건이면 바로 입고 창 · 여러 건이면 반출 고르기 → 기존 입고 창(VIEWS._osRecv · 검증·저장 무변)
+  const _miOs = document.getElementById('mi-os-recv');
+  if(_miOs) _miOs.onclick = () => {
+    if(!waiting.length){ toast('입고 대기 반출이 없습니다','warn'); return; }
+    if(waiting.length === 1){ VIEWS._osRecv(waiting[0].id); return; }
+    openModal(`<h2>외주 입고 — 반출 고르기 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+      <div class="body"><div class="tbl-wrap"><table><thead><tr><th>반출전표</th><th>외주처·공정</th><th>품번·LOT</th><th class="num">잔량</th><th></th></tr></thead><tbody>${waiting.map(d => {
+        const recv = DB.query('os_receipts', r => r.dispatch_id === d.id).reduce((t, r) => t + (r.qty || 0), 0); const lot = DB.get('production_lots', d.plot_no);
+        return `<tr><td><b>${_esc(d.id)}</b><div class="muted" style="font-size:10px">${fmtDate(d.ts)}</div></td><td>${_esc((DB.get('vendors', d.vendor) || {}).name || d.vendor)} · ${_esc((DB.get('processes', d.proc) || {}).name || d.proc)}</td><td><b>${_esc(lot?.itemCode || '')}</b><div class="muted" style="font-size:10px">${_esc(d.plot_no)}</div></td><td class="num" style="color:var(--amber);font-weight:700">${Math.max(0, (d.qty || 0) - recv).toLocaleString()}</td><td><button class="btn primary" data-mi-pick="${_esc(d.id)}">입고</button></td></tr>`; }).join('')}</tbody></table></div>
+      <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div></div>`);
+    document.querySelectorAll('[data-mi-pick]').forEach(b => b.onclick = () => VIEWS._osRecv(b.dataset.miPick));
+  };
 };
 
 /* -------------------- 재고 -------------------- */
@@ -15378,8 +15394,8 @@ VIEWS._shipOtd = () => {
   const grpTable = (title, list, label) => `
     <div class="card"><h3>${title} <span class="tag">준수율 낮은 순</span></h3>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>${label}</th><th class="num">평가 수주</th><th class="num">준수</th><th class="num">건수 기준</th><th class="num">수량 기준</th></tr></thead>
-        <tbody>${list.length ? list.map(g => `<tr><td>${_esc(g.key)}</td><td class="num">${g.lines}</td><td class="num">${g.okLines}</td><td class="num"><b style="color:${rateColor(g.rateLines)}">${pct(g.rateLines)}</b></td><td class="num">${g.mixedUnit ? '<span style="color:var(--dim)" title="단위 혼합 — 합산 안 함">단위 혼합</span>' : pct(g.rateQty)}</td></tr>`).join('') : `<tr><td colspan="5" class="empty">평가 대상 없음</td></tr>`}</tbody>
+        <thead><tr><th>${label}</th><th class="num">평가 수주</th><th class="num">준수</th><th class="num">미준수</th><th class="num">건수 기준</th><th class="num">수량 기준</th></tr></thead>
+        <tbody>${list.length ? list.map(g => `<tr><td>${_esc(g.key)}</td><td class="num">${g.lines}</td><td class="num">${g.okLines}</td><td class="num">${(g.lines - g.okLines) > 0 ? `<b style="color:var(--red)">${(g.lines - g.okLines).toLocaleString()}</b>` : '0'}</td><td class="num"><b style="color:${rateColor(g.rateLines)}">${pct(g.rateLines)}</b></td><td class="num">${g.mixedUnit ? '<span style="color:var(--dim)" title="단위 혼합 — 합산 안 함">단위 혼합</span>' : pct(g.rateQty)}</td></tr>`).join('') : `<tr><td colspan="6" class="empty">평가 대상 없음</td></tr>`}</tbody>
       </table></div></div>`;
   const late = r.rows.filter(x => !x.ok).sort((a,b) => b.delayDays - a.delayDays);
   document.getElementById('view').innerHTML = `
@@ -15631,6 +15647,12 @@ VIEWS.ship = () => {
       const selLot  = selPlot ? DB.get('production_lots', selPlot) : null;
       const useLot  = !!(selLot && selLot.itemCode === itemCode);
       const parts = [];
+      // ★ v0.40.5 (사용자 요청) — 공정별 불량 + 전체 불량 누계 (실적의 불량+폐기 · 읽기만 · 품번 = 그 품번 LOT 전부 / LOT 선택 = 그 LOT)
+      const _lotIds = new Set(useLot ? [selPlot] : DB.all('production_lots').filter(l => l.itemCode === itemCode).map(l => l.plot_no));
+      const _recs = DB.query('records', x => _lotIds.has(x.plot_no));
+      const _defOf = pc => _recs.filter(x => x.proc === pc).reduce((t, x) => t + (+x.defect || 0) + (+x.scrap || 0), 0);
+      const _defTag = d => d > 0 ? ` <span class="fl-def" title="이 공정 불량+폐기">불량 ${d.toLocaleString()}</span>` : '';
+      let _defSum = 0;
       if(useLot){
         parts.push(`<span class="fl-step" style="color:var(--cyan)"><b style="color:var(--cyan);margin:0">${_esc(selPlot)}</b> 기준</span>`);
       }
@@ -15639,13 +15661,14 @@ VIEWS.ship = () => {
         const isLast = idx === routeProcs.length - 1;
         const v = useLot ? LOT.acceptedGood(selPlot, r.proc) : (flow.goodByProc[r.proc] || 0);   // ★ v0.36.0 — 출하 창 표시 = 인정양품(가용과 정합)
         // 마지막 가공공정은 '완성품(재고)' 라벨로 흡수 — 값은 기존 flow.finished 그대로
+        const _d = _defOf(r.proc); _defSum += _d;
         if(isLast){
-          parts.push(`<span class="fl-fin">완성품(재고) <b>${flow.finished.toLocaleString()}</b></span>`);
+          parts.push(`<span class="fl-fin">완성품(재고) <b>${flow.finished.toLocaleString()}</b>${_defTag(_d)}</span>`);
         } else {
-          parts.push(`<span class="fl-step">${_esc(p?.name || r.proc)} <b>${v.toLocaleString()}</b></span>`);
+          parts.push(`<span class="fl-step">${_esc(p?.name || r.proc)} <b>${v.toLocaleString()}</b>${_defTag(_d)}</span>`);
         }
       });
-      parts.push(`<span class="fl-ship">출하누계 <b>${flow.shippedSum.toLocaleString()}</b></span>`);
+      parts.push(`<span class="fl-ship">출하누계 <b>${flow.shippedSum.toLocaleString()}</b> · <span class="fl-def-t" title="전 공정 불량+폐기 합 (${useLot ? '이 LOT' : '이 품번 LOT 전부'})">불량 누계 <b>${_defSum.toLocaleString()}</b></span></span>`);
       stripEl.innerHTML = parts.join('<span class="fl-arr">→</span>');
     };
     const drawWarn = () => {
