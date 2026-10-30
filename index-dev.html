@@ -1604,7 +1604,7 @@ td.ra-cell{white-space:nowrap;text-align:right}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.3';
+const APP_VERSION = 'v0.40.4';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -8329,7 +8329,7 @@ function renderNav(){
   NAV_DEPTS.forEach(g => {
     const ps = g.ids.map(id => ordered.find(p => p.id === id)).filter(Boolean); if(!ps.length) return;   // 묶음 안 순서 = 업무 순서 (작업지시 → 생산계획 → 실적)
     ps.forEach(p => used.add(p.id));
-    const open = openSet.has(g.key) || ps.some(p => p.id === cur);
+    const open = openSet.has(g.key) || (ps.some(p => p.id === cur) && !prim.some(p => p.id === cur));   // ★ v0.40.4 — 「내 업무」 에 있는 메뉴로 들어오면 부서 묶음은 저절로 펼치지 않음
     depts += `<div class="nav-dept${open ? ' open' : ''}" data-dept="${g.key}"><button type="button" class="nav-dept-h" data-dept-h="${g.key}" aria-expanded="${open}">${navIco(g.key)}${_esc(g.label)}<span class="nav-dept-n">${ps.length}</span></button><div class="nav-dept-b">${ps.map(p => `<button data-page="${p.id}">${_esc(navTitle(p))}</button>`).join('')}</div></div>`;
   });
   const rest = ordered.filter(p => !used.has(p.id));
@@ -8343,7 +8343,8 @@ function renderNav(){
   renderUserPill();
 }
 function setActive(id){
-  document.querySelectorAll('#nav button[data-page]').forEach(b=>b.classList.toggle('on', b.dataset.page===id));
+  const inPrim = !!document.querySelector('#nav > button[data-page="' + String(id).replace(/"/g, '') + '"]');   // ★ v0.40.4 — 「내 업무」 메뉴면 거기만 강조 · 아래 부서 묶음은 펼치지 않음(사용자 요청)
+  document.querySelectorAll('#nav button[data-page]').forEach(b=>b.classList.toggle('on', b.dataset.page===id && !(inPrim && b.closest('.nav-dept'))));
   document.querySelectorAll('#nav .nav-dept').forEach(d => { const cur = !!d.querySelector('button.on'); d.classList.toggle('cur', cur); if(cur){ d.classList.add('open'); const h = d.querySelector('[data-dept-h]'); if(h) h.setAttribute('aria-expanded', 'true'); } });
   // ★ v0.40.0 — 위쪽 현재 위치 (부서 › 화면) · 표시만
   try { const cr = document.getElementById('crumb'); if(cr){ const pg = PAGES.find(x => x.id === id); const dp = navDeptOf(id); cr.innerHTML = pg ? `${dp ? `<span>${_esc(dp.label)}</span><span class="sep">›</span>` : ''}<b>${_esc(navTitle(pg))}</b>` : ''; } } catch(e){}   // ★ v0.39.0 — 현재 화면의 묶음 펼침
@@ -8417,7 +8418,12 @@ function router(){
 /* ★ v0.40.3 (자유도 · 표시만) — 목록 표 머리글을 눌러 정렬 (오름 → 내림 → 원래 순서) · 화면에서 행 순서만 바꿈(계산·저장 0)
    · 숫자 칸 = 숫자로(쉼표·₩·단위 무시) · 날짜·글자 = 글자 순 · 수주처럼 펼침 줄이 붙은 행은 함께 이동 · 묶음 줄(날짜 묶음 등)·입력 행이 있는 표는 제외
    · 고른 정렬은 이 기기에만 기억(localStorage vela_tbl_sort) — 다시 그려도 유지 · 대시보드·현장 화면 제외 */
-function _tblSortKey(t){ const s = String(t || '').replace(/\s+/g, ' ').trim(); const n = s.replace(/[₩,\s]/g, '').match(/^-?\d+(\.\d+)?/); return n && /^[-₩\d,.\s]/.test(s) ? { n: +n[0], s } : { n: null, s }; }
+function _tblSortKey(t){   // ★ v0.40.4 (GPT v0.40.3 재현) — 날짜를 숫자보다 먼저 구분해 날짜 전체(연·월·일·시·분·초)로 비교 · 빈 칸(—)은 방향과 상관없이 맨 뒤
+  const s = String(t || '').replace(/\s+/g, ' ').trim();
+  if(!s || /^[—―–\-·.]+$/.test(s)) return { e: true, s: '' };
+  const dm = s.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if(dm) return { d: ((((+dm[1] * 100 + +dm[2]) * 100 + +dm[3]) * 100 + (+dm[4] || 0)) * 100 + (+dm[5] || 0)) * 100 + (+dm[6] || 0), s };
+  const n = s.replace(/[₩,\s]/g, '').match(/^-?\d+(\.\d+)?/); return n && /^[-₩\d,.\s]/.test(s) ? { n: +n[0], s } : { n: null, s }; }
 function _tblSortEnhance(){
   const v = document.getElementById('view'); if(!v || typeof SESSION === 'undefined' || !SESSION.loggedIn || isMobileHash() || _secPage() === 'dash') return;
   const pg = _secPage(); let store = {}; try { store = JSON.parse(localStorage.getItem('vela_tbl_sort') || '{}') || {}; } catch(e){ store = {}; }
@@ -8435,7 +8441,10 @@ function _tblSortEnhance(){
       let list;
       if(!dir){ list = []; orig.forEach(r => { if(!r.classList.contains('mdet')) list.push([r]); else if(list.length) list[list.length - 1].push(r); }); }
       else { list = units().map((u, i) => ({ u, i, k: _tblSortKey(u[0].cells[ci] ? u[0].cells[ci].textContent : '') }));
-        list.sort((a, b) => { const x = a.k, y = b.k; let c = (x.n != null && y.n != null) ? x.n - y.n : x.s.localeCompare(y.s, 'ko', { numeric: true }); return c ? c * dir : a.i - b.i; });
+        list.sort((a, b) => { const x = a.k, y = b.k;
+          if(x.e || y.e) return x.e && y.e ? a.i - b.i : (x.e ? 1 : -1);   // 빈 칸 = 항상 맨 뒤
+          let c = (x.d != null && y.d != null) ? x.d - y.d : (x.n != null && y.n != null) ? x.n - y.n : x.s.localeCompare(y.s, 'ko', { numeric: true });
+          return c ? c * dir : a.i - b.i; });
         list = list.map(x => x.u); }
       list.forEach(u => u.forEach(r => body.appendChild(r)));
     };
@@ -8754,7 +8763,7 @@ const RD_DOC = {
                   ...DB.all('material_receipts').filter(r => r.po_id === p.id).map(r => [r.id, r.date || fmtDate(r.ts), `${r.mat || ''} Ø${r.dia || ''} ${r.heat || ''}`, `${_rdN(r.kg)} kg`])];
     return { head: p.id, sub: `${_rdNm.v(p.vendor)} · 납기 ${p.due || '—'} · ${st.state}`, tabs: [
       ['기본 정보', _rdKV([['발주번호', p.id], ['거래처', _rdNm.v(p.vendor)], ['발주일', p.ts ? fmtDate(p.ts) : '—'], ['납기', p.due || '—'], ['진행 상태', st.state], ['품목 수', `${items.length}건`], P ? ['발주액', amt ? `₩${Math.round(amt).toLocaleString()}` : '—'] : null, ['메모', p.memo || ''], ['등록', p.by || ''], ..._rdVoid(p)])],
-      [`품목 ${items.length}`, _rdTbl(['품명', '규격', '단위', '발주', '입고', '잔량', ...(P ? ['단가', '금액'] : [])], items.map((it, k) => { const r = st.items[k] || {}; return [it.name || '—', it.spec || '', it.unit || '', _rdN(it.qty), _rdN(r.received), _rdN(r.remain), ...(P ? [it.price != null ? _rdN(it.price) : '—', it.price != null ? _rdN((+it.qty || 0) * (+it.price || 0)) : '—'] : [])]; }), '품목 없음')],
+      [`품목 ${items.length}`, _rdTbl(['품명', '규격', '품번', '재질', '단위', '발주', '입고', '잔량', ...(P ? ['단가', '금액'] : [])], items.map((it, k) => { const r = st.items[k] || {}; const pp = poItemParts(it); return [pp.name || it.name || '—', it.spec || '', pp.code || '—', pp.mat || '—', it.unit || '', _rdN(it.qty), _rdN(r.received), _rdN(r.remain), ...(P ? [it.price != null ? _rdN(it.price) : '—', it.price != null ? _rdN((+it.qty || 0) * (+it.price || 0)) : '—'] : [])]; }), '품목 없음')],
       [`입고 ${recs.length}`, _rdTbl(['입고번호', '입고일', '품목', '수량'], recs, '연결된 입고 없음 — 입고는 자재 › 입고 에서 등록')],
       ['이력', _rdLogs(p)] ] }; },
   work_orders(w){ const procs = typeof getRouteProcs === 'function' ? getRouteProcs(w.itemCode) : []; const recs = DB.all('records').filter(r => r.plot_no === w.plot_no);
@@ -12724,6 +12733,23 @@ VIEWS._lotHistory = (plot_no) => {
 // ★ v0.20.0 — nextPoId 는 nextDocNo('PO') 로 통합 (구 호환 wrapper · 유틸 1벌)
 function nextPoId(){ return nextDocNo('PO'); }
 
+/* ★ v0.40.4 (사용자 요청) — 발주 품목 → 품명 · 품번 · 재질 (표시용 파생 · 저장 0 · 발주 문서 구조 무변)
+   · 재질 = 품목의 재질(mat) → 소재 마스터(이름·규격 일치) → 품명·규격 안의 강종 표기(S45C·SCM440 등)
+   · 품번 = 이 소재로 만들 수주 품번(so_ids → 수주 품번) → 소재 마스터 코드 → 없으면 —
+   · 품명 = 품목 이름에서 재질 표기를 뺀 이름(빈 값이면 원래 이름) */
+const PO_GRADE_RE = /\b(SCM\s?\d{3}H?|SNCM\s?\d{3}|SCr\s?\d{3}|SUJ\s?\d|SUS\s?\d{3}[A-Z]?|SKD\s?\d{1,2}|SKH\s?\d{1,2}|SM\s?\d{2}C|S\d{2}C|SS\s?\d{3}|SPCC|SPHC|SWRCH\s?\d+[A-Z]?|SACM\s?\d{3}|A\d{4})\b/i;
+function poItemParts(it){
+  it = it || {}; const name = String(it.name || ''), spec = String(it.spec || '');
+  const mats = (typeof DB !== 'undefined' ? DB.all('materials') : []);
+  const mm = mats.find(m => m.name && m.name === name && (!m.spec || m.spec === spec)) || mats.find(m => m.kind === 'mat' && m.mat && name.includes(m.mat) && (!m.dia || spec.includes(String(m.dia))));
+  const g = (name + ' ' + spec).match(PO_GRADE_RE);
+  const mat = String(it.mat || (mm && mm.mat) || (g ? g[1].replace(/\s+/g, '').toUpperCase() : '')).trim();
+  let nm = mat ? name.replace(new RegExp('\\s*' + mat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*', 'i'), ' ').trim() : name.trim();
+  if(!nm) nm = name.trim();
+  const so = Array.isArray(it.so_ids) ? [...new Set(it.so_ids.map(id => (DB.get('orders', id) || {}).itemCode).filter(Boolean))] : [];
+  const code = so.length ? so.join(', ') : (it.code || it.itemCode || (mm && mm.id) || '');
+  return { name: nm, spec, mat, code };
+}
 VIEWS.po = () => {
   const state = (window._poState = window._poState || { voidView:false, q:'' });
   const pos = (state.voidView ? DB.allRaw('purchase_orders') : DB.all('purchase_orders'))
@@ -12748,6 +12774,11 @@ VIEWS.po = () => {
     const v  = DB.get('vendors', p.vendor);
     const items = p.items||[];
     const first = items[0];
+    const fp = first ? poItemParts(first) : null;   // ★ v0.40.4 — 품명 · 품번 · 재질 칸
+    const more = items.length > 1 ? ` <span style="color:var(--dim);font-size:11px">외 ${items.length-1}건</span>` : '';
+    const nameCell = !fp ? '<span class="muted">품목 없음</span>' : `${_esc(fp.name || '—')}${more}${items.some(i=>i.kind==='gen')?` <span class="pill blue" style="font-size:9px">일반 ${items.filter(i=>i.kind==='gen').length}</span>`:''}${fp.spec ? `<div style="font-size:10.5px;color:var(--dim)">${_esc(fp.spec)}</div>` : ''}`;
+    const codeCell = fp && fp.code ? `<span class="mono" style="font-size:11.5px">${_esc(fp.code)}</span>` : '<span class="muted">—</span>';
+    const matCell = fp && fp.mat ? _esc(fp.mat) : '<span class="muted">—</span>';
     const summary = items.length===0
       ? '<span class="muted">품목 없음</span>'
       : `${_esc(first.name||'—')}${first.spec?' '+_esc(first.spec):''}${items.length>1?` <span style="color:var(--dim);font-size:11px">외 ${items.length-1}건</span>`:''}${items.some(i=>i.kind==='gen')?` <span class="pill blue" style="font-size:9px">일반 ${items.filter(i=>i.kind==='gen').length}</span>`:''}`;
@@ -12767,14 +12798,16 @@ VIEWS.po = () => {
     return `<tr style="${rowStyle}">
       <td><b>${_esc(p.id)}</b>${voidBadge}<div style="font-size:10px;color:var(--dim)">${fmtDate(p.ts)}</div></td>
       <td>${_esc(v?.name||p.vendor||'—')}</td>
-      <td>${summary}</td>
+      <td>${nameCell}</td>
+      <td>${codeCell}</td>
+      <td>${matCell}</td>
       <td class="num">${amtDisp}</td>
       <td class="muted">${_esc(p.due||'—')}</td>
       <td class="num">${rxDisp}</td>
       <td><span class="pill ${badgeCls}">${_esc(st.state)}</span></td>
       <td>${actBtns}</td>
     </tr>`;
-  }).join('') : `<tr><td colspan="8" class="empty">${q?'검색 결과 없음':'등록된 발주 없음 — [+새 발주]로 등록하세요'}</td></tr>`;
+  }).join('') : `<tr><td colspan="10" class="empty">${q?'검색 결과 없음':'등록된 발주 없음 — [+새 발주]로 등록하세요'}</td></tr>`;
 
   document.getElementById('view').innerHTML = `
     <div class="pghead">
@@ -12802,7 +12835,7 @@ VIEWS.po = () => {
       <h3>발주 현황 <span class="tag">잔량 = 발주 − 입고 · 상태는 입고에 따라 자동 · 입고가 연결된 발주는 취소할 수 없음</span></h3>
       <div class="tbl-wrap"><table>
         <thead><tr>
-          <th>발주번호·일자</th><th>거래처</th><th>품목</th>
+          <th>발주번호·일자</th><th>거래처</th><th>품명</th><th>품번</th><th>재질</th>
           <th class="num">발주액(₩)</th><th>납기</th><th class="num">입고/발주</th><th>상태</th><th></th>
         </tr></thead>
         <tbody>${rowsHTML}</tbody>
