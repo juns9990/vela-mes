@@ -1195,6 +1195,8 @@ html[data-theme="light"] .btn.primary{background:#0b0f14;border-color:#0b0f14}
 .msrch input{flex:1;background:none;border:none;outline:none;color:var(--ink);font-size:13px;padding:0}
 .msrch .msrch-go{padding:4px 10px;font-size:11.5px;flex:none}
 .msrch select{border:1px solid var(--line2);border-radius:7px;padding:4px 8px;font-size:11.5px;background:var(--panel2);color:var(--sub)}
+.msrch input{flex:1 1 220px;min-width:120px;width:auto}
+.msrch select{flex:none;width:auto;min-width:130px}
 .mrow{cursor:pointer}
 .mrow:hover td{background:color-mix(in srgb,var(--ink) 3%,transparent)}
 .mdet td{background:var(--panel2);border-left:3px solid var(--cyan-dim);white-space:normal}
@@ -1424,6 +1426,14 @@ td.ra-cell{white-space:nowrap;text-align:right}
 .rd-grid > div{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px}
 .rd-grid > .k{background:var(--panel2);color:var(--sub);font-weight:600}
 .rd-grid > div:nth-last-child(-n+2){border-bottom:0}
+.rd-tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:4px 0 12px}
+.rd-tabs button{border:0;background:none;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.rd-tabs button[aria-selected="true"]{color:var(--mint-ink);border-bottom-color:var(--mint);font-weight:800}
+.card.set-ed > .set-ed-b{display:none!important}
+.set-ed-sum .rd-grid{margin:2px 0 0}
+.rd-empty{padding:18px;text-align:center;color:var(--dim);font-size:13px;border:1px dashed var(--line);border-radius:10px}
+.rd-tbl{max-height:46vh}
+.rd-tbl td,.rd-tbl th{font-size:12.5px}
 .rd-head{font-size:20px;font-weight:800;margin:2px 0 4px}
 .rd-sub{color:var(--sub);font-size:13px;margin-bottom:14px}
 .rd-acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -1567,7 +1577,7 @@ td.ra-cell{white-space:nowrap;text-align:right}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.0';
+const APP_VERSION = 'v0.40.1';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -8134,7 +8144,7 @@ const NAV_PRIMARY_DEFAULT = ['dash','so','plan','scan','perf','lot','qc','ship']
 //   ★ v0.40.0 (GPT UI SPEC 1.1 §6) — 구매 / 자재 분리 (표시 묶음만 · 데이터·권한 나눔 0) · 부서 아이콘 · 메뉴 찾기(NAV_GROUPS)도 이 정의에서 생성
 const NAV_DEPTS = [
   { key:'sales',   label:'영업',      ids:['so','quote'] },
-  { key:'prod',    label:'생산',      ids:['wo','plan','perf','scan','autoplan','lot','eqstatus'] },
+  { key:'prod',    label:'생산',      ids:['wo','plan','autoplan','perf','scan','lot','eqstatus'] },
   { key:'buy',     label:'구매',      ids:['po','os'] },
   { key:'mat',     label:'자재',      ids:['matin','inv'] },
   { key:'qual',    label:'품질',      ids:['qc','mold','draw'] },
@@ -8319,6 +8329,8 @@ function setActive(id){
 }
 function router(){
   if(!SESSION.loggedIn) return;
+  // ★ v0.40.1 — 화면을 다시 그릴 때 상세·설정 편집 창에 옮겨 둔 버튼·입력이 있으면 창을 먼저 닫음 (다른 화면 위에 남지 않게)
+  try { if(_raMoved && document.getElementById('modal-bg').classList.contains('show')) closeModal(); } catch(e){}
   // ★ v0.37.0 — Mobile Shop Floor: #m/ 접두 = 별도 UI 아키텍처 (같은 원장·같은 규칙 · PC 화면 무변)
   if(isMobileHash()){ mobileRouter(); return; }
   if(isPhoneHash()){ if(isWorkerRole()){ location.hash = '#m/home'; return; } phoneRouter(); return; }   // ★ v0.39.3 — 사무직·관리책임자 폰 화면
@@ -8365,6 +8377,7 @@ function router(){
   try { _secToggleEnhance(); } catch(e){ console.warn('[VELA] 단락 토글', e); }
   // ★ v0.40.0 — 여러 동작 버튼 행 → [상세 보기] 중앙 창 (전 메뉴 공통 · 원래 버튼 그대로)
   try { _rowDetailEnhance(); } catch(e){ console.warn('[VELA] 행 상세', e); }
+  try { _setEditEnhance(); } catch(e){ console.warn('[VELA] 설정 편집 창', e); }
 }
 /* ★ v0.38.17 — 화면 단락(하위 섹션) 켜기/끄기 1벌 (사용자 요청 2026-10-09 · 「개인화 v0.1」 원칙: 표시만 · 계산·원장·권한·write path 무변)
    · 단락 = #view 안 .card 중 머리글 h3 가 있는 것 — 마크업 무수정 · 렌더 후 부착 → 전 메뉴 자동 (대시보드 = 카드 Picker 별도 · 현장 모드 제외)
@@ -8417,9 +8430,9 @@ function _secToggleEnhance(){
     if(ex) ex.remove();   // 직렬화로 복제된(핸들러 없는) 스위치
     if(s.locked) return;
     const b = document.createElement('button'); b._secBound = true;
-    b.type = 'button'; b.className = 'sec-x'; b.title = '이 단락 끄기 — 다시 켜려면 화면 위 [단락] 버튼'; b.setAttribute('role','switch'); b.setAttribute('aria-checked','true');
+    b.type = 'button'; b.className = 'sec-x'; b.title = '이 영역 숨기기 — 다시 보이려면 화면 위 [보기 설정]'; b.setAttribute('role','switch'); b.setAttribute('aria-checked','true');
     b.innerHTML = '<i></i>';
-    b.onclick = e => { e.stopPropagation(); if(!secCanTurnOff(s.key)){ toast('화면의 마지막 단락은 끌 수 없습니다','warn'); return; } secSetOff(s.key, true); _secToggleEnhance(); toast(`「${s.title}」 단락 끔 — [단락] 에서 다시 켤 수 있습니다`, 'ok'); };
+    b.onclick = e => { e.stopPropagation(); if(!secCanTurnOff(s.key)){ toast('화면의 마지막 영역은 숨길 수 없습니다','warn'); return; } secSetOff(s.key, true); _secToggleEnhance(); toast(`「${s.title}」 숨김 — [보기 설정] 에서 다시 보이기`, 'ok'); };
     const firstEl = [...s.h.children].find(c => !c.classList.contains('sec-x'));
     firstEl ? s.h.insertBefore(b, firstEl) : s.h.appendChild(b);
   });
@@ -8436,8 +8449,8 @@ function _secToggleEnhance(){
     else if(ph) ph.appendChild(btn);   // ★ v0.40.0 — 도구 묶음이 없는 화면 = 머리 끝에 (제목 앞에 끼워 제목이 밀리던 문제)
     else { const bar = document.createElement('div'); bar.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:10px'; bar.appendChild(btn); document.getElementById('view').prepend(bar); }
   }
-  btn.textContent = `단락 ${list.length - nOff}/${list.length}`;
-  btn.title = nOff ? `꺼진 단락 ${nOff}개 — 눌러서 켜기` : '이 화면 단락 켜기/끄기';
+  btn.textContent = nOff ? `보기 설정 · 숨김 ${nOff}` : '보기 설정';   // ★ v0.40.1 — 「단락 N/N」 표현 정리 (GPT v0.40.0 판정 ⑤)
+  btn.title = nOff ? `숨긴 영역 ${nOff}개 — 눌러서 다시 보이기` : '이 화면에서 보일 영역 고르기';
   btn.classList.toggle('primary', false);
   btn.style.borderColor = nOff ? 'var(--amber)' : '';
   btn.style.color = nOff ? 'var(--amber)' : '';
@@ -8450,9 +8463,9 @@ function openSecPicker(){
       : `<button type="button" class="sec-x ${off[s.key] ? 'off' : ''}" style="margin:0" role="switch" aria-checked="${off[s.key] ? 'false' : 'true'}" data-sec-key="${_esc(s.key)}" title="${off[s.key] ? '켜기' : '끄기'}"><i></i></button>`}</div>`).join('');
   };
   openModal(`
-    <h2>이 화면 단락 켜기/끄기 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <h2>이 화면 보기 설정 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
-      <div style="font-size:11.5px;color:var(--sub)">끈 단락은 <b>내 화면에서만</b> 안 보입니다 — 데이터·계산·다른 사람 화면은 그대로 · 이상·HOLD 같은 안전 신호 단락은 끌 수 없습니다</div>
+      <div style="font-size:11.5px;color:var(--sub)">숨긴 영역은 <b>내 화면에서만</b> 안 보입니다 — 데이터·계산·다른 사람 화면은 그대로 · 이상·HOLD 같은 안전 신호는 숨길 수 없습니다</div>
       <div id="sec-pick-list">${draw()}</div>
       <div class="actions">
         <button class="btn" id="sec-all-on">모두 켜기</button>
@@ -8461,7 +8474,7 @@ function openSecPicker(){
     </div>`);
   const bind = () => document.querySelectorAll('#sec-pick-list [data-sec-key]').forEach(b => b.onclick = () => {
     const k = b.dataset.secKey; const turnOff = !secOffMap()[k];
-    if(turnOff && !secCanTurnOff(k)){ toast('화면의 마지막 단락은 끌 수 없습니다','warn'); return; }
+    if(turnOff && !secCanTurnOff(k)){ toast('화면의 마지막 영역은 숨길 수 없습니다','warn'); return; }
     secSetOff(k, turnOff); _secToggleEnhance();
     document.getElementById('sec-pick-list').innerHTML = draw(); bind();
   });
@@ -8509,6 +8522,42 @@ function _viewTabsEnhance(){
    · 동작을 누르면 그 동작이 새 창을 열거나 화면을 다시 그림 → 행 상세 창은 자동으로 닫힘 (창을 겹겹이 쌓지 않음)
    · 입력칸이 있는 행(현장 수량 입력 등)·버튼 1개 행·대시보드·현장/폰 화면 제외 · 표시 문자열은 textContent → _esc */
 var _raMoved = null;
+/* ★ v0.40.1 (GPT v0.40.0 판정 ①) — 설정의 직접 입력 단락 → [현재 값] 요약 + [수정] = 편집 창
+   · 입력칸·저장 버튼은 그대로(같은 id · 같은 저장 함수 · 같은 권한·확인) — 창을 열 때 단락 본문을 창으로 옮기고, 닫으면 제자리로(_raMoved 1벌)
+   · 저장·적용 버튼을 누르면 그 함수가 실행된 뒤 창이 닫히고 화면이 다시 그려짐 · 입력칸이 없는 단락(데모·이관·사용자 목록)은 그대로 */
+function _setEditVal(el){
+  if(el.tagName === 'SELECT'){ const o = el.options[el.selectedIndex]; return o ? (o.textContent || '').trim() : ''; }
+  return String(el.value || '').trim();
+}
+function _setEditEnhance(){
+  const v = document.getElementById('view'); if(!v || _secPage() !== 'set' || isMobileHash()) return;
+  [...v.querySelectorAll(':scope > .card')].forEach(card => {
+    if(card.classList.contains('set-ed')) return;
+    const h = card.firstElementChild; if(!h || h.tagName !== 'H3') return;
+    const body = [...card.children].slice(1);
+    const fields = body.flatMap(n => [...n.querySelectorAll ? n.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]),select,textarea') : []]);
+    if(!fields.length) return;
+    card.classList.add('set-ed'); body.forEach(n => n.classList.add('set-ed-b'));
+    const pairs = fields.slice(0, 14).map(el => { const box = el.closest('div'); const lb = box && box.querySelector('label'); const k = ((lb && lb.textContent) || el.getAttribute('placeholder') || el.id || '').trim().replace(/\s+/g, ' ').slice(0, 30); return [k, _setEditVal(el)]; }).filter(x => x[0]);
+    const title = ((h.childNodes[0] && h.childNodes[0].textContent) || h.textContent || '').trim().slice(0, 30);
+    const sum = document.createElement('div'); sum.className = 'set-ed-sum';
+    sum.innerHTML = `<div class="rd-grid">${pairs.map(x => `<div class="k">${_esc(x[0])}</div><div>${_esc(x[1] || '—')}</div>`).join('')}</div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px"><button type="button" class="btn" data-set-edit>수정</button></div>`;
+    card.insertBefore(sum, body[0] || null);
+    sum.querySelector('[data-set-edit]').onclick = () => _setEditOpen(card, title);
+  });
+}
+function _setEditOpen(card, title){
+  const body = [...card.querySelectorAll(':scope > .set-ed-b')];
+  openModal(`<h2>${_esc(title)} 수정 <button class="x" onclick="closeModal()" aria-label="닫기">${ico('x')}</button></h2>
+    <div class="body"><div id="set-ed-box"></div><div class="rd-note">저장하면 이 창이 닫히고 설정 화면으로 돌아갑니다.</div>
+      <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div></div>`, { width: '860px' });
+  const box = document.getElementById('set-ed-box'); if(!box) return;
+  _raMoved = body.map(b => ({ b, parent: b.parentNode, next: b.nextSibling }));
+  body.forEach(b => box.appendChild(b));
+  box.addEventListener('click', e => { const t = e.target && e.target.closest ? e.target.closest('button') : null;
+    if(t && /저장|적용/.test(t.textContent || '')) setTimeout(() => { if(document.getElementById('set-ed-box') && document.getElementById('modal-bg').classList.contains('show')){ closeModal(); try { router(); } catch(err){} } }, 0); });
+}
 function _raRestore(){
   const m = _raMoved; _raMoved = null; if(!m) return;
   m.forEach(({ b, parent, next }) => { try { if(parent && parent.isConnected){ if(next && next.parentNode === parent) parent.insertBefore(b, next); else parent.insertBefore(b, parent.querySelector(':scope > .ra-open')); } } catch(e){} });
@@ -8521,8 +8570,9 @@ function _rowDetailEnhance(){
     const heads = hr ? [...hr.cells].map(th => (th.textContent || '').trim()) : [];
     [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(tr => {
       const td = tr.lastElementChild; if(!td || td.tagName !== 'TD' || td.classList.contains('ra-cell')) return;
-      const bs = [...td.querySelectorAll('button')].filter(b => !b.classList.contains('ra-open'));
-      if(bs.length < 2 || td.querySelector('input,select,textarea') || td.colSpan > 1 || tr.cells.length < 3) return;   // 펼침 행(여러 칸 합친 상세 줄)·입력 행 제외
+      const _nx = tr.nextElementSibling && tr.nextElementSibling.classList.contains('mdet') ? tr.nextElementSibling : null;
+      const bs = [...td.querySelectorAll('button'), ...(_nx ? _nx.querySelectorAll('button') : [])].filter(b => !b.classList.contains('ra-open'));
+      if((bs.length < 1 && !tr.hasAttribute('data-ra')) || td.querySelector('input,select,textarea') || td.colSpan > 1 || tr.cells.length < 3) return;   // 펼침 행(여러 칸 합친 상세 줄)·입력 행 제외
       td.classList.add('ra-cell');
       const ob = document.createElement('button'); ob.type = 'button'; ob.className = 'ra-open'; ob.textContent = '상세 보기 →'; ob.title = '상세 보기 — 수정·출력·취소 등은 상세 창에서';
       ob.onclick = e => { e.stopPropagation(); openRowDetail(tr, heads); };
@@ -8530,19 +8580,153 @@ function _rowDetailEnhance(){
     }));
   });
 }
+/* ★ v0.40.1 (GPT v0.40.0 판정 ②) — 업무별 실제 상세: 행 요약 복사가 아니라 그 문서의 원본 항목 · 품목별 · 연결 자료 · 이력을 창 안 탭으로
+   · 대상 = 행 동작 버튼의 문서 번호(data-doc-edit 「컬렉션|번호」 · 화면별 버튼 표식) → 없으면 기존 행 요약(폴백)
+   · 읽기만 (DB.get/all · 계산 함수는 기존 것: calcPoStatus · LOT.balance · lotTimeline) · 저장 0
+   · 금액(단가·금액·합계)은 canSeePrice() 일 때만 · 표시 문자열은 _esc · 알 수 없는 내부 필드는 보이지 않음 */
+const RD_ATTR = [
+  ['data-po-void', 'purchase_orders'], ['data-so-row', 'orders'], ['data-wo-void', 'work_orders'], ['data-issue', 'production_plans'], ['data-plan-cancel', 'production_plans'],
+  ['data-lot-void', 'production_lots'], ['data-lot-row', 'production_lots'], ['data-mr-void', 'material_receipts'], ['data-od-void', 'os_dispatches'],
+  ['data-sh-void', 'shipments'], ['data-cl-void', 'closings'], ['data-dw-hist', 'drawings'], ['data-vedit', 'vendors'], ['data-iedit', 'items'],
+  ['data-eedit', 'equipments'], ['data-dedit', 'defect_types'], ['data-mfedit', 'master_fields'], ['data-edit-mold', 'molds']
+];
+function _rdTarget(tr){
+  const td = tr.lastElementChild; const pg = _secPage();
+  for(const b of (td ? td.querySelectorAll('button') : [])){
+    const de = b.getAttribute('data-doc-edit'); if(de && de.includes('|')){ const [c, i] = de.split('|'); if(DB.get(c, i)) return { col: c, id: i }; }
+  }
+  const scope = [tr, ...(td ? td.querySelectorAll('button') : [])];
+  for(const [a, c] of RD_ATTR){ for(const el of scope){ const v = el.getAttribute && el.getAttribute(a); if(v && DB.get(c, v)) return { col: c, id: v }; } }
+  for(const b of (td ? td.querySelectorAll('button[onclick]') : [])){ const m = /_printQuote\('([^']+)'/.exec(b.getAttribute('onclick') || ''); if(m && DB.get('quotes', m[1])) return { col: 'quotes', id: m[1] }; }   // 견적 = 견적서 버튼의 번호
+  if(pg === 'perf'){ const b = td && td.querySelector('[data-edit],[data-void]'); const v = b && (b.getAttribute('data-edit') || b.getAttribute('data-void')); if(v && DB.get('records', v)) return { col: 'records', id: v }; }
+  return null;
+}
+const _rdNm = { v: c => (DB.get('vendors', c) || {}).name || c || '—', i: c => { const it = DB.get('items', c); return it ? `${c} ${it.name || ''}`.trim() : (c || '—'); }, p: c => (DB.get('processes', c) || {}).name || c || '—' };
+const _rdN = v => (v == null || v === '' || isNaN(+v)) ? '—' : (+v).toLocaleString();
+function _rdDT(ts){ if(!ts) return '—'; const d = new Date(+ts), p = x => String(x).padStart(2, '0'); return `${fmtDate(+ts)} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function _rdKV(rows){ const r = rows.filter(x => x && x[1] != null && x[1] !== ''); return r.length ? `<div class="rd-grid">${r.map(x => `<div class="k">${_esc(x[0])}</div><div>${x[2] ? x[1] : _esc(String(x[1]))}</div>`).join('')}</div>` : '<div class="rd-empty">표시할 항목 없음</div>'; }
+function _rdTbl(heads, rows, empty){ if(!rows.length) return `<div class="rd-empty">${_esc(empty || '없음')}</div>`; return `<div class="tbl-wrap rd-tbl"><table><thead><tr>${heads.map(h => `<th>${_esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${_esc(c == null ? '—' : String(c))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; }
+const RD_OP = { create: '등록', update: '수정', correct: '보정', void: '취소', unvoid: '복원', fence: '결과 확인' };
+function _rdLogs(d){ const L = (d && Array.isArray(d._logs) ? d._logs : []).slice().reverse();
+  return _rdTbl(['시각', '작업', '작업자', '사유'], L.map(l => [_rdDT(l.ts), RD_OP[l.op] || l.op || '—', l.by || '—', l.reason || '']), '변경 기록 없음'); }
+function _rdVoid(d){ return d && d.void ? [['상태', `취소됨 — ${d.void.reason || ''} (${d.void.ts ? fmtDate(d.void.ts) : ''})`]] : []; }
+// 컬렉션별 상세: { title, head, sub, tabs:[[이름, html]] }
+const RD_DOC = {
+  purchase_orders(p){ const P = canSeePrice(); const st = calcPoStatus(p); const items = p.items || [];
+    const amt = items.filter(i => i.price != null).reduce((s, i) => s + (+i.qty || 0) * (+i.price || 0), 0);
+    const recs = [...DB.all('purchase_receipts').filter(r => r.po_id === p.id).map(r => [r.id, r.date || fmtDate(r.ts), `${r.name || ''} ${r.spec || ''}`.trim(), `${_rdN(r.qty)} ${r.unit || ''}`]),
+                  ...DB.all('material_receipts').filter(r => r.po_id === p.id).map(r => [r.id, r.date || fmtDate(r.ts), `${r.mat || ''} Ø${r.dia || ''} ${r.heat || ''}`, `${_rdN(r.kg)} kg`])];
+    return { head: p.id, sub: `${_rdNm.v(p.vendor)} · 납기 ${p.due || '—'} · ${st.state}`, tabs: [
+      ['기본 정보', _rdKV([['발주번호', p.id], ['거래처', _rdNm.v(p.vendor)], ['발주일', p.ts ? fmtDate(p.ts) : '—'], ['납기', p.due || '—'], ['진행 상태', st.state], ['품목 수', `${items.length}건`], P ? ['발주액', amt ? `₩${Math.round(amt).toLocaleString()}` : '—'] : null, ['메모', p.memo || ''], ['등록', p.by || ''], ..._rdVoid(p)])],
+      [`품목 ${items.length}`, _rdTbl(['품명', '규격', '단위', '발주', '입고', '잔량', ...(P ? ['단가', '금액'] : [])], items.map((it, k) => { const r = st.items[k] || {}; return [it.name || '—', it.spec || '', it.unit || '', _rdN(it.qty), _rdN(r.received), _rdN(r.remain), ...(P ? [it.price != null ? _rdN(it.price) : '—', it.price != null ? _rdN((+it.qty || 0) * (+it.price || 0)) : '—'] : [])]; }), '품목 없음')],
+      [`입고 ${recs.length}`, _rdTbl(['입고번호', '입고일', '품목', '수량'], recs, '연결된 입고 없음 — 입고는 자재 › 입고 에서 등록')],
+      ['이력', _rdLogs(p)] ] }; },
+  work_orders(w){ const procs = typeof getRouteProcs === 'function' ? getRouteProcs(w.itemCode) : []; const recs = DB.all('records').filter(r => r.plot_no === w.plot_no);
+    const rows = procs.map(pr => { const rr = recs.filter(r => r.proc === pr.code); let bal = '—'; try { bal = _rdN(LOT.balance(w.plot_no, pr.code)); } catch(e){}
+      return [pr.name || pr.code, (w.plan_eq || {})[pr.code] || (pr.mode === 'out' ? '외주' : '—'), _rdN(rr.reduce((s, r) => s + (+r.good || 0), 0)), _rdN(rr.reduce((s, r) => s + (+r.defect || 0), 0)), bal]; });
+    const ships = DB.all('shipments').filter(s => s.plot_no === w.plot_no);
+    return { head: w.id, sub: `${_rdNm.i(w.itemCode)} · ${_rdN(w.qty)}ea · ${w.so_id || '재고생산'}`, tabs: [
+      ['기본 정보', _rdKV([['작업지시', w.id], ['수주', w.so_id || '재고생산'], ['품번', _rdNm.i(w.itemCode)], ['지시 수량', `${_rdN(w.qty)} ea`], ['생산 LOT', w.plot_no || '—'], ['발행일', w.created ? fmtDate(w.created) : '—'], ['메모', w.memo || w.note || ''], ['등록', w.by || ''], ..._rdVoid(w)])],
+      [`공정 ${rows.length}`, _rdTbl(['공정', '설비', '양품 누계', '불량', '남은 수량'], rows, '공정 없음')],
+      [`연결 ${recs.length + ships.length}`, _rdTbl(['구분', '번호', '일시', '수량'], [...recs.slice(-30).reverse().map(r => ['실적 · ' + _rdNm.p(r.proc), r.id.slice(0, 26), _rdDT(r.ts), _rdN(r.good)]), ...ships.map(s => ['출하', s.id, _rdDT(s.ts), _rdN(s.qty)])], '연결된 실적·출하 없음')],
+      ['이력', _rdLogs(w)] ] }; },
+  orders(o){ const P = canSeePrice(); const r = (typeof calcSoRows === 'function' ? calcSoRows([o]) : [])[0] || {};
+    const plans = DB.all('production_plans').filter(x => x.so_id === o.id); const wos = DB.all('work_orders').filter(x => x.so_id === o.id); const ships = DB.all('shipments').filter(x => x.so_id === o.id);
+    const cl = r.close || null;
+    return { head: o.id, sub: `${_rdNm.v(o.cust)} · ${_rdNm.i(o.itemCode)} · 납기 ${o.due || '—'}${r.status ? ' · ' + r.status.label : ''}`, tabs: [
+      ['기본 정보', _rdKV([['수주번호', o.id], ['고객사', _rdNm.v(o.cust)], ['품번', _rdNm.i(o.itemCode)], ['수주 수량', `${_rdN(o.qty)} ea`], P ? ['단가', o.price != null ? `₩${_rdN(o.price)}` : '—'] : null, P ? ['금액', o.price != null ? `₩${_rdN((+o.qty || 0) * (+o.price || 0))}` : '—'] : null, ['납기', o.due || '—'], ['상태', r.status ? r.status.label : '—'], ['출하 누계', `${_rdN(r.shipped)} ea`], ['남은 수량', `${_rdN(r.remain)} ea`], ['계획 배정', `${_rdN(typeof soPlannedQty === 'function' ? soPlannedQty(o.id) : 0)} ea`], ['등록', o.created ? fmtDate(o.created) : '—'], cl ? ['종결', `${fmtDate(cl.at || 0)} · ${cl.by || ''} · ${cl.reason || ''}`] : null, ..._rdVoid(o)])],
+      [`계획 ${plans.length}`, _rdTbl(['계획일', '설비', '수량', '작업지시'], plans.map(x => [x.date || '—', x.equipment || '미배정', _rdN(x.qty), x.wo_id || '미발행']), '이 수주로 세운 계획 없음 — 아래 [계획] 버튼')],
+      [`작업지시 ${wos.length}`, _rdTbl(['작업지시', '생산 LOT', '수량', '발행일'], wos.map(w => [w.id, w.plot_no || '—', _rdN(w.qty), w.created ? fmtDate(w.created) : '—']), '발행된 작업지시 없음')],
+      [`출하 ${ships.length}`, _rdTbl(['출하번호', '일시', '수량', '생산 LOT'], ships.map(x => [x.id, _rdDT(x.ts), _rdN(x.qty), x.plot_no || '—']), '출하 없음')],
+      ['이력', _rdLogs(o)] ] }; },
+  quotes(q){ const P = canSeePrice(); const cost = [['소재비', q.mat_cost != null ? q.mat_cost : q.material_cost], ['가공비', q.proc_cost != null ? q.proc_cost : q.process_cost], ['외주비', q.os_cost != null ? q.os_cost : q.outsource_cost], ['관리비', q.overhead]].filter(x => x[1] != null);
+    return { head: q.id, sub: `${_rdNm.v(q.cust)} · ${_rdNm.i(q.itemCode)} · ${_rdN(q.qty)}ea`, tabs: [
+      ['기본 정보', _rdKV([['견적번호', q.id], ['고객사', _rdNm.v(q.cust)], ['품번', _rdNm.i(q.itemCode)], ['수량', `${_rdN(q.qty)} ea`], P ? ['견적 단가', `₩${_rdN(q.unit_price != null ? q.unit_price : q.price)}`] : null, P ? ['견적 금액', `₩${_rdN(q.total_amount != null ? q.total_amount : q.total)}`] : null, ['납기', q.due || (q.valid_until ? '유효 ' + q.valid_until : '—')], ['수주', q.so_id || ''], ['상태', ({ draft: '작성', sent: '발송', won: '수주전환', lost: '실주', active: '진행' })[q.status] || q.status || '—'], ['작성', `${(q.created || q.ts) ? fmtDate(q.created || q.ts) : ''} ${q.by || ''}`.trim()], ..._rdVoid(q)])],
+      ...(P ? [['원가 구성', _rdTbl(['항목', '개당 금액'], [...cost.map(x => [x[0], `₩${_rdN(x[1])}`]), ['이익률', q.margin_pct != null ? `${q.margin_pct}%` : '—']], '원가 구성 없음')]] : []),
+      ['이력', _rdLogs(q)] ] }; },
+  molds(m){ let shots = '—', pct = '—'; try { shots = _rdN(moldShotsPerUnit(m)); pct = `${moldLifePct(m).toFixed(1)}%`; } catch(e){}
+    return { head: m.mold_no || m.id, sub: `${m.type === 'jig' ? '지그' : '금형'} · ${(m.itemCodes || []).join(', ') || '적용 품번 없음'}`, tabs: [
+      ['기본 정보', _rdKV([['금형번호', m.mold_no || m.id], ['종류', m.type === 'jig' ? '지그' : '금형'], ['구분', m.variant || ''], ['보유', `${typeof moldQty === 'function' ? moldQty(m) : (m.qty || 1)} 벌`], ['적용 품번', (m.itemCodes || []).map(_rdNm.i).join(', ') || '—'], ['기준 타수', _rdN(m.life_limit)], ['누적/벌', shots], ['수명 사용', pct], ['수동 보정', _rdN(m.offset)], ['상태', m.active === false ? '비활성' : '사용중'], ..._rdVoid(m)])],
+      ['이력', _rdLogs(m)] ] }; },
+  production_plans(p){ return { head: p.id, sub: `${p.date || '—'} · ${p.equipment || '미배정'} · ${_rdNm.i(p.itemCode)}`, tabs: [
+      ['기본 정보', _rdKV([['계획번호', p.id], ['계획일', p.date || '—'], ['설비', p.equipment || '미배정'], ['순번', p.seq || ''], ['품번', _rdNm.i(p.itemCode)], ['수량', `${_rdN(p.qty)} ea`], ['수주', p.so_id || '—'], ['작업지시', p.wo_id || '미발행'], ['구분', p.plan_type === 'auto' ? '자동' : '수동'], ['메모', p.note || ''], ..._rdVoid(p)])],
+      ['이력', _rdLogs(p)] ] }; },
+  records(r){ const P = canSeePrice(); return { head: `${r.plot_no || '—'} · ${_rdNm.p(r.proc)}`, sub: `${_rdDT(r.ts)} · 양품 ${_rdN(r.good)} · 불량 ${_rdN(r.defect)}`, tabs: [
+      ['기본 정보', _rdKV([['LOT', r.plot_no || '—'], ['공정', _rdNm.p(r.proc)], ['설비', r.vendor ? '외주 · ' + _rdNm.v(r.vendor) : (r.equipment || '—')], ['양품', _rdN(r.good)], ['불량', _rdN(r.defect)], ['재작업', _rdN(r.rework)], ['폐기', _rdN(r.scrap)], ['불량 사유', r.defect_reason || ''], ['작업자', r.worker ? (r.worker.name || r.worker.emp_no) : (r.by || '—')], ['교대', r.shift === 'night' ? '야간' : r.shift === 'day' ? '주간' : (r.shift || '')], ['등록 시각', _rdDT(r.ts)], ['입력', r.source === 'manual' ? 'PC 직접' : r.source === 'scan' ? '현장 스캔' : (r.source || '')], ..._rdVoid(r)])],
+      ['이력', _rdLogs(r)] ] }; },
+  production_lots(l){ const procs = typeof getRouteProcs === 'function' ? getRouteProcs(l.itemCode) : []; const recs = DB.all('records').filter(r => r.plot_no === l.plot_no);
+    const rows = procs.map(pr => { let bal = '—'; try { bal = _rdN(LOT.balance(l.plot_no, pr.code)); } catch(e){} const rr = recs.filter(r => r.proc === pr.code); return [pr.name || pr.code, _rdN(rr.reduce((s, r) => s + (+r.good || 0), 0)), _rdN(rr.reduce((s, r) => s + (+r.defect || 0), 0)), bal]; });
+    const tl = typeof lotTimeline === 'function' ? lotTimeline(l.plot_no) : [];
+    return { head: l.plot_no, sub: `${_rdNm.i(l.itemCode)} · 초기 ${_rdN(l.qty_initial)}ea`, tabs: [
+      ['기본 정보', _rdKV([['LOT', l.plot_no], ['품번', _rdNm.i(l.itemCode)], ['초기 수량', `${_rdN(l.qty_initial)} ea`], ['소재 Heat', (l.heat_nos || l.material_lot_ids || []).join(', ')], ['구분', l.type && l.type !== 'normal' ? l.type : '일반'], ['생성', l.created ? fmtDate(l.created) : '—'], ..._rdVoid(l)])],
+      [`공정 ${rows.length}`, _rdTbl(['공정', '양품 누계', '불량', '남은 수량'], rows, '공정 없음')],
+      [`흐름 ${tl.length}`, _rdTbl(['시각', '구분', '내용'], tl.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 60).map(e => [_rdDT(e.ts), e.kind || '', e.text || '']), '기록 없음')],
+      ['이력', _rdLogs(l)] ] }; },
+  material_receipts(m){ const lots = DB.all('production_lots').filter(l => (l.heat_nos || []).includes(m.heat) || (l.material_lot_ids || []).includes(m.heat));
+    return { head: m.heat || m.id, sub: `${m.mat || ''} Ø${m.dia || ''} · ${_rdN(m.kg)}kg · ${_rdNm.v(m.vendor)}`, tabs: [
+      ['기본 정보', _rdKV([['입고번호', m.id], ['Heat No.', m.heat || '—'], ['재질', m.mat || '—'], ['지름', m.dia ? `Ø${m.dia}` : '—'], ['입고량', `${_rdN(m.kg)} kg`], ['입고처', _rdNm.v(m.vendor)], ['입고일', m.date || (m.ts ? fmtDate(m.ts) : '—')], ['발주', m.po_id || ''], ['등록', m.by || ''], ..._rdVoid(m)])],
+      [`사용 LOT ${lots.length}`, _rdTbl(['LOT', '품번', '초기 수량'], lots.map(l => [l.plot_no, _rdNm.i(l.itemCode), _rdN(l.qty_initial)]), '이 Heat 로 만든 LOT 없음')],
+      ['이력', _rdLogs(m)] ] }; },
+  os_dispatches(o){ const back = DB.all('records').filter(r => r.plot_no === o.plot_no && r.proc === o.proc && r.vendor);
+    return { head: o.id, sub: `${o.plot_no || ''} · ${_rdNm.p(o.proc)} · ${_rdNm.v(o.vendor)}`, tabs: [
+      ['기본 정보', _rdKV([['반출번호', o.id], ['LOT', o.plot_no || '—'], ['공정', _rdNm.p(o.proc)], ['외주처', _rdNm.v(o.vendor)], ['반출 수량', `${_rdN(o.qty)} ea`], ['반출일', o.ts ? fmtDate(o.ts) : '—'], ['등록', o.by || ''], ..._rdVoid(o)])],
+      [`입고 ${back.length}`, _rdTbl(['일시', '양품', '불량'], back.map(r => [_rdDT(r.ts), _rdN(r.good), _rdN(r.defect)]), '외주 입고 없음')],
+      ['이력', _rdLogs(o)] ] }; },
+  shipments(s){ const P = canSeePrice(); const so = s.so_id ? DB.get('orders', s.so_id) : null; const price = s.price != null ? +s.price : (so && so.price != null ? +so.price : null);
+    return { head: s.id, sub: `${_rdNm.i(s.itemCode)} · ${_rdN(s.qty)}ea · ${s.so_id || ''}`, tabs: [
+      ['기본 정보', _rdKV([['출하번호', s.id], ['수주', s.so_id || '—'], ['고객사', _rdNm.v((so && so.cust) || s.customer_ref)], ['품번', _rdNm.i(s.itemCode)], ['수량', `${_rdN(s.qty)} ea`], P ? ['단가', price != null ? `₩${_rdN(price)}` : '—'] : null, P ? ['금액', price != null ? `₩${_rdN(price * (+s.qty || 0))}` : '—'] : null, ['생산 LOT', s.plot_no || '—'], ['파렛트', s.pallets != null ? `${s.pallets}개` : ''], ['포장 수량', s.pack_qty_actual ? `${_rdN(s.pack_qty_actual)} ea/포장` : ''], ['출하 일시', _rdDT(s.ts)], ['등록', s.by || ''], ..._rdVoid(s)])],
+      ['수주', so ? _rdKV([['수주번호', so.id], ['수주 수량', `${_rdN(so.qty)} ea`], ['납기', so.due || '—'], ['이 수주 출하 합', `${_rdN(DB.all('shipments').filter(x => x.so_id === so.id).reduce((t, x) => t + (+x.qty || 0), 0))} ea`]]) : '<div class="rd-empty">연결된 수주 없음</div>'],
+      ['이력', _rdLogs(s)] ] }; },
+  closings(c){ const P = canSeePrice(); const rows = c.rows || [];
+    return { head: `${c.month || ''} ${c.type === 'sales' ? '매출' : c.type === 'purchase' ? '매입' : (c.type || '')} 마감`, sub: `${rows.length}개 거래처 · 마감 ${c.closed_at ? fmtDate(c.closed_at) : '—'}`, tabs: [
+      ['기본 정보', _rdKV([['마감 월', c.month || '—'], ['구분', c.type === 'sales' ? '매출' : c.type === 'purchase' ? '매입' : (c.type || '')], ['거래처 수', `${rows.length}`], P ? ['당월 발생', `₩${_rdN((c.totals || {}).amount)}`] : null, P ? ['차월 이월', `₩${_rdN((c.totals || {}).carry)}`] : null, ['마감일', c.closed_at ? fmtDate(c.closed_at) : '—'], ['마감자', c.by || ''], ..._rdVoid(c)])],
+      ...(P ? [[`거래처 ${rows.length}`, _rdTbl(['거래처', '전월 이월', '당월 발생', '결제', '차월 이월'], rows.map(r => [_rdNm.v(r.party), _rdN(r.prev), _rdN(r.amount), _rdN(r.paid), _rdN(r.carry)]), '없음')]] : []),
+      ['이력', _rdLogs(c)] ] }; },
+  drawings(d){ const revs = (d.revs || []).slice().reverse(); const att = d.attachments || [];
+    return { head: d.id, sub: `${_rdNm.i(d.itemCode)} · Rev ${d.current_rev || '—'}`, tabs: [
+      ['기본 정보', _rdKV([['도면번호', d.id], ['품번', _rdNm.i(d.itemCode)], ['현재 리비전', d.current_rev || '—'], ['상태', d.active === false ? '비활성' : '사용중'], ['메모', d.memo || ''], ['등록', d.created ? fmtDate(d.created) : '']])],
+      [`리비전 ${revs.length}`, _rdTbl(['Rev', '일자', '사유', '작성'], revs.map(r => [r.rev, r.date || '', r.reason || '', r.by || '']), '리비전 없음')],
+      [`첨부 ${att.length}`, _rdTbl(['이름', '종류'], att.map(a => [a.name || a.fid || '—', a.kind === 'link' ? '링크' : '파일']), '첨부 없음') + '<div class="rd-note">열기·추가는 아래 [첨부] 버튼</div>'],
+      ['이력', _rdLogs(d)] ] }; },
+  _master(col, d){ const P = canSeePrice();
+    const LB = { code: '코드', id: '코드', name: '이름', type: '구분', grade: '등급', processes: '공정', mat: '재질', dia: '지름', weight: '단중(kg)', box: '박스 입수', safety: '안전재고', cust: '고객사', customer_ref: '고객사', pack_qty: '포장 수량', ht_spec: '열처리', hardness: '경도', procCode: '공정', work_hours: '가동 시간(h)', emp_no: '사번', dept: '소속', phone: '연락처', memo: '메모', label: '항목 이름', target: '대상', category: '분류', price: '단가' };
+    const TY = { cust: '고객사', supp: '구매처', out: '외주처', both: '고객·구매' };
+    const rows = Object.keys(LB).filter(k => d[k] != null && d[k] !== '' && (k !== 'price' || P) && !(k === 'id' && d.code)).map(k => { let v = d[k];
+      if(k === 'type' && col === 'vendors') v = TY[v] || v; if(k === 'processes' && Array.isArray(v)) v = v.map(_rdNm.p).join(', '); if(k === 'cust' || k === 'customer_ref') v = _rdNm.v(v); if(k === 'procCode') v = _rdNm.p(v); if(k === 'price') v = `₩${_rdN(v)}`;
+      if(typeof v === 'object') return null; return [LB[k], v]; }).filter(Boolean);
+    rows.push(['상태', d.active === false ? '비활성' : '사용중']);
+    const tabs = [['기본 정보', _rdKV(rows)]];
+    if(col === 'items'){ const pr = typeof getRouteProcs === 'function' ? getRouteProcs(d.code) : []; tabs.push([`공정 ${pr.length}`, _rdTbl(['순서', '공정', '구분', 'CT(초)'], pr.map((x, k) => [k + 1, x.name || x.code, x.mode === 'out' ? '외주' : '사내', ((d.proc_times || {})[x.code] || {}).ct || '']), '공정 없음')]);
+      const sos = DB.all('orders').filter(o => o.itemCode === d.code); tabs.push([`수주 ${sos.length}`, _rdTbl(['수주번호', '수량', '납기'], sos.slice(-30).reverse().map(o => [o.id, _rdN(o.qty), o.due || '']), '수주 없음')]); }
+    tabs.push(['이력', _rdLogs(d)]);
+    return { head: d.code || d.id, sub: d.name || '', tabs }; }
+};
+['vendors', 'items', 'equipments', 'defect_types', 'master_fields'].forEach(c => { RD_DOC[c] = d => RD_DOC._master(c, d); });
+function _rdBuild(t){ const d = t && DB.get(t.col, t.id); const fn = d && RD_DOC[t.col]; if(!fn) return null; try { return fn(d); } catch(e){ console.warn('[VELA] 상세', t, e); return null; } }
 function openRowDetail(tr, heads){
   const td = tr.lastElementChild; if(!td) return;
-  const txt = c => String((c.innerText !== undefined ? c.innerText : c.textContent) || c.textContent || '').trim().replace(/\s+/g, ' ');
-  const pairs = [...tr.cells].slice(0, -1).map((c, i) => [heads[i] || '', txt(c)]).filter(x => x[1] && x[1] !== '—' && x[1] !== '-');
   const pg = PAGES.find(p => p.id === _secPage());
-  const head = pairs[0] ? pairs[0][1] : '상세'; const sub = pairs.slice(1, 3).map(x => x[1]).join(' · ');
+  const doc = _rdBuild(_rdTarget(tr));   // ★ v0.40.1 — 업무 문서 상세 (없으면 아래 행 요약)
+  let head, sub, bodyHTML;
+  if(doc){
+    head = doc.head; sub = doc.sub;
+    bodyHTML = `<div class="rd-tabs" role="tablist" aria-label="상세 보기">${doc.tabs.map((t, k) => `<button type="button" role="tab" data-rd-tab="${k}" aria-selected="${k === 0}">${_esc(t[0])}</button>`).join('')}</div>` +
+      doc.tabs.map((t, k) => `<div class="rd-pane" data-rd-pane="${k}"${k ? ' hidden' : ''}>${t[1]}</div>`).join('');
+  } else {
+    const txt = c => String((c.innerText !== undefined ? c.innerText : c.textContent) || c.textContent || '').trim().replace(/\s+/g, ' ');
+    const pairs = [...tr.cells].slice(0, -1).map((c, i) => [heads[i] || '', txt(c)]).filter(x => x[1] && x[1] !== '—' && x[1] !== '-');
+    head = pairs[0] ? pairs[0][1] : '상세'; sub = pairs.slice(1, 3).map(x => x[1]).join(' · ');
+    bodyHTML = `<div class="rd-grid">${pairs.map(x => `<div class="k">${_esc(x[0] || '항목')}</div><div>${_esc(x[1])}</div>`).join('')}</div>`;
+  }
   openModal(`<h2>${_esc(navTitle(pg) || '')} 상세 <button class="x" onclick="closeModal()" aria-label="닫기">${ico('x')}</button></h2>
     <div class="body"><div><div class="rd-head">${_esc(head)}</div>${sub ? `<div class="rd-sub">${_esc(sub)}</div>` : ''}</div>
-      <div class="rd-grid">${pairs.map(x => `<div class="k">${_esc(x[0] || '항목')}</div><div>${_esc(x[1])}</div>`).join('')}</div>
-      <div class="rd-note">읽기 전용 · 수정·출력·취소는 아래 버튼 — 기존 화면과 같은 기능(권한·검증·저장 확인 그대로)</div>
-      <div class="actions"><div class="rd-acts" id="rd-acts"></div><button class="btn" onclick="closeModal()">닫기</button></div></div>`, { width: '760px' });
+      ${bodyHTML}
+      <div class="rd-note">수정·출력·취소는 아래 버튼으로 할 수 있습니다.</div>
+      <div class="actions"><div class="rd-acts" id="rd-acts"></div><button class="btn" onclick="closeModal()">닫기</button></div></div>`, { width: '860px' });
+  document.querySelectorAll('#modal [data-rd-tab]').forEach(b => b.onclick = () => { const k = b.dataset.rdTab; document.querySelectorAll('#modal [data-rd-tab]').forEach(x => x.setAttribute('aria-selected', String(x === b))); document.querySelectorAll('#modal [data-rd-pane]').forEach(p => { p.hidden = p.dataset.rdPane !== k; }); });
   const box = document.getElementById('rd-acts'); if(!box) return;
-  _raMoved = [...td.querySelectorAll('button')].filter(b => !b.classList.contains('ra-open')).map(b => ({ b, parent: b.parentNode, next: b.nextSibling }));
+  const _exp = tr.nextElementSibling && tr.nextElementSibling.classList.contains('mdet') ? [...tr.nextElementSibling.querySelectorAll('button')] : [];   // ★ v0.40.1 — 펼침 행(수주 등)의 동작 버튼도 중앙 창으로
+  _raMoved = [...td.querySelectorAll('button'), ..._exp].filter(b => !b.classList.contains('ra-open')).map(b => ({ b, parent: b.parentNode, next: b.nextSibling }));
   _raMoved.forEach(x => box.appendChild(x.b));
   box.addEventListener('click', e => { if(e.target && e.target.closest && e.target.closest('button')) setTimeout(() => { if(document.getElementById('rd-acts') && document.getElementById('modal-bg').classList.contains('show')) closeModal(); }, 0); });
 }
@@ -11420,7 +11604,7 @@ VIEWS._woNew = (pre) => {
     if(!a.cands.length){ matAutoBox.innerHTML = `<span style="color:var(--amber)">⚠ ${_esc(a.sp.mat)} Ø${a.sp.dia||'—'} 규격 재고 없음 — 필요 ${a.need.toLocaleString()}kg · [입고] 메뉴에서 소재 입고 후 발행 또는 [직접 선택]</span>`; return; }
     matAutoBox.innerHTML = `
       <div class="tbl-wrap" style="border:1px solid var(--line);border-radius:9px"><table style="font-size:12px">
-        <thead><tr><th>순서</th><th>heat</th><th>입고일</th><th class="num">잔량 kg</th><th class="num">배정 kg</th></tr></thead>
+        <thead><tr><th>순서</th><th>Heat No.</th><th>입고일</th><th class="num">잔량 kg</th><th class="num">배정 kg</th></tr></thead>
         <tbody>${a.rows.map((r,i)=>`<tr><td class="mono">${i+1}</td><td class="mono"><b>${_esc(r.heat)}</b></td><td class="muted">${r.ts && isFinite(r.ts) ? fmtDate(r.ts) : '—'}</td><td class="num mono">${Math.round(r.remain).toLocaleString()}</td><td class="num mono" style="color:var(--cyan);font-weight:700">${r.kg.toLocaleString()}</td></tr>`).join('')}</tbody>
       </table></div>
       <div style="font-size:11px;margin-top:6px;color:${a.short>0?'var(--amber)':'var(--sub)'}">${_esc(a.sp.mat)} Ø${a.sp.dia||'—'} · 필요 ${a.need.toLocaleString()}kg → 배정 ${a.rows.length}건 ${(Math.round((a.need-a.short)*100)/100).toLocaleString()}kg${a.short>0?` · <b>⚠ 부족 ${a.short.toLocaleString()}kg</b> (부족분은 발행 후 추가 입고 — 차단 아님)`:' · 충족'}</div>`;
@@ -11969,7 +12153,7 @@ VIEWS.lot = () => {
     <div class="card" data-sec-id="lot-list" data-sec-lock="safety">
       <h3>생산 LOT <span class="tag">행 클릭 → 공정 스텝·실적 상세 (전 공정 수량은 상세에서)</span></h3>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>LOT</th><th>품번</th><th>진행 위치</th><th class="num">잔량</th><th>heat</th><th>상태</th><th></th></tr></thead>
+        <thead><tr><th>LOT</th><th>품번</th><th>진행 위치</th><th class="num">잔량</th><th>Heat No.</th><th>상태</th><th></th></tr></thead>
         <tbody>${filtered.length? filtered.map(l=>{
           // ★ v0.35.1 — 공통 규격: 공정별 12칸 → 핵심 6컬럼 (상세 = 기존 스텝 패널 재사용 · 계산 불변)
           //   보류(동시성 사고 지점 · ★ v0.36.0: 음수 잔량 → 보류) 공정이 있으면 그 공정을 우선 표시 — 문제는 목록에서 바로 보여야 함
@@ -12275,7 +12459,7 @@ VIEWS._lotHistory = (plot_no) => {
     <div class="body">
       <div class="print-doc" id="lot-hist">
         <div class="doc-head"><b>LOT 이력서 · ${co.name} ${co.site}</b><span>${fmtDate(Date.now())}</span></div>
-        <table><tr><th>품번</th><td>${lot?.itemCode||''}</td><th>type</th><td>${lot?.type}</td></tr>
+        <table><tr><th>품번</th><td>${lot?.itemCode||''}</td><th>구분</th><td>${lot?.type==='merged'?'병합':lot?.type==='split'?'분할':'일반'}</td></tr>
         ${lot?.fork_from?`<tr><th>분기 (fork)</th><td colspan="3">부모 <b>${lot.fork_from}</b> · 분기공정 <b>${lot.fork_at_proc}</b> · 이전 공정 완료 간주</td></tr>`:''}
         ${lot?.source_lots?.length && !lot.fork_from?`<tr><th>원천 LOT</th><td colspan="3">${lot.source_lots.join(', ')}</td></tr>`:''}
         <tr><th>소재 heat</th><td colspan="3">${(lot?.heat_nos||[]).join(', ')||'―'}</td></tr>
@@ -12459,7 +12643,7 @@ VIEWS.po = () => {
     </div>
 
     <div class="card">
-      <h3>발주 현황 <span class="tag">잔량 = 발주 − 입고 · 상태 자동 (calcPoStatus) · 취소=void (연결 입고 있으면 차단)</span></h3>
+      <h3>발주 현황 <span class="tag">잔량 = 발주 − 입고 · 상태는 입고에 따라 자동 · 입고가 연결된 발주는 취소할 수 없음</span></h3>
       <div class="tbl-wrap"><table>
         <thead><tr>
           <th>발주번호·일자</th><th>거래처</th><th>품목</th>
@@ -12469,7 +12653,7 @@ VIEWS.po = () => {
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;margin-top:10px;line-height:1.7">
         <b style="color:var(--amber)">규칙</b> 상태 자동: 입고 0=<span style="color:var(--sub)">대기</span> · 일부=<span style="color:var(--cyan)">부분입고</span> · 전량=<span style="color:var(--green)">입고완료</span> · 납기 지남+미완=<span style="color:var(--red)">지연</span>.
-        발주액은 <b>단가 있는 행</b>만 합산 · 전부 없으면 「—」. 발주서 = 기존 인쇄 양식 패턴(form-po).
+        발주액은 <b>단가 있는 행</b>만 합산 · 전부 없으면 「—」. 발주서 = 기존 인쇄 양식.
       </div>
     </div>
   `;
@@ -13456,11 +13640,11 @@ VIEWS._matinMaterial = () => {
       <div class="kpi-mini"><div class="lab">${ico('check')}오늘 입고</div><div class="val c">${todayKg.toLocaleString()}<span style="font-size:12px;color:var(--sub)">kg</span></div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}이번달 입고</div><div class="val c">${monthKg.toLocaleString()}<span style="font-size:12px;color:var(--sub)">kg</span></div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}올해 입고</div><div class="val c">${yearKg.toLocaleString()}<span style="font-size:12px;color:var(--sub)">kg</span></div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}현재 총 잔량</div><div class="val g">${Math.round(totalRemain).toLocaleString()}<span style="font-size:12px;color:var(--sub)">kg</span></div><div class="sub">calcHeatLedger 합</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}현재 총 잔량</div><div class="val g">${Math.round(totalRemain).toLocaleString()}<span style="font-size:12px;color:var(--sub)">kg</span></div><div class="sub">Heat 잔량 합계</div></div>
     </div>
 
     <div class="card">
-      <h3>입고 현황 <span class="tag">기간 탭 · 최신 위 · 삭제=취소(void)</span></h3>
+      <h3>입고 현황 <span class="tag">기간 탭 · 최신 위 · 삭제 = 취소 처리(기록 보존)</span></h3>
       <div style="display:flex;gap:6px;margin-bottom:12px">${tabBtn('day','일별')}${tabBtn('month','월별')}${tabBtn('year','연간')}</div>
       <div class="tbl-wrap"><table>
         ${state.tab==='day' ? `
@@ -14300,7 +14484,7 @@ VIEWS._invItemDetail = (code) => {
         <div class="mk"><div class="l" style="color:var(--red)">HOLD · 사고</div><div class="v" style="color:${rows.some(r=>r.st==='HOLD'||r.st==='사고')?'var(--red)':'var(--ink)'}">${rows.filter(r => r.st==='HOLD'||r.st==='사고').length}건</div><div class="s">${rows.filter(r=>r.st==='HOLD').length?`HOLD ${rows.filter(r=>r.st==='HOLD').length}`:''}${rows.filter(r=>r.st==='사고').length?` 사고 ${rows.filter(r=>r.st==='사고').length}`:''}</div></div>
       </div>
       <div class="tbl-wrap" style="max-height:50vh;overflow-y:auto"><table style="font-size:12px" id="inv-lot-tbl">
-        <thead><tr><th>LOT</th><th>진행 위치</th><th class="num">잔량</th><th>heat</th><th>상태</th></tr></thead>
+        <thead><tr><th>LOT</th><th>진행 위치</th><th class="num">잔량</th><th>Heat No.</th><th>상태</th></tr></thead>
         <tbody>${rows.length ? rows.map(r => `<tr data-inv-lot="${_esc(r.l.plot_no)}" style="cursor:pointer" title="클릭 → 공정 스텝·실적 상세">
           <td><b class="mono lot-no-link">${_esc(r.l.plot_no)}</b><div style="font-size:10.5px;color:var(--dim)">초기 ${(r.l.qty_initial||0).toLocaleString()} · ${fmtDate(r.l.created)}</div></td>
           <td>${_esc(r.pos)}</td>
@@ -14751,8 +14935,8 @@ VIEWS.so = () => {
             ? '<span class="pill gray" style="font-size:10px">계획완료</span>'
             : (r.remain > 0 && getFlags().plan ? `<button class="btn ghost" data-so-plan="${_esc(o.id)}" style="font-size:10.5px;color:var(--cyan)">${ico('plus')}계획${plannedQty>0?` <span style="color:var(--dim);font-size:9px">잔${planRemain.toLocaleString()}</span>`:''}</button>` : '');
           const shipCnt = DB.query('shipments', s => s.so_id === o.id).length;
-          return `<tr class="mrow" data-so-row="${_esc(o.id)}">
-            <td><b class="mono">${_esc(o.id)}</b> <span class="lot-chev">▸</span></td>
+          return `<tr class="mrow" data-so-row="${_esc(o.id)}" data-ra="1">
+            <td><b class="mono">${_esc(o.id)}</b></td>
             <td>${_esc(r.custNm)}</td>
             <td><b class="mono" style="font-size:11.5px">${_esc(itemLabel(o.itemCode))}</b></td>
             <td class="num"><b style="color:${r.remain>0?'var(--amber)':'var(--dim)'}">${r.remain.toLocaleString()}</b> <span class="muted">/ ${(o.qty||0).toLocaleString()}</span>${r.close&&r.unshipped>0?`<div style="font-size:10.5px;color:var(--sub)">미출하 ${r.unshipped.toLocaleString()} 종결</div>`:''}</td>
@@ -14780,11 +14964,12 @@ VIEWS.so = () => {
     </div>
   `;
   // ★ v0.35.1 — 공통 규격 배선: 행 클릭 상세 토글 · 검색/필터 · ⋯ 메뉴
+  // ★ v0.40.1 (GPT v0.40.0 판정 ①) — 행 클릭 = 중앙 상세 창 (펼침 행은 화면에 펼치지 않음 · 그 안의 [계획]·[수정]·[출하 화면] 버튼은 상세 창으로 이동)
   document.querySelectorAll('[data-so-row]').forEach(tr => tr.onclick = (e) => {
     if(e.target.closest('button')) return;
-    const det = document.querySelector(`[data-so-det="${tr.dataset.soRow}"]`);
-    if(det) det.hidden = !det.hidden;
-    const chev = tr.querySelector('.lot-chev'); if(chev) chev.textContent = det && !det.hidden ? '▾' : '▸';
+    const ob = tr.querySelector('.ra-open');
+    if(ob){ ob.click(); return; }
+    const det = document.querySelector(`[data-so-det="${tr.dataset.soRow}"]`); if(det) det.hidden = !det.hidden;   // 상세 창을 못 여는 환경(현장 화면 등)만 펼침
   });
   let _soDeb = null;
   bindSearch('so-q', v => { stF.q = v; });   // ★ v0.35.9 — Search Contract
@@ -16210,7 +16395,7 @@ VIEWS.perf = () => {
         <button class="btn primary" id="perf-add">${ico('plus')}PC 실적 등록</button>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">폰은 현장 스캔 등록 · PC는 등록된 실적 현황 + 스캔 없이 직접 등록·수정. 같은 LOT(plot_no)으로 폰↔PC 일관 추적.</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">폰은 현장 스캔 등록 · PC는 등록된 실적 현황 + 스캔 없이 직접 등록·수정. 같은 LOT 번호로 폰·PC 실적을 함께 추적합니다.</div>
 
     <!-- 검색·필터 -->
     <div class="card" style="padding:14px;margin-bottom:12px">
@@ -16585,8 +16770,8 @@ VIEWS._perfPlanCompare = () => {
     <!-- KPI (계획대비 전환 · 기간·필터 반영) -->
     <div class="grid g4" style="margin-bottom:14px">
       <div class="kpi-mini"><div class="lab">${ico('check')}계획량</div><div class="val c">${totalPlan.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">${rows.length}품번 · ${_esc(periodLabel)}</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}실적</div><div class="val g">${totalActual.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">양품 합 (라우트 첫 공정)</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}달성률</div><div class="val c">${totalPct.toFixed(0)}<span style="font-size:12px;color:var(--sub)">%</span></div><div class="sub">cap 100%</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}실적</div><div class="val g">${totalActual.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">양품 합 (첫 공정)</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}달성률</div><div class="val c">${totalPct.toFixed(0)}<span style="font-size:12px;color:var(--sub)">%</span></div><div class="sub">계획 건별 최대 100%</div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}계획외 실적</div><div class="val h">${offPlanRows.reduce((s,[,v])=>s+v,0).toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">${offPlanRows.length}품번</div></div>
     </div>
 
@@ -16848,7 +17033,7 @@ VIEWS._perfEdit = (recId)=>{
         <div><label>재작업</label><input id="ed-r" type="number" min="0" value="${r.rework||0}"></div>
       </div>
       <div><label>비고 (선택)</label><input id="ed-note" placeholder="수정 사유" value=""></div>
-      <div style="font-size:11px;color:var(--dim)">※ 원본 보존 — DB.correct로 보정 레코드 누적 (deleteDoc 금지)</div>
+      <div style="font-size:11px;color:var(--dim)">※ 원본은 그대로 두고 보정 기록을 남깁니다 (삭제 없음)</div>
       ${(() => { const bal = LOT.balance(r.plot_no, r.proc); const cur = (+r.good||0)+(+r.defect||0)+(+r.rework||0)+(+r.scrap||0); return `<div style="font-size:11px;color:var(--cyan);font-family:'JetBrains Mono',monospace">이 공정 잔량 ${bal.toLocaleString()}ea · 투입 합계(양품+불량+재작업) 최대 ${Math.max(cur + bal, 0).toLocaleString()}ea까지 (잔량 초과 보정 차단 · 감소는 항상 허용)</div>`; })()}
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
@@ -18372,7 +18557,7 @@ VIEWS.docs = () => {
     else if(docType==='move'){
       title.innerHTML = `LOT 선택 (공정 이동표) <span class="tag" style="font-size:11px;color:var(--sub);margin-left:6px">${ids.length}개 · A5 LOT당 1장</span>`;
       list.innerHTML = `<div class="tbl-wrap"><table>
-        <thead><tr><th style="width:36px"></th><th>LOT</th><th>품번·품명</th><th>type</th><th>heat</th><th class="num">초기수량</th></tr></thead>
+        <thead><tr><th style="width:36px"></th><th>LOT</th><th>품번·품명</th><th>구분</th><th>Heat No.</th><th class="num">초기수량</th></tr></thead>
         <tbody>${ids.map(pn=>{
           const l = DB.get('production_lots', pn);
           const item = DB.get('items', l.itemCode);
@@ -18381,7 +18566,7 @@ VIEWS.docs = () => {
             <td><input type="checkbox" data-sel="${pn}" ${on?'checked':''}></td>
             <td><b>${_esc(pn)}</b></td>
             <td>${_esc(l.itemCode)} · ${_esc(item?.name||'')}</td>
-            <td><span class="pill ${l.type==='merged'?'heat':l.type==='split'?'blue':'gray'}">${l.type}</span></td>
+            <td><span class="pill ${l.type==='merged'?'heat':l.type==='split'?'blue':'gray'}">${l.type==='merged'?'병합':l.type==='split'?'분할':'일반'}</span></td>
             <td class="muted">${(l.heat_nos||[]).join(',')||'―'}</td>
             <td class="num">${(l.qty_initial||0).toLocaleString()}</td>
           </tr>`;
@@ -18879,7 +19064,7 @@ VIEWS._acctLedger = () => {
       <div class="pgtools"><button class="btn" id="acct-lg-xlsx">${ico('excel')}엑셀</button></div>
     </div>
     ${_acctHubBar('ledger')}
-    <div style="font-size:11px;color:var(--dim);margin-bottom:12px">발생액 = 마감과 동일 산식(calcClosing) · 회계는 실적·재고 원장을 읽기만 합니다 · 건별 수금/지급 원장 (마감의 월 결제 수기와 독립)</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:12px">발생액 = 마감과 같은 계산 · 회계는 실적·재고를 읽기만 합니다 · 건별 수금/지급 원장 (마감의 월 결제 수기와 독립)</div>
     <div class="grid g4" style="margin-bottom:14px">
       <div class="card"><div style="font-size:11px;color:var(--sub)">총 미수</div><div class="mono" style="font-size:22px;font-weight:800;color:var(--amber)">₩${fmtN(totRecv)}</div></div>
       <div class="card"><div style="font-size:11px;color:var(--sub)">총 미지급</div><div class="mono" style="font-size:22px;font-weight:800;color:var(--blue)">₩${fmtN(totPay)}</div></div>
@@ -18891,7 +19076,7 @@ VIEWS._acctLedger = () => {
       <input id="acct-warn-days" type="number" min="1" step="1" value="${st.warn_days}" style="width:80px;text-align:right">
       <span style="font-size:12px;color:var(--sub)">일 (마지막 수금일 기준)</span>
       <button class="btn" id="acct-warn-save" style="font-size:11.5px;padding:6px 12px">${ico('save')}저장</button>
-      <span style="margin-left:auto;font-size:11px;color:var(--dim)">설정값 — settings/acct (업체별 변경 가능)</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--dim)">회사 설정 (업체마다 바꿀 수 있음)</span>
     </div>
     <div class="card" style="margin-bottom:14px">
       <h3 style="margin-bottom:10px">수금 (매출채권) <span class="tag">고객사별</span></h3>
@@ -18908,7 +19093,7 @@ VIEWS._acctLedger = () => {
       </table></div>
     </div>
     <div class="card">
-      <h3 style="margin-bottom:10px">원장 흐름 <span class="tag">최근 40건 · 취소=void (물리 삭제 없음)</span></h3>
+      <h3 style="margin-bottom:10px">원장 흐름 <span class="tag">최근 40건 · 취소해도 기록은 남음</span></h3>
       <div class="tbl-wrap"><table>
         <thead><tr><th>구분</th><th>번호</th><th>거래처</th><th class="num">금액</th><th>수단</th><th>일자</th><th>메모</th><th></th></tr></thead>
         <tbody>${flowRows}</tbody>
@@ -19027,7 +19212,7 @@ VIEWS._acctInvoice = () => {
     </div>
     ${_acctHubBar('invoice')}
     <div class="card" style="margin-bottom:14px">
-      <h3 style="margin-bottom:6px">세금계산서 발행 관리 <span class="tag">${month} · 대상 = 마감 매출 산식(calcClosing) 동일</span></h3>
+      <h3 style="margin-bottom:6px">세금계산서 발행 관리 <span class="tag">${month} · 대상 = 마감 매출과 같은 계산</span></h3>
       <div style="font-size:11px;color:var(--dim);margin-bottom:10px">발행 대상액은 공급가 기준(마감 발생액) — 실제 발행은 홈택스 등 외부에서, 여기는 발행 여부·일자 기록만.</div>
       <div class="tbl-wrap"><table>
         <thead><tr><th>고객사</th><th class="num">대상액 (공급가)</th><th>상태</th><th></th></tr></thead>
@@ -19884,7 +20069,7 @@ VIEWS.proc = () => {
       <h3>표준 공정 흐름 <span class="tag">${procs.length}개 · seq 정렬 · 마스터(전역)</span></h3>
       <div style="font-size:11px;color:var(--sub);margin-bottom:8px">※ v0.6.0 — 품번별 공정 포함 여부/순서는 아래 <b>BOM 라우팅</b>에서 정의합니다.</div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>seq</th><th>코드</th><th>공정명</th><th>단위</th><th>유형</th><th>설비</th><th>검사</th><th></th></tr></thead>
+        <thead><tr><th>순서</th><th>코드</th><th>공정명</th><th>단위</th><th>유형</th><th>설비</th><th>검사</th><th></th></tr></thead>
         <tbody>${procs.map(p=>`<tr>
           <td class="num">${p.seq}</td>
           <td><b>${p.code}</b></td>
@@ -19956,7 +20141,7 @@ VIEWS.proc = () => {
           <div><label>공정명</label><input id="np-name" placeholder="예: 황삭"></div>
         </div>
         <div class="grid g3">
-          <div><label>seq</label><input id="np-seq" type="number" placeholder="25"></div>
+          <div><label>순서</label><input id="np-seq" type="number" placeholder="25"></div>
           <div><label>단위</label><select id="np-unit"><option>ea</option><option>kg</option><option>set</option></select></div>
           <div><label>유형</label><select id="np-type"><option value="in">사내</option><option value="out">외주</option><option value="both">양쪽</option></select></div>
         </div>
@@ -20553,7 +20738,7 @@ VIEWS.quote = () => {
         <thead><tr><th>견적번호</th><th>고객</th><th>품번</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th><th>마진율</th><th>유효일</th><th>상태</th><th></th></tr></thead>
         <tbody>${quotes.length? quotes.map(q=>{
           const stPill = q.status==='won'?'green': q.status==='lost'?'red': q.status==='sent'?'heat':'gray';
-          const stLab = ({draft:'작성',sent:'발송',won:'수주전환',lost:'실주'})[q.status]||q.status;
+          const stLab = ({draft:'작성',sent:'발송',won:'수주전환',lost:'실주',active:'진행'})[q.status]||q.status||'—';
           return `<tr>
             <td><b>${q.id}</b>${q.so_id?`<div style="font-size:10px;color:var(--cyan)">→ ${q.so_id}</div>`:''}</td>
             <td>${DB.get('vendors',q.cust)?.name||q.cust}</td>
@@ -21272,7 +21457,7 @@ VIEWS.mold = () => {
 
   document.getElementById('view').innerHTML = `
     <div class="pghead">
-      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('mold')}</svg>금형·지그 <span class="pill cyan">${APP_VERSION} · 파생 표시</span></div>
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('mold')}</svg>금형·지그 <span class="pill cyan">${APP_VERSION}</span></div>
       <div class="pgtools">
         <button class="btn" id="btn-mold-import">${ico('excel')}엑셀 임포트</button>
         <button class="btn" id="btn-mold-fields">${ico('save')}필드 관리</button>
@@ -21290,7 +21475,7 @@ VIEWS.mold = () => {
     <div class="card">
       <h3>금형 마스터 <span class="tag">누적/벌 = ((연결 품목 FORGE 실적 ÷ Cav) + offset) ÷ 보유 수량 · 파생 · G1 저장 금지</span></h3>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>금형번호</th><th>구분</th><th>type</th><th class="num">보유</th><th>적용 품번</th><th class="num">기준 타수</th><th class="num">누적/벌 (파생)</th><th class="num">offset</th><th style="width:22%">수명</th>${mTopFields.map(f=>`<th>${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
+        <thead><tr><th>금형번호</th><th>구분</th><th>종류</th><th class="num">보유</th><th>적용 품번</th><th class="num">기준 타수</th><th class="num">누적/벌</th><th class="num">수동 보정</th><th style="width:22%">수명</th>${mTopFields.map(f=>`<th>${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
         <tbody>${molds.length? molds.map(m=>{
           const pct = m._pct;
           const barClr = pct>=100?'var(--red)':pct>=90?'var(--amber)':'var(--cyan)';
@@ -21299,7 +21484,7 @@ VIEWS.mold = () => {
           return `<tr>
             <td><b style="font-family:'JetBrains Mono',monospace">${_esc(m.mold_no||m.id)}</b></td>
             <td>${m.variant?`<span class="pill blue" title="${_esc(MOLD_VARIANT_LABELS[m.variant]||m.variant)}">${_esc(m.variant)}</span>`:'<span class="muted">—</span>'}</td>
-            <td><span class="pill gray">${_esc(m.type||'mold')}</span></td>
+            <td><span class="pill gray">${m.type === 'jig' ? '지그' : '금형'}</span></td>
             <td class="num">${m._qty}<span style="color:var(--dim);font-size:10px">벌</span></td>
             <td class="muted">${(m.itemCodes||[]).join(', ')||'―'}</td>
             <td class="num">${(m.life_limit||0).toLocaleString()}</td>
@@ -21319,7 +21504,7 @@ VIEWS.mold = () => {
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
         <b style="color:var(--amber)">규칙</b> 90% ≥ amber · 100% ≥ red — 대시보드·AI 보고서 이슈로 자동 수집.
-        <b style="color:var(--cyan)">shots_source</b> 예약(auto|counter): 카운터기 도입 대비 자리 · 현재 <span style="font-family:'JetBrains Mono',monospace">derived</span> 고정.
+        타발 수 = 실적에서 자동 계산 (카운터기 연결은 나중에).
       </div>
     </div>
   `;
@@ -21338,8 +21523,8 @@ VIEWS.mold = () => {
         '보유 수량(벌)': m._qty,
         '적용 품번': (m.itemCodes||[]).join(', '),
         '기준 타수': +m.life_limit||0,
-        '누적/벌 (파생)': m._shots,
-        '누적 전체 (파생)': m._total,
+        '누적/벌': m._shots,
+        '누적 전체': m._total,
         offset: +m.offset||0,
         '수명%': +m._pct.toFixed(1),
         상태: m._st,
@@ -21383,7 +21568,7 @@ VIEWS.mold = () => {
         </div>` : ''}
         <div class="grid g2">
           <div><label>금형ID ${id?'<span style="color:var(--dim);font-weight:400">— 불변</span>':''}</label><input id="m-id" value="${_esc(m.id)}" ${id?'readonly':''} placeholder="예: M-3310"></div>
-          <div><label>type</label><select id="m-type"><option value="mold"${m.type==='mold'?' selected':''}>금형(mold)</option><option value="jig"${m.type==='jig'?' selected':''}>지그(jig)</option></select></div>
+          <div><label>종류</label><select id="m-type"><option value="mold"${m.type==='mold'?' selected':''}>금형</option><option value="jig"${m.type==='jig'?' selected':''}>지그</option></select></div>
         </div>
         <div class="grid g2">
           <div><label>금형번호 <span style="color:var(--dim);font-weight:400">— 식별번호 연동 (예: 038-030)</span></label>
@@ -21406,7 +21591,7 @@ VIEWS.mold = () => {
           <div><label>기준 타수(수명한도) <span style="color:var(--dim);font-weight:400">— 벌당</span></label><input id="m-life" type="number" min="0" step="100" value="${+m.life_limit||0}"></div>
           <div><label>보유 수량 (벌) <span style="color:var(--dim);font-weight:400">— 물량 증가 시 +</span></label><input id="m-qty" type="number" min="1" step="1" value="${moldQty(m)}"
             title="같은 금형·지그를 여러 벌 두고 교대 사용하는 경우 — 누적 타수는 벌당 평균(전체 ÷ 보유 수량)으로 계산"></div>
-          <div><label>수동 보정 (offset) <span style="color:var(--dim);font-weight:400">— 전체 파생값에 가산</span></label><input id="m-offset" type="number" step="1" value="${+m.offset||0}"></div>
+          <div><label>수동 보정 타수 <span style="color:var(--dim);font-weight:400">— 계산된 누적 타수에 더함</span></label><input id="m-offset" type="number" step="1" value="${+m.offset||0}"></div>
           <div><label>교체 평균시간 (분) <span style="color:var(--dim);font-weight:400">— 생산계획 반영</span></label><input id="m-setup" type="number" min="0" step="5" value="${+m.setup_min||''}" placeholder="미입력=설비 기본"
             title="★ v0.35.0 — 이 금형 장착 교체에 걸리는 평균 시간(분). 생산계획 예상시간에 자동 가산 · 미입력 시 설비 기본 교체시간 폴백"></div>
         </div>
@@ -21557,7 +21742,7 @@ VIEWS.audit = () => {
             <td style="font-size:11px">${cf}</td>
             <td class="mono" style="font-size:11px;white-space:nowrap">${fT(c.ts)}${c.status==='open'&&lvl>0?`<br><span class="pill ${lvl===2?'red':'amber'}" style="font-size:9.5px">판정 지체 ${days}일</span>`:''}</td>
             <td>${c.status==='open' ? `<span class="pill amber" style="font-size:10px">보류 중</span>${judge}` : `<span class="pill green" style="font-size:10px">해제됨</span>${judge}${c.resolved?.ts?`<br><span style="color:var(--dim);font-size:10px">${fT(c.resolved.ts)} · ${_esc(c.resolved.by||'')}</span>`:''}`}</td>
-            <td>${c.status==='open' ? `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn ghost" data-ci-judge="${_esc(c.id)}|A" style="color:var(--cyan);white-space:nowrap;font-size:10.5px" title="Case A — 오입력 실적을 실적현황 [관리자 보정] 으로 정정 (원장 수정은 그 경로뿐)">A 보정</button><button class="btn ghost" data-ci-judge="${_esc(c.id)}|B" style="color:var(--red);white-space:nowrap;font-size:10.5px" title="Case B — 중복 등록을 실적현황 [취소](void) 로 무효화">B 취소</button><button class="btn ghost" data-ci-judge="${_esc(c.id)}|C" style="color:var(--amber);white-space:nowrap;font-size:10.5px" title="Case C — 누가 맞는지 불명 · 보류 유지 (판정 지체 감지 계속)">C 보류 유지</button><button class="btn ghost" data-ci-resolve="${_esc(c.id)}" style="color:var(--green);white-space:nowrap;font-size:10.5px" title="J1′ 재검증 — 보류 0 이면 해제, 아니면 유지">J1′ 재검증·해제</button></div>>` : ''}</td>
+            <td>${c.status==='open' ? `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn ghost" data-ci-judge="${_esc(c.id)}|A" style="color:var(--cyan);white-space:nowrap;font-size:10.5px" title="Case A — 오입력 실적을 실적현황 [관리자 보정] 으로 정정 (원장 수정은 그 경로뿐)">A 보정</button><button class="btn ghost" data-ci-judge="${_esc(c.id)}|B" style="color:var(--red);white-space:nowrap;font-size:10.5px" title="중복 등록 = 실적현황 [취소] 로 무효 처리">B 취소</button><button class="btn ghost" data-ci-judge="${_esc(c.id)}|C" style="color:var(--amber);white-space:nowrap;font-size:10.5px" title="Case C — 누가 맞는지 불명 · 보류 유지 (판정 지체 감지 계속)">C 보류 유지</button><button class="btn ghost" data-ci-resolve="${_esc(c.id)}" style="color:var(--green);white-space:nowrap;font-size:10.5px" title="J1′ 재검증 — 보류 0 이면 해제, 아니면 유지">J1′ 재검증·해제</button></div>>` : ''}</td>
           </tr>`; }).join('')}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);margin-top:7px">초과분은 <b>보류</b>되고 인정분(먼저 등록된 순 · 가용 안)은 그대로 흐릅니다. 판정: <b>A</b> 실적현황 → [관리자 보정] · <b>B</b> 실적현황 → [취소] · <b>C</b> 보류 유지(사유). 원장이 정정되어 보류 0 이 되면 [J1′ 재검증·해제]. 보류분을 강제로 인정하는 버튼은 없습니다.</div>`
@@ -22496,11 +22681,12 @@ VIEWS.plan = () => {
     <div class="pghead">
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('plan')}</svg>생산계획 <span class="pill cyan">${APP_VERSION}</span></div>
       <div class="pgtools">
+        ${menuCanSee(PAGES.find(p => p.id === 'autoplan')) ? `<button class="btn" onclick="location.hash='#autoplan'" title="자동계획 화면 (자동계획 권한 그대로 · 저장은 이 생산계획과 같음)">자동계획 →</button>` : ''}
         <button class="btn" id="btn-plan-xlsx">${ico('excel')}엑셀</button>
         <button class="btn primary" id="btn-plan-new">${ico('plus')}계획 수립</button>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">수주 → 계획 → 작업지시 · 상태는 파생(저장 안 함) · 소재 표시=건별 기준(같은 소재 다계획 합산은 범위 밖)</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">수주 → 계획 → 작업지시 · 상태는 실적에서 자동 판정 · 소재 표시=건별 기준(같은 소재 다계획 합산은 범위 밖)</div>
 
     <!-- 기간 탭 + 이동 -->
     <div class="card" style="padding:14px;margin-bottom:12px">
@@ -22547,8 +22733,8 @@ VIEWS.plan = () => {
     <!-- KPI (기간 연동) -->
     <div class="grid g4" style="margin-bottom:12px">
       <div class="kpi-mini"><div class="lab">${ico('check')}기간 계획량</div><div class="val c">${kpiPlan.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">${scopedInPeriod.length}건 · ${_esc(period.label)}</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}기간 실적</div><div class="val g">${kpiActual.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">양품 합 (라우트 첫 공정)</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}달성률</div><div class="val c">${kpiPct.toFixed(0)}<span style="font-size:12px;color:var(--sub)">%</span></div><div class="sub">cap 100%</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}기간 실적</div><div class="val g">${kpiActual.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">양품 합 (첫 공정)</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}달성률</div><div class="val c">${kpiPct.toFixed(0)}<span style="font-size:12px;color:var(--sub)">%</span></div><div class="sub">계획 건별 최대 100%</div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}전체 계획</div><div class="val c">${allPlans.length}<span style="font-size:12px;color:var(--sub)">건</span></div><div class="sub">모든 기간</div></div>
     </div>
 
@@ -22603,7 +22789,7 @@ VIEWS.plan = () => {
       </table></div>
       <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.6">
         · 소재 표시 = <b>건별 기준</b> (같은 소재 다계획 합산 소요 대비는 범위 밖 · 부족해도 등록 허용).
-        · 상태는 파생(저장 안 함) — 실적 ≥ 계획 시 자동 '완료'.
+        · 상태는 실적에서 자동 판정 — 실적 ≥ 계획 시 자동 '완료'.
       </div>
     </div>
   `;
@@ -23557,11 +23743,12 @@ VIEWS.autoplan = () => {
     <div class="pghead">
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('autoplan')}</svg>자동 생산계획 <span class="pill cyan">${APP_VERSION} · 통합저장</span></div>
       <div class="pgtools">
+        ${menuCanSee(PAGES.find(p => p.id === 'plan')) ? `<button class="btn" onclick="location.hash='#plan'" title="만든 계획은 생산계획에서 확인·수정">← 생산계획</button>` : ''}
         <button class="btn" id="btn-plan-opts">${ico('save')}옵션</button>
         <button class="btn primary" id="btn-plan-gen">${ico('plus')}자동계획 생성</button>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">자동계획은 생성 경로일 뿐 — 저장은 <b>생산계획(production_plans)</b> 과 동일 · <span style="color:var(--amber)">[자동]</span> 배지로 구분 · 소재/부하/일괄 발행/계획대비 자동 포함.</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">자동계획은 생성 경로일 뿐 — 저장은 <b>생산계획</b>과 같음 · <span style="color:var(--amber)">[자동]</span> 배지로 구분 · 소재/부하/일괄 발행/계획대비 자동 포함.</div>
 
     ${(() => {
       // ★ v0.23.6 — 자동 생성 결과 배너 (이번 세션만 · [생산계획에서 보기] 로 주간+자동 필터 이동)
@@ -23640,7 +23827,7 @@ VIEWS.autoplan = () => {
         }).join('') : `<tr><td colspan="7" class="empty">${apState.origin==='auto'?'자동 계획 없음 — [자동계획 생성] 으로 시작':(apState.origin==='manual'?'수동 계획 없음 — 생산계획 화면 [+ 계획 수립]':'계획 없음')}</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.6">
-        · 목록 기준 <b>단일화</b> — <code>getLivePlans()</code> (자동/수동/구형 미지정 모두). [자동]/[수동] 배지 · 출처 필터로 구분.<br>
+        · 목록은 하나 — 자동·수동 계획 모두. [자동]/[수동] 배지 · 출처 필터로 구분.<br>
         · 일괄 지시 발행/체크박스는 <a href="#plan" style="color:var(--cyan)">생산계획</a> 목록 상단 [작업지시 생성] 사용 · 소재/부하/계획대비 자동 포함.<br>
         · [취소]는 원본 보존 · 지시(WO)로 발행된 건은 WO 먼저 취소.
       </div>
@@ -23934,7 +24121,7 @@ VIEWS.masters = () => {
     <!-- 거래처 (v0.26.2 — 고객사 카드 통합 · 정의 필드·엑셀 임포트 이식) -->
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <h3 style="margin:0">거래처 <span class="tag">v0.26.2 · 고객사·구매처·외주처 통합 · 정의 필드·임포트 지원 · 품목 식별번호 채번 기준(구분=고객사)</span></h3>
+        <h3 style="margin:0">거래처 <span class="tag">고객사·구매처·외주처 통합 · 정의 필드·임포트 지원 · 품목 식별번호 채번 기준(구분=고객사)</span></h3>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn" id="mst-v-fields">${ico('save')}필드 관리</button>
           <button class="btn" id="mst-v-import">${ico('excel')}엑셀 임포트</button>
@@ -23984,14 +24171,14 @@ VIEWS.masters = () => {
         }).join('') : `<tr><td colspan="${6+vTopFields.length}" class="empty">거래처 없음 — [거래처 등록] 또는 [엑셀 임포트]</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
-        <b style="color:var(--amber)">규칙</b> 코드는 <b>영숫자·유일·불변</b>(C001·038 자유) · 물리 삭제 없음 · <b>구분=고객사</b> 는 품목 식별번호(<span style="font-family:'JetBrains Mono',monospace">{코드}-{순번3}-{리비전}</span>) 채번 기준 · 정의 필드는 구분 무관 공통(master_fields).
+        <b style="color:var(--amber)">규칙</b> 코드는 <b>영숫자·유일·불변</b>(C001·038 자유) · 물리 삭제 없음 · <b>구분=고객사</b> 는 품목 식별번호(<span style="font-family:'JetBrains Mono',monospace">{코드}-{순번3}-{리비전}</span>) 채번 기준 · 정의 필드는 구분과 관계없이 공통.
       </div>
     </div>
 
     <!-- 품번 -->
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <h3 style="margin:0">품번 마스터 <span class="tag">v0.26 · 식별번호 채번 · 정의 필드 · 계산 표시</span></h3>
+        <h3 style="margin:0">품번 마스터 <span class="tag">식별번호 채번 · 정의 필드 · 계산 표시</span></h3>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn" id="mst-i-fields">${ico('save')}필드 관리</button>
           <button class="btn" id="mst-i-import">${ico('excel')}엑셀 임포트</button>
@@ -24090,7 +24277,7 @@ VIEWS.masters = () => {
     <!-- ★ v0.16.7 — 설비 마스터 (기준정보 승격 · equipments 컬렉션) -->
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <h3 style="margin:0">설비 <span class="tag">v0.16.7 · 공정 정의 배열(폴백) → 마스터 승격 · 이름 매칭 유지</span></h3>
+        <h3 style="margin:0">설비 <span class="tag">공정 정의 배열(폴백) → 마스터 승격 · 이름 매칭 유지</span></h3>
         <button class="btn" id="mst-e-import">${ico('excel')}엑셀 임포트</button>
         <button class="btn primary" id="mst-e-new">${ico('plus')}설비 등록</button>
       </div>
@@ -24128,7 +24315,7 @@ VIEWS.masters = () => {
         }).join('') : `<tr><td colspan="5" class="empty">등록된 설비 없음 — 미등록 공정은 공정 템플릿의 설비 배열로 폴백(getEquipment) · [설비 등록]으로 승격</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
-        <b style="color:var(--amber)">규칙</b> 이름 매칭 — 실적(records.equipment)의 문자열 구조 유지(과거 데이터 호환) · <b>같은 공정 내 이름 중복 차단</b> · 외주 공정은 등록 대상 아님 · 비활성 설비는 신규 선택 목록에서 제외(과거 실적·설비현황 이력 표시는 유지). 컬렉션 미등록 공정은 공정 템플릿의 설비 배열로 폴백.
+        <b style="color:var(--amber)">규칙</b> 이름으로 연결 — 실적에 적힌 설비 이름 그대로 (과거 데이터 호환) · <b>같은 공정 내 이름 중복 차단</b> · 외주 공정은 등록 대상 아님 · 비활성 설비는 신규 선택 목록에서 제외(과거 실적·설비현황 이력 표시는 유지). 컬렉션 미등록 공정은 공정 템플릿의 설비 배열로 폴백.
       </div>
     </div>
 
@@ -25237,7 +25424,7 @@ VIEWS.closing = () => {
 
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;line-height:1.7;margin-top:10px">
         <b style="color:var(--amber)">규칙</b> 차월 이월 = 전월 이월 + 당월 발생 − 당월 결제. 결제만 수기, 나머지 자동.
-        <span style="color:var(--dim)">마감은 <b style="color:var(--cyan)">귀속 월(cl_month)</b> 기준 — 대시보드 매출 등 물류 지표는 문서 일자(ts) 기준 유지.</span>
+        <span style="color:var(--dim)">마감은 <b style="color:var(--cyan)">귀속 월</b> 기준 — 대시보드 매출 등 물류 지표는 문서 일자(ts) 기준 유지.</span>
         ${prevClosing ? `전월 이월은 <b class="mono">${prevMonth}</b> 마감의 차월 이월 자동 로드.` : (allowStart ? '<span style="color:var(--amber)">도입 첫 달 — 시작 잔액 수기 입력 허용</span>.' : '전월 마감 없음 — 전월 이월 = 0.')}
         ${state.type==='purchase' && missingCount>0 ? ` <span style="color:var(--red)">단가 미등록 ${missingCount}건 제외</span> (가짜 합계 금지 — 발주 단가 등록 후 재마감).` : ''}
         ${state.type==='outsource' && missingCount>0 ? ` <span style="color:var(--red)">외주 요율 미등록 공정 ${missingCount}건 제외</span>.` : ''}
@@ -25647,8 +25834,8 @@ function buildReportData(scope, baseDate){
     const moldIssues = getMoldLifeIssues();
     const overCnt = moldIssues.filter(x => x.pct >= 100).length;
     const nearCnt = moldIssues.length - overCnt;
-    if(overCnt > 0) issues.push({ severity:'red',   dept:'prod', text:`금형 수명 초과 ${overCnt}건 — 즉시 교체 대상 (파생 표시)` });
-    if(nearCnt > 0) issues.push({ severity:'amber', dept:'prod', text:`금형 수명 임박 ${nearCnt}건 — 90% 이상 (파생 표시)` });
+    if(overCnt > 0) issues.push({ severity:'red',   dept:'prod', text:`금형 수명 초과 ${overCnt}건 — 즉시 교체 대상` });
+    if(nearCnt > 0) issues.push({ severity:'amber', dept:'prod', text:`금형 수명 임박 ${nearCnt}건 — 90% 이상` });
   } catch(e){ /* 금형 모듈 OFF/데이터 이상 시 무시 */ }
   // 계획 미발행 임박 (오늘~D+3 · wo_id 없음 · 최대 5건)
   const todayStr = fmtDate(Date.now());
@@ -25802,7 +25989,7 @@ function openReportPicker(){
 function _repWithBasis(html, extra, note){ if(!html) return ''; const add = (extra || '') + (note ? `<div class="rep-basis" style="font-size:10.5px;color:var(--dim);margin-top:8px">${_esc(note)}</div>` : ''); if(!add) return html; const i = html.lastIndexOf('</div>'); return i < 0 ? html + add : html.slice(0, i) + add + html.slice(i); }
 function _repOtdHtml(data){
   const o = data && data.extras && data.extras.otd; if(!o) return '';
-  return `<div data-rep-block="sales.otd" style="margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px"><b>${_esc(reportOtdText(o))}</b>${o.byCust && o.byCust.length ? `<div class="tbl-wrap" style="margin-top:6px"><table style="font-size:11.5px"><thead><tr><th>고객사 (준수율 낮은 순)</th><th class="num">평가</th><th class="num">준수</th><th class="num">건수 기준</th></tr></thead><tbody>${o.byCust.map(g => `<tr><td>${_esc(g.name)}</td><td class="num">${g.lines}</td><td class="num">${g.okLines}</td><td class="num">${g.rateLines == null ? '—' : g.rateLines.toFixed(1) + '%'}</td></tr>`).join('')}</tbody></table></div>` : ''}<div style="font-size:10.5px;color:var(--dim);margin-top:4px">계산 = 출하 › 납기 실적과 같은 함수(calcOnTime) · 저장 당시 확정값</div></div>`;
+  return `<div data-rep-block="sales.otd" style="margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px"><b>${_esc(reportOtdText(o))}</b>${o.byCust && o.byCust.length ? `<div class="tbl-wrap" style="margin-top:6px"><table style="font-size:11.5px"><thead><tr><th>고객사 (준수율 낮은 순)</th><th class="num">평가</th><th class="num">준수</th><th class="num">건수 기준</th></tr></thead><tbody>${o.byCust.map(g => `<tr><td>${_esc(g.name)}</td><td class="num">${g.lines}</td><td class="num">${g.okLines}</td><td class="num">${g.rateLines == null ? '—' : g.rateLines.toFixed(1) + '%'}</td></tr>`).join('')}</tbody></table></div>` : ''}<div style="font-size:10.5px;color:var(--dim);margin-top:4px">계산 = 출하 › 납기 실적과 같은 기준 · 저장 당시 값</div></div>`;
 }
 function _repSafetyHtml(data){
   const sf = data && data.extras && data.extras.safety;
@@ -27083,6 +27270,13 @@ VIEWS._qcDetail = (nc_id) => {
     timeline.push({ ts: nc.void.ts, by: nc.void.by, label: `NC 취소 · ${nc.void.reason||''}` });
   }
 
+  // ★ v0.40.1 (GPT v0.40.0 판정 ③) — 부적합 상세 = 검사 결과 · 첨부 · 이력 탭 (VELA 의 검사 결과 = 실적의 양품·불량 + 이 부적합 기록 · 별도 검사 문서 없음)
+  const _qcRec = nc.record_id ? DB.get('records', nc.record_id) : null;
+  const _qcAtt = _drawAttList(nc);
+  const _qcQ = nc.lot_id ? lotQuarantineQty(nc.lot_id) : 0;
+  const _qcRes = `<div style="font-size:12px;color:var(--sub);margin:4px 0 6px"><b>검사 결과</b> — 실적에서 확인된 수량과 이 부적합의 판정 상태</div>
+        ${_qcRec ? `<div class="tbl-wrap rd-tbl"><table><thead><tr><th>실적</th><th class="num">양품</th><th class="num">불량</th><th class="num">폐기</th><th class="num">재작업</th></tr></thead><tbody><tr><td>${_esc(nc.record_id)}</td><td class="num">${(+_qcRec.good||0).toLocaleString()}</td><td class="num">${(+_qcRec.defect||0).toLocaleString()}</td><td class="num">${(+_qcRec.scrap||0).toLocaleString()}</td><td class="num">${(+_qcRec.rework||0).toLocaleString()}</td></tr></tbody></table></div>` : `<div class="rd-empty" style="padding:10px">실적과 연결되지 않은 부적합입니다 (LOT 단위 접수).</div>`}
+        ${nc.lot_id ? `<div style="font-size:12px;margin-top:8px">LOT <b>${_esc(nc.lot_id)}</b> 현재 격리 수량 <b>${_qcQ.toLocaleString()}ea</b>${ncIsHold(nc) ? ' · <b style="color:var(--red)">LOT 전체 HOLD</b>' : ''}</div>` : ''}`;
   const actions = [];
   // ★ v0.35.9-B — 접수 상태에서 품질팀 HOLD 체크/해제 (판정과 별개 · 이력 기록)
   if(!isVoid && isRcv) actions.push(ncIsHold(nc)
@@ -27101,6 +27295,12 @@ VIEWS._qcDetail = (nc_id) => {
   openModal(`
     <h2>부적합 상세 <span style="font-family:'JetBrains Mono',monospace;color:var(--cyan);margin-left:6px">${_esc(nc.id)}</span> ${ncStatusBadge(nc.status, nc)} ${isVoid?'<span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9.5px;margin-left:4px">취소</span>':''} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
+      <div class="rd-tabs" role="tablist">
+        <button type="button" data-qc-tab="res" aria-selected="true">결과</button>
+        <button type="button" data-qc-tab="att" aria-selected="false">첨부 ${_qcAtt.length}</button>
+        <button type="button" data-qc-tab="hist" aria-selected="false">이력 ${timeline.length}</button>
+      </div>
+      <div data-qc-pane="res">
       <div style="display:grid;grid-template-columns:130px 1fr;gap:8px 12px;font-size:12.5px;padding:11px 13px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;margin-bottom:10px">
         <div style="color:var(--sub)">일자</div><div style="font-family:'JetBrains Mono',monospace">${_esc(nc.date||fmtDate(nc.ts))}</div>
         <div style="color:var(--sub)">품번</div><div><b>${_esc(nc.item_code||'—')}</b> ${item?`<span style="color:var(--sub);font-size:11px">${_esc(item.name||'')}</span>`:''}</div>
@@ -27113,7 +27313,13 @@ VIEWS._qcDetail = (nc_id) => {
         ${nc.status === '접수' ? `<div style="color:var(--sub)">판정 범위</div><div>${ncIsHold(nc) ? `<b style="color:var(--red)">로트 불량 — LOT 전체 HOLD</b>${nc.hold_reason?` · ${_esc(nc.hold_reason)}`:''}` : `<b style="color:var(--amber)">부분 불량 — ${(+nc.qty||0).toLocaleString()}ea 격리</b> · LOT 진행`}</div>` : ''}
         ${nc.rework_record_id ? `<div style="color:var(--sub)">재작업 실적</div><div><span style="font-family:'JetBrains Mono',monospace">${_esc(nc.rework_record_id)}</span> · 양품 ${(+rework?.good||0).toLocaleString()}ea</div>` : ''}
       </div>
-      <div style="font-size:11.5px;color:var(--sub);margin-bottom:6px"><b>처리 이력</b></div>
+        ${_qcRes}
+      </div>
+      <div data-qc-pane="att" hidden>
+        ${_qcAtt.length ? `<div class="tbl-wrap rd-tbl"><table><thead><tr><th>파일</th><th>올린 날짜</th><th>올린 사람</th></tr></thead><tbody>${_qcAtt.map(x => `<tr><td><b>${_esc(x.name||'')}</b></td><td>${_esc(fmtDate(x.ts))}</td><td>${_esc(x.by||'')}</td></tr>`).join('')}</tbody></table></div>` : `<div class="rd-empty">첨부한 사진·파일이 없습니다.</div>`}
+        ${!isVoid ? `<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn" id="nc-att-tab">📎 사진·파일 열기 · 추가</button><span style="font-size:11px;color:var(--sub)">파일을 열거나 새로 올리는 창으로 이동합니다.</span></div>` : ''}
+      </div>
+      <div data-qc-pane="hist" hidden>
       <div style="border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:var(--bg2);font-size:11.5px;line-height:1.7">
         ${timeline.map(t => `<div style="display:flex;gap:9px;align-items:baseline;padding:3px 0">
           <span style="font-family:'JetBrains Mono',monospace;color:var(--dim);font-size:10.5px;min-width:110px">${fmtDate(t.ts)} ${fmtTime(t.ts).slice(0,5)}</span>
@@ -27123,12 +27329,18 @@ VIEWS._qcDetail = (nc_id) => {
       </div>
       ${isDone||isVoid ? `<div style="font-size:11px;color:var(--dim);margin-top:8px;line-height:1.55">${isDone?'· 완료된 NC 는 수정 불가 (상세 열람만) · 되돌리기는 취소 후 재등록.':'· 취소된 NC · 이력 보존.'}</div>` : ''}
       ${isRcv && !isVoid ? `<div style="font-size:11px;color:var(--sub);margin-top:6px">판정(특채·폐기·반품·재작업) → <b>[처리]</b> · 잘못 등록한 NC 만 <b style="color:var(--red)">[오등록 취소]</b></div>` : ''}
+      </div>
       <div class="actions">
         <button class="btn" onclick="closeModal()">닫기</button>
         ${actions.join(' ')}
       </div>
     </div>
   `);
+  document.querySelectorAll('#modal [data-qc-tab]').forEach(t => t.onclick = () => {
+    document.querySelectorAll('#modal [data-qc-tab]').forEach(x => x.setAttribute('aria-selected', x === t ? 'true' : 'false'));
+    document.querySelectorAll('#modal [data-qc-pane]').forEach(p => { p.hidden = p.dataset.qcPane !== t.dataset.qcTab; });
+  });
+  const bAttT = document.getElementById('nc-att-tab'); if(bAttT) bAttT.onclick = () => { closeModal(); VIEWS._attFilesModal('nc_records', nc_id); };
   const bP = document.getElementById('nc-proc');
   if(bP) bP.onclick = () => { closeModal(); VIEWS._qcProcess(nc_id); };
   const bL = document.getElementById('nc-link');
@@ -27449,7 +27661,7 @@ VIEWS.qc = () => {
             <td>${_esc(dt?.name||n.defect_type||'—')}</td>
             <td class="num" style="font-family:'JetBrains Mono',monospace">${(+n.qty||0).toLocaleString()}</td>
             <td>${ncStatusBadge(n.status, n)}</td>
-            <td style="text-align:right">${actBtn}</td>
+            <td class="ra-cell">${actBtn}<button type="button" class="ra-open" data-nc-detail="${_esc(n.id)}" title="상세 보기 — 결과·첨부·이력 · 처리는 상세 창에서">상세 보기 →</button></td>
           </tr>`;
         }).join('') : '<tr><td colspan="8" class="empty">부적합 없음 — [+ 부적합 등록] 또는 실적현황의 불량 실적에서 등록</td></tr>'}</tbody>
       </table></div>
@@ -27475,7 +27687,7 @@ VIEWS.qc = () => {
       </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <h3 style="font-size:13px;margin:0">공정별 불량률 <span class="tag">records 기반 · 기간</span></h3>
+          <h3 style="font-size:13px;margin:0">공정별 불량률 <span class="tag">실적 기준 · 기간</span></h3>
         </div>
         ${byProc.length ? `
           <table style="font-size:12px">
@@ -28518,7 +28730,7 @@ function _userWorkerCardsHTML(){
   return `
     <!-- ★ v0.15.2 — 사용자·PIN 관리 (인증) ※ 작업자 마스터(생산부 직원)와 별개 — users/workers 통합 아님 -->
     <div class="card">
-      <h3>사용자 · 비밀번호 관리 <span class="tag">v0.16.22 · 이름(식별자) + 비밀번호(6자리) · 초기 000000 자동 부여</span></h3>
+      <h3>사용자 · 비밀번호 관리 <span class="tag">이름(식별자) + 비밀번호(6자리) · 초기 000000 자동 부여</span></h3>
       <div class="tbl-wrap"><table>
         <thead><tr><th>이름</th><th>비밀번호</th><th>구분</th><th>최근 로그인</th><th style="text-align:right">관리</th></tr></thead>
         <tbody id="usr-rows"></tbody>
@@ -28532,7 +28744,7 @@ function _userWorkerCardsHTML(){
       </div>
       ${_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' ? `
       <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:12.5px;font-weight:700">서버 로그인 방식 <span class="tag">v0.38.29 · 이 기기 설정</span></div>
+        <div style="font-size:12.5px;font-weight:700">서버 로그인 방식 <span class="tag">이 기기 설정</span></div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px">
           <label style="display:inline-flex;gap:6px;align-items:center;margin:0"><input type="radio" name="auth-mode" value="legacy" ${authMode()==='legacy'?'checked':''}> 기존 방식 (운영 규칙 v4 · 앱 비밀번호)</label>
           <label style="display:inline-flex;gap:6px;align-items:center;margin:0"><input type="radio" name="auth-mode" value="staff" ${authMode()==='staff'?'checked':''}> 직원 계정 (규칙 v5 r11 게시 후 · Firebase 비밀번호)</label>
@@ -28553,7 +28765,7 @@ function _userWorkerCardsHTML(){
     </div>
 
     <div class="card">
-      <h3>작업자 마스터 <span class="tag">v0.11.0 · 생산부 직원 · 실적 등록 세션에서 선택</span></h3>
+      <h3>작업자 마스터 <span class="tag">작업자 · 실적 등록 세션에서 선택</span></h3>
       <div class="tbl-wrap"><table>
         <thead><tr><th>사번</th><th>이름</th><th>부서</th><th>활성</th><th></th></tr></thead>
         <tbody id="wk-rows"></tbody>
@@ -28594,7 +28806,7 @@ function bindUserWorkerCards(){
               <td><div style="display:flex;gap:14px">${radio('dash','edit',dashCur==='edit')}${radio('dash','view',dashCur==='view')}</div></td></tr>
             ${pages.map(p=>`<tr><td><b>${_esc(p.title)}</b></td>
               <td><div style="display:flex;gap:14px">${PERM_LEVELS.slice().reverse().map(lv=>radio(p.id,lv,cur(p.id)===lv)).join('')}</div></td></tr>`).join('')}
-            <tr style="border-top:2px solid var(--line)"><td><b>단가·금액 열람</b> <span class="tag" style="font-size:9px">v0.38.29 · 수주·발주·입고 단가 · 원가 · 견적 · 마감 · 회계 · 보고서</span></td>
+            <tr style="border-top:2px solid var(--line)"><td><b>단가·금액 열람</b> <span class="tag" style="font-size:9px">수주·발주·입고 단가 · 원가 · 견적 · 마감 · 회계 · 보고서</span></td>
               <td><div style="display:flex;gap:14px">${radio('price','view',(u.perms?.price ?? (permBase(u) === 'none' ? 'none' : 'view')) !== 'none')}${radio('price','none',(u.perms?.price ?? (permBase(u) === 'none' ? 'none' : 'view')) === 'none')}</div></td></tr>
           </tbody>
         </table></div>
