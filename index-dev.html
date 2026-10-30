@@ -1325,6 +1325,109 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
 .m-tr-row{display:flex;gap:8px;align-items:stretch;margin-top:6px}
 .m-tr-row .reason-input{flex:1;min-width:0}
 .m-tr-row .m-btn{width:auto;min-width:76px;margin:0;padding:0 14px}
+/* ═══════════════════════════════════════════════════════════════════
+   ★ v0.40.0 — VELA UI SPEC 1.1 공통 셸 (GPT 인계서 2026-10-29 · 사용자 확정 U01~U08)
+   · 밝은 화면 기본 = 블랙 글자 · 민트 주 동작 · 밝은 왼쪽 메뉴(전체 높이) · 위쪽 = 현재 위치
+   · 한 화면 한 업무 영역 = 단락 보기 전환(.view-tabs) · 상세·작성·수정 = 중앙 창(.modal 규격)
+   · 표시만 바꿈: 계산·원장·권한·저장 경로 무변 · 다크 테마 = 기존 색 유지(배치만 공통)
+   ═══════════════════════════════════════════════════════════════════ */
+html[data-theme="light"]{
+  --bg:#f6f8fa;--bg2:#ffffff;--panel:#ffffff;--panel2:#f8fafc;--line:#e2e8f0;--line2:#cbd5e1;
+  --ink:#17212b;--sub:#5b6878;--dim:#64748b;
+  --cyan:#087e6e;--cyan-dim:#0f9f8a;
+  --mint:#55dcc0;--mint-bg:#e7faf5;--mint-ink:#087e6e;
+  --prim:#55dcc0;--prim-ink:#102a25;
+  --sh:0 1px 2px rgba(15,23,42,.04);--sh2:0 10px 30px rgba(15,23,42,.10);
+}
+html[data-theme="light"] body{background:var(--bg)}
+html[data-theme="light"] body::before{display:none}
+html[data-theme="light"] .btn.primary{background:var(--prim);border-color:var(--prim);color:var(--prim-ink);font-weight:700}
+html[data-theme="light"] .btn.primary:hover{background:#3fcfb1;border-color:#3fcfb1;color:var(--prim-ink);opacity:1}
+html[data-theme="light"] .btn.primary svg{stroke:var(--prim-ink)}
+html[data-theme="light"] .btn{border-color:var(--line);border-radius:8px}
+html[data-theme="light"] .card{border-color:var(--line);border-radius:12px;background:var(--panel)}
+html[data-theme="light"] th{background:#f8fafc;color:#475569;font-size:11.5px;letter-spacing:.2px;font-weight:600}
+html[data-theme="light"] tbody tr:hover td{background:#f3fcf9}
+html[data-theme="light"] input,html[data-theme="light"] select,html[data-theme="light"] textarea{border-color:var(--line2);background:#fff}
+html[data-theme="light"] input:focus,html[data-theme="light"] select:focus,html[data-theme="light"] textarea:focus{border-color:var(--cyan-dim);box-shadow:0 0 0 3px rgba(85,220,192,.25)}
+:focus-visible{outline:3px solid var(--cyan-dim);outline-offset:2px}
+.pgtitle{font-size:24px;font-weight:800;letter-spacing:-.4px}
+.pgtitle .ic{display:none}
+.pg-count{font-size:14px;font-weight:500;color:var(--sub);letter-spacing:0;font-family:inherit}
+/* 사이드바 브랜드 · 부서 아이콘 · 위치 표시 (넓은 화면 전용 · 좁은 화면 = 기존 칩) */
+.tabnav .nav-brand{display:none}
+.crumb{display:none}
+.tabnav .nav-ico{display:none}
+@media(min-width:1101px){
+  #app.wrap{max-width:none;padding:0}
+  #app{grid-template-columns:232px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"nav top" "nav main" "nav foot";column-gap:0;min-height:100vh}
+  #app > .tabnav{grid-area:nav;position:sticky;top:0;height:100vh;max-height:100vh;margin:0;border:0;border-right:1px solid var(--line);border-radius:0;padding:18px 12px 24px;background:var(--panel);box-shadow:none}
+  #app > .topbar{grid-area:top;align-self:start;position:sticky;top:0;z-index:30;margin:0;padding:10px 32px;min-height:64px;background:var(--panel);border-bottom:1px solid var(--line)}
+  #app > .topbar .brand{display:none}
+  #app > #view{padding:26px 32px 8px}
+  #app > .foot{margin:0 32px;padding:16px 0}
+  .tabnav .nav-brand{display:flex;align-items:baseline;gap:8px;padding:4px 14px 22px;text-decoration:none}
+  .tabnav .nav-brand b{font-size:27px;font-weight:900;letter-spacing:1.5px;color:var(--ink);font-family:'Inter','Pretendard',sans-serif;line-height:1}
+  .tabnav .nav-brand i{display:inline-block;width:10px;height:10px;background:var(--mint);margin-left:-4px}
+  .tabnav .nav-brand span{font-size:9.5px;font-weight:700;letter-spacing:2.2px;color:var(--dim)}
+  .tabnav .nav-ico{display:inline-flex;width:20px;height:20px;flex:none;align-items:center;justify-content:center}
+  .tabnav .nav-ico svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none}
+  .tabnav .nav-sec{display:flex!important;align-items:center;gap:12px;font-size:14px!important;font-weight:700!important;letter-spacing:0!important;color:var(--ink)!important;padding:10px 14px 6px!important}
+  .tabnav .nav-dept-h{gap:12px;justify-content:flex-start!important;font-size:14px!important;padding:11px 14px!important;border-radius:8px}
+  .tabnav .nav-dept-h:hover{background:var(--panel2)}
+  .tabnav .nav-dept.cur .nav-dept-h{background:var(--mint-bg);color:var(--mint-ink)!important}
+  .tabnav .nav-dept-b{margin:2px 0 6px 23px;padding:0 0 0 12px!important;border-left:2px solid var(--line)}
+  .tabnav .nav-dept.cur .nav-dept-b{border-left-color:var(--mint)}
+  .tabnav .nav-dept-b button{font-size:13px!important;padding:8px 12px!important}
+  .tabnav > button[data-page]{font-size:13px;padding:8px 14px 8px 46px}
+  .tabnav button.on{box-shadow:none!important}
+  .crumb{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--sub);min-width:0}
+  .crumb b{color:var(--ink);font-weight:700}
+  .crumb .sep{color:var(--line2)}
+}
+html[data-theme="light"] .tabnav button.on{background:var(--mint-bg);color:var(--mint-ink)}
+/* 중앙 창 규격 (U02·U04 · 오른쪽 패널 0): 기본 760px · 최대 90dvh · 제목·하단 버튼 고정 · 본문만 스크롤 · 작은 화면 = 전체 화면 */
+.modal-bg{background:rgba(30,41,59,.45);backdrop-filter:none}
+html:not([data-theme="light"]) .modal-bg{background:rgba(8,9,11,.82)}
+.modal{max-width:760px;width:min(100%,calc(100vw - 48px));max-height:90dvh;padding:0 28px;border-radius:14px;box-shadow:0 24px 80px rgba(22,42,52,.25)}
+html[data-theme="light"] .modal{background:var(--panel)}
+.modal > h2{position:sticky;top:0;z-index:4;background:inherit;background:var(--panel);margin:0 0 14px;padding:22px 0 14px;border-bottom:1px solid var(--line);font-size:19px;font-weight:800}
+.modal .actions{position:sticky;bottom:0;z-index:4;background:var(--panel);margin-top:18px;padding:14px 0 20px}
+.modal > .body{padding-bottom:4px}
+@media(max-width:600px){
+  .modal-bg{padding:0}
+  .modal{max-width:none!important;width:100vw;height:100dvh;max-height:100dvh;border-radius:0;padding:0 16px}
+}
+/* 한 화면 한 업무 영역 — 단락 보기 전환 */
+.view-tabs{display:flex;gap:4px;flex-wrap:wrap;padding:5px;margin:0 0 16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;width:max-content;max-width:100%}
+.view-tabs button{border:0;background:none;padding:9px 18px;border-radius:7px;font:inherit;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;white-space:nowrap}
+.view-tabs button[aria-selected="true"]{background:var(--mint-bg);color:var(--mint-ink);font-weight:800}
+.view-tabs button:hover{color:var(--ink)}
+.card.vt-hide{display:none!important}
+.vt-wrap-hide{display:none!important}
+.card.vt-solo{grid-column:1/-1}
+.st-tabs{display:flex;gap:4px;flex-wrap:wrap;padding:5px;margin:0 0 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;width:max-content;max-width:100%}
+.st-tabs button{border:0;background:none;padding:8px 16px;border-radius:7px;font:inherit;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;white-space:nowrap}
+.st-tabs button .n{display:inline-block;min-width:20px;margin-left:6px;padding:0 6px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);font-size:11px;font-weight:700;color:var(--sub)}
+.st-tabs button[aria-selected="true"]{background:var(--mint-bg);color:var(--mint-ink);font-weight:800}
+.modal h2 .x{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;flex:none}
+.modal h2 .x:hover{background:var(--panel2)}
+.modal h2 .x svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2}
+@media print{ .view-tabs{display:none!important} .card.vt-hide{display:block!important} }
+/* 행 상세 — 여러 동작 버튼은 상세 창 안으로 (원래 버튼 그대로 이동 · 닫으면 제자리) */
+td.ra-cell > :not(.ra-open){display:none!important}
+td.ra-cell{white-space:nowrap;text-align:right}
+.ra-open{background:none;border:0;color:var(--cyan);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:6px 4px;white-space:nowrap}
+.ra-open:hover{text-decoration:underline}
+@media print{ .ra-open{display:none!important} td.ra-cell > *{display:none!important} }
+.rd-grid{display:grid;grid-template-columns:minmax(110px,auto) 1fr;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.rd-grid > div{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.rd-grid > .k{background:var(--panel2);color:var(--sub);font-weight:600}
+.rd-grid > div:nth-last-child(-n+2){border-bottom:0}
+.rd-head{font-size:20px;font-weight:800;margin:2px 0 4px}
+.rd-sub{color:var(--sub);font-size:13px;margin-bottom:14px}
+.rd-acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.rd-note{font-size:11.5px;color:var(--dim);margin-top:10px}
 </style>
 </head>
 <body>
@@ -1390,6 +1493,7 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
       <!-- v0.9.0 — 업체명 헤더에서 제거. settings/company.name 있으면 hidden 채움 -->
       <span class="factory" id="brand-co" hidden></span>
     </div>
+    <nav class="crumb" id="crumb" aria-label="현재 위치"></nav>
     <div class="topbar-right">
       <!-- ★ v0.22.0 — DEMO 배지 (데모 체험 모드에서만 노출 · JS 가 hidden 토글) -->
       <span class="demo-badge" id="demo-badge" hidden title="데모 체험 모드 — 실데이터·서버와 완전 분리">DEMO</span>
@@ -1463,11 +1567,11 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.39.13';
+const APP_VERSION = 'v0.40.0';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-10-29';
+const APP_DATE    = '2026-10-30';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -3250,7 +3354,7 @@ function openRestorePreview(parsed, fname, colCount, docCount, opts){
     const hn = _restoreHealthHtml(plan.healthNew); const exN = plan.exclude ? Object.keys(plan.exclude).reduce((s, k) => s + plan.exclude[k].length, 0) : 0;
     const lockHtml = !lock ? '<div style="font-size:12px;color:var(--sub)">잠금 확인 중…</div>'
       : lock.mode === 'legacy' ? `<label style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:8px;padding:8px;border:1px solid var(--amber);border-radius:8px"><input type="checkbox" id="bk-lock-ok"> <span><b>다른 기기(직원 PC·폰) 모두 로그아웃 확인</b> — 기존 방식(v4)은 서버가 다른 사람 저장을 막지 못함 · 복원 뒤 서버 대조로 충돌을 표시</span></label>`
-      : lock.ok && lock.mode === 'recovery' ? `<div style="font-size:12px;color:var(--green);margin-top:8px">복구 모드 — 서버가 이 기기만 저장 허용 (직원·관리자·다른 기기 저장 거부 · 규칙 r14)${lock.secMigrated ? ' · 이관 완료 → 단가는 단가 문서로 나눠 저장 (원본 단가 저장 = 서버 거부)' : ''}</div>`
+      : lock.ok && lock.mode === 'recovery' ? `<div style="font-size:12px;color:var(--green);margin-top:8px">복구 모드 — 서버가 이 기기만 저장 허용 (직원·관리자·다른 기기 저장 거부 · 규칙 r15)${lock.secMigrated ? ' · 이관 완료 → 단가는 단가 문서로 나눠 저장 (원본 단가 저장 = 서버 거부)' : ''}</div>`
       : lock.ok ? `<div style="font-size:12px;color:var(--green);margin-top:8px">쓰기 중지 켜짐 — 복원 중 다른 직원 저장은 서버가 거부</div>`
       : `<div style="font-size:12px;color:var(--red);margin-top:8px">${_esc(lock.msg || '잠금 확인 실패')} <button class="btn ghost" id="bk-lock-re">다시 확인</button></div>`;
     const canRun = !plan.blocked && lock && lock.ok;
@@ -3407,7 +3511,7 @@ async function cutoverStatus(opts){
   let log = null; try { const l = await fs.collection('settings').doc('sec_migration_log').get({ source: 'server' }); log = l.exists ? l.data() : null; } catch(e){}
   let probe = 'unknown'; try { await fs.collection('vela_rules_probe').doc('x').get({ source: 'server' }); probe = 'allow'; } catch(e){ probe = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
   // ★ v0.39.8 (GPT v0.39.7 필수 2) — 설정값(version)이 아니라 실제 게시 규칙 확인 · ★ v0.39.13 = rules_probe/r14 (r14 만 허용 · r13 이하 = 거부 — 요청 판정 기록 plan_move_reqs 필요)
-  let probe13 = 'unknown'; try { await fs.collection('rules_probe').doc('r14').get({ source: 'server' }); probe13 = 'allow'; } catch(e){ probe13 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
+  let probe13 = 'unknown'; try { await fs.collection('rules_probe').doc('r15').get({ source: 'server' }); probe13 = 'allow'; } catch(e){ probe13 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
   if(sr && Object.keys(sr).length) _SRV_LAST = sr;
   st.test = isTestProject(); st.sr = sr; st.probe = probe; st.probe13 = probe13;
   const logAt = log ? _tsMs(log.at) : 0; const final = sr.sec_migrated === true && sr.write_freeze !== true;
@@ -3420,9 +3524,9 @@ async function cutoverStatus(opts){
   const m = _cutLoad(); const resid = m.resid || null; const secret = legacySecretFieldsReport().total;
   st.mem = m; st.logAt = logAt;
   const S = (id, title, ok, msg, extra) => st.steps.push(Object.assign({ id, title, ok: !!ok, msg }, extra || {}));
-  S('server', '서버 확인 — 규칙 r14 · 관리자 계정', probe === 'deny' && probe13 === 'allow' && (+sr.version || 0) >= 14 && isStaffMode() && _STAFF.isApprover && !sr.recovery_uid,
-    `${sr.recovery_uid ? '⚠ 복구 모드 중(recovery_uid) — 전환 단계 진행 전 해제 · ' : ''}접속 서버 ${st.project}${st.test ? ' (시험)' : ' (운영)'} · 회차 ${st.run} · 규칙 확인 ${probe === 'allow' ? '허용 = 아직 v4' : probe13 === 'allow' ? '게시된 규칙 = r14 (확인 요청 rules_probe/r14 허용)' : probe13 === 'deny' ? 'r14 아님 (r13 이하 · rules_probe/r14 거부) — r14 게시 필요' : probe13} · version ${sr.version ?? '없음'}${(+sr.version || 0) < 14 ? ' (14 로)' : ''} · 관리자 계정 ${_STAFF.isApprover ? '예' : '아니오'}`,
-    { console: '콘솔: settings/server_rules 에 version=14 · write_freeze=true · sec_migrated=false · legacy_device=false · recovery_uid 없음 → Firestore 규칙 r14 게시 (이 순간부터 기존 방식 사용자 업무 중단)' });
+  S('server', '서버 확인 — 규칙 r15 · 관리자 계정', probe === 'deny' && probe13 === 'allow' && (+sr.version || 0) >= 15 && isStaffMode() && _STAFF.isApprover && !sr.recovery_uid,
+    `${sr.recovery_uid ? '⚠ 복구 모드 중(recovery_uid) — 전환 단계 진행 전 해제 · ' : ''}접속 서버 ${st.project}${st.test ? ' (시험)' : ' (운영)'} · 회차 ${st.run} · 규칙 확인 ${probe === 'allow' ? '허용 = 아직 v4' : probe13 === 'allow' ? '게시된 규칙 = r15 (확인 요청 rules_probe/r15 허용)' : probe13 === 'deny' ? 'r15 아님 (r14 이하 · rules_probe/r15 거부) — r15 게시 필요' : probe13} · version ${sr.version ?? '없음'}${(+sr.version || 0) < 15 ? ' (15 로)' : ''} · 관리자 계정 ${_STAFF.isApprover ? '예' : '아니오'}`,
+    { console: '콘솔: settings/server_rules 에 version=15 · write_freeze=true · sec_migrated=false · legacy_device=false · recovery_uid 없음 → Firestore 규칙 r15 게시 (이 순간부터 기존 방식 사용자 업무 중단)' });
   S('freeze', '쓰기 중지 켜짐 (직원 업무 저장 차단)', sr.write_freeze === true || final, `write_freeze = ${sr.write_freeze === true ? '켜짐' : '꺼짐'}`, { console: '콘솔: settings/server_rules.write_freeze = true' });
   const b = m.backup; const bOk = !!(b && b.verified) && (!m.migratedHere || b.at < m.migratedHere);   // 이 회차 이관보다 먼저 받은 백업만
   S('backup', '전체 백업 + 파일 확인 (SHA-256·문서 수)', bOk, b ? `${b.name} · 문서 ${b.docs} · ${b.verified ? '파일 확인 완료' : '[백업 파일 확인] 으로 내려받은 파일을 골라 주세요'}` : '아직 안 함',
@@ -3448,9 +3552,9 @@ async function cutoverStatus(opts){
   return st;
 }
 const CUTOVER_RECOVER = [
-  ['서버 확인 ~ 직원 계정 단계에서 멈춤', '규칙 r14 그대로 · 복구 기기 승인 불필요 (데이터 변화 없음) → 콘솔에서 규칙 v4 다시 게시 → 모든 기기 「기존 방식」 로그인 → 업무 계속'],
-  ['단가 이관 ~ 대조 단계에서 실패', '규칙 r14 그대로 둠 → 관리자 PC 를 「기존 방식」 으로 열어 로그인 화면의 「이 기기 ID (복구용)」 확인 → 콘솔: devices/{ID} = {status:"approved"} · server_rules.recovery_uid = ID (복구 모드: 서버가 이 기기만 저장 허용 — 직원·관리자·다른 승인 기기 저장 거부 · 쓰기 중지는 켜 둔 채) → 그 PC 에서 설정 › 백업 복원(이번 회차 전체 백업 파일 · 미리보기·대조) → 「완료」 확인 → 그 뒤에만 규칙 v4 게시 → recovery_uid 비우기 · devices/{ID}.status = "revoked" → 직원 업무 재개'],
-  ['업무 재개 뒤 문제', '쓰기 중지 다시 켬 → 원인 확인 · 복원이 필요하면 미리보기의 연결 검사에 따라 범위 조정 (재개 뒤 입력분은 유지됨) · 복구 기기로 복원하면 이관 완료 상태라 단가는 단가 문서로 나눠 저장됨(규칙 r14 가 원본 단가 저장 거부) → 복원 결과 「서버 원본 단가 0건」 확인 뒤에만 recovery_uid 비우기'],
+  ['서버 확인 ~ 직원 계정 단계에서 멈춤', '규칙 r15 그대로 · 복구 기기 승인 불필요 (데이터 변화 없음) → 콘솔에서 규칙 v4 다시 게시 → 모든 기기 「기존 방식」 로그인 → 업무 계속'],
+  ['단가 이관 ~ 대조 단계에서 실패', '규칙 r15 그대로 둠 → 관리자 PC 를 「기존 방식」 으로 열어 로그인 화면의 「이 기기 ID (복구용)」 확인 → 콘솔: devices/{ID} = {status:"approved"} · server_rules.recovery_uid = ID (복구 모드: 서버가 이 기기만 저장 허용 — 직원·관리자·다른 승인 기기 저장 거부 · 쓰기 중지는 켜 둔 채) → 그 PC 에서 설정 › 백업 복원(이번 회차 전체 백업 파일 · 미리보기·대조) → 「완료」 확인 → 그 뒤에만 규칙 v4 게시 → recovery_uid 비우기 · devices/{ID}.status = "revoked" → 직원 업무 재개'],
+  ['업무 재개 뒤 문제', '쓰기 중지 다시 켬 → 원인 확인 · 복원이 필요하면 미리보기의 연결 검사에 따라 범위 조정 (재개 뒤 입력분은 유지됨) · 복구 기기로 복원하면 이관 완료 상태라 단가는 단가 문서로 나눠 저장됨(규칙 r15 가 원본 단가 저장 거부) → 복원 결과 「서버 원본 단가 0건」 확인 뒤에만 recovery_uid 비우기'],
 ];
 function cutoverReportText(st){
   const L = ['# VELA MES 운영 전환 점검 결과', `- 시각 ${new Date(st.at).toISOString()} · 서버 ${st.project}${st.test ? ' (시험)' : ''} · 회차 ${st.run} · 앱 ${APP_VERSION}`, `- ${st.done ? '전환 완료 — 모든 단계 통과' : '진행 중 — 통과 ' + st.steps.filter(s => s.ok).length + '/' + st.steps.length}`, ''];
@@ -5294,7 +5398,7 @@ function seedDemoData(){
     // ═══ 18-19. 마감 3개월 재계산 (대량 출하 반영 · 이월 규칙 동일 — 마감 화면 숫자 = 산식 일치) ═══
     {
       let _prevCarry = {};
-      [_tsMonth(daysBack(90)), _tsMonth(daysBack(60)), _tsMonth(daysBack(30))].forEach((m, idx) => {
+      [3, 2, 1].map(k => { const d = new Date(now); d.setDate(1); d.setMonth(d.getMonth() - k); return _tsMonth(d.getTime()); }).forEach((m, idx) => {   // ★ v0.39.14 — 지난 3개 달력 월 (일수 90·60·30 은 30·31일에 같은 달이 겹쳐 마감 2개가 됨 · 데모 시드만)
         const { byParty } = calcClosing('sales', m);
         const rows = [];
         Object.keys(byParty).forEach(party => {
@@ -6993,6 +7097,7 @@ document.addEventListener('keydown', e => {
   }
 });
 function openModal(html, opts={}){
+  if(_raMoved) _raRestore();   // ★ v0.40.0 — 행 상세 창에서 옮긴 버튼을 먼저 제자리로 (다른 창으로 바뀔 때)
   const bg = document.getElementById('modal-bg');
   const md = document.getElementById('modal');
   if(!bg.classList.contains('show')){ _modalOpener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null; }
@@ -7012,7 +7117,7 @@ function openModal(html, opts={}){
   bg.onclick = e => { if(e.target===bg && opts.closeOnBg===true) _modalUserClose(); };
   setTimeout(() => { try { if(md.contains(document.activeElement)) return; const f = [...md.querySelectorAll('input:not([type=hidden]):not([readonly]):not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea')].find(el => !el._velaCalBound && el.offsetParent !== null); if(f && !opts.noAutoFocus && !(window.matchMedia && window.matchMedia('(pointer:coarse)').matches)) f.focus({ preventScroll: true }); /* 터치 기기 = 자동 키보드 0 */ } catch(e){} }, 30);
 }
-function closeModal(){ if(typeof _closeCal==='function') _closeCal(); document.getElementById('modal-bg').classList.remove('show'); _modalDirty = false;
+function closeModal(){ if(_raMoved) _raRestore(); if(typeof _closeCal==='function') _closeCal(); document.getElementById('modal-bg').classList.remove('show'); _modalDirty = false;
   const o = _modalOpener; _modalOpener = null; try { if(o && o.isConnected && typeof o.focus === 'function') o.focus({ preventScroll: true }); } catch(e){}
   if(window._pReturn){ const r = window._pReturn; window._pReturn = null; setTimeout(() => { if(!document.getElementById('modal-bg').classList.contains('show')) location.hash = r; }, 0); }   // ★ v0.39.3 — 폰에서 연 등록 창을 닫으면 폰 화면으로
 }
@@ -7510,7 +7615,7 @@ function renderGate(){
       <div class="fr-sub" style="line-height:1.6">운영 규칙이 직원 계정 방식(r11)으로 바뀌어 기존 방식 접속이 막혔습니다. 직원은 관리자 안내를 기다려 주세요.</div>
       <div class="fld"><label>이 기기 ID (복구용)</label><input id="gr-uid" readonly value="${_esc(uid)}" style="font-family:'JetBrains Mono',monospace;font-size:12px"></div>
       <button class="reg-btn" id="gr-copy" type="button">ID 복사</button>
-      <div class="fr-note">복구 담당 관리자 기기만: Firebase 콘솔 › <code>devices/{이 ID}</code> = <code>{status:"approved"}</code> · <code>settings/server_rules.recovery_uid = 이 ID</code> (규칙 r14 복구 모드 — 서버가 이 기기만 저장 허용 · 직원·관리자·다른 기기 저장 거부 · 이관 뒤엔 원본 단가 저장도 거부) → 새로고침 → 로그인 → 백업 복원 · 결과의 「서버 원본 단가 0건」 확인 뒤 <code>recovery_uid</code> 비우기 + <code>devices/{이 ID}.status = "revoked"</code></div>`;
+      <div class="fr-note">복구 담당 관리자 기기만: Firebase 콘솔 › <code>devices/{이 ID}</code> = <code>{status:"approved"}</code> · <code>settings/server_rules.recovery_uid = 이 ID</code> (규칙 r15 복구 모드 — 서버가 이 기기만 저장 허용 · 직원·관리자·다른 기기 저장 거부 · 이관 뒤엔 원본 단가 저장도 거부) → 새로고침 → 로그인 → 백업 복원 · 결과의 「서버 원본 단가 0건」 확인 뒤 <code>recovery_uid</code> 비우기 + <code>devices/{이 ID}.status = "revoked"</code></div>`;
     const cp = document.getElementById('gr-copy'); if(cp) cp.onclick = () => { const v = document.getElementById('gr-uid'); try { navigator.clipboard.writeText(v.value).then(() => toast('기기 ID 복사', 'ok'), () => { v.select(); }); } catch(e){ v.select(); } };
   } else if(rec){ rec.remove(); }
   if(DB.all('users').length === 0 && !isStaffMode() && !_denied){   // ★ v0.38.29 — 직원 계정 모드: 로그인 전엔 서버를 읽지 않으므로 최초 등록 카드 없음 (첫 관리자 = 관리자 계정 이메일 로그인)
@@ -8018,15 +8123,7 @@ function _permBlockWrite(col, id){
 
 /* ★ v0.32.1 — 사이드바 그룹 정의 (데스크톱 사이드바 전용 — 좁은 화면은 CSS 가 라벨을 숨겨 기존 가로 칩 그대로)
    그룹에 없는 신규 페이지는 '기타'로 자동 수용 · 게이팅(flags·권한)·메뉴 순서(getMenuOrder)는 불변. */
-const NAV_GROUPS = [
-  { label:'',          ids:['dash'] },
-  { label:'영업',      ids:['so','quote','ship','pallet'] },
-  { label:'생산',      ids:['plan','autoplan','scan','wo','perf','lot','eqstatus'] },
-  { label:'품질·기술', ids:['qc','mold','draw','proc'] },
-  { label:'구매·재고', ids:['po','matin','os','inv'] },
-  { label:'경영',      ids:['closing','acct','cost','report'] },
-  { label:'기준정보',  ids:['masters','docs','audit','set'] },
-];
+/* ★ v0.40.0 (GPT UI SPEC 1.1 §7 「NAV_DEPTS 와 NAV_GROUPS」) — 메뉴 찾기 묶음 = 사이드바 부서 묶음과 같은 정의 1벌 (아래 NAV_DEPTS 에서 생성) */
 /* ★ v0.35.7 — 상단(사이드) 메뉴 축소 → ★ v0.37.7 사이드바 = 「내 메뉴」 + 「⋯ 전체 메뉴」 버튼 1개 (SPEC 「개인화 v0.1」 §3 · GPT 🟢 2026-09-23)
    · 사이드바에는 내 메뉴(회사 기본 또는 내가 ★ 로 고른 것)만 · 아이콘 없음(글자만) · 「관리」 접이식·그룹 라벨·[내 메뉴 편집] 폐지 (localStorage vela_nav_more 미사용)
    · 전체 메뉴 창 = 검색 + NAV_GROUPS 묶음 + ☆/★(즉시 저장) + 회사 기본 복원 — 목록은 renderNav 와 같은 menuCanSee 1벌 (관리책임자가 열어주지 않은 메뉴는 없음)
@@ -8034,16 +8131,37 @@ const NAV_GROUPS = [
 const NAV_PRIMARY_DEFAULT = ['dash','so','plan','scan','perf','lot','qc','ship'];
 /* ★ v0.39.0 — PC 사이드바 부서 묶음 (GPT 인계서 2026-10-22 §4.1 · '부' 접미어 없음) · 메뉴 매핑 = PAGES 28개 전부 (누락 = 「기타」 로 자동 · 정적 시험 NV1)
    권한·게이팅 무변: 묶음은 표시 위치만 · 각 버튼은 menuCanSee 를 통과한 것만 · 회계·마감·권한 기능은 기존 메뉴 그대로 「관리」 아래 */
+//   ★ v0.40.0 (GPT UI SPEC 1.1 §6) — 구매 / 자재 분리 (표시 묶음만 · 데이터·권한 나눔 0) · 부서 아이콘 · 메뉴 찾기(NAV_GROUPS)도 이 정의에서 생성
 const NAV_DEPTS = [
   { key:'sales',   label:'영업',      ids:['so','quote'] },
   { key:'prod',    label:'생산',      ids:['wo','plan','perf','scan','autoplan','lot','eqstatus'] },
-  { key:'buy',     label:'구매·자재', ids:['po','matin','inv','os'] },
+  { key:'buy',     label:'구매',      ids:['po','os'] },
+  { key:'mat',     label:'자재',      ids:['matin','inv'] },
   { key:'qual',    label:'품질',      ids:['qc','mold','draw'] },
   { key:'ship',    label:'출하',      ids:['ship','pallet'] },
   { key:'admin',   label:'관리',      ids:['dash','closing','acct','cost','report','docs','audit'] },
   { key:'master',  label:'기준정보',  ids:['masters','proc'] },
   { key:'setting', label:'설정',      ids:['set'] },
 ];
+const NAV_GROUPS = NAV_DEPTS.map(d => ({ label: d.label, ids: d.ids.slice() }));
+// 부서 아이콘 (표시만) · 사이드바·위치 표시용 화면 이름 (PAGES.title·권한 키 무변 — 「구매」 화면 = 구매 › 발주)
+const NAV_ICONS = {
+  home:'<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
+  sales:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+  prod:'<path d="M3 21V10l6 4v-4l6 4V5h6v16z"/>',
+  buy:'<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12h11.2L21 7H6.2"/>',
+  mat:'<path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/>',
+  qual:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  ship:'<rect x="2" y="7" width="13" height="10" rx="1"/><path d="M15 10h4l3 3v4h-7"/><circle cx="6.5" cy="19" r="1.6"/><circle cx="18" cy="19" r="1.6"/>',
+  admin:'<path d="M4 20V11M10 20V5M16 20v-6M2 20h20"/>',
+  master:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  setting:'<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  etc:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
+};
+const NAV_LABEL = { po:'발주' };
+function navTitle(p){ return (p && (NAV_LABEL[p.id] || p.title)) || ''; }
+function navIco(k){ return `<span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24">${NAV_ICONS[k] || NAV_ICONS.etc}</svg></span>`; }
+function navDeptOf(id){ return NAV_DEPTS.find(d => d.ids.includes(id)) || null; }
 // 펼친 묶음 = 이 기기 편의 설정 (localStorage · 실패해도 동작)
 function _navOpenGet(){ try { return new Set(JSON.parse(localStorage.getItem('vela_nav_open') || '[]')); } catch(e){ return new Set(); } }
 function _navOpenSet(k, on){ try { const s = _navOpenGet(); if(on) s.add(k); else s.delete(k); localStorage.setItem('vela_nav_open', JSON.stringify([...s])); } catch(e){} }
@@ -8165,7 +8283,7 @@ function renderNav(){
   const primary = getPrimaryMenu();
   const prim = ordered.filter(p => primary.includes(p.id));
   // ★ v0.39.0 (PC 개편 U-01·U-04 · GPT 승인) — 사이드바 = 「내 업무」(★ 고른 메뉴) + 부서 묶음(접기 · '부' 없음) · 게이팅 = menuCanSee 1벌 그대로 (위치 이동 = 권한 확대 0)
-  let out = `<div class="nav-sec">내 업무</div>` + (prim.length ? prim.map(p => `<button data-page="${p.id}">${_esc(p.title)}</button>`).join('') : `<div class="nav-empty" style="font-size:11.5px;color:var(--sub);padding:6px 12px;line-height:1.5">☆ 메뉴 찾기에서 별표로 추가</div>`);
+  let out = `<a class="nav-brand" href="#${landingPage()}" title="VELA MES SYSTEM"><b>VELA</b><i></i><span>MES</span></a><div class="nav-sec">${navIco('home')}내 업무</div>` + (prim.length ? prim.map(p => `<button data-page="${p.id}">${_esc(navTitle(p))}</button>`).join('') : `<div class="nav-empty" style="font-size:11.5px;color:var(--sub);padding:6px 12px;line-height:1.5">☆ 메뉴 찾기에서 별표로 추가</div>`);
   const openSet = _navOpenGet(); const cur = (location.hash || '#dash').replace('#', '').split('/')[0];
   const used = new Set();
   let depts = '';
@@ -8173,10 +8291,10 @@ function renderNav(){
     const ps = g.ids.map(id => ordered.find(p => p.id === id)).filter(Boolean); if(!ps.length) return;   // 묶음 안 순서 = 업무 순서 (작업지시 → 생산계획 → 실적)
     ps.forEach(p => used.add(p.id));
     const open = openSet.has(g.key) || ps.some(p => p.id === cur);
-    depts += `<div class="nav-dept${open ? ' open' : ''}" data-dept="${g.key}"><button type="button" class="nav-dept-h" data-dept-h="${g.key}" aria-expanded="${open}">${_esc(g.label)}<span class="nav-dept-n">${ps.length}</span></button><div class="nav-dept-b">${ps.map(p => `<button data-page="${p.id}">${_esc(p.title)}</button>`).join('')}</div></div>`;
+    depts += `<div class="nav-dept${open ? ' open' : ''}" data-dept="${g.key}"><button type="button" class="nav-dept-h" data-dept-h="${g.key}" aria-expanded="${open}">${navIco(g.key)}${_esc(g.label)}<span class="nav-dept-n">${ps.length}</span></button><div class="nav-dept-b">${ps.map(p => `<button data-page="${p.id}">${_esc(navTitle(p))}</button>`).join('')}</div></div>`;
   });
   const rest = ordered.filter(p => !used.has(p.id));
-  if(rest.length) depts += `<div class="nav-dept${openSet.has('etc') ? ' open' : ''}" data-dept="etc"><button type="button" class="nav-dept-h" data-dept-h="etc">기타<span class="nav-dept-n">${rest.length}</span></button><div class="nav-dept-b">${rest.map(p => `<button data-page="${p.id}">${_esc(p.title)}</button>`).join('')}</div></div>`;
+  if(rest.length) depts += `<div class="nav-dept${openSet.has('etc') ? ' open' : ''}" data-dept="etc"><button type="button" class="nav-dept-h" data-dept-h="etc">${navIco('etc')}기타<span class="nav-dept-n">${rest.length}</span></button><div class="nav-dept-b">${rest.map(p => `<button data-page="${p.id}">${_esc(navTitle(p))}</button>`).join('')}</div></div>`;
   out += `<div class="nav-depts">${depts}</div>`;
   out += `<button class="nav-all-btn" data-allmenu title="메뉴 찾기 · ★ 로 내 업무 고르기">☰ 메뉴 찾기 · ★</button>`;
   nav.innerHTML = out;
@@ -8187,7 +8305,9 @@ function renderNav(){
 }
 function setActive(id){
   document.querySelectorAll('#nav button[data-page]').forEach(b=>b.classList.toggle('on', b.dataset.page===id));
-  document.querySelectorAll('#nav .nav-dept').forEach(d => { if(d.querySelector('button.on')){ d.classList.add('open'); const h = d.querySelector('[data-dept-h]'); if(h) h.setAttribute('aria-expanded', 'true'); } });   // ★ v0.39.0 — 현재 화면의 묶음 펼침
+  document.querySelectorAll('#nav .nav-dept').forEach(d => { const cur = !!d.querySelector('button.on'); d.classList.toggle('cur', cur); if(cur){ d.classList.add('open'); const h = d.querySelector('[data-dept-h]'); if(h) h.setAttribute('aria-expanded', 'true'); } });
+  // ★ v0.40.0 — 위쪽 현재 위치 (부서 › 화면) · 표시만
+  try { const cr = document.getElementById('crumb'); if(cr){ const pg = PAGES.find(x => x.id === id); const dp = navDeptOf(id); cr.innerHTML = pg ? `${dp ? `<span>${_esc(dp.label)}</span><span class="sep">›</span>` : ''}<b>${_esc(navTitle(pg))}</b>` : ''; } } catch(e){}   // ★ v0.39.0 — 현재 화면의 묶음 펼침
   // ★ v0.37.7 — 현재 화면이 내 메뉴에 없으면(전체 메뉴에서 이동) 「전체 메뉴」 버튼에 활성 표시 + 화면 이름(위치 힌트)
   const nav = document.getElementById('nav'); const all = nav && nav.querySelector('[data-allmenu]');
   if(!all) return;
@@ -8243,6 +8363,8 @@ function router(){
   try { _ruleNoteEnhance(); } catch(e){}
   // ★ v0.38.17 — 단락 켜기/끄기 (렌더 후 부착 · 전 메뉴 공통)
   try { _secToggleEnhance(); } catch(e){ console.warn('[VELA] 단락 토글', e); }
+  // ★ v0.40.0 — 여러 동작 버튼 행 → [상세 보기] 중앙 창 (전 메뉴 공통 · 원래 버튼 그대로)
+  try { _rowDetailEnhance(); } catch(e){ console.warn('[VELA] 행 상세', e); }
 }
 /* ★ v0.38.17 — 화면 단락(하위 섹션) 켜기/끄기 1벌 (사용자 요청 2026-10-09 · 「개인화 v0.1」 원칙: 표시만 · 계산·원장·권한·write path 무변)
    · 단락 = #view 안 .card 중 머리글 h3 가 있는 것 — 마크업 무수정 · 렌더 후 부착 → 전 메뉴 자동 (대시보드 = 카드 Picker 별도 · 현장 모드 제외)
@@ -8282,6 +8404,7 @@ function secCanTurnOff(key){
 let _secEnhanceRuns = 0;   // 회귀용 계측 (MutationObserver 반복 실행 감시)
 function _secToggleEnhance(){
   _secEnhanceRuns++;
+  try { _viewTabsEnhance(); } catch(e){ console.warn('[VELA] 보기 전환', e); }   // ★ v0.40.0 — 한 화면 한 업무 영역 (단락 보기 전환)
   if(!SESSION.loggedIn || _secPage() === 'dash' || isMobileHash()) return;
   const list = secList(); if(!list.length) return;
   const off = secOffMap();
@@ -8308,8 +8431,9 @@ function _secToggleEnhance(){
   if(!btn){
     btn = document.createElement('button'); btn._secBound = true; btn.id = 'sec-pick-btn'; btn.type = 'button'; btn.className = 'btn';
     btn.onclick = () => openSecPicker();
-    const tools = document.querySelector('#view .pghead .pgtools') || document.querySelector('#view .pghead');
+    const tools = document.querySelector('#view .pghead .pgtools'); const ph = document.querySelector('#view .pghead');
     if(tools) tools.insertBefore(btn, tools.firstChild);
+    else if(ph) ph.appendChild(btn);   // ★ v0.40.0 — 도구 묶음이 없는 화면 = 머리 끝에 (제목 앞에 끼워 제목이 밀리던 문제)
     else { const bar = document.createElement('div'); bar.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:10px'; bar.appendChild(btn); document.getElementById('view').prepend(bar); }
   }
   btn.textContent = `단락 ${list.length - nOff}/${list.length}`;
@@ -8346,6 +8470,81 @@ function openSecPicker(){
     const page = _secPage() + ':'; const m = { ...secOffMap() }; Object.keys(m).forEach(k => { if(k.startsWith(page)) delete m[k]; });
     setPrefs(SESSION.userId, { sec_off: m }); _secToggleEnhance(); document.getElementById('sec-pick-list').innerHTML = draw(); bind();
   };
+}
+/* ★ v0.40.0 (GPT UI SPEC 1.1 §4.1 · U03) — 한 화면 한 업무 영역: 단락(제목 있는 카드)이 2개 이상이면 위에 [보기] 전환 탭 → 고른 단락 하나만 표시
+   · 표시만 (DOM·계산·구독 그대로 · 숨긴 단락도 화면에 존재) · 고른 보기 = 이 기기 편의 설정(localStorage · 실패해도 동작 · 업무 데이터 아님)
+   · 안전 신호 단락(data-sec-lock · 제목 키워드) = 탭 대상이 아님 → 항상 표시 (GPT 원칙 「안전 신호 은폐 금지」) · 꺼 둔 단락(sec_off)은 탭에도 없음
+   · 기본 보기 = 표가 있는 첫 단락 (업무 목록) → 없으면 첫 단락 · 대시보드(카드 고르기 별도)·실적 등록 작업대·현장/폰 화면 제외 · 인쇄 = 전부 펼침 */
+const VT_SKIP = ['dash', 'scan', 'docs', 'autoplan'];   // 대시보드 = 카드 고르기 · 실적 등록 = 작업대 · 문서 출력·자동계획 = 단계 흐름(고르기 → 대상) 화면
+const VT_FIRST = ['plan'];   // 기본 보기 = 첫 단락 (생산계획 = 계획판)
+const VT_LABEL = { plan: ['계획판'] };   // 탭 이름 (화면별 단락 순서 · 없으면 단락 제목)
+function _vtKey(page){ return 'vela_view_tab:' + page; }
+function _viewTabsEnhance(){
+  const v = document.getElementById('view'); if(!v) return;
+  const old = v.querySelector('.view-tabs');
+  const page = _secPage();
+  const clear = () => { if(old) old.remove(); v.querySelectorAll('.card.vt-hide,.card.vt-solo,.vt-wrap-hide').forEach(c => c.classList.remove('vt-hide', 'vt-solo', 'vt-wrap-hide')); };
+  if(typeof SESSION === 'undefined' || !SESSION.loggedIn || isMobileHash() || VT_SKIP.includes(page)) return clear();
+  const list = secList(); const off = secOffMap();
+  const U = list.filter(x => !x.locked && !off[x.key]);
+  // 안전 단락이 업무 목록(표)이면 그 목록만 보는 기본 보기 탭을 맨 앞에 (예: 품질 관리 = 부적합 목록 · 분석 단락은 탭)
+  const lk = list.find(x => x.locked && x.card.querySelector('table'));
+  const base = lk ? { key: page + ':__base', title: lk.title, base: true } : null;
+  const tabs = base ? [base, ...U] : U;
+  if(tabs.length < 2) return clear();
+  let want = null; try { want = localStorage.getItem(_vtKey(page)); } catch(e){}
+  const cur = tabs.find(x => x.key === want) || base || (VT_FIRST.includes(page) ? U[0] : null) || U.find(x => x.card.querySelector('table')) || U[0];
+  list.forEach(x => { x.card.classList.toggle('vt-hide', U.includes(x) && x !== cur); x.card.classList.toggle('vt-solo', x === cur || (cur.base && x === lk)); });
+  [...v.children].forEach(el => { if(el.classList.contains('card') || el.classList.contains('view-tabs')) return; const cs = el.querySelectorAll('.card'); el.classList.toggle('vt-wrap-hide', cs.length > 0 && [...cs].every(c => c.classList.contains('vt-hide') || (c.parentElement && c.parentElement.closest('.card.vt-hide')))); });   // 숨긴 단락만 담은 감싸개(격자) 여백 0
+  const bar = old || Object.assign(document.createElement('div'), { className: 'view-tabs' });
+  bar.setAttribute('role', 'tablist'); bar.setAttribute('aria-label', '이 화면 보기 전환');
+  const lbl = x => { const i = U.indexOf(x); const o = VT_LABEL[page]; return (o && i >= 0 && o[i]) || String(x.title).replace(/[\s·\-–—:|/]+$/, '').trim() || x.title; };
+  bar.innerHTML = tabs.map(x => `<button type="button" role="tab" data-vt="${_esc(x.key)}" aria-selected="${x === cur}">${_esc(lbl(x))}</button>`).join('');
+  let anc = list[0].card; while(anc.parentElement && anc.parentElement !== v) anc = anc.parentElement;   // 단락을 감싼 맨 바깥(격자 안에 넣지 않음)
+  if(anc.parentElement === v && bar.nextElementSibling !== anc) v.insertBefore(bar, anc);
+  bar.querySelectorAll('[data-vt]').forEach(b => b.onclick = () => { try { localStorage.setItem(_vtKey(page), b.dataset.vt); } catch(e){} _viewTabsEnhance(); });
+}
+/* ★ v0.40.0 (U04 · INTEGRATION 「모달 계약」) — 목록 행의 동작 버튼이 2개 이상이면 행에는 [상세 보기 →] 하나만 → 중앙 창 = 읽기 전용 행 정보 + 원래 버튼(같은 노드 · 같은 핸들러 · 권한·검증 그대로)
+   · 버튼은 DOM 에 그대로 남고 화면에서만 가려짐 (회귀 시험·단축 동작 무변) · 창을 열 때 버튼을 창으로 옮기고 닫거나 다른 창을 열면 제자리로
+   · 동작을 누르면 그 동작이 새 창을 열거나 화면을 다시 그림 → 행 상세 창은 자동으로 닫힘 (창을 겹겹이 쌓지 않음)
+   · 입력칸이 있는 행(현장 수량 입력 등)·버튼 1개 행·대시보드·현장/폰 화면 제외 · 표시 문자열은 textContent → _esc */
+var _raMoved = null;
+function _raRestore(){
+  const m = _raMoved; _raMoved = null; if(!m) return;
+  m.forEach(({ b, parent, next }) => { try { if(parent && parent.isConnected){ if(next && next.parentNode === parent) parent.insertBefore(b, next); else parent.insertBefore(b, parent.querySelector(':scope > .ra-open')); } } catch(e){} });
+}
+function _rowDetailEnhance(){
+  const v = document.getElementById('view'); if(!v || typeof SESSION === 'undefined' || !SESSION.loggedIn || isMobileHash() || _secPage() === 'dash') return;
+  v.querySelectorAll('table').forEach(tb => {
+    if(tb.closest('.no-ra')) return;
+    const hr = tb.tHead && tb.tHead.rows.length ? tb.tHead.rows[tb.tHead.rows.length - 1] : null;
+    const heads = hr ? [...hr.cells].map(th => (th.textContent || '').trim()) : [];
+    [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(tr => {
+      const td = tr.lastElementChild; if(!td || td.tagName !== 'TD' || td.classList.contains('ra-cell')) return;
+      const bs = [...td.querySelectorAll('button')].filter(b => !b.classList.contains('ra-open'));
+      if(bs.length < 2 || td.querySelector('input,select,textarea') || td.colSpan > 1 || tr.cells.length < 3) return;   // 펼침 행(여러 칸 합친 상세 줄)·입력 행 제외
+      td.classList.add('ra-cell');
+      const ob = document.createElement('button'); ob.type = 'button'; ob.className = 'ra-open'; ob.textContent = '상세 보기 →'; ob.title = '상세 보기 — 수정·출력·취소 등은 상세 창에서';
+      ob.onclick = e => { e.stopPropagation(); openRowDetail(tr, heads); };
+      td.appendChild(ob);
+    }));
+  });
+}
+function openRowDetail(tr, heads){
+  const td = tr.lastElementChild; if(!td) return;
+  const txt = c => String((c.innerText !== undefined ? c.innerText : c.textContent) || c.textContent || '').trim().replace(/\s+/g, ' ');
+  const pairs = [...tr.cells].slice(0, -1).map((c, i) => [heads[i] || '', txt(c)]).filter(x => x[1] && x[1] !== '—' && x[1] !== '-');
+  const pg = PAGES.find(p => p.id === _secPage());
+  const head = pairs[0] ? pairs[0][1] : '상세'; const sub = pairs.slice(1, 3).map(x => x[1]).join(' · ');
+  openModal(`<h2>${_esc(navTitle(pg) || '')} 상세 <button class="x" onclick="closeModal()" aria-label="닫기">${ico('x')}</button></h2>
+    <div class="body"><div><div class="rd-head">${_esc(head)}</div>${sub ? `<div class="rd-sub">${_esc(sub)}</div>` : ''}</div>
+      <div class="rd-grid">${pairs.map(x => `<div class="k">${_esc(x[0] || '항목')}</div><div>${_esc(x[1])}</div>`).join('')}</div>
+      <div class="rd-note">읽기 전용 · 수정·출력·취소는 아래 버튼 — 기존 화면과 같은 기능(권한·검증·저장 확인 그대로)</div>
+      <div class="actions"><div class="rd-acts" id="rd-acts"></div><button class="btn" onclick="closeModal()">닫기</button></div></div>`, { width: '760px' });
+  const box = document.getElementById('rd-acts'); if(!box) return;
+  _raMoved = [...td.querySelectorAll('button')].filter(b => !b.classList.contains('ra-open')).map(b => ({ b, parent: b.parentNode, next: b.nextSibling }));
+  _raMoved.forEach(x => box.appendChild(x.b));
+  box.addEventListener('click', e => { if(e.target && e.target.closest && e.target.closest('button')) setTimeout(() => { if(document.getElementById('rd-acts') && document.getElementById('modal-bg').classList.contains('show')) closeModal(); }, 0); });
 }
 /* ★ v0.32.4 — 규칙·가드 안내 접기 1벌 (사용자 판정: 상주 안내문 정리 — 시안 확정 방향)
    마크업 무수정: 렌더 후 '규칙'/'가드' 표머리 박스를 찾아 접힘 클래스만 부여 → 전 화면 자동 적용.
@@ -9693,7 +9892,7 @@ function renderSessionSetup(prefill){
         </div>
 
         <!-- 2. 작업자 -->
-        <div class="sec-label"><span class="n">2</span>작업자<span class="hint">생산부에서 선택</span></div>
+        <div class="sec-label"><span class="n">2</span>작업자<span class="hint">생산 담당자에서 선택</span></div>
         <div class="pick-box">
           <div class="pick-cur worker">
             <div class="pc-ic"><svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/></svg></div>
@@ -9704,7 +9903,7 @@ function renderSessionSetup(prefill){
           </div>
           ${noWorkers
             ? `<div class="pick-actions"><button class="pa-btn list" onclick="location.hash='#masters'">기준정보 → 작업자 마스터로</button></div>`
-            : `<div class="pick-actions"><button class="pa-btn list" data-toggle="worker"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>${openList==='worker'?'목록 닫기':'생산부 직원 선택'}</button></div>`
+            : `<div class="pick-actions"><button class="pa-btn list" data-toggle="worker"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>${openList==='worker'?'목록 닫기':'작업자 선택'}</button></div>`
           }
           ${openList==='worker' ? `
             <div class="list-open">
@@ -12198,7 +12397,13 @@ VIEWS.po = () => {
     return (p.items||[]).some(it => (it.name||'').toLowerCase().includes(q));
   }) : pos;
 
-  const rowsHTML = filtered.length ? filtered.map(p => {
+  // ★ v0.40.0 (GPT UI SPEC 1.1 기준 화면 A) — 진행 상태 필터 (같은 목록 · 같은 상태 계산 calcPoStatus 1벌 · 저장 0)
+  const PO_ST = [['', '전체'], ['대기', '대기'], ['부분입고', '부분입고'], ['지연', '지연'], ['입고완료', '입고완료'], ['단위 확인', '단위 확인']];
+  const stCount = {}; filtered.forEach(p => { const k = calcPoStatus(p).state; stCount[k] = (stCount[k] || 0) + 1; });
+  if(state.st && !stCount[state.st]) state.st = '';
+  const shown = state.st ? filtered.filter(p => calcPoStatus(p).state === state.st) : filtered;
+  const stTabs = `<div class="st-tabs" role="tablist" aria-label="진행 상태">${PO_ST.filter(([k]) => !k || stCount[k]).map(([k, l]) => `<button type="button" role="tab" data-po-st="${_esc(k)}" aria-selected="${(state.st || '') === k}">${_esc(l)} <span class="n">${k ? stCount[k] : filtered.length}</span></button>`).join('')}</div>`;
+  const rowsHTML = shown.length ? shown.map(p => {
     const st = calcPoStatus(p);
     const v  = DB.get('vendors', p.vendor);
     const items = p.items||[];
@@ -12233,7 +12438,7 @@ VIEWS.po = () => {
 
   document.getElementById('view').innerHTML = `
     <div class="pghead">
-      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${PAGES.find(pp=>pp.id==='po').icon}</svg>구매(발주) <span class="pill cyan">${APP_VERSION}</span></div>
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${PAGES.find(pp=>pp.id==='po').icon}</svg>발주 <span class="pg-count">${shown.length}건</span> <span class="pill cyan">${APP_VERSION}</span></div>
       <div class="pgtools">
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${state.voidView?'rgba(248,113,113,.08)':'var(--bg2)'}"><input type="checkbox" id="po-void-view" ${state.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
         <button class="btn" id="po-xlsx">${ico('excel')}엑셀</button>
@@ -12241,6 +12446,7 @@ VIEWS.po = () => {
       </div>
     </div>
     <div style="font-size:11px;color:var(--dim);margin-bottom:14px">발주(PO) → 입고 = 수주(SO) → 출하 미러 구조 · 잔량·상태 자동 · 입고 연결은 소재/구매품 입고 모달에서</div>
+    ${stTabs}
 
     <div class="card" style="padding:14px;margin-bottom:12px">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -12322,6 +12528,7 @@ VIEWS.po = () => {
   };
 
   document.getElementById('po-add').onclick = () => VIEWS._poNew();
+  document.querySelectorAll('[data-po-st]').forEach(b => b.onclick = () => { state.st = b.dataset.poSt; router(); });   // ★ v0.40.0 — 상태 필터
 };
 
 /* ★ v0.31.1 — 소재·구매품 사용 이력 검사 1벌 (물리 삭제 가드 — 이력 있으면 비활성만)
@@ -22545,6 +22752,7 @@ function planPendAdd(id, preset){
   if(planReqLocked()){ toast('확정 요청 결과를 확인하는 중 — 목록이 잠겨 있습니다 ([결과 확인])', 'warn', 4000); return; }   // ★ v0.39.11
   const p = DB.get('production_plans', id); if(!p) return;
   const prev = _PLAN_PEND[id];
+  if(!prev && Object.keys(_PLAN_PEND).length >= PLAN_BATCH_MAX){ toast(`한 번에 최대 ${PLAN_BATCH_MAX}건까지 모아 확정할 수 있습니다 — 먼저 [확인 · 모두 확정] 후 이어서 모으세요`, 'warn', 5000); return; }   // ★ v0.39.14 (서버 규칙 r15 검증 한도)
   const to = { date: preset.date || p.date, equipment: preset.equipment !== undefined ? preset.equipment : (prev ? prev.equipment : (p.equipment || '')) };
   if(to.date === p.date && (to.equipment || '') === (p.equipment || '')){ delete _PLAN_PEND[id]; toast('원래 자리 — 목록에서 뺌', 'info'); router(); return; }
   _PLAN_PEND[id] = { ...to, ver: prev ? prev.ver : (p._updated || p.ts || 0), from: prev ? prev.from : { date: p.date, equipment: p.equipment || '' }, at: Date.now() };
@@ -22578,8 +22786,11 @@ function planPendCheck(pend){
    ★ v0.39.13 (GPT v0.39.12 판정) — 판정 근거 = 요청 번호별 서버 기록 plan_move_reqs/{요청 번호} 1개 (계획 문서의 move_req·_logs(최근 50)·move_fences(최근 20) 로 판정하지 않음)
      확정 트랜잭션 = 계획 저장 + 이 기록 {state:'done'} 을 함께 만듦 · 차단 = 같은 기록을 {state:'fenced'} 로 만듦 → 두 트랜잭션 모두 「기록 없음」 을 읽고 만들기 때문에 서버가 먼저 온 하나만 받음
      규칙 r14 = 이 기록은 만들기만(수정·삭제 거부) → 완료·차단이 다른 작업에 밀려 사라지는 일 0 · 원래 요청이 다시 실행돼도 본문이 기록을 보고 중단
+   ★ v0.39.14 (GPT v0.39.13 판정) — 기록 내용 = 실제 작업: 기록에 dests{계획: 날짜|설비} 추가 · 규칙 r15 가 ids 전부(이 요청에서 저장 · 목적지 일치)를 확인 ·
+     결과 확인 = 기록의 ids·목적지가 이 기기의 요청과 같을 때만 완료/반영 안 됨 · 다르면 결과 미확정 유지(잠금) · 한 요청 최대 5건
    로컬·데모 = 메모리에서 같은 검사 뒤 한 번에 반영 (동기 · 미확정 상태 없음) */
 const PLAN_TX_TIMEOUT_MS = 20000;
+const PLAN_BATCH_MAX = 5;   // ★ v0.39.14 — 한 요청 최대 5건 (규칙 r15 가 요청 기록의 계획 전부를 서버에서 확인 · 규칙 식 한도 실측: 직원 계정 6건부터 초과)
 function _planPendSeq(rows){
   const seqAt = {}; const out = {};
   rows.slice().sort((a, b) => a.mv.at - b.mv.at).forEach(r => { const k = r.mv.date + '|' + (r.mv.equipment || '');
@@ -22602,7 +22813,15 @@ function _planReqFinish(kind, info){   // kind: 'done' | 'failed' | 'notApplied'
   window._planReqLast = { kind, reqId: rq.reqId, at: Date.now(), ...(info || {}) };
 }
 function _planReqRef(fs, reqId){ return fs.collection('plan_move_reqs').doc(String(reqId)); }
-function _planReqRec(rq, state){ return { state, ids: rq.moves.map(m => String(m.id)), by: SESSION.user || 'system', by_uid: (typeof currentAuthUid === 'function' && currentAuthUid()) || '', at: Date.now() }; }
+function _planReqDests(moves){ const d = {}; moves.forEach(m => { d[String(m.id)] = (m.date || '') + '|' + (m.equipment || ''); }); return d; }
+function _planReqRec(rq, state){ return { state, ids: rq.moves.map(m => String(m.id)), dests: _planReqDests(rq.moves), by: SESSION.user || 'system', by_uid: (typeof currentAuthUid === 'function' && currentAuthUid()) || '', at: Date.now() }; }
+// ★ v0.39.14 — 서버 기록이 이 기기의 요청과 같은 작업인지 (계획 목록 · 목적지) — 다르면 완료·반영 안 됨 어느 쪽으로도 단정하지 않음
+function _planReqMatch(rec, rq){
+  if(!rec || !Array.isArray(rec.ids) || !rec.dests || typeof rec.dests !== 'object') return false;
+  const want = _planReqDests(rq.moves); const ids = rec.ids.map(String);
+  if(ids.length !== rq.moves.length || new Set(ids).size !== ids.length) return false;
+  return Object.keys(want).every(id => ids.includes(id) && rec.dests[id] === want[id]) && Object.keys(rec.dests).length === ids.length;
+}
 async function planReqCheck(){
   const rq = _planReqLoad(); if(!rq) return { status: 'none' };
   if(rq.settled === 'failed'){ const why = rq.why; _planReqFinish('failed', { why }); return { status: 'failed', why, reqId: rq.reqId }; }
@@ -22612,7 +22831,8 @@ async function planReqCheck(){
   catch(e){ return { status: 'pending', reqId: rq.reqId, why: '서버 조회 실패(' + String(e.code || e.message).slice(0, 40) + ') — 결과 미확정 유지 · 연결 뒤 다시 [결과 확인]' }; }
   if(!rec && rq.promise && !rq.settled) return { status: 'pending', reqId: rq.reqId, why: '원래 요청이 아직 서버 응답을 기다리는 중 — 잠시 뒤 다시 [결과 확인]' };
   // ★ v0.39.13 — 기록이 없고 원래 요청을 볼 수 없음(새로고침 뒤) → 차단 기록을 만들어 확정 (시간 기준 0)
-  const fr = rec ? { status: rec.state === 'done' ? 'done' : rec.state === 'fenced' ? 'fenced' : 'unknown' } : await _planReqFence(rq);
+  const fr = rec ? { status: rec.state === 'done' ? 'done' : rec.state === 'fenced' ? 'fenced' : 'unknown', rec } : await _planReqFence(rq);
+  if((fr.status === 'done' || fr.status === 'fenced') && !_planReqMatch(fr.rec, rq)) return { status: 'pending', mismatch: true, reqId: rq.reqId, why: '서버 요청 기록의 계획 목록·목적지가 이 요청과 다름 — 완료·반영 안 됨으로 단정하지 않음 · 결과 미확정 유지 (관리자 확인 필요)' };
   if(fr.status === 'done'){ await _planReqSyncMem(rq); _planReqFinish('done'); return { status: 'done', saved: rq.moves.length, reqId: rq.reqId }; }
   if(fr.status === 'fenced'){ _planReqFinish('notApplied', { fenced: true }); return { status: 'notApplied', reqId: rq.reqId, fenced: true, why: '서버 요청 기록 = 차단 확정 (이후 도착해도 저장 불가) · 목록을 되돌림 (다시 확정 = 새 요청)' }; }
   return { status: 'pending', reqId: rq.reqId, why: fr.why || '요청 기록 상태를 알 수 없음 — 결과 미확정 유지' };
@@ -22628,18 +22848,19 @@ async function _planReqFence(rq, opts){
   const fs = _ACTIVE_ADAPTER._fs; const ref = _planReqRef(fs, rq.reqId);
   const txp = fs.runTransaction(async tx => {
     const d = await tx.get(ref);
-    if(d.exists){ const st = d.data().state; return { status: st === 'done' ? 'done' : st === 'fenced' ? 'fenced' : 'unknown' }; }
-    tx.set(ref, _planReqRec(rq, 'fenced')); return { status: 'fenced' };
+    if(d.exists){ const st = d.data().state; return { status: st === 'done' ? 'done' : st === 'fenced' ? 'fenced' : 'unknown', rec: d.data() }; }
+    const nr = _planReqRec(rq, 'fenced'); tx.set(ref, nr); return { status: 'fenced', rec: nr };
   });
   const res = await Promise.race([txp.then(v => ({ v }), e => ({ e })), new Promise(r => setTimeout(() => r({ timeout: true }), opts.timeoutMs || PLAN_TX_TIMEOUT_MS))]);
   if(res.timeout) return { status: 'pending', why: '서버 확인 응답 대기 — 결과 미확정 유지 · 잠시 뒤 다시 [결과 확인]' };
-  if(res.e){ const m = String((res.e && (res.e.code || res.e.message)) || res.e); return { status: 'pending', why: (/permission|insufficient/i.test(m) ? '서버가 차단 기록을 거부 (규칙 r14 게시 확인)' : /unavailable|offline|network/i.test(m) ? '서버 연결 필요' : '서버 확인 실패') + ' — 결과 미확정 유지 (반영 여부 모름) · ' + m.slice(0, 60) }; }
+  if(res.e){ const m = String((res.e && (res.e.code || res.e.message)) || res.e); return { status: 'pending', why: (/permission|insufficient/i.test(m) ? '서버가 차단 기록을 거부 (규칙 r15 게시 확인)' : /unavailable|offline|network/i.test(m) ? '서버 연결 필요' : '서버 확인 실패') + ' — 결과 미확정 유지 (반영 여부 모름) · ' + m.slice(0, 60) }; }
   return res.v;
 }
 async function planPendCommit(opts){
   opts = opts || {};
   if(planReqLocked()) return { status: 'locked', saved: 0, reqId: _PLAN_REQ.reqId, why: '앞선 확정 요청 결과 확인 전 — [결과 확인]' };
   const chk = planPendCheck(); if(!chk.rows.length) return { status: 'empty', saved: 0 };
+  if(chk.rows.length > PLAN_BATCH_MAX) return { status: 'blocked', saved: 0, blocked: chk.rows.length - PLAN_BATCH_MAX, rows: chk.rows, why: `한 번에 최대 ${PLAN_BATCH_MAX}건 — 목록에서 ${chk.rows.length - PLAN_BATCH_MAX}건을 빼고 확정하세요` };   // ★ v0.39.14
   if(chk.blocked) return { status: 'blocked', saved: 0, blocked: chk.blocked, rows: chk.rows };
   if(_permBlockWrite('production_plans')) return { status: 'blocked', saved: 0, blocked: chk.rows.length, rows: chk.rows, why: '보기 전용 권한' };
   const seq = _planPendSeq(chk.rows);
