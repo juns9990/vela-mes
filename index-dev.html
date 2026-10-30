@@ -1577,7 +1577,7 @@ td.ra-cell{white-space:nowrap;text-align:right}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.1';
+const APP_VERSION = 'v0.40.2';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -7489,7 +7489,7 @@ function getApprovalSetting(){
 }
 function setApprovalSetting(patch){
   const prev = DB.get('settings','documents') || {};
-  DB.set('settings','documents', { ...prev, approval: { ...(prev.approval||{}), ...patch } });
+  return DB.set('settings','documents', { ...prev, approval: { ...(prev.approval||{}), ...patch } });   // ★ v0.40.2 — 결과 반환 (권한 거부 = null)
 }
 // 결재란 스펙 반환 — OFF 또는 칸 없음이면 null (호출측 분기 최소화)
 function buildApprovalRows(){
@@ -8330,7 +8330,7 @@ function setActive(id){
 function router(){
   if(!SESSION.loggedIn) return;
   // ★ v0.40.1 — 화면을 다시 그릴 때 상세·설정 편집 창에 옮겨 둔 버튼·입력이 있으면 창을 먼저 닫음 (다른 화면 위에 남지 않게)
-  try { if(_raMoved && document.getElementById('modal-bg').classList.contains('show')) closeModal(); } catch(e){}
+  try { if(_raMoved && document.getElementById('modal-bg').classList.contains('show')){ const _se = document.getElementById('set-ed-box') && window._setEdTitle; closeModal(); window._setEdReopen = (_se && _secPage() === 'set') ? _se : null; } } catch(e){}   // ★ v0.40.2 — 설정 편집 창 안에서 화면이 다시 그려지면(교대 프리셋 등) 같은 편집 창을 다시 엶
   // ★ v0.37.0 — Mobile Shop Floor: #m/ 접두 = 별도 UI 아키텍처 (같은 원장·같은 규칙 · PC 화면 무변)
   if(isMobileHash()){ mobileRouter(); return; }
   if(isPhoneHash()){ if(isWorkerRole()){ location.hash = '#m/home'; return; } phoneRouter(); return; }   // ★ v0.39.3 — 사무직·관리책임자 폰 화면
@@ -8546,17 +8546,36 @@ function _setEditEnhance(){
     card.insertBefore(sum, body[0] || null);
     sum.querySelector('[data-set-edit]').onclick = () => _setEditOpen(card, title);
   });
+  const re = window._setEdReopen; window._setEdReopen = null;
+  if(re){ const c = [...v.querySelectorAll(':scope > .card.set-ed')].find(c => { const h = c.firstElementChild; return ((h.childNodes[0] && h.childNodes[0].textContent) || h.textContent || '').trim().slice(0, 30) === re; }); if(c) _setEditOpen(c, re); }
 }
 function _setEditOpen(card, title){
   const body = [...card.querySelectorAll(':scope > .set-ed-b')];
   openModal(`<h2>${_esc(title)} 수정 <button class="x" onclick="closeModal()" aria-label="닫기">${ico('x')}</button></h2>
-    <div class="body"><div id="set-ed-box"></div><div class="rd-note">저장하면 이 창이 닫히고 설정 화면으로 돌아갑니다.</div>
+    <div class="body"><div id="set-ed-box"></div><div class="rd-note" id="set-ed-st" aria-live="polite">저장이 확인되면 이 창이 닫히고 설정 화면으로 돌아갑니다. 저장되지 않으면 입력한 값은 그대로 남습니다.</div>
       <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div></div>`, { width: '860px' });
   const box = document.getElementById('set-ed-box'); if(!box) return;
+  window._setEdTitle = title;
   _raMoved = body.map(b => ({ b, parent: b.parentNode, next: b.nextSibling }));
   body.forEach(b => box.appendChild(b));
-  box.addEventListener('click', e => { const t = e.target && e.target.closest ? e.target.closest('button') : null;
-    if(t && /저장|적용/.test(t.textContent || '')) setTimeout(() => { if(document.getElementById('set-ed-box') && document.getElementById('modal-bg').classList.contains('show')){ closeModal(); try { router(); } catch(err){} } }, 0); });
+  // ★ v0.40.2 (GPT v0.40.1 필수 ①) — 창을 닫는 기준 = 저장 함수의 결과(true) + 서버 응답 성공 · 버튼 글자로 판단하지 않음
+  //   실패(검증·권한 거부·서버 거부)·처리 중 = 창과 입력값 유지 · 저장 함수·검증·권한 검사는 그대로(감싸기만) · 화면 다시 그리기는 성공 뒤 1번
+  box.querySelectorAll('[data-set-save]').forEach(btn => {
+    const orig = btn.onclick; if(typeof orig !== 'function' || btn._setEdWrapped) return; btn._setEdWrapped = true;
+    btn.onclick = async ev => { if(btn._busy) return;
+      const st = document.getElementById('set-ed-st');
+      let ok = false, tr = [];
+      const outer = _FS_TRACK; _FS_TRACK = [];
+      try { ok = orig.call(btn, ev) === true; } catch(e){ ok = false; try { toast(e.message || String(e), 'err'); } catch(_){} } finally { tr = _FS_TRACK || []; _FS_TRACK = outer; }
+      if(!ok){ if(st) st.textContent = '저장되지 않았습니다 — 입력한 값은 그대로입니다. 내용을 확인한 뒤 다시 저장하세요.'; return; }
+      if(tr.length){ btn._busy = true; btn.disabled = true; if(st) st.textContent = '서버 저장 확인 중… (확인되면 창이 닫힙니다)';
+        let res = []; try { res = await Promise.all(tr); } catch(e){ res = [{ ok: false }]; }
+        btn._busy = false; btn.disabled = false;
+        if(res.some(r => !r || !r.ok)){ if(st) st.textContent = '서버가 저장을 받지 않았습니다 — 입력한 값은 그대로입니다. 다시 저장하거나 [닫기]를 누르세요.'; return; } }
+      if(document.getElementById('set-ed-box') !== box || !document.getElementById('modal-bg').classList.contains('show')) return;   // 다른 창(관리자 인증 등)으로 바뀌었으면 그 창을 닫지 않음
+      window._setEdTitle = null; closeModal(); try { router(); } catch(e){}
+    };
+  });
 }
 function _raRestore(){
   const m = _raMoved; _raMoved = null; if(!m) return;
@@ -8588,7 +8607,8 @@ const RD_ATTR = [
   ['data-po-void', 'purchase_orders'], ['data-so-row', 'orders'], ['data-wo-void', 'work_orders'], ['data-issue', 'production_plans'], ['data-plan-cancel', 'production_plans'],
   ['data-lot-void', 'production_lots'], ['data-lot-row', 'production_lots'], ['data-mr-void', 'material_receipts'], ['data-od-void', 'os_dispatches'],
   ['data-sh-void', 'shipments'], ['data-cl-void', 'closings'], ['data-dw-hist', 'drawings'], ['data-vedit', 'vendors'], ['data-iedit', 'items'],
-  ['data-eedit', 'equipments'], ['data-dedit', 'defect_types'], ['data-mfedit', 'master_fields'], ['data-edit-mold', 'molds']
+  ['data-eedit', 'equipments'], ['data-dedit', 'defect_types'], ['data-mfedit', 'master_fields'], ['data-edit-mold', 'molds'],
+  ['data-ar-new', '_ar'], ['data-ap-new', '_ap'], ['data-recv', '_pallet']   // ★ v0.40.2 — 집계 행(거래처별 미수·미지급 · 업체별 파렛트) = 집계에 들어간 거래 목록
 ];
 function _rdTarget(tr){
   const td = tr.lastElementChild; const pg = _secPage();
@@ -8596,7 +8616,7 @@ function _rdTarget(tr){
     const de = b.getAttribute('data-doc-edit'); if(de && de.includes('|')){ const [c, i] = de.split('|'); if(DB.get(c, i)) return { col: c, id: i }; }
   }
   const scope = [tr, ...(td ? td.querySelectorAll('button') : [])];
-  for(const [a, c] of RD_ATTR){ for(const el of scope){ const v = el.getAttribute && el.getAttribute(a); if(v && DB.get(c, v)) return { col: c, id: v }; } }
+  for(const [a, c] of RD_ATTR){ for(const el of scope){ const v = el.getAttribute && el.getAttribute(a); if(v && (c[0] === '_' || DB.get(c, v))) return { col: c, id: v }; } }
   for(const b of (td ? td.querySelectorAll('button[onclick]') : [])){ const m = /_printQuote\('([^']+)'/.exec(b.getAttribute('onclick') || ''); if(m && DB.get('quotes', m[1])) return { col: 'quotes', id: m[1] }; }   // 견적 = 견적서 버튼의 번호
   if(pg === 'perf'){ const b = td && td.querySelector('[data-edit],[data-void]'); const v = b && (b.getAttribute('data-edit') || b.getAttribute('data-void')); if(v && DB.get('records', v)) return { col: 'records', id: v }; }
   return null;
@@ -8648,6 +8668,14 @@ const RD_DOC = {
     return { head: m.mold_no || m.id, sub: `${m.type === 'jig' ? '지그' : '금형'} · ${(m.itemCodes || []).join(', ') || '적용 품번 없음'}`, tabs: [
       ['기본 정보', _rdKV([['금형번호', m.mold_no || m.id], ['종류', m.type === 'jig' ? '지그' : '금형'], ['구분', m.variant || ''], ['보유', `${typeof moldQty === 'function' ? moldQty(m) : (m.qty || 1)} 벌`], ['적용 품번', (m.itemCodes || []).map(_rdNm.i).join(', ') || '—'], ['기준 타수', _rdN(m.life_limit)], ['누적/벌', shots], ['수명 사용', pct], ['수동 보정', _rdN(m.offset)], ['상태', m.active === false ? '비활성' : '사용중'], ..._rdVoid(m)])],
       ['이력', _rdLogs(m)] ] }; },
+  // ★ v0.40.2 (GPT v0.40.1 판단) — 집계 행 상세 = 그 합계에 들어간 거래 목록 (계산은 기존 1벌: calcReceivable·calcPayable·closingBook·PALLET · 합계 = 화면 행 값과 같음)
+  _ar(v){ return _rdAcct(v, 'receipt'); },
+  _ap(v){ return _rdAcct(v, 'payment'); },
+  _pallet(v){ const mv = DB.query('pallet_moves', m => m.vendor === v).slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)); const T = PALLET.totalsByVendor(); const o = T.out[v] || 0, i = T.inn[v] || 0;
+    const KD = { os: '외주 반출', ship: '출하', manual: '직접 입력' };
+    return { head: _rdNm.v(v), sub: `출고 ${_rdN(o)} · 회수 ${_rdN(i)} · 미회수 ${_rdN(o - i)}`, tabs: [
+      ['기본 정보', _rdKV([['업체', _rdNm.v(v)], ['출고 누계', `${_rdN(o)} 개`], ['회수 누계', `${_rdN(i)} 개`], ['미회수', `${_rdN(o - i)} 개`]])],
+      [`이동 ${mv.length}`, _rdTbl(['일시', '구분', '수량', '연결', '작성'], mv.map(m => [_rdDT(m.ts), m.type === 'out' ? '출고' : '회수', _rdN(m.qty), `${KD[(m.ref || {}).kind] || (m.ref || {}).kind || ''} ${(m.ref || {}).id || ''}`.trim(), m.by || '']), '이동 기록 없음')] ] }; },
   production_plans(p){ return { head: p.id, sub: `${p.date || '—'} · ${p.equipment || '미배정'} · ${_rdNm.i(p.itemCode)}`, tabs: [
       ['기본 정보', _rdKV([['계획번호', p.id], ['계획일', p.date || '—'], ['설비', p.equipment || '미배정'], ['순번', p.seq || ''], ['품번', _rdNm.i(p.itemCode)], ['수량', `${_rdN(p.qty)} ea`], ['수주', p.so_id || '—'], ['작업지시', p.wo_id || '미발행'], ['구분', p.plan_type === 'auto' ? '자동' : '수동'], ['메모', p.note || ''], ..._rdVoid(p)])],
       ['이력', _rdLogs(p)] ] }; },
@@ -8667,10 +8695,11 @@ const RD_DOC = {
       ['기본 정보', _rdKV([['입고번호', m.id], ['Heat No.', m.heat || '—'], ['재질', m.mat || '—'], ['지름', m.dia ? `Ø${m.dia}` : '—'], ['입고량', `${_rdN(m.kg)} kg`], ['입고처', _rdNm.v(m.vendor)], ['입고일', m.date || (m.ts ? fmtDate(m.ts) : '—')], ['발주', m.po_id || ''], ['등록', m.by || ''], ..._rdVoid(m)])],
       [`사용 LOT ${lots.length}`, _rdTbl(['LOT', '품번', '초기 수량'], lots.map(l => [l.plot_no, _rdNm.i(l.itemCode), _rdN(l.qty_initial)]), '이 Heat 로 만든 LOT 없음')],
       ['이력', _rdLogs(m)] ] }; },
-  os_dispatches(o){ const back = DB.all('records').filter(r => r.plot_no === o.plot_no && r.proc === o.proc && r.vendor);
+  os_dispatches(o){ const back = DB.query('os_receipts', r => r.dispatch_id === o.id).slice().sort((x, y) => (x.ts || 0) - (y.ts || 0));   // ★ v0.40.2 (GPT v0.40.1 필수 ②) — 이 반출 번호에 직접 연결된 입고만 (LOT·공정·업체 비교 아님 · 같은 업체 여러 반출도 섞이지 않음)
+    const recv = back.reduce((t, r) => t + (+r.qty || 0), 0);
     return { head: o.id, sub: `${o.plot_no || ''} · ${_rdNm.p(o.proc)} · ${_rdNm.v(o.vendor)}`, tabs: [
-      ['기본 정보', _rdKV([['반출번호', o.id], ['LOT', o.plot_no || '—'], ['공정', _rdNm.p(o.proc)], ['외주처', _rdNm.v(o.vendor)], ['반출 수량', `${_rdN(o.qty)} ea`], ['반출일', o.ts ? fmtDate(o.ts) : '—'], ['등록', o.by || ''], ..._rdVoid(o)])],
-      [`입고 ${back.length}`, _rdTbl(['일시', '양품', '불량'], back.map(r => [_rdDT(r.ts), _rdN(r.good), _rdN(r.defect)]), '외주 입고 없음')],
+      ['기본 정보', _rdKV([['반출번호', o.id], ['LOT', o.plot_no || '—'], ['공정', _rdNm.p(o.proc)], ['외주처', _rdNm.v(o.vendor)], ['반출 수량', `${_rdN(o.qty)} ea`], ['입고 합', `${_rdN(recv)} ea`], ['미입고', `${_rdN(Math.max(0, (+o.qty || 0) - recv))} ea`], ['반출일', o.ts ? fmtDate(o.ts) : '—'], ['등록', o.by || ''], ..._rdVoid(o)])],
+      [`입고 ${back.length}`, _rdTbl(['입고번호', '일시', '양품', '불량', '회수 파렛트'], back.map(r => [r.id, _rdDT(r.ts), _rdN(r.good), _rdN(r.defect), _rdN(r.pallets_recovered)]), '이 반출로 들어온 입고 없음')],
       ['이력', _rdLogs(o)] ] }; },
   shipments(s){ const P = canSeePrice(); const so = s.so_id ? DB.get('orders', s.so_id) : null; const price = s.price != null ? +s.price : (so && so.price != null ? +so.price : null);
     return { head: s.id, sub: `${_rdNm.i(s.itemCode)} · ${_rdN(s.qty)}ea · ${s.so_id || ''}`, tabs: [
@@ -8702,7 +8731,18 @@ const RD_DOC = {
     return { head: d.code || d.id, sub: d.name || '', tabs }; }
 };
 ['vendors', 'items', 'equipments', 'defect_types', 'master_fields'].forEach(c => { RD_DOC[c] = d => RD_DOC._master(c, d); });
-function _rdBuild(t){ const d = t && DB.get(t.col, t.id); const fn = d && RD_DOC[t.col]; if(!fn) return null; try { return fn(d); } catch(e){ console.warn('[VELA] 상세', t, e); return null; } }
+function _rdAcct(v, kind){ const P = canSeePrice(); const isR = kind === 'receipt';
+  const sum = isR ? calcReceivable(v) : calcPayable(v); const paid = isR ? sum.received : sum.paid;
+  const types = isR ? ['sales'] : ['purchase', 'outsource']; const TL = { sales: '매출', purchase: '매입', outsource: '외주' };
+  const months = (typeof _acctMonthsInData === 'function' ? _acctMonthsInData() : []).slice().reverse();
+  const mrows = []; months.forEach(m => types.forEach(t => { const cb = closingBook(t, m); const r = cb.byParty[v]; if(r && r.amount) mrows.push([m, TL[t], cb.confirmed ? '마감 확정' : '집계', P ? `₩${_rdN(r.amount)}` : '—']); }));
+  const money = DB.all(isR ? 'acct_receipts' : 'acct_payments').filter(r => r.vendor === v).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  return { head: _rdNm.v(v), sub: `${isR ? '미수' : '미지급'} ${P ? '₩' + _rdN(sum.balance) : ''}`.trim(), tabs: [
+    ['기본 정보', _rdKV([['거래처', _rdNm.v(v)], P ? ['발생 누계', `₩${_rdN(sum.accrued)}`] : null, P ? [isR ? '수금 누계' : '지급 누계', `₩${_rdN(paid)}`] : null, P ? [isR ? '미수' : '미지급', `₩${_rdN(sum.balance)}`] : null, [isR ? '마지막 수금' : '마지막 지급', (isR ? sum.last_receipt : sum.last_payment) || '—']])],
+    [`월별 발생 ${mrows.length}`, _rdTbl(['월', '구분', '금액 기준', '금액'], mrows, '발생 없음') + '<div class="rd-note">월별 발생 = 마감 화면과 같은 계산 (마감 확정 월은 확정 금액)</div>'],
+    [`${isR ? '수금' : '지급'} ${money.length}`, _rdTbl(['일자', '금액', '수단', '메모'], money.map(r => [r.date || fmtDate(r.ts), P ? `₩${_rdN(r.amount)}` : '—', r.method || '', r.memo || '']), isR ? '수금 기록 없음' : '지급 기록 없음')] ] };
+}
+function _rdBuild(t){ const d = t && (t.col[0] === '_' ? t.id : DB.get(t.col, t.id)); const fn = d && RD_DOC[t.col]; if(!fn) return null; try { return fn(d); } catch(e){ console.warn('[VELA] 상세', t, e); return null; } }
 function openRowDetail(tr, heads){
   const td = tr.lastElementChild; if(!td) return;
   const pg = PAGES.find(p => p.id === _secPage());
@@ -27270,11 +27310,11 @@ VIEWS._qcDetail = (nc_id) => {
     timeline.push({ ts: nc.void.ts, by: nc.void.by, label: `NC 취소 · ${nc.void.reason||''}` });
   }
 
-  // ★ v0.40.1 (GPT v0.40.0 판정 ③) — 부적합 상세 = 검사 결과 · 첨부 · 이력 탭 (VELA 의 검사 결과 = 실적의 양품·불량 + 이 부적합 기록 · 별도 검사 문서 없음)
+  // ★ v0.40.1 (GPT v0.40.0 판정 ③) — 부적합 상세 = 결과 · 첨부 · 이력 탭 (부적합 상세 + 연결 실적 수량 · LOT 격리 · ★ v0.40.2 정정: 합격 검사까지 관리하는 검사 기록 기능은 아님 — 별도 범위)
   const _qcRec = nc.record_id ? DB.get('records', nc.record_id) : null;
   const _qcAtt = _drawAttList(nc);
   const _qcQ = nc.lot_id ? lotQuarantineQty(nc.lot_id) : 0;
-  const _qcRes = `<div style="font-size:12px;color:var(--sub);margin:4px 0 6px"><b>검사 결과</b> — 실적에서 확인된 수량과 이 부적합의 판정 상태</div>
+  const _qcRes = `<div style="font-size:12px;color:var(--sub);margin:4px 0 6px"><b>연결 실적 수량</b> — 이 부적합이 나온 실적의 양품·불량·폐기·재작업</div>
         ${_qcRec ? `<div class="tbl-wrap rd-tbl"><table><thead><tr><th>실적</th><th class="num">양품</th><th class="num">불량</th><th class="num">폐기</th><th class="num">재작업</th></tr></thead><tbody><tr><td>${_esc(nc.record_id)}</td><td class="num">${(+_qcRec.good||0).toLocaleString()}</td><td class="num">${(+_qcRec.defect||0).toLocaleString()}</td><td class="num">${(+_qcRec.scrap||0).toLocaleString()}</td><td class="num">${(+_qcRec.rework||0).toLocaleString()}</td></tr></tbody></table></div>` : `<div class="rd-empty" style="padding:10px">실적과 연결되지 않은 부적합입니다 (LOT 단위 접수).</div>`}
         ${nc.lot_id ? `<div style="font-size:12px;margin-top:8px">LOT <b>${_esc(nc.lot_id)}</b> 현재 격리 수량 <b>${_qcQ.toLocaleString()}ea</b>${ncIsHold(nc) ? ' · <b style="color:var(--red)">LOT 전체 HOLD</b>' : ''}</div>` : ''}`;
   const actions = [];
@@ -27886,7 +27926,7 @@ VIEWS.set = () => {
         <div><label>종목</label><input id="co-bi" value="${_esc(co.biz_item||'')}" placeholder="예: 자동차부품"></div>
         <div><label>전화</label><input id="co-tel" value="${_esc(co.tel||'')}" placeholder="055-000-0000"></div>
       </div>
-      <div style="margin-top:10px"><button class="btn primary" id="co-save">${ico('save')}저장</button></div>
+      <div style="margin-top:10px"><button class="btn primary" id="co-save" data-set-save>${ico('save')}저장</button></div>
     </div>
 
     <!-- ★ v0.35.9-B — 품질 판정 지체 기준 (정책값 · settings/quality · 코드 고정 금지 — GPT §10) -->
@@ -27897,7 +27937,7 @@ VIEWS.set = () => {
         <div><label>🔴 조치 필요 (일) <span style="color:var(--dim);font-weight:400">— 대시보드 「오늘 이상」 집계 기준</span></label><input id="qp-alert" type="number" min="0" step="1" value="${qualityPolicy().alert}"></div>
       </div>
       <div style="font-size:11px;color:var(--sub);margin-top:6px;line-height:1.6">부적합 등록은 기본적으로 LOT 을 막지 않고 불량 수량만 격리합니다. 등록 창의 「로트 불량 — LOT 전체 HOLD」 를 체크하거나 NC 상세에서 [로트 불량 HOLD] 를 누른 것만 실적·출하·반출이 차단됩니다.</div>
-      <div style="margin-top:10px"><button class="btn primary" id="qp-save">${ico('save')}저장</button></div>
+      <div style="margin-top:10px"><button class="btn primary" id="qp-save" data-set-save>${ico('save')}저장</button></div>
     </div>` : ''}
 
     <!-- ★ v0.36.0 — 동시성 판정 지체 기준 (settings/concurrency · Q6-0) -->
@@ -27908,7 +27948,7 @@ VIEWS.set = () => {
         <div><label>🔴 조치 필요 (일)</label><input id="cp-alert" type="number" min="0" step="1" value="${concurrencyPolicy().alert}"></div>
       </div>
       <div style="font-size:11px;color:var(--sub);margin-top:6px;line-height:1.6">두 단말이 같은 공정에 가용을 넘겨 등록하면 LOT 을 잠그지 않고 <b>초과분만 보류</b>합니다(먼저 등록된 순 인정). 인정분은 다음 공정·출하·반출로 흐르고, 보류분은 관리자가 변경 이력 → 동시성 사고에서 Case A(보정)/B(취소)/C(보류 유지)로 판정합니다.</div>
-      <div style="margin-top:10px"><button class="btn primary" id="cp-save">${ico('save')}저장</button></div>
+      <div style="margin-top:10px"><button class="btn primary" id="cp-save" data-set-save>${ico('save')}저장</button></div>
     </div>
 
     <!-- ★ v0.35.0 — 교대 설정 (생산계획 시간축 · 1~3교대) -->
@@ -27932,7 +27972,7 @@ VIEWS.set = () => {
           </div>`).join('')}
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn primary" id="shift-save">${ico('save')}저장</button>
+          <button class="btn primary" id="shift-save" data-set-save>${ico('save')}저장</button>
           <span style="font-size:10.5px;color:var(--dim)">종료가 시작보다 이르면 익일로 처리 (야간조) · 교대 경계를 넘는 계획은 자동 이월</span>
         </div>`;
       })()}
@@ -27957,7 +27997,7 @@ VIEWS.set = () => {
         <button class="btn" id="ap-add">${ico('plus')}칸 추가</button>
         <button class="btn" id="ap-reset">${ico('refresh')}기본값 복원</button>
         <span style="font-size:10.5px;color:var(--dim);margin-left:6px">칸 1~5개 · 상단 우측 배치 · '결재' 좌측 세로 라벨 · 서명칸 3행 병합</span>
-        <button class="btn primary" id="ap-save" style="margin-left:auto">${ico('save')}저장</button>
+        <button class="btn primary" id="ap-save" data-set-save style="margin-left:auto">${ico('save')}저장</button>
       </div>
     </div>`;
     })()}
@@ -28196,9 +28236,9 @@ VIEWS.set = () => {
   };
   // ★ v0.35.9-B — 품질 판정 지체 기준 저장
   const _cpSave = document.getElementById('cp-save');   // ★ v0.36.0
-  if(_cpSave) _cpSave.onclick = () => { const w = +document.getElementById('cp-warn').value, a = +document.getElementById('cp-alert').value; if(!(w >= 0 && a >= 0)){ toast('0 이상 정수','warn'); return; } DB.set('settings','concurrency', { pending_warn_days: w, pending_alert_days: a }); toast(`동시성 판정 지체 기준 저장 — 주의 ${w}일 · 조치 ${a}일`, 'ok'); };
+  if(_cpSave) _cpSave.onclick = () => { const w = +document.getElementById('cp-warn').value, a = +document.getElementById('cp-alert').value; if(!(w >= 0 && a >= 0)){ toast('0 이상 정수','warn'); return false; } if(!DB.set('settings','concurrency', { pending_warn_days: w, pending_alert_days: a })) return false; toast(`동시성 판정 지체 기준 저장 — 주의 ${w}일 · 조치 ${a}일`, 'ok'); return true; };
   const _qpSave = document.getElementById('qp-save');
-  if(_qpSave) _qpSave.onclick = () => { const w = +document.getElementById('qp-warn').value, a = +document.getElementById('qp-alert').value; if(!(w >= 0 && a >= 0)){ toast('0 이상 정수','warn'); return; } DB.set('settings','quality', { pending_warn_days: w, pending_alert_days: a }); toast(`판정 지체 기준 저장 — 주의 ${w}일 · 조치 ${a}일`, 'ok'); };
+  if(_qpSave) _qpSave.onclick = () => { const w = +document.getElementById('qp-warn').value, a = +document.getElementById('qp-alert').value; if(!(w >= 0 && a >= 0)){ toast('0 이상 정수','warn'); return false; } if(!DB.set('settings','quality', { pending_warn_days: w, pending_alert_days: a })) return false; toast(`판정 지체 기준 저장 — 주의 ${w}일 · 조치 ${a}일`, 'ok'); return true; };
   // ★ v0.35.0 — 교대 설정 저장·프리셋 전환
   document.querySelectorAll('#shift-seg button').forEach(b => b.onclick = () => {
     const n = +b.dataset.sn;
@@ -28217,9 +28257,10 @@ VIEWS.set = () => {
       brk:   document.querySelector(`[data-shb="${i}"]`).value.trim(),
     }));
     const bad = list.find(s => !/^\d{1,2}:\d{2}$/.test(s.start) || !/^\d{1,2}:\d{2}$/.test(s.end));
-    if(bad){ toast(`시간 형식 확인 — ${bad.name} (HH:MM)`, 'warn'); return; }
-    DB.set('settings','shifts', { count:list.length, list });
-    toast('교대 설정 저장', 'ok'); router();
+    if(bad){ toast(`시간 형식 확인 — ${bad.name} (HH:MM)`, 'warn'); return false; }
+    if(!DB.set('settings','shifts', { count:list.length, list })) return false;
+    toast('교대 설정 저장', 'ok'); if(!document.getElementById('set-ed-box')) router();   // ★ v0.40.2 — 편집 창 안이면 다시 그리기는 서버 확인 뒤(_setEditOpen)
+    return true;
   };
   // 회사
   // ★ v0.38.9 — 로고 선택(미리보기 → [저장] 시 settings/company.logo 반영 · 빼기 = 빈 값)
@@ -28246,9 +28287,10 @@ VIEWS.set = () => {
       biz_item: document.getElementById('co-bi').value.trim(),
       tel:      document.getElementById('co-tel').value.trim(),
     };
-    if(!DB.set('settings','company', {...co, ...n})) return;   // ★ v0.38.11 — 권한 등으로 저장 안 되면 「저장」 토스트도 안 띄움
+    if(!DB.set('settings','company', {...co, ...n})) return false;   // ★ v0.38.11 — 권한 등으로 저장 안 되면 「저장」 토스트도 안 띄움 · ★ v0.40.2 결과 반환(편집 창 = 성공일 때만 닫힘)
     renderBrandCompany();   // ★ v0.38.11 — 헤더 회사명 1벌
     toast('회사정보 저장','ok');
+    return true;
   };
   // ★ v0.23.1 — 문서 · 출력 · 엑셀 결재란 편집 (settings/documents.approval)
   {
@@ -28296,10 +28338,11 @@ VIEWS.set = () => {
       };
       apSaveBtn.onclick = () => {
         const slots = draft.map(x => String(x||'').trim()).filter(Boolean);
-        if(!slots.length){ toast('칸 명칭 최소 1개 입력','warn'); return; }
-        if(slots.length > 5){ toast('칸은 최대 5개','warn'); return; }
-        setApprovalSetting({ on: apOn.checked, slots });
+        if(!slots.length){ toast('칸 명칭 최소 1개 입력','warn'); return false; }
+        if(slots.length > 5){ toast('칸은 최대 5개','warn'); return false; }
+        if(!setApprovalSetting({ on: apOn.checked, slots })) return false;
         toast(apOn.checked ? `엑셀 결재란 ON · ${slots.length}칸 저장` : '엑셀 결재란 OFF · 구성 저장','ok');
+        return true;
       };
       renderSlots();
     }
