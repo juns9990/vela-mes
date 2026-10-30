@@ -559,7 +559,8 @@ html[data-theme="light"]{ --c1:#0f766e;--c2:#0369a1;--c3:#4338ca;--c4:#a21caf;--
 .dkpi .val{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:30px;line-height:1;letter-spacing:-1px}
 .dkpi .val.c{color:var(--cyan)} .dkpi .val.h{color:var(--heat2)} .dkpi .val.w{color:var(--ink)} .dkpi .val.g{color:var(--green)}
 .dkpi .unit{font-size:13px;color:var(--sub);font-weight:600;margin-left:3px}
-.dkpi .sub{display:flex;align-items:center;gap:6px;margin-top:11px;font-size:12px;color:var(--sub)}
+.dkpi .sub{display:block;margin-top:11px;font-size:12px;line-height:1.55;color:var(--sub)}
+.dkpi .sub > .chg{margin-right:6px}
 .chg{font-weight:700;font-family:'JetBrains Mono',monospace}
 .up{color:var(--green)} .down{color:var(--red)}
 .nodata{color:var(--dim);font-size:11px}
@@ -1372,6 +1373,7 @@ html[data-theme="light"] input:focus,html[data-theme="light"] select:focus,html[
   .tabnav .nav-brand b{font-size:27px;font-weight:900;letter-spacing:1.5px;color:var(--ink);font-family:'Inter','Pretendard',sans-serif;line-height:1}
   .tabnav .nav-brand i{display:inline-block;width:10px;height:10px;background:var(--mint);margin-left:-4px}
   .tabnav .nav-brand span{font-size:9.5px;font-weight:700;letter-spacing:2.2px;color:var(--dim)}
+  .tabnav .nav-brand .nav-ver{margin-left:auto;font-style:normal;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--dim);letter-spacing:0;align-self:center}
   .tabnav .nav-ico{display:inline-flex;width:20px;height:20px;flex:none;align-items:center;justify-content:center}
   .tabnav .nav-ico svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none}
   .tabnav .nav-sec{display:flex!important;align-items:center;gap:12px;font-size:14px!important;font-weight:700!important;letter-spacing:0!important;color:var(--ink)!important;padding:10px 14px 6px!important}
@@ -1396,6 +1398,21 @@ html[data-theme="light"] .modal{background:var(--panel)}
 .modal > h2{position:sticky;top:0;z-index:4;background:inherit;background:var(--panel);margin:0 0 14px;padding:22px 0 14px;border-bottom:1px solid var(--line);font-size:19px;font-weight:800}
 .modal .actions{position:sticky;bottom:0;z-index:4;background:var(--panel);margin-top:18px;padding:14px 0 20px}
 .modal > .body{padding-bottom:4px}
+/* ★ v0.40.3 (디자인 다듬기) — 폰 폭에서 PC 화면을 볼 때: 위쪽 막대 정리 · 대시보드 숫자 넘침 · 두 칸 카드 → 한 칸 · 좁은 표는 가로 스크롤(글자 세로 쪼개짐 방지) */
+@media(max-width:900px){ .dgrid2.dash3g{grid-template-columns:1fr} }
+@media(max-width:600px){
+  .topbar .brand .vela-mark,.topbar .brand .sys{display:none}
+  .topbar .brand::before{content:'VELA';font-family:'Inter','Pretendard',sans-serif;font-weight:900;font-size:22px;letter-spacing:1.2px;color:var(--ink)}
+  .topbar .brand::after{content:'MES';font-size:9px;font-weight:700;letter-spacing:2px;color:var(--dim);margin-left:6px;align-self:flex-end;padding-bottom:3px}
+  .topbar .brand{display:flex;align-items:baseline}
+  #sync-txt,.topbar .up-info{display:none}
+  .topbar .sync-pill{padding:6px 8px}
+  .topbar .clock{font-size:10px;line-height:1.25}
+  .hero.dash3{grid-template-columns:1fr}
+  .hero.dash3 .dkpi .val{font-size:clamp(24px,8vw,34px);overflow-wrap:anywhere}
+  #view .tbl-wrap table{min-width:620px}
+  #view .tbl-wrap th,#view .tbl-wrap td{white-space:nowrap}
+}
 @media(max-width:600px){
   .modal-bg{padding:0}
   .modal{max-width:none!important;width:100vw;height:100dvh;max-height:100dvh;border-radius:0;padding:0 16px}
@@ -1431,6 +1448,16 @@ td.ra-cell{white-space:nowrap;text-align:right}
 .rd-tabs button[aria-selected="true"]{color:var(--mint-ink);border-bottom-color:var(--mint);font-weight:800}
 .card.set-ed > .set-ed-b{display:none!important}
 .set-ed-sum .rd-grid{margin:2px 0 0}
+.col-hide{display:none!important}
+.th-sort{cursor:pointer;user-select:none}
+.th-sort:hover{color:var(--ink)}
+.th-sort[aria-sort="ascending"]::after{content:' ▲';font-size:9px;color:var(--mint-ink)}
+.th-sort[aria-sort="descending"]::after{content:' ▼';font-size:9px;color:var(--mint-ink)}
+#set-ed-box[aria-busy="true"] :is(input,select,textarea){opacity:.55;cursor:not-allowed}
+#set-ed-box[aria-busy="true"]{position:relative}
+.pg-desc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:var(--dim)!important;font-size:12px!important;line-height:1.5!important;margin:-4px 0 14px!important}
+.pg-desc.open{white-space:normal}
+.pg-desc:hover{color:var(--sub)!important}
 .rd-empty{padding:18px;text-align:center;color:var(--dim);font-size:13px;border:1px dashed var(--line);border-radius:10px}
 .rd-tbl{max-height:46vh}
 .rd-tbl td,.rd-tbl th{font-size:12.5px}
@@ -1577,7 +1604,7 @@ td.ra-cell{white-space:nowrap;text-align:right}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.2';
+const APP_VERSION = 'v0.40.3';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -7127,7 +7154,9 @@ function openModal(html, opts={}){
   bg.onclick = e => { if(e.target===bg && opts.closeOnBg===true) _modalUserClose(); };
   setTimeout(() => { try { if(md.contains(document.activeElement)) return; const f = [...md.querySelectorAll('input:not([type=hidden]):not([readonly]):not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea')].find(el => !el._velaCalBound && el.offsetParent !== null); if(f && !opts.noAutoFocus && !(window.matchMedia && window.matchMedia('(pointer:coarse)').matches)) f.focus({ preventScroll: true }); /* 터치 기기 = 자동 키보드 0 */ } catch(e){} }, 30);
 }
-function closeModal(){ if(_raMoved) _raRestore(); if(typeof _closeCal==='function') _closeCal(); document.getElementById('modal-bg').classList.remove('show'); _modalDirty = false;
+function closeModal(){ if(window._setEdUnlock){ const f = window._setEdUnlock; window._setEdUnlock = null; try { f(); } catch(e){} }   // ★ v0.40.3 — 서버 확인 중 닫으면 잠근 입력을 먼저 풀고 제자리로
+  if(_raMoved) _raRestore(); if(typeof _closeCal==='function') _closeCal(); document.getElementById('modal-bg').classList.remove('show'); _modalDirty = false;
+  if(window._setEdDeferred){ window._setEdDeferred = false; setTimeout(() => { try { if(SESSION.loggedIn && !document.getElementById('modal-bg').classList.contains('show')) router(); } catch(e){} }, 0); }   // ★ v0.40.3 — 미뤄 둔 다시 그리기
   const o = _modalOpener; _modalOpener = null; try { if(o && o.isConnected && typeof o.focus === 'function') o.focus({ preventScroll: true }); } catch(e){}
   if(window._pReturn){ const r = window._pReturn; window._pReturn = null; setTimeout(() => { if(!document.getElementById('modal-bg').classList.contains('show')) location.hash = r; }, 0); }   // ★ v0.39.3 — 폰에서 연 등록 창을 닫으면 폰 화면으로
 }
@@ -8293,7 +8322,7 @@ function renderNav(){
   const primary = getPrimaryMenu();
   const prim = ordered.filter(p => primary.includes(p.id));
   // ★ v0.39.0 (PC 개편 U-01·U-04 · GPT 승인) — 사이드바 = 「내 업무」(★ 고른 메뉴) + 부서 묶음(접기 · '부' 없음) · 게이팅 = menuCanSee 1벌 그대로 (위치 이동 = 권한 확대 0)
-  let out = `<a class="nav-brand" href="#${landingPage()}" title="VELA MES SYSTEM"><b>VELA</b><i></i><span>MES</span></a><div class="nav-sec">${navIco('home')}내 업무</div>` + (prim.length ? prim.map(p => `<button data-page="${p.id}">${_esc(navTitle(p))}</button>`).join('') : `<div class="nav-empty" style="font-size:11.5px;color:var(--sub);padding:6px 12px;line-height:1.5">☆ 메뉴 찾기에서 별표로 추가</div>`);
+  let out = `<a class="nav-brand" href="#${landingPage()}" title="VELA MES SYSTEM"><b>VELA</b><i></i><span>MES</span><em class="nav-ver">${_esc(APP_VERSION)}</em></a><div class="nav-sec">${navIco('home')}내 업무</div>` + (prim.length ? prim.map(p => `<button data-page="${p.id}">${_esc(navTitle(p))}</button>`).join('') : `<div class="nav-empty" style="font-size:11.5px;color:var(--sub);padding:6px 12px;line-height:1.5">☆ 메뉴 찾기에서 별표로 추가</div>`);
   const openSet = _navOpenGet(); const cur = (location.hash || '#dash').replace('#', '').split('/')[0];
   const used = new Set();
   let depts = '';
@@ -8330,7 +8359,11 @@ function setActive(id){
 function router(){
   if(!SESSION.loggedIn) return;
   // ★ v0.40.1 — 화면을 다시 그릴 때 상세·설정 편집 창에 옮겨 둔 버튼·입력이 있으면 창을 먼저 닫음 (다른 화면 위에 남지 않게)
-  try { if(_raMoved && document.getElementById('modal-bg').classList.contains('show')){ const _se = document.getElementById('set-ed-box') && window._setEdTitle; closeModal(); window._setEdReopen = (_se && _secPage() === 'set') ? _se : null; } } catch(e){}   // ★ v0.40.2 — 설정 편집 창 안에서 화면이 다시 그려지면(교대 프리셋 등) 같은 편집 창을 다시 엶
+  // ★ v0.40.3 (실제 앱 + 에뮬레이터 시험에서 발견) — 설정 편집 창이 열린 동안 같은 설정 화면 다시 그리기(서버 스냅샷 도착 등)는 창을 닫을 때까지 미룸
+  //   (다시 그리면 같은 id 입력칸이 화면에 또 생겨 저장 함수가 엉뚱한 칸을 읽거나 · 저장 중인 창이 바뀌어 완료 처리를 못 함) · 다른 화면으로 이동·교대 프리셋(의도한 다시 그리기)은 그대로
+  try { if(document.getElementById('set-ed-box') && window._setEdTitle && document.getElementById('modal-bg').classList.contains('show') && _secPage() === 'set' && !window._setEdForce){ window._setEdDeferred = true; return; } } catch(e){}
+  window._setEdForce = false;
+  try { if(_raMoved && document.getElementById('modal-bg').classList.contains('show')){ const _bx = document.getElementById('set-ed-box'); const _se = _bx && window._setEdTitle; const _vals = _bx ? [..._bx.querySelectorAll('input[id]:not([type=file]):not([type=checkbox]):not([type=radio]),select[id],textarea[id]')].map(el => [el.id, el.value]) : []; closeModal(); window._setEdReopen = (_se && _secPage() === 'set') ? { t: _se, vals: _vals } : null; } } catch(e){}   // ★ v0.40.2 — 설정 편집 창 안에서 화면이 다시 그려지면(교대 프리셋 등) 같은 편집 창을 다시 엶
   // ★ v0.37.0 — Mobile Shop Floor: #m/ 접두 = 별도 UI 아키텍처 (같은 원장·같은 규칙 · PC 화면 무변)
   if(isMobileHash()){ mobileRouter(); return; }
   if(isPhoneHash()){ if(isWorkerRole()){ location.hash = '#m/home'; return; } phoneRouter(); return; }   // ★ v0.39.3 — 사무직·관리책임자 폰 화면
@@ -8378,6 +8411,53 @@ function router(){
   // ★ v0.40.0 — 여러 동작 버튼 행 → [상세 보기] 중앙 창 (전 메뉴 공통 · 원래 버튼 그대로)
   try { _rowDetailEnhance(); } catch(e){ console.warn('[VELA] 행 상세', e); }
   try { _setEditEnhance(); } catch(e){ console.warn('[VELA] 설정 편집 창', e); }
+  try { _pgHeadTidy(); } catch(e){}
+  try { _tblSortEnhance(); _tblColsApply(); } catch(e){ console.warn('[VELA] 표 정렬·열', e); }
+}
+/* ★ v0.40.3 (자유도 · 표시만) — 목록 표 머리글을 눌러 정렬 (오름 → 내림 → 원래 순서) · 화면에서 행 순서만 바꿈(계산·저장 0)
+   · 숫자 칸 = 숫자로(쉼표·₩·단위 무시) · 날짜·글자 = 글자 순 · 수주처럼 펼침 줄이 붙은 행은 함께 이동 · 묶음 줄(날짜 묶음 등)·입력 행이 있는 표는 제외
+   · 고른 정렬은 이 기기에만 기억(localStorage vela_tbl_sort) — 다시 그려도 유지 · 대시보드·현장 화면 제외 */
+function _tblSortKey(t){ const s = String(t || '').replace(/\s+/g, ' ').trim(); const n = s.replace(/[₩,\s]/g, '').match(/^-?\d+(\.\d+)?/); return n && /^[-₩\d,.\s]/.test(s) ? { n: +n[0], s } : { n: null, s }; }
+function _tblSortEnhance(){
+  const v = document.getElementById('view'); if(!v || typeof SESSION === 'undefined' || !SESSION.loggedIn || isMobileHash() || _secPage() === 'dash') return;
+  const pg = _secPage(); let store = {}; try { store = JSON.parse(localStorage.getItem('vela_tbl_sort') || '{}') || {}; } catch(e){ store = {}; }
+  [...v.querySelectorAll('table')].forEach((tb, ti) => {
+    if(tb._sortOn || tb.closest('.no-sort')) return;
+    const hr = tb.tHead && tb.tHead.rows.length ? tb.tHead.rows[tb.tHead.rows.length - 1] : null; const body = tb.tBodies[0];
+    if(!hr || !body || tb.tBodies.length > 1) return;
+    const rows = [...body.rows]; if(rows.length < 3) return;
+    if(rows.some(r => !r.classList.contains('mdet') && ([...r.cells].some(c => c.colSpan > 1) || r.querySelector('input:not([type=checkbox]),select,textarea')))) return;
+    if(hr.cells.length !== [...hr.cells].reduce((a, c) => a + (c.colSpan || 1), 0)) return;
+    tb._sortOn = true; const key = pg + ':' + ti; const orig = rows.slice();
+    const units = () => { const u = []; [...body.rows].forEach(r => { if(r.classList.contains('mdet') && u.length) u[u.length - 1].push(r); else u.push([r]); }); return u; };
+    const apply = (ci, dir) => {
+      [...hr.cells].forEach((th, k) => { th.setAttribute('aria-sort', k === ci && dir ? (dir > 0 ? 'ascending' : 'descending') : 'none'); });
+      let list;
+      if(!dir){ list = []; orig.forEach(r => { if(!r.classList.contains('mdet')) list.push([r]); else if(list.length) list[list.length - 1].push(r); }); }
+      else { list = units().map((u, i) => ({ u, i, k: _tblSortKey(u[0].cells[ci] ? u[0].cells[ci].textContent : '') }));
+        list.sort((a, b) => { const x = a.k, y = b.k; let c = (x.n != null && y.n != null) ? x.n - y.n : x.s.localeCompare(y.s, 'ko', { numeric: true }); return c ? c * dir : a.i - b.i; });
+        list = list.map(x => x.u); }
+      list.forEach(u => u.forEach(r => body.appendChild(r)));
+    };
+    [...hr.cells].forEach((th, ci) => {
+      if(th.querySelector('input,button,select') || !(th.textContent || '').trim()) return;
+      th.classList.add('th-sort'); th.tabIndex = 0; th.title = '눌러서 정렬 (오름 → 내림 → 원래 순서)';
+      const go = () => { const cur = store[key] && store[key].c === ci ? store[key].d : 0; const nd = cur === 0 ? 1 : cur === 1 ? -1 : 0;
+        if(nd) store[key] = { c: ci, d: nd }; else delete store[key]; try { localStorage.setItem('vela_tbl_sort', JSON.stringify(store)); } catch(e){} apply(ci, nd); };
+      th.onclick = go; th.onkeydown = e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(); } };
+    });
+    const sv = store[key]; if(sv && hr.cells[sv.c] && hr.cells[sv.c].classList.contains('th-sort')) apply(sv.c, sv.d);
+  });
+}
+/* ★ v0.40.3 (디자인 다듬기 · 표시만) — 화면 제목 옆 버전·개발 꼬리표 알약 제거(버전 = 사이드바 로고 옆 + 아래 바닥글) · 제목 아래 설명 한 줄 = 한 줄로 줄이고 눌러서 펼침 */
+function _pgHeadTidy(){
+  const v = document.getElementById('view'); if(!v || isMobileHash()) return;
+  const t = v.querySelector('.pghead .pgtitle');
+  if(t) t.querySelectorAll('.pill').forEach(p => { const x = (p.textContent || '').trim(); if(/^v\d+\.\d+/.test(x) || x === 'Audit') p.remove(); });
+  const h = v.querySelector(':scope > .pghead'); const n = h && h.nextElementSibling;
+  if(n && n.tagName === 'DIV' && !n.className && !n.querySelector('input,select,textarea,button,table,.card') && (n.textContent || '').trim().length > 0 && (n.textContent || '').length < 600 && /font-size:\s*1[01](\.\d+)?px/.test(n.getAttribute('style') || '')){
+    n.classList.add('pg-desc'); n.title = '눌러서 전체 설명 보기'; n.onclick = e => { if(e.target.closest('a')) return; n.classList.toggle('open'); };
+  }
 }
 /* ★ v0.38.17 — 화면 단락(하위 섹션) 켜기/끄기 1벌 (사용자 요청 2026-10-09 · 「개인화 v0.1」 원칙: 표시만 · 계산·원장·권한·write path 무변)
    · 단락 = #view 안 .card 중 머리글 h3 가 있는 것 — 마크업 무수정 · 렌더 후 부착 → 전 메뉴 자동 (대시보드 = 카드 Picker 별도 · 현장 모드 제외)
@@ -8455,6 +8535,22 @@ function _secToggleEnhance(){
   btn.style.borderColor = nOff ? 'var(--amber)' : '';
   btn.style.color = nOff ? 'var(--amber)' : '';
 }
+/* ★ v0.40.3 (자유도 · 표시만) — 목록 표의 열 숨기기: [보기 설정] 창 아래 「표 열」 · 이 기기에만 기억(localStorage vela_tbl_cols)
+   · 첫 열(번호·이름)과 [상세 보기] 열은 숨길 수 없음 · 화면에서만 가림(데이터·계산·엑셀·인쇄 내용 무변) · 정렬 가능한 표(_tblSortEnhance 대상)만 */
+function _colMap(){ try { return JSON.parse(localStorage.getItem('vela_tbl_cols') || '{}') || {}; } catch(e){ return {}; } }
+function _colSave(m){ try { localStorage.setItem('vela_tbl_cols', JSON.stringify(m)); } catch(e){} }
+function _colSet(key, ci, hide){ const m = _colMap(); const a = new Set(m[key] || []); if(hide) a.add(ci); else a.delete(ci); if(a.size) m[key] = [...a]; else delete m[key]; _colSave(m); }
+function _colTables(){ const v = document.getElementById('view'); if(!v) return []; const pg = _secPage();
+  return [...v.querySelectorAll('table')].map((tb, ti) => ({ tb, key: pg + ':' + ti })).filter(x => x.tb._sortOn); }
+function _tblColsApply(){ const m = _colMap();
+  _colTables().forEach(({ tb, key }) => { const hide = new Set(m[key] || []); const hr = tb.tHead.rows[tb.tHead.rows.length - 1]; const n = hr.cells.length;
+    [...tb.rows].forEach(r => { if(r.cells.length !== n) return; [...r.cells].forEach((c, k) => c.classList.toggle('col-hide', hide.has(k) && k > 0 && k < n - 1)); }); }); }
+function _colPickHTML(){ const ts = _colTables().filter(x => !x.tb.closest('.vt-hide') && !x.tb.closest('.sec-off'));
+  if(!ts.length) return ''; const m = _colMap();
+  return `<div style="font-size:12.5px;font-weight:700;margin:14px 0 6px">표 열</div>` + ts.map(({ tb, key }) => { const card = tb.closest('.card'); const h = card && card.querySelector('h3'); const t = h ? ((h.childNodes[0] && h.childNodes[0].textContent) || h.textContent || '').trim().slice(0, 24) : '목록';
+    const hr = tb.tHead.rows[tb.tHead.rows.length - 1]; const n = hr.cells.length; const hide = new Set(m[key] || []);
+    return `<div style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin-bottom:6px"><div style="font-size:12px;color:var(--sub);margin-bottom:5px">${_esc(t)}</div><div style="display:flex;flex-wrap:wrap;gap:6px 14px">${[...hr.cells].map((c, k) => { const nm = (c.textContent || '').trim().replace(/[▲▼]/g, ''); if(!nm || k === 0 || k === n - 1) return '';
+      return `<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;margin:0;flex:0 0 auto;white-space:nowrap"><input type="checkbox" data-col-key="${_esc(key)}" data-col-idx="${k}" ${hide.has(k) ? '' : 'checked'}>${_esc(nm.slice(0, 16))}</label>`; }).join('')}</div></div>`; }).join('') + `<div style="font-size:11px;color:var(--dim)">숨긴 열은 이 기기 화면에서만 안 보입니다 — 엑셀·인쇄·계산은 그대로</div>`; }
 function openSecPicker(){
   const draw = () => {
     const list = secList(), off = secOffMap();
@@ -8467,6 +8563,7 @@ function openSecPicker(){
     <div class="body">
       <div style="font-size:11.5px;color:var(--sub)">숨긴 영역은 <b>내 화면에서만</b> 안 보입니다 — 데이터·계산·다른 사람 화면은 그대로 · 이상·HOLD 같은 안전 신호는 숨길 수 없습니다</div>
       <div id="sec-pick-list">${draw()}</div>
+      <div id="col-pick-list">${_colPickHTML()}</div>
       <div class="actions">
         <button class="btn" id="sec-all-on">모두 켜기</button>
         <button class="btn primary" onclick="closeModal()">닫기</button>
@@ -8479,9 +8576,12 @@ function openSecPicker(){
     document.getElementById('sec-pick-list').innerHTML = draw(); bind();
   });
   bind();
+  const bindCols = () => document.querySelectorAll('#col-pick-list [data-col-key]').forEach(b => b.onchange = () => { _colSet(b.dataset.colKey, +b.dataset.colIdx, !b.checked); _tblColsApply(); });
+  bindCols();
   document.getElementById('sec-all-on').onclick = () => {
     const page = _secPage() + ':'; const m = { ...secOffMap() }; Object.keys(m).forEach(k => { if(k.startsWith(page)) delete m[k]; });
     setPrefs(SESSION.userId, { sec_off: m }); _secToggleEnhance(); document.getElementById('sec-pick-list').innerHTML = draw(); bind();
+    const cm = _colMap(); Object.keys(cm).forEach(k => { if(k.startsWith(page)) delete cm[k]; }); _colSave(cm); _tblColsApply(); document.getElementById('col-pick-list').innerHTML = _colPickHTML(); bindCols();
   };
 }
 /* ★ v0.40.0 (GPT UI SPEC 1.1 §4.1 · U03) — 한 화면 한 업무 영역: 단락(제목 있는 카드)이 2개 이상이면 위에 [보기] 전환 탭 → 고른 단락 하나만 표시
@@ -8538,7 +8638,8 @@ function _setEditEnhance(){
     const fields = body.flatMap(n => [...n.querySelectorAll ? n.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]),select,textarea') : []]);
     if(!fields.length) return;
     card.classList.add('set-ed'); body.forEach(n => n.classList.add('set-ed-b'));
-    const pairs = fields.slice(0, 14).map(el => { const box = el.closest('div'); const lb = box && box.querySelector('label'); const k = ((lb && lb.textContent) || el.getAttribute('placeholder') || el.id || '').trim().replace(/\s+/g, ' ').slice(0, 30); return [k, _setEditVal(el)]; }).filter(x => x[0]);
+    const _lbOf = el => { if(el.classList.contains('ap-slot')) return `결재 칸 ${(+el.dataset.idx || 0) + 1}`; for(let d = el.parentElement, k = 0; d && k < 3 && !d.classList.contains('card'); d = d.parentElement, k++){ const lb = d.querySelector(':scope > label'); if(lb) return lb.textContent; } return el.getAttribute('aria-label') || el.getAttribute('placeholder') || ''; };   // ★ v0.40.3 — 칸 이름 = 가까운 label (내부 id 를 이름으로 쓰지 않음)
+    const pairs = fields.slice(0, 14).map(el => [String(_lbOf(el) || '').trim().replace(/\s+/g, ' ').slice(0, 30), _setEditVal(el)]).filter(x => x[0]);
     const title = ((h.childNodes[0] && h.childNodes[0].textContent) || h.textContent || '').trim().slice(0, 30);
     const sum = document.createElement('div'); sum.className = 'set-ed-sum';
     sum.innerHTML = `<div class="rd-grid">${pairs.map(x => `<div class="k">${_esc(x[0])}</div><div>${_esc(x[1] || '—')}</div>`).join('')}</div>
@@ -8547,7 +8648,8 @@ function _setEditEnhance(){
     sum.querySelector('[data-set-edit]').onclick = () => _setEditOpen(card, title);
   });
   const re = window._setEdReopen; window._setEdReopen = null;
-  if(re){ const c = [...v.querySelectorAll(':scope > .card.set-ed')].find(c => { const h = c.firstElementChild; return ((h.childNodes[0] && h.childNodes[0].textContent) || h.textContent || '').trim().slice(0, 30) === re; }); if(c) _setEditOpen(c, re); }
+  if(re){ const c = [...v.querySelectorAll(':scope > .card.set-ed')].find(c => { const h = c.firstElementChild; return ((h.childNodes[0] && h.childNodes[0].textContent) || h.textContent || '').trim().slice(0, 30) === re.t; });
+    if(c){ _setEditOpen(c, re.t); (re.vals || []).forEach(([id, val]) => { const el = document.getElementById(id); if(el && el.closest('#set-ed-box') && el.value !== val) el.value = val; }); } }   // ★ v0.40.3 — 다시 그린 뒤 같은 창 + 아직 저장 안 한 입력값(이름 붙은 칸) 되살림
 }
 function _setEditOpen(card, title){
   const body = [...card.querySelectorAll(':scope > .set-ed-b')];
@@ -8561,18 +8663,32 @@ function _setEditOpen(card, title){
   // ★ v0.40.2 (GPT v0.40.1 필수 ①) — 창을 닫는 기준 = 저장 함수의 결과(true) + 서버 응답 성공 · 버튼 글자로 판단하지 않음
   //   실패(검증·권한 거부·서버 거부)·처리 중 = 창과 입력값 유지 · 저장 함수·검증·권한 검사는 그대로(감싸기만) · 화면 다시 그리기는 성공 뒤 1번
   box.querySelectorAll('[data-set-save]').forEach(btn => {
-    const orig = btn.onclick; if(typeof orig !== 'function' || btn._setEdWrapped) return; btn._setEdWrapped = true;
-    btn.onclick = async ev => { if(btn._busy) return;
+    // ★ v0.40.3 (GPT v0.40.2 ②) — 원래 저장 함수는 처음 한 번만 보관(_setEdOrig) · 창을 열 때마다 「지금 이 창」 기준 처리로 다시 지정(onclick 대입 = 중복 등록 0)
+    if(typeof btn._setEdOrig !== 'function') btn._setEdOrig = btn.onclick;
+    const orig = btn._setEdOrig; if(typeof orig !== 'function') return;
+    btn.onclick = async ev => {
+      if(!box.isConnected || !box.contains(btn)) return orig.call(btn, ev);   // 창 밖(단락 본문)에서 직접 눌림 = 원래 함수 그대로
+      if(btn._busy) return;
       const st = document.getElementById('set-ed-st');
       let ok = false, tr = [];
       const outer = _FS_TRACK; _FS_TRACK = [];
-      try { ok = orig.call(btn, ev) === true; } catch(e){ ok = false; try { toast(e.message || String(e), 'err'); } catch(_){} } finally { tr = _FS_TRACK || []; _FS_TRACK = outer; }
+      // ★ v0.40.3 — 저장 함수의 「저장」 완료 알림은 서버 확인 뒤에 보여 줌 (확인 전 성공 표시 0) · 경고·오류 알림은 바로
+      const _t = window.toast, held = []; window.toast = function(m, k){ if(k === undefined || k === 'ok') held.push([...arguments]); else return _t.apply(this, arguments); };
+      try { ok = orig.call(btn, ev) === true; } catch(e){ ok = false; try { _t(e.message || String(e), 'err'); } catch(_){} } finally { tr = _FS_TRACK || []; _FS_TRACK = outer; window.toast = _t; }
+      const flush = () => held.forEach(a => { try { _t.apply(null, a); } catch(e){} });
       if(!ok){ if(st) st.textContent = '저장되지 않았습니다 — 입력한 값은 그대로입니다. 내용을 확인한 뒤 다시 저장하세요.'; return; }
-      if(tr.length){ btn._busy = true; btn.disabled = true; if(st) st.textContent = '서버 저장 확인 중… (확인되면 창이 닫힙니다)';
+      if(tr.length){
+        // ★ v0.40.3 (GPT v0.40.2 ①) — 서버 확인 중 = 이 창의 입력칸·값을 바꾸는 버튼 전부 잠금 (확인 중 고친 값이 사라지는 일 0) · 실패·창 닫기 = 잠금 해제 · 입력값 유지
+        const locked = [...box.querySelectorAll('input,select,textarea,button')].filter(el => !el.disabled);
+        const unlock = () => { locked.forEach(el => { el.disabled = false; }); btn._busy = false; if(window._setEdUnlock === unlock) window._setEdUnlock = null; };
+        locked.forEach(el => { el.disabled = true; }); btn._busy = true; window._setEdUnlock = unlock; box.setAttribute('aria-busy', 'true');
+        if(st) st.textContent = '서버 저장 확인 중… 확인될 때까지 입력은 잠깁니다 (확인되면 창이 닫힙니다)';
         let res = []; try { res = await Promise.all(tr); } catch(e){ res = [{ ok: false }]; }
-        btn._busy = false; btn.disabled = false;
-        if(res.some(r => !r || !r.ok)){ if(st) st.textContent = '서버가 저장을 받지 않았습니다 — 입력한 값은 그대로입니다. 다시 저장하거나 [닫기]를 누르세요.'; return; } }
-      if(document.getElementById('set-ed-box') !== box || !document.getElementById('modal-bg').classList.contains('show')) return;   // 다른 창(관리자 인증 등)으로 바뀌었으면 그 창을 닫지 않음
+        unlock(); box.removeAttribute('aria-busy');
+        if(res.some(r => !r || !r.ok)){ if(st && box.isConnected) st.textContent = '서버가 저장을 받지 않았습니다 — 입력한 값은 그대로입니다. 다시 저장하거나 [닫기]를 누르세요.'; return; }
+      }
+      flush();
+      if(document.getElementById('set-ed-box') !== box || !document.getElementById('modal-bg').classList.contains('show')) return;   // 창을 닫았거나 다른 창(관리자 인증 등)으로 바뀌었으면 그 창을 닫지 않음
       window._setEdTitle = null; closeModal(); try { router(); } catch(e){}
     };
   });
@@ -12004,7 +12120,7 @@ function lotTimeline(plot_no){
   const lot = DB.get('production_lots', plot_no);
   if(!lot) return [];
   const ev = [];
-  ev.push({ ts:+lot.created||0, kind:'생성', text:`LOT 생성 — ${lot.itemCode} · 초기 ${(lot.qty_initial||0).toLocaleString()}ea${lot.type && lot.type!=='normal' ? ` · ${lot.type}` : ''}${(lot.heat_nos||[]).length?` · heat ${(lot.heat_nos||[]).join(',')}`:''}`, by:lot.by||'' });
+  ev.push({ ts:+lot.created||0, kind:'생성', text:`LOT 생성 — ${lot.itemCode} · 초기 ${(lot.qty_initial||0).toLocaleString()}ea${lot.type && lot.type!=='normal' ? ` · ${lot.type==='merged'?'병합':lot.type==='split'?'분할':lot.type}` : ''}${(lot.heat_nos||[]).length?` · heat ${(lot.heat_nos||[]).join(',')}`:''}`, by:lot.by||'' });
   DB.allRaw('records').filter(r => r.plot_no === plot_no).forEach(r => {
     const parts = [];
     if(+r.good) parts.push(`양품 ${(+r.good).toLocaleString()}`);
@@ -12102,7 +12218,7 @@ function lotStepPanelHTML(plot_no){
         ${lotHoldInfo(plot_no).held ? `<span class="pill red" title="미처리 부적합 — 판정 전 실적·반출·출하 차단">품질 HOLD</span>` : ''}
         ${(() => { const ci = lotConflictInfo(plot_no); return ci.open ? `<span class="pill amber" title="동시성 사고 — 초과분 ${ci.pending.toLocaleString()}ea 보류 · 인정분은 진행 · 관리자 판정(변경 이력 → 동시성 사고)">⚠ 동시성 사고 · 보류 ${ci.pending.toLocaleString()}</span>` : ''; })()}
         <span style="font-size:12px;color:var(--sub)"><b style="font-family:'JetBrains Mono',monospace">${_esc(itemLabel(l.itemCode))}</b> · ${(l.qty_initial||0).toLocaleString()}ea${custName?` · ${_esc(custName)}`:''}</span>
-        <span style="margin-left:auto;font-size:10.5px;color:var(--dim)">heat ${_esc((l.heat_nos||[]).join(', ')||'―')} · 공정을 클릭하면 상세가 열립니다</span>
+        <span style="margin-left:auto;font-size:10.5px;color:var(--dim)">Heat ${_esc((l.heat_nos||[]).join(', ')||'―')} · 공정을 클릭하면 상세가 열립니다</span>
       </div>
       <div class="lsteps">${strip}</div>
       ${details}
@@ -13674,7 +13790,7 @@ VIEWS._matinMaterial = () => {
         <button class="btn primary" id="matin-add">${ico('plus')}소재 입고</button>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">소재(heat) 입고 등록 · 기간별 현황 · 잔량 원장 — 투입은 절단 실적 × 단중 자동 차감</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">소재(Heat) 입고 등록 · 기간별 현황 · 잔량 원장 — 투입은 절단 실적 × 단중 자동 차감</div>
 
     <div class="grid g4" style="margin-bottom:14px">
       <div class="kpi-mini"><div class="lab">${ico('check')}오늘 입고</div><div class="val c">${todayKg.toLocaleString()}<span style="font-size:12px;color:var(--sub)">kg</span></div></div>
@@ -13756,8 +13872,8 @@ VIEWS._matinMaterial = () => {
         })()}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;margin-top:10px;line-height:1.7">
-        <b style="color:var(--amber)">가드</b> 투입 실적 있는 heat 의 입고 취소는 차단 (역순 원칙 — 절단 실적 먼저 취소).
-        <span style="color:var(--cyan)">WO 연동</span>: 작업지시 heat 는 잔량 있는 heat select 로 선택 · qty×0.5 추정치 자동 생성 제거.
+        <b style="color:var(--amber)">가드</b> 투입 실적 있는 Heat 의 입고 취소는 차단 (역순 원칙 — 절단 실적 먼저 취소).
+        <span style="color:var(--cyan)">작업지시 연동</span>: 작업지시의 Heat 는 잔량 있는 Heat 중에서 고릅니다.
       </div>
     </div>
   `;
@@ -14672,7 +14788,6 @@ VIEWS.inv = () => {
         const lbl = k==='forging'?'단조':k==='machining'?'가공':'열처리';
         return `<span class="pill ${preset===k?'cyan':'gray'}" style="cursor:default">${lbl}${preset===k?' ✓':''}</span>`;
       }).join('')}
-      <span style="margin-left:auto;color:var(--dim);font-size:10px">공정 컬럼은 회사 공정 설정에서 자동 — 단조는 첫 사례, 업종 하드코딩 X</span>
     </div>
 
     <!-- 검색 + 필터 -->
@@ -14703,7 +14818,7 @@ VIEWS.inv = () => {
 
     <!-- 상단 KPI -->
     <div class="grid g4" style="margin-bottom:14px">
-      <div class="kpi-mini"><div class="lab">${ico('check')}원소재 재고</div><div class="val c">${Math.round(totalRawKg).toLocaleString()}<span style="font-size:12px;color:var(--sub)">kg</span></div><div class="sub">heat ${heatCount}개 · <a href="#matin" style="color:var(--cyan);text-decoration:none">입고 →</a></div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}원소재 재고</div><div class="val c">${Math.round(totalRawKg).toLocaleString()}<span style="font-size:12px;color:var(--sub)">kg</span></div><div class="sub">Heat ${heatCount}개 · <a href="#matin" style="color:var(--cyan);text-decoration:none">입고 →</a></div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}총 재공 (WIP)</div><div class="val h">${totalWip.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">공정 중 합 · <span style="color:var(--blue)">반출 중 포함</span></div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}완성품 재고</div><div class="val">${totalDone.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">출하 대기${lowCount?` · 안전재고 미달 ${lowCount}건`:''}</div></div>
       <div class="kpi-mini"><div class="lab">${ico('check')}불량 누계</div><div class="val r">${totalDef.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">전 공정 합</div></div>
@@ -14744,7 +14859,7 @@ VIEWS.inv = () => {
 
     <!-- 소재 재고 (heat별) — ★ v0.16.1 calcHeatLedger 파생값 -->
     <div class="card">
-      <h3>소재 재고 <span class="tag">heat 별 · 계산 1벌 (입고 화면과 동일)</span></h3>
+      <h3>소재 재고 <span class="tag">Heat 별 · 입고 화면과 같은 계산</span></h3>
       <div class="tbl-wrap"><table>
         <thead><tr><th>Heat</th><th>재질</th><th class="num">Ø</th><th class="num">입고(kg)</th><th class="num">투입(kg)</th><th class="num">잔량(kg)</th></tr></thead>
         <tbody>${(() => {
@@ -17215,7 +17330,7 @@ VIEWS.pallet = () => {
             <td><span class="pill ${v?.type==='out'?'heat':'blue'}">${v?.type==='out'?'외주처':v?.type==='cust'?'고객사':'기타'}</span></td>
             <td><span class="pill ${m.type==='out'?'heat':'green'}">${m.type==='out'?'출고':'입고'}</span></td>
             <td class="num">${(m.qty||0).toLocaleString()}</td>
-            <td class="muted" style="font-size:11px">${m.ref?.kind||'manual'}${m.ref?.id?` · ${_esc(m.ref.id)}`:''}</td>
+            <td class="muted" style="font-size:11px">${({ manual: '직접 입력', os: '외주 반출', tx: '거래', ship: '출하' })[m.ref?.kind || 'manual'] || _esc(m.ref?.kind || '')}${m.ref?.id?` · ${_esc(m.ref.id)}`:''}</td>
             <td>${actBtn}</td>
           </tr>`;
         }).join('') : '<tr><td colspan="7" class="empty">파렛트 이동 없음</td></tr>'}</tbody>
@@ -20106,8 +20221,8 @@ VIEWS.proc = () => {
       </div>
     </div>
     <div class="card">
-      <h3>표준 공정 흐름 <span class="tag">${procs.length}개 · seq 정렬 · 마스터(전역)</span></h3>
-      <div style="font-size:11px;color:var(--sub);margin-bottom:8px">※ v0.6.0 — 품번별 공정 포함 여부/순서는 아래 <b>BOM 라우팅</b>에서 정의합니다.</div>
+      <h3>표준 공정 흐름 <span class="tag">${procs.length}개 · 순서대로 · 회사 공통</span></h3>
+      <div style="font-size:11px;color:var(--sub);margin-bottom:8px">품번별 공정 포함 여부·순서는 <b>BOM 라우팅</b>에서 정합니다.</div>
       <div class="tbl-wrap"><table>
         <thead><tr><th>순서</th><th>코드</th><th>공정명</th><th>단위</th><th>유형</th><th>설비</th><th>검사</th><th></th></tr></thead>
         <tbody>${procs.map(p=>`<tr>
@@ -20558,7 +20673,7 @@ VIEWS.cost = () => {
           <div class="kpi-mini"><div class="lab">${ico('check')}원가 산출 가능</div><div class="val c">${items_with_bom}<span style="font-size:12px;color:var(--sub)">/${items.length}</span></div><div class="sub">BOM 보유 품번</div></div>
           <div class="kpi-mini"><div class="lab">${ico('check')}평균 표준원가</div><div class="val">${'₩'+avg.toLocaleString()}</div><div class="sub">품번 평균</div></div>
           <div class="kpi-mini"><div class="lab">${ico('check')}평균 마진</div><div class="val g">${'₩'+margin.toLocaleString()}</div><div class="sub">판매단가 − 원가</div></div>
-          <div class="kpi-mini"><div class="lab">${ico('check')}간접비율</div><div class="val">${((rates.overhead_pct||0)*100).toFixed(0)}<span style="font-size:12px;color:var(--sub)">%</span></div><div class="sub">단가표 → overhead</div></div>
+          <div class="kpi-mini"><div class="lab">${ico('check')}간접비율</div><div class="val">${((rates.overhead_pct||0)*100).toFixed(0)}<span style="font-size:12px;color:var(--sub)">%</span></div><div class="sub">단가표에서 설정</div></div>
         `;
       })()}
     </div>
@@ -21508,12 +21623,12 @@ VIEWS.mold = () => {
 
     <div class="grid g3">
       <div class="kpi-mini"><div class="lab">${ico('check')}금형 합계</div><div class="val c">${total}<span style="font-size:12px;color:var(--sub)">건 · ${totalUnits}벌</span></div><div class="sub">${varSummary || '등록된 금형 없음'}</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}임박 (90%+)</div><div class="val h">${warn}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">amber 게이지</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}교체 필요 (100%+)</div><div class="val r">${replace}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">red 게이지</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}임박 (90%+)</div><div class="val h">${warn}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">수명 90% 이상</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}교체 필요 (100%+)</div><div class="val r">${replace}<span style="font-size:12px;color:var(--sub)">개</span></div><div class="sub">수명 100% 이상</div></div>
     </div>
 
     <div class="card">
-      <h3>금형 마스터 <span class="tag">누적/벌 = ((연결 품목 FORGE 실적 ÷ Cav) + offset) ÷ 보유 수량 · 파생 · G1 저장 금지</span></h3>
+      <h3>금형 마스터 <span class="tag">누적/벌 = ((연결 품목 단조 실적 ÷ Cav) + 수동 보정) ÷ 보유 수량 · 실적에서 자동 계산</span></h3>
       <div class="tbl-wrap"><table>
         <thead><tr><th>금형번호</th><th>구분</th><th>종류</th><th class="num">보유</th><th>적용 품번</th><th class="num">기준 타수</th><th class="num">누적/벌</th><th class="num">수동 보정</th><th style="width:22%">수명</th>${mTopFields.map(f=>`<th>${_esc(f.label||f.key)}${f.unit?` <span style="color:var(--dim);font-size:9px">(${_esc(f.unit)})</span>`:''} <span class="tag" style="font-size:9px">정의</span></th>`).join('')}<th>상태</th><th></th></tr></thead>
         <tbody>${molds.length? molds.map(m=>{
@@ -21543,7 +21658,7 @@ VIEWS.mold = () => {
         }).join('') : `<tr><td colspan="${12+mTopFields.length}" class="empty">등록된 금형 없음</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
-        <b style="color:var(--amber)">규칙</b> 90% ≥ amber · 100% ≥ red — 대시보드·AI 보고서 이슈로 자동 수집.
+        <b style="color:var(--amber)">규칙</b> 수명 90% 이상 = 임박(주황) · 100% 이상 = 교체(빨강) — 대시보드·AI 보고서 이슈로 자동 수집.
         타발 수 = 실적에서 자동 계산 (카운터기 연결은 나중에).
       </div>
     </div>
@@ -23809,10 +23924,10 @@ VIEWS.autoplan = () => {
       <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:11.5px">
         <span class="pill ${opts.subtract_wip?'cyan':'gray'}">재공차감 ${opts.subtract_wip?'ON':'OFF'}</span>
         <span class="pill ${opts.group_material?'cyan':'gray'}">소재묶음 ${opts.group_material?'ON':'OFF'}</span>
-        <span class="pill ${opts.mold_check==='warn'?'cyan':'gray'}">금형수명 ${opts.mold_check||'off'}</span>
-        <span class="pill ${opts.capa_check==='warn'?'cyan':'gray'}">CAPA ${opts.capa_check||'off'}</span>
+        <span class="pill ${opts.mold_check==='warn'?'cyan':'gray'}">금형수명 ${opts.mold_check==='warn'?'경고':'끔'}</span>
+        <span class="pill ${opts.capa_check==='warn'?'cyan':'gray'}">설비 능력(CAPA) ${opts.capa_check==='warn'?'경고':'끔'}</span>
         <span class="pill ${opts.use_safety?'cyan':'gray'}">안전재고 ${opts.use_safety?'ON':'OFF'}</span>
-        <span class="pill gray">모드: ${opts.mode||'manual'}</span>
+        <span class="pill gray">실행: ${(opts.mode||'manual')==='manual'?'버튼으로 직접':'자동'}</span>
       </div>
     </div>
 
@@ -24272,7 +24387,7 @@ VIEWS.masters = () => {
         }).join('') : `<tr><td colspan="${14+iTopFields.length}" class="empty">품번 없음 — [품번 등록] 또는 [엑셀 임포트]</td></tr>`}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
-        <b style="color:var(--amber)">가드</b> 사용 이력 있으면 삭제 불가 — 비활성만(increment-only). 이력 없는 오등록은 수정 화면 [삭제]로 완전 삭제(v0.31.5). 비활성 마스터는 신규 수주·출하·외주 선택 목록에서 제외되지만, 과거 이력·재고·LOT 추적에는 그대로 표시(이력 보존). 사용중 코드 중복 등록 차단.
+        <b style="color:var(--amber)">가드</b> 사용 이력 있으면 삭제 불가 — 비활성만 가능(기록 보존). 이력 없는 오등록은 수정 화면 [삭제]로 완전 삭제(v0.31.5). 비활성 마스터는 신규 수주·출하·외주 선택 목록에서 제외되지만, 과거 이력·재고·LOT 추적에는 그대로 표시(이력 보존). 사용중 코드 중복 등록 차단.
       </div>
     </div>
 
@@ -24393,7 +24508,7 @@ VIEWS.masters = () => {
         }).join('') : '<tr><td colspan="4" class="empty">불량 유형 없음 — [유형 등록]으로 추가 (예: 치수 불량 · 외관 흠 · 경도 미달 · 크랙)</td></tr>'}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.7;margin-top:10px">
-        <b style="color:var(--amber)">가드</b> 부적합 기록 있으면 삭제 불가 — 비활성만(increment-only). 기록 없는 오등록은 수정 화면 [삭제]로 완전 삭제(v0.31.5). 비활성 유형은 부적합 신규 등록 목록에서 제외되지만, 과거 NC·파레토 이력에는 그대로 표시(이력 보존). 코드 중복 등록 차단·코드 불변.
+        <b style="color:var(--amber)">가드</b> 부적합 기록 있으면 삭제 불가 — 비활성만 가능(기록 보존). 기록 없는 오등록은 수정 화면 [삭제]로 완전 삭제(v0.31.5). 비활성 유형은 부적합 신규 등록 목록에서 제외되지만, 과거 NC·파레토 이력에는 그대로 표시(이력 보존). 코드 중복 등록 차단·코드 불변.
       </div>
     </div>
     ` : ''}
@@ -25541,7 +25656,7 @@ VIEWS.closing = () => {
       <div class="body">
         <div style="font-size:12px;color:var(--sub);line-height:1.7">
           마감을 취소하면 이 월은 <b>미마감</b> 상태로 돌아갑니다. 이후 재마감 가능.<br>
-          <span style="color:var(--dim)">물리 삭제 없음(increment-only) — 이력에는 "취소" 로 남습니다.</span>
+          <span style="color:var(--dim)">지우지 않음 — 이력에는 "취소" 로 남습니다.</span>
         </div>
         <div><label>사유 (선택)</label><input id="cl-void-reason" placeholder="예: 결제 누락 발견"></div>
         <div class="actions">
@@ -28244,7 +28359,7 @@ VIEWS.set = () => {
     const n = +b.dataset.sn;
     DB.set('settings','shifts', { count:n, list: SHIFT_PRESETS[n] });
     toast(`${n}교대 프리셋 적용 — 시간은 아래에서 수정 후 저장`, 'ok');
-    router();
+    window._setEdForce = true; router();   // ★ v0.40.3 — 편집 창 안에서도 새 프리셋으로 다시 그림(같은 창 다시 열림)
   });
   const _shSave = document.getElementById('shift-save');
   if(_shSave) _shSave.onclick = () => {
@@ -28780,7 +28895,7 @@ function _userWorkerCardsHTML(){
       </table></div>
       <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <div style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;line-height:1.7;flex:1;min-width:280px">
-          <b style="color:var(--amber)">가드</b> 관리책임자 최소 1명 유지 — 마지막 관리책임자는 퇴사·강등 불가(후임 승격 먼저). 물리 삭제 없음: 퇴사=비활성(increment-only, 과거 실적 이력 보존·재활성 가능). 비밀번호 평문 비노출 · 이름은 식별자이므로 <b>동명이인 등록 불가</b> · 분실 시 [PIN 재설정]으로 000000 초기화.<br>
+          <b style="color:var(--amber)">가드</b> 관리책임자 최소 1명 유지 — 마지막 관리책임자는 퇴사·강등 불가(후임 승격 먼저). 물리 삭제 없음: 퇴사=비활성(과거 실적 이력 보존·다시 활성 가능). 비밀번호 평문 비노출 · 이름은 식별자이므로 <b>동명이인 등록 불가</b> · 분실 시 [PIN 재설정]으로 000000 초기화.<br>
           <b style="color:var(--cyan)">현장 작업자</b>(v0.37.2) = 로그인하면 바로 현장 화면(출근 → QR → 실적) · 권한은 일반과 동일 · 이름을 작업자 마스터와 같게 등록하면 출근 화면에서 자동 매칭 · 📱 = 자동 로그인이 켜진 기기 수([기기 해제]로 전부 해제).
         </div>
         <button class="btn primary" id="usr-add">${ico('plus')}사용자 등록</button>
