@@ -1438,6 +1438,50 @@ td.ra-cell > :not(.ra-open){display:none!important}
 td.ra-cell{white-space:nowrap;text-align:right}
 .ra-open{background:none;border:0;color:var(--cyan);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:6px 4px;white-space:nowrap}
 .ra-open:hover{text-decoration:underline}
+/* ★ v0.40.7 — 폰 디자인 (PC 화면을 줄인 것이 아니라 폰 전용 모양 · 표시만 — 계산·저장·권한 무변)
+   폭 ≤ 640 + 현장 작업자 아님 + 이 기기에서 끄지 않음 → body.ph-ui : 위 = 앱 막대(‹ 폰 홈 · 화면 이름 · ☰ 메뉴) · 아래 = 폰 탭(홈·할 일·조회·더보기)
+   · 왼쪽/위 메뉴 줄 숨김 · 목록 표 = 카드(칸 이름 + 값 · 주요 6칸 · 눌러서 전부) · 숫자 카드 2칸 · 보기 탭 = 옆으로 밀기 */
+#ph-bar,#ph-tabs{display:none}
+body.ph-ui #ph-bar{display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:40;background:var(--bg);padding:8px 2px 10px;margin:0 0 6px;border-bottom:1px solid var(--line)}
+body.ph-ui #ph-bar .ph-back{flex:none;display:inline-flex;align-items:center;gap:2px;min-height:40px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-decoration:none;font-size:13.5px;font-weight:700}
+body.ph-ui #ph-bar .ph-ttl{flex:1;min-width:0;font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+body.ph-ui #ph-bar .ph-menu{flex:none;min-height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
+body.ph-ui #ph-tabs{display:grid}
+body.ph-ui #nav,body.ph-ui #app > .foot,body.ph-ui #crumb,body.ph-ui .p-home-fab{display:none!important}
+body.ph-ui #view{padding-bottom:84px}
+body.ph-ui .scroll-nav{display:none!important}
+body.ph-ui .topbar .clock{display:none}
+body.ph-ui .pg-head,body.ph-ui .page-head{gap:8px}
+body.ph-ui .pgtools{gap:6px}
+body.ph-ui .pgtools .btn{min-height:40px}
+body.ph-ui .view-tabs,body.ph-ui .st-tabs{flex-wrap:nowrap;overflow-x:auto;width:auto;max-width:100%;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+body.ph-ui .view-tabs button,body.ph-ui .st-tabs button{min-height:40px}
+body.ph-ui .hero{grid-template-columns:1fr 1fr!important;gap:8px}
+body.ph-ui .hero .dkpi{padding:12px 12px;min-width:0}
+body.ph-ui .hero .dkpi .val{font-size:clamp(17px,5.4vw,24px)!important;overflow-wrap:anywhere}
+body.ph-ui .hero .dkpi .goarrow{display:none}
+body.ph-ui #view .card{border-radius:14px}
+body.ph-ui #view .tbl-wrap:has(> table.ph-cards){overflow:visible;border:0;background:none}
+body.ph-ui #view table.ph-cards{min-width:0!important;width:100%;display:block;border-collapse:separate;border-spacing:0;background:none}
+body.ph-ui #view table.ph-cards > thead{display:none}
+body.ph-ui #view table.ph-cards > tbody,body.ph-ui #view table.ph-cards > tfoot{display:block}
+body.ph-ui #view table.ph-cards > tbody > tr,body.ph-ui #view table.ph-cards > tfoot > tr{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px 14px;margin:0 0 10px;box-shadow:none}
+body.ph-ui #view table.ph-cards > tbody > tr > td,body.ph-ui #view table.ph-cards > tfoot > tr > td{display:block;border:0!important;padding:0!important;white-space:normal!important;text-align:left!important;font-size:13.5px;min-width:0;overflow-wrap:anywhere;background:none!important}
+body.ph-ui #view table.ph-cards td[data-label]:not([data-label=""])::before{content:attr(data-label);display:block;font-size:11.5px;font-weight:600;color:var(--sub);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.ph-ui #view table.ph-cards td.ph-t{grid-column:1/-1;font-size:15px;font-weight:800}
+body.ph-ui #view table.ph-cards td.ph-t::before{display:none!important}
+body.ph-ui #view table.ph-cards td[colspan]{grid-column:1/-1}
+body.ph-ui #view table.ph-cards td.ph-act{grid-column:1/-1;display:flex!important;justify-content:flex-end;flex-wrap:wrap;gap:6px;border-top:1px dashed var(--line)!important;padding-top:8px!important}
+body.ph-ui #view table.ph-cards td.ph-act::before{display:none!important}
+body.ph-ui #view table.ph-cards td.ph-act .ra-open{min-height:40px;padding:0 6px;font-size:14px}
+body.ph-ui #view table.ph-cards td.ph-x{display:none!important}
+body.ph-ui #view table.ph-cards tr.ph-open > td.ph-x:not(.col-hide){display:block!important}
+body.ph-ui #view table.ph-cards tr.ph-has-x > td.ph-more{grid-column:1/-1;display:block!important;text-align:center!important;font-size:12.5px;font-weight:700;color:var(--cyan);cursor:pointer;padding:2px 0!important}
+body.ph-ui #view table.ph-cards tr.ph-has-x > td.ph-more::before{display:none!important}
+#view table td.ph-more{display:none}
+body.ph-ui #view table.ph-cards tr.ph-grp{display:block;border:0;background:none;padding:6px 2px 2px;margin:4px 0 6px}
+body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;color:var(--sub)}
+@media print{ #ph-bar,#ph-tabs{display:none!important} }
 @media print{ .ra-open{display:none!important} td.ra-cell > *{display:none!important} }
 .rd-grid{display:grid;grid-template-columns:minmax(110px,auto) 1fr;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .rd-grid > div{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px}
@@ -1458,6 +1502,24 @@ td.ra-cell{white-space:nowrap;text-align:right}
 .fl-def{font-size:10.5px;font-weight:700;color:var(--red);margin-left:2px}
 .fl-def-t{color:var(--red)}
 .fl-def-t b{color:var(--red)}
+/* ★ v0.40.7 (사용자 요청) — 작은 글씨 키우기: 표·창·메뉴의 9~11.5px 글씨를 한 단계씩 크게 (화면만 · 인쇄 양식 무변 · 숫자·계산 무변)
+   기본 클래스 + 화면 코드에 직접 적힌 작은 글자 크기(style="font-size:…")를 #view·#modal·#nav 안에서만 덮어씀 */
+@media screen{
+  label{font-size:12.5px}
+  th{font-size:12px}
+  table{font-size:13.5px}
+  .pill{font-size:12px}
+  .tag,.card h3 .tag{font-size:12px}
+  .btn{font-size:13.5px}
+  .kpi-mini .lab,.kpi-mini .sub{font-size:12.5px}
+  .fl-strip{font-size:13px}
+  .rd-note{font-size:12.5px}
+  :is(#view,#modal,#nav) :is([style*="font-size:9px"],[style*="font-size:9.5px"],[style*="font-size: 9px"]){font-size:11.5px!important}
+  :is(#view,#modal,#nav) :is([style*="font-size:10px"],[style*="font-size:10.5px"],[style*="font-size: 10px"]){font-size:12.5px!important}
+  :is(#view,#modal,#nav) :is([style*="font-size:11px"],[style*="font-size: 11px"]){font-size:13px!important}
+  :is(#view,#modal,#nav) [style*="font-size:11.5px"]{font-size:13.5px!important}
+  :is(#view,#modal) [style*="font-size:12px"]{font-size:13.5px!important}
+}
 .pg-desc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:var(--dim)!important;font-size:12px!important;line-height:1.5!important;margin:-4px 0 14px!important}
 .pg-desc.open{white-space:normal}
 .pg-desc:hover{color:var(--sub)!important}
@@ -1607,11 +1669,11 @@ td.ra-cell{white-space:nowrap;text-align:right}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.6';
+const APP_VERSION = 'v0.40.7';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-10-30';
+const APP_DATE    = '2026-10-31';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -4697,6 +4759,8 @@ function applyIndustryPack(pack){
    호출 조건: 데모 모드 부팅 시 사용자 '데모' 미존재 → autoLoginDemo 가 1회 실행.
    원칙: LOT.create / LOT.registerRecord / DB.set(orders/shipments/plans/pos/quotes/closings) 만 사용.
    날짜 분산: 등록 후 DB.set 로 ts/필드 병합 (기존 시뮬 기법과 동일) — 가짜 집계 없이 시각화만 채움. */
+// ★ v0.40.7 — 데모 시드 「k개월 전」 = 달력 기준 (예전 = 오늘 − 30·32일 → 31일·1일에 이번 달/전전월이 잡힘 · 데모 시드 전용)
+function _demoMonthAgo(k){ const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - k); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
 function seedDemoData(){
   const now = Date.now();
   const DAY = 86400000;
@@ -4977,7 +5041,8 @@ function seedDemoData(){
   });
 
   // ─────────────── 12. 마감 3개월 이월 (매출 유형만 · 미수 잔액 흐름) ───────────────
-  const _monthStr = (dAgo) => { const d = new Date(now - dAgo*DAY); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+  // ★ v0.40.7 — 데모 마감 달 = 달력 기준 3·2·1개월 전 (예전 = 오늘 − 90·60·30일 → 31일에는 「30일 전」 이 이번 달이라 데모 이번 달이 마감돼 보였음 · 데모 시드만)
+  const _monthStr = (dAgo) => { const k = Math.round(dAgo / 30); const d = new Date(now); d.setDate(1); d.setMonth(d.getMonth() - k); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
   const closingMonths = [_monthStr(90), _monthStr(60), _monthStr(30)];
   let prevCarryByParty = { C001:0, C002:0, C003:0 };
   closingMonths.forEach((m, idx) => {
@@ -5016,14 +5081,14 @@ function seedDemoData(){
     { id:'AP-DEMO-002', vendor:'V001', amount:300000, method:'계좌이체', bill_due:'', date:_amFmt(daysBack(6)),  memo:'열처리비', ts:daysBack(6) },
   ].forEach(p => DB.set('acct_payments', p.id, { ...p, by:'데모' }));
   { // 경비 — 지난달 임차료(매월 반복) + 이번 달 소모품 (반복 제안 데모: 이번 달 임차료 미등록 상태)
-    const lastM = _tsMonth(daysBack(32)), thisM = _tsMonth(now);
+    const lastM = _demoMonthAgo(1), thisM = _tsMonth(now);   // ★ v0.40.7 — 달력 기준 전월
     [
       { id:'EX-DEMO-001', category:'지급임차료', name:'공장 임차료', amount:2000000, date:`${lastM}-05`, cl_month:lastM, repeat_monthly:true,  memo:'', ts:daysBack(32) },
       { id:'EX-DEMO-002', category:'소모품비',   name:'절삭유',      amount: 150000, date:`${thisM}-03`, cl_month:thisM, repeat_monthly:false, memo:'', ts:daysBack(3) },
     ].forEach(e => DB.set('acct_expenses', e.id, { ...e, by:'데모' }));
   }
   { // 계산서 발행 기록 1건 — 지난달 C001
-    const lastM = _tsMonth(daysBack(32));
+    const lastM = _demoMonthAgo(1);   // ★ v0.40.7
     DB.set('acct_invoices', 'TI-DEMO-001', { id:'TI-DEMO-001', vendor:'C001', month:lastM,
       amount: Math.round(calcClosing('sales', lastM).byParty['C001']?.amount || 0),
       issue_date:`${lastM}-28`, memo:'전자발행', ts:daysBack(2), by:'데모' });
@@ -5464,12 +5529,12 @@ function seedDemoData(){
 
     // 계산서 — 발행 금액은 반드시 마감 산식(calcClosing)과 일치 (금액 상이 0 원칙 · 대량 출하 반영 후 재계산)
     for(let i=0;i<3;i++){
-      const m = _tsMonth(daysBack((i+1)*30));
+      const m = _demoMonthAgo(i+1);   // ★ v0.40.7 — 달력 기준 (31일 = 이번 달이 섞이던 것)
       const amt = Math.round(calcClosing('sales', m).byParty[CUSTS[i]]?.amount || 0);
       if(amt > 0) DB.set('acct_invoices', `TI-DEMO-1${String(i+1).padStart(2,'0')}`, { id:`TI-DEMO-1${String(i+1).padStart(2,'0')}`, vendor:CUSTS[i], month:m, amount:amt, issue_date:`${m}-28`, memo:'전자발행', ts:daysBack((i+1)*30-2), by:'데모' });
     }
     // 기존 TI-DEMO-001 도 대량 출하 반영값으로 재계산 (발행액 = 마감 대상액 불변식 유지)
-    { const lm = _tsMonth(daysBack(32));
+    { const lm = _demoMonthAgo(1);   // ★ v0.40.7
       const amt001 = Math.round(calcClosing('sales', lm).byParty['C001']?.amount || 0);
       if(DB.get('acct_invoices','TI-DEMO-001')) DB.set('acct_invoices','TI-DEMO-001', { amount: amt001 }); }
     console.log('[VELA] seedDemoBulk complete — 전 메뉴 스크롤 확인용 대량 데이터');
@@ -8369,6 +8434,7 @@ function router(){
   window._setEdForce = false;
   try { if(_raMoved && document.getElementById('modal-bg').classList.contains('show')){ const _bx = document.getElementById('set-ed-box'); const _se = _bx && window._setEdTitle; const _vals = _bx ? [..._bx.querySelectorAll('input[id]:not([type=file]):not([type=checkbox]):not([type=radio]),select[id],textarea[id]')].map(el => [el.id, el.value]) : []; closeModal(); window._setEdReopen = (_se && _secPage() === 'set') ? { t: _se, vals: _vals } : null; } } catch(e){}   // ★ v0.40.2 — 설정 편집 창 안에서 화면이 다시 그려지면(교대 프리셋 등) 같은 편집 창을 다시 엶
   // ★ v0.37.0 — Mobile Shop Floor: #m/ 접두 = 별도 UI 아키텍처 (같은 원장·같은 규칙 · PC 화면 무변)
+  if(isMobileHash() || isPhoneHash()){ try { document.body.classList.remove('ph-ui'); } catch(e){} }   // ★ v0.40.7 — 폰 홈·현장 화면은 자체 셸
   if(isMobileHash()){ mobileRouter(); return; }
   if(isPhoneHash()){ if(isWorkerRole()){ location.hash = '#m/home'; return; } phoneRouter(); return; }   // ★ v0.39.3 — 사무직·관리책임자 폰 화면
   if(isWorkerRole()){ location.hash = '#m/home'; return; }   // ★ v0.37.2 — 현장 작업자 = 역할상 현장 화면 (PC 해시 직접 접근도 현장으로 · hashchange 가 다시 router 호출)
@@ -8417,6 +8483,7 @@ function router(){
   try { _setEditEnhance(); } catch(e){ console.warn('[VELA] 설정 편집 창', e); }
   try { _pgHeadTidy(); } catch(e){}
   try { _tblSortEnhance(); _tblColsApply(); } catch(e){ console.warn('[VELA] 표 정렬·열', e); }
+  try { if(_phUiApply()) _phCardsEnhance(); } catch(e){ console.warn('[VELA] 폰 디자인', e); }   // ★ v0.40.7
 }
 /* ★ v0.40.3 (자유도 · 표시만) — 목록 표 머리글을 눌러 정렬 (오름 → 내림 → 원래 순서) · 화면에서 행 순서만 바꿈(계산·저장 0)
    · 숫자 칸 = 숫자로(쉼표·₩·단위 무시) · 날짜·글자 = 글자 순 · 수주처럼 펼침 줄이 붙은 행은 함께 이동 · 묶음 줄(날짜 묶음 등)·입력 행이 있는 표는 제외
@@ -10900,9 +10967,75 @@ function phoneOpenForm(kind){
   else if(kind === 'buy') go('#matin', () => { (window._matinHub = window._matinHub || {}).tab = 'buy'; }, 'mbuy-add');
   else if(kind === 'material') go('#matin', () => { (window._matinHub = window._matinHub || {}).tab = 'material'; }, 'matin-add');
 }
+/* ★ v0.40.7 — 폰 디자인 (표시만 · 저장 0) — 폭 ≤ 640 이면 PC 화면도 폰 전용 모양으로 그림 · 끄기 = 이 기기 로컬 키 vela_ph_ui='off' (DB 밖)
+   · 목록 표 → 카드: 머리글 칸 이름을 각 칸에 붙임(data-label) · 첫 칸 = 카드 제목 · 마지막 동작 칸([상세 보기]) = 카드 아래 · 주요 6칸 밖 = 「더 보기」로 펼침
+   · 입력칸이 있는 표(편집 표)·창 안 표·열 2개 이하 표 = 그대로(옆으로 밀기) · 정렬·열 숨김·계산·저장 경로 무변 */
+const PH_UI_KEY = 'vela_ph_ui';
+const PH_MAX_FIELDS = 6;
+function phUiPref(){ try { return localStorage.getItem(PH_UI_KEY) === 'off' ? 'off' : 'on'; } catch(e){ return 'on'; } }
+function setPhUiPref(v){ try { if(v === 'off') localStorage.setItem(PH_UI_KEY, 'off'); else localStorage.removeItem(PH_UI_KEY); } catch(e){} }
+function phUiWidth(){ try { return window.matchMedia('(max-width:640px)').matches; } catch(e){ return false; } }
+function phUiActive(){ return !!(SESSION.loggedIn && !isWorkerRole() && !isMobileHash() && !isPhoneHash() && phUiPref() !== 'off' && phUiWidth()); }
+function _phUiApply(){
+  const on = phUiActive();
+  document.body.classList.toggle('ph-ui', on);
+  if(!on) return false;
+  const view = document.getElementById('view');
+  let bar = document.getElementById('ph-bar');
+  if(!bar && view){ bar = document.createElement('div'); bar.id = 'ph-bar'; view.parentNode.insertBefore(bar, view); }
+  if(bar){
+    const id = (location.hash || '#dash').replace('#', '').split('/')[0];
+    const pg = PAGES.find(p => p.id === id);
+    bar.innerHTML = `<a class="ph-back" href="#p/home" aria-label="폰 홈">‹ 홈</a><span class="ph-ttl">${_esc(pg ? pg.title : '')}</span><button type="button" class="ph-menu" id="ph-menu" aria-label="전체 메뉴">☰ 메뉴</button>`;
+    const mb = document.getElementById('ph-menu'); if(mb) mb.onclick = () => { try { openAllMenuModal(); } catch(e){ location.hash = '#p/more'; } };
+  }
+  let tabs = document.getElementById('ph-tabs');
+  if(!tabs){ tabs = document.createElement('div'); tabs.id = 'ph-tabs-host'; document.body.appendChild(tabs); }
+  const host = document.getElementById('ph-tabs-host') || tabs;
+  host.innerHTML = phoneTabs('').replace('id="p-tabs"', 'id="ph-tabs"');
+  return true;
+}
+function _phCardsEnhance(root){
+  root = root || document.getElementById('view'); if(!root) return 0;
+  let n = 0;
+  root.querySelectorAll('table').forEach(tb => {
+    if(tb.closest('#modal') || tb.classList.contains('ph-keep')) return;
+    const th = tb.tHead && tb.tHead.rows.length ? tb.tHead.rows[tb.tHead.rows.length - 1] : null;
+    if(!th || th.cells.length < 3) return;
+    if(tb.tHead.rows.length > 1 || [...th.cells].some(c => (c.colSpan || 1) > 1)) return;   // 머리글 2줄·병합 = 그대로
+    const body = [...(tb.tBodies || [])];
+    if(body.some(b => b.querySelector('input:not([type=checkbox]):not([type=radio]),select,textarea'))) return;   // 편집 표 = 그대로
+    const heads = [...th.cells].map(c => (c.textContent || '').replace(/[▲▼↕]/g, '').trim());
+    const nc = heads.length;
+    tb.classList.add('ph-cards'); n++;
+    [...body, ...(tb.tFoot ? [tb.tFoot] : [])].forEach(sec => [...sec.rows].forEach(r => {
+      if(r.classList.contains('ph-done')) return;
+      r.classList.add('ph-done');
+      const cells = [...r.cells];
+      if(cells.length !== nc){ if(cells.length === 1) r.classList.add('ph-grp'); return; }
+      let shown = 0, extra = 0;
+      cells.forEach((c, k) => {
+        c.setAttribute('data-label', heads[k] || '');
+        const isAct = k === nc - 1 && (c.classList.contains('ra-cell') || c.querySelector('button,.ra-open,a.btn'));
+        if(k === 0){ c.classList.add('ph-t'); return; }
+        if(isAct){ c.classList.add('ph-act'); return; }
+        if(c.classList.contains('col-hide')) return;
+        if(shown < PH_MAX_FIELDS - 1) shown++; else { c.classList.add('ph-x'); extra++; }
+      });
+      if(extra){
+        r.classList.add('ph-has-x');
+        const more = document.createElement('td'); more.className = 'ph-more'; more.textContent = `더 보기 (${extra}칸) ▾`;
+        more.onclick = (e) => { e.stopPropagation(); const op = r.classList.toggle('ph-open'); more.textContent = op ? '접기 ▴' : `더 보기 (${extra}칸) ▾`; };
+        const act = r.querySelector('td.ph-act'); if(act) r.insertBefore(more, act); else r.appendChild(more);
+      }
+    }));
+  });
+  return n;
+}
+try { window.matchMedia('(max-width:640px)').addEventListener('change', () => { try { if(SESSION.loggedIn && !isMobileHash() && !isPhoneHash()) router(); } catch(e){} }); } catch(e){}
 function _phoneFab(){
   let f = document.getElementById('p-home-fab');
-  const show = !isWorkerRole() && isPhoneDevice() && !isPhoneHash() && !isMobileHash();
+  const show = !isWorkerRole() && isPhoneDevice() && !isPhoneHash() && !isMobileHash() && !phUiActive();   // ★ v0.40.7 — 폰 디자인이 켜져 있으면 아래 탭이 대신함
   if(!show){ if(f) f.hidden = true; return; }
   if(!f){ f = document.createElement('a'); f.id = 'p-home-fab'; f.href = '#p/home'; f.textContent = '📱 폰 홈'; f.className = 'p-home-fab'; f.onclick = () => setUiMode('phone'); document.body.appendChild(f); }
   f.hidden = false;
@@ -11036,11 +11169,14 @@ VIEWS.p_more = () => {
     ${acct}
     <div class="m-card static" style="display:flex;flex-direction:column;gap:10px"><div style="font-size:13px;color:var(--sub)">화면 모드 <span class="dim">— 이 폰에만 저장</span></div>
       <div class="m-seg">${[['auto', '◐ 자동'], ['light', '☀ 밝게'], ['dark', '🌙 어둡게']].map(([v, l]) => `<button type="button" class="m-seg-btn ${getThemePref() === v ? 'on' : ''}" data-theme-pick="${v}">${l}</button>`).join('')}</div></div>
+    <div class="m-card static" style="display:flex;flex-direction:column;gap:10px"><div style="font-size:13px;color:var(--sub)">메뉴 화면 모양 <span class="dim">— 이 폰에만 저장 · 폭 좁은 화면에서</span></div>
+      <div class="m-seg" style="grid-template-columns:1fr 1fr">${[['on', '📱 폰 디자인', '카드 · 아래 탭'], ['off', '🖥 PC 모양', '줄여서 보기']].map(([v, l, d]) => `<button type="button" class="m-seg-btn ${phUiPref() === v ? 'on' : ''}" data-phui-pick="${v}">${l}<small>${d}</small></button>`).join('')}</div></div>
     ${_pCan('scan') ? `<a class="m-btn ghost" href="#m/home">🏭 현장 모드 (실적 등록)</a>` : ''}
-    <button class="m-btn ghost" id="p-pc">🖥 PC 화면으로</button>
+    <button class="m-btn ghost" id="p-pc">☰ 전체 메뉴 화면으로</button>
     <button class="m-btn ghost" id="p-logout">로그아웃</button>
     <div class="m-foot">VELA MES SYSTEM · ${APP_VERSION} · MADE BY JUNS</div>`);
   document.querySelectorAll('[data-theme-pick]').forEach(b => b.onclick = () => { applyTheme(b.dataset.themePick); VIEWS.p_more(); });
+  document.querySelectorAll('[data-phui-pick]').forEach(b => b.onclick = () => { setPhUiPref(b.dataset.phuiPick); VIEWS.p_more(); });   // ★ v0.40.7
   document.getElementById('p-pc').onclick = () => { setUiMode('pc'); document.getElementById('app').classList.remove('m-mode'); renderNav(); location.hash = '#dash'; };
   document.getElementById('p-logout').onclick = () => doLogout();
 };
@@ -15666,7 +15802,7 @@ VIEWS.ship = () => {
       const _lotIds = new Set(useLot ? [selPlot] : DB.all('production_lots').filter(l => l.itemCode === itemCode).map(l => l.plot_no));
       const _recs = DB.query('records', x => _lotIds.has(x.plot_no));
       const _defOf = pc => _recs.filter(x => x.proc === pc).reduce((t, x) => t + (+x.defect || 0) + (+x.scrap || 0), 0);
-      const _defTag = d => d > 0 ? ` <span class="fl-def" title="이 공정 불량+폐기">불량·폐기 ${d.toLocaleString()}</span>` : '';
+      const _defTag = () => '';   // ★ v0.40.7 (사용자 요청) — 공정별 불량 표시 없음 · 전체 불량·폐기 누계만
       let _defSum = 0;
       if(useLot){
         parts.push(`<span class="fl-step" style="color:var(--cyan)"><b style="color:var(--cyan);margin:0">${_esc(selPlot)}</b> 기준</span>`);
@@ -16358,125 +16494,80 @@ VIEWS.os = () => {
   });
   bindClToggleButtons();
 };
-VIEWS._osRecv = (dispId) => {
+VIEWS._osRecv = (dispId, keep) => {
+  /* ★ v0.40.7 (사용자 요청) — 외주 입고 창 = 구매품 입고처럼 한 화면: 입고번호 · 외주 반출 연결 · 단위 · 양품 수량 · 불량 수량 · 파렛트 수량
+     · [수량/무게/입고 파렛트] 나누기 삭제 · 저장 = 기존 그대로(LOT.registerRecord 초과 차단 · PALLET.add · os_receipts{dispatch_id·record_id·pallet_move_id} · 항상 ea 저장)
+     · 단위 kg = 양품·불량 각각 계근 → 단중으로 ea 환산(osInputConvert 1벌) · 환산 불가(단중 없음)면 저장 막음 */
   const d = DB.get('os_dispatches', dispId); if(!d) return;
   const pOutTotal = PALLET.dispatchedFor(dispId);
   const pInTotal  = PALLET.recoveredFor(dispId);
   const pMiss = Math.max(0, pOutTotal - pInTotal);
-  // ★ v0.16.17/18 — 입력 단위 환산: 반출·입고 공용 osInput* 유틸 재사용 (복사 금지)
   const lot      = DB.get('production_lots', d.plot_no);
   const itemCode = lot?.itemCode || null;
+  const recvOf = id => DB.query('os_receipts', r => r.dispatch_id === id).reduce((t, r) => t + (r.qty || 0), 0);
+  const waiting = DB.all('os_dispatches').filter(x => recvOf(x.id) < (x.qty || 0) || x.id === dispId).sort((x, y) => (y.ts || 0) - (x.ts || 0));
+  const remain = Math.max(0, (d.qty || 0) - recvOf(dispId));
+  const kv = keep || {};
+  const optLabel = x => { const lt = DB.get('production_lots', x.plot_no); return `${x.id} · ${(DB.get('vendors', x.vendor) || {}).name || x.vendor || ''} · ${(DB.get('processes', x.proc) || {}).name || x.proc || ''} · ${lt?.itemCode || ''} ${x.plot_no || ''} · 잔량 ${Math.max(0, (x.qty || 0) - recvOf(x.id)).toLocaleString()}ea`; };
   openModal(`
-    <h2>외주 입고 등록 — ${_esc(dispId)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <h2>외주 입고 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
-      <div style="color:var(--sub);font-size:12px">${_esc(DB.get('vendors',d.vendor)?.name||'')} · ${_esc(DB.get('processes',d.proc)?.name||'')} · ${_esc(d.plot_no)} · 반출 ${(d.qty||0).toLocaleString()}ea</div>
-      <!-- ★ v0.16.17 — 입력 단위 토글 (환산은 보조 · 저장은 항상 ea) -->
-      <div style="display:flex;gap:6px;margin-top:6px">
-        <button type="button" class="btn or-mode" data-mode="ea"  style="flex:1">수량(ea)</button>
-        <button type="button" class="btn or-mode" data-mode="kg"  style="flex:1">무게(kg)</button>
-        <button type="button" class="btn or-mode" data-mode="plt" style="flex:1">입고 파렛트</button>
-      </div>
-      <div id="or-mode-help" style="font-size:11px;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;line-height:1.6"></div>
-      <div id="or-src-row" style="display:none">
-        <label id="or-src-label">계근 (kg)</label>
-        <input id="or-src" type="number" min="0" step="any" placeholder="예: 395">
-        <div id="or-src-hint" style="font-size:11px;color:var(--cyan);font-family:'JetBrains Mono',monospace;margin-top:4px">—</div>
+      <div><label>입고번호 (자동 · 수정 가능)</label>
+        <input id="or-id" value="${_esc(kv.id || nextDocNo('OR'))}" style="font-family:'JetBrains Mono',monospace;letter-spacing:.3px" autocomplete="off"></div>
+      <div><label>외주 반출 연결</label>
+        <select id="or-disp">${waiting.map(x => `<option value="${_esc(x.id)}"${x.id === dispId ? ' selected' : ''}>${_esc(optLabel(x))}</option>`).join('')}</select>
+        <div style="font-size:12px;color:var(--sub);margin-top:6px">${_esc((DB.get('vendors', d.vendor) || {}).name || '')} · ${_esc((DB.get('processes', d.proc) || {}).name || '')} · ${_esc(itemCode || '')} · ${_esc(d.plot_no || '')} · 반출 <b>${(d.qty || 0).toLocaleString()}</b>ea · 남은 <b style="color:var(--amber)">${remain.toLocaleString()}</b>ea</div>
       </div>
       <div class="grid g2">
-        <div><label>양품 <span id="or-g-badge" style="color:var(--dim);font-weight:400;font-size:10px"></span></label><input id="or-g" type="number" placeholder="0"></div>
-        <div><label>불량</label><input id="or-d" type="number" placeholder="0"></div>
+        <div><label>단위</label>
+          <select id="or-unit"><option value="ea"${kv.unit !== 'kg' ? ' selected' : ''}>ea (개수)</option><option value="kg"${kv.unit === 'kg' ? ' selected' : ''}>kg (계근 → 단중으로 개수 환산)</option></select></div>
+        <div><label>파렛트 수량 <span style="color:var(--dim);font-weight:400">${pOutTotal > 0 ? `회수 · 미회수 ${pMiss}개` : '반출 파렛트 없음'}</span></label>
+          <input id="or-prc" type="number" min="0" max="${pMiss}" value="${kv.prc != null ? _esc(String(kv.prc)) : (pOutTotal > 0 ? pMiss : 0)}"${pOutTotal > 0 ? '' : ' disabled'}></div>
       </div>
-      ${pOutTotal>0 ? `
-      <div style="background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.3);border-radius:10px;padding:13px 15px;margin-top:6px">
-        <div style="font-size:11px;color:var(--blue);margin-bottom:9px;font-weight:600">◆ 회수 파렛트 <span style="color:var(--dim);font-weight:400">(반출 시 함께 나간 파렛트 반환 · 위 '입고 파렛트' 토글과 별개)</span> — 출고 ${pOutTotal}개${pInTotal>0?` · 이미 ${pInTotal}개 회수`:''}</div>
-        <div style="display:flex;gap:12px;align-items:center">
-          <div style="flex:1;text-align:center"><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--blue)">${pOutTotal}</div><div style="font-size:10px;color:var(--sub)">출고</div></div>
-          <span style="color:var(--dim)">→</span>
-          <div style="flex:1;text-align:center"><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--green)"><input id="or-prc" type="number" min="0" max="${pMiss}" value="${pMiss}" style="width:60px;text-align:center;background:none;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:2px 4px;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700"></div><div style="font-size:10px;color:var(--sub)">이번 회수 (최대 ${pMiss})</div></div>
-          <span style="color:var(--dim)">→</span>
-          <div style="flex:1;text-align:center"><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--red)" id="or-miss">${pMiss-pMiss}</div><div style="font-size:10px;color:var(--sub)">미회수 (남음)</div></div>
-        </div>
-      </div>` : ''}
+      <div class="grid g2">
+        <div><label>양품 수량 <span class="or-u" style="color:var(--dim);font-weight:400">(ea)</span></label><input id="or-g" type="number" min="0" step="any" placeholder="0" value="${_esc(String(kv.g ?? ''))}"><div id="or-g-hint" style="font-size:11.5px;color:var(--cyan);margin-top:4px"></div></div>
+        <div><label>불량 수량 <span class="or-u" style="color:var(--dim);font-weight:400">(ea)</span></label><input id="or-d" type="number" min="0" step="any" placeholder="0" value="${_esc(String(kv.d ?? ''))}"><div id="or-d-hint" style="font-size:11.5px;color:var(--cyan);margin-top:4px"></div></div>
+      </div>
       <div class="actions">
         <button class="btn" onclick="closeModal()">취소</button>
         <button class="btn primary" id="or-ok">${ico('save')}입고 처리</button>
       </div>
     </div>
   `);
-  // ★ v0.16.17/18 — 토글 상태 관리 (기본 ea) · osInputHelp/Convert 재사용 (복사 금지)
-  let inputMode = 'ea';
-  const setMode = (mode) => {
-    inputMode = mode;
-    document.querySelectorAll('.or-mode').forEach(b => b.classList.toggle('primary', b.dataset.mode === mode));
-    const help  = document.getElementById('or-mode-help');
-    const row   = document.getElementById('or-src-row');
-    const lbl   = document.getElementById('or-src-label');
-    const src   = document.getElementById('or-src');
-    const hint  = document.getElementById('or-src-hint');
-    const gBadge= document.getElementById('or-g-badge');
-    src.value = '';
-    hint.textContent = '—';
-    gBadge.textContent = '';
-    row.style.display = (mode === 'ea') ? 'none' : '';
-    if(mode === 'kg'){ lbl.textContent = '계근 (kg)';                 src.placeholder = '예: 395'; }
-    if(mode === 'plt'){ lbl.textContent = '입고 파렛트 수 (환산용)'; src.placeholder = '예: 5'; }
-    help.innerHTML = osInputHelp(mode, itemCode).html + (mode==='plt' ? ' · 아래 <b>회수 파렛트</b>와 별개' : '');
-  };
-  document.querySelectorAll('.or-mode').forEach(b => b.onclick = () => setMode(b.dataset.mode));
-  setMode('ea');
-  // 환산 → 양품 칸 자동 채움 (수정 가능 · 자동 확정 아님)
-  const srcEl = document.getElementById('or-src');
-  const gEl   = document.getElementById('or-g');
-  srcEl.oninput = ()=>{
-    const {ea, hint:hintHtml} = osInputConvert(inputMode, srcEl.value, itemCode);
-    document.getElementById('or-src-hint').innerHTML = hintHtml;
-    const gBadge = document.getElementById('or-g-badge');
-    if(ea != null){
-      gEl.value = ea;
-      gBadge.textContent = inputMode === 'kg' ? '← 계근 환산 (수정 가능)' : '← 파렛트 환산 (수정 가능)';
-    } else {
-      gBadge.textContent = '';
-    }
-  };
-  if(pOutTotal>0){
-    const upd = ()=>{
-      const v = +document.getElementById('or-prc').value||0;
-      document.getElementById('or-miss').textContent = Math.max(0, pMiss - v);
-    };
-    document.getElementById('or-prc').addEventListener('input', upd);
-  }
-  document.getElementById('or-ok').onclick = () => {
-    const g=+document.getElementById('or-g').value||0;
-    const df=+document.getElementById('or-d').value||0;
-    const prc=+(document.getElementById('or-prc')?.value||0);
-    if(g+df<=0 && prc<=0){ toast('수량 입력','warn'); return; }
+  const $ = id => document.getElementById(id);
+  const unit = () => $('or-unit').value;
+  const conv = raw => { if(unit() !== 'kg') return { ea: (raw === '' ? 0 : +raw || 0), hint: '' }; if(raw === '' || !(+raw > 0)) return { ea: 0, hint: '' }; const c = osInputConvert('kg', raw, itemCode); return c.ea == null ? { ea: null, hint: '⚠ 단중(kg/ea)이 없어 환산할 수 없습니다 — 기준정보 › 품번에 단중 입력 또는 ea 로 입력' } : { ea: c.ea, hint: c.hint }; };
+  const upd = () => { document.querySelectorAll('#modal .or-u').forEach(x => { x.textContent = unit() === 'kg' ? '(kg)' : '(ea)'; }); $('or-g-hint').innerHTML = conv($('or-g').value).hint; $('or-d-hint').innerHTML = conv($('or-d').value).hint; };
+  ['or-g', 'or-d'].forEach(id => $(id).addEventListener('input', upd)); $('or-unit').onchange = upd; upd();
+  $('or-disp').onchange = () => { const nv = $('or-disp').value; if(nv && nv !== dispId) VIEWS._osRecv(nv, { id: $('or-id').value, unit: unit(), g: $('or-g').value, d: $('or-d').value }); };
+  $('or-ok').onclick = () => {
+    const cg = conv($('or-g').value), cd = conv($('or-d').value);
+    if(cg.ea == null || cd.ea == null){ toast('kg 환산 불가 — 단중이 없습니다 (ea 로 입력하세요)','warn',4000); return; }
+    const g = cg.ea, df = cd.ea; const prc = +($('or-prc')?.value || 0);
+    if(g < 0 || df < 0 || prc < 0){ toast('음수는 입력할 수 없습니다','warn'); return; }
+    if(unit() === 'ea' && (!Number.isInteger(g) || !Number.isInteger(df))){ toast('ea 는 정수로 입력하세요','warn'); return; }
+    if(g + df <= 0 && prc <= 0){ toast('수량 입력','warn'); return; }
+    const rid = String($('or-id').value || '').trim() || nextDocNo('OR');
+    if(/[\/\\#?\s]/.test(rid) || rid.length > 60){ toast('입고번호에 / \\ # ? 공백은 쓸 수 없습니다 (60자 이내)','warn'); return; }
+    if(g + df > 0 && DB.get('os_receipts', rid)){ toast(`입고번호 중복 — ${rid}`,'err'); return; }
     try {
-      // ★ v0.16.0 — record_id / pallet_move_id 를 os_receipts 에 함께 저장 (취소 연쇄 연결키)
+      // ★ v0.16.0 — record_id / pallet_move_id 를 os_receipts 에 함께 저장 (취소 연쇄 연결키) · 초과 차단 = registerRecord 가드 그대로
       let recordId = null, palletMoveId = null;
-      if(g+df>0){
-        // ★ v0.13.1 — scrap 입력 경로 제거 (양품·불량만). registerRecord의 scrap=0 기본값 사용.
-        // ★ v0.16.17 — 초과 차단은 registerRecord 가드 그대로 (수정 금지)
+      if(g + df > 0){
         const rec = LOT.registerRecord({plot_no:d.plot_no, proc:d.proc, equipment:'외주', vendor:d.vendor, good:g, defect:df, type:'out'});
         recordId = rec?.id || null;
       }
-      if(prc>0){
+      if(prc > 0){
         if(prc > pMiss) throw new Error(`회수 한도 초과 (미회수 ${pMiss}개)`);
         const mv = PALLET.add({vendor:d.vendor, type:'in', qty:prc, ref:{kind:'os', id:dispId}});
         palletMoveId = mv?.id || null;
       }
-      if(g+df>0){
-        // ★ v0.20.0 — 채번 v2 (외주 입고 모달에 번호 입력 UI 없음 → 자동만)
-        const id = nextDocNo('OR');
-        if(DB.get('os_receipts', id)) throw new Error(`외주 입고번호 중복 — ${id}`);
-        // ★ v0.16.17 — 입력 근거 병합 (ea 모드는 생략 · 저장은 항상 ea 확정)
-        const doc = {id, dispatch_id:dispId, qty:g+df, good:g, defect:df, scrap:0, pallets_recovered:prc, record_id:recordId, pallet_move_id:palletMoveId, ts:Date.now()};
-        if(inputMode !== 'ea'){
-          doc.input_mode  = inputMode;
-          doc.input_value = +document.getElementById('or-src').value || 0;
-        }
-        DB.set('os_receipts', id, doc);
+      if(g + df > 0){
+        const doc = {id: rid, dispatch_id:dispId, qty:g+df, good:g, defect:df, scrap:0, pallets_recovered:prc, record_id:recordId, pallet_move_id:palletMoveId, ts:Date.now()};
+        if(unit() === 'kg'){ doc.input_mode = 'kg'; doc.input_value = +$('or-g').value || 0; doc.input_value_defect = +$('or-d').value || 0; }
+        DB.set('os_receipts', rid, doc);
       }
-      toast(`입고 등록${prc>0?` · 회수 파렛트 ${prc}개`:''}`,'ok');
+      toast(`외주 입고 — ${g + df > 0 ? `양품 ${g.toLocaleString()} · 불량 ${df.toLocaleString()}ea` : ''}${prc > 0 ? ` · 회수 파렛트 ${prc}개` : ''}`,'ok');
       closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록');
       closeModal(); router();
     } catch(e){ toast(e.message,'err'); }
