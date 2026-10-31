@@ -1454,6 +1454,20 @@ body.ph-ui .topbar .clock{display:none}
 body.ph-ui .pg-head,body.ph-ui .page-head{gap:8px}
 body.ph-ui .pgtools{gap:6px}
 body.ph-ui .pgtools .btn{min-height:40px}
+body.ph-ui #view > .pghead{display:flex;flex-wrap:wrap;align-items:center}
+body.ph-ui #view > .pghead > .pgtitle{order:0;flex:1 1 auto;min-width:0}
+body.ph-ui #view > .pghead > .pgtools{display:contents}
+body.ph-ui #view > .pghead > .pgtools > *{order:3}
+body.ph-ui #view > .pghead > .pgtools > .ph-prim{order:1;flex:none}
+body.ph-ui #view > .pghead::after{content:'';order:2;flex-basis:100%;height:0}
+body.ph-ui .ph-sort{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+body.ph-ui .ph-sort label{margin:0;font-size:13px;font-weight:700;color:var(--sub);flex:none}
+body.ph-ui .ph-sort select{flex:1;min-height:40px;font-size:14px}
+.ph-sort{display:none}
+body.ph-ui #view table.ph-cards > tbody > tr{position:relative}
+body.ph-ui #view table.ph-cards td.ph-chk{position:absolute;top:10px;right:12px;width:auto}
+body.ph-ui #view table.ph-cards td.ph-chk::before{display:none!important}
+body.ph-ui #view table.ph-cards tr:has(> td.ph-chk) > td.ph-t{padding-right:30px!important}
 body.ph-ui .view-tabs,body.ph-ui .st-tabs{flex-wrap:nowrap;overflow-x:auto;width:auto;max-width:100%;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 body.ph-ui .view-tabs button,body.ph-ui .st-tabs button{min-height:40px}
 body.ph-ui .hero{grid-template-columns:1fr 1fr!important;gap:8px}
@@ -1669,7 +1683,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.7';
+const APP_VERSION = 'v0.40.8';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -8526,6 +8540,9 @@ function _tblSortEnhance(){
       th.onclick = go; th.onkeydown = e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(); } };
     });
     const sv = store[key]; if(sv && hr.cells[sv.c] && hr.cells[sv.c].classList.contains('th-sort')) apply(sv.c, sv.d);
+    // ★ v0.40.8 — 폰 카드 「정렬」 고르기 칸이 같은 정렬·같은 기억을 쓰도록 (머리글을 누른 것과 동일)
+    tb._sortGet = () => store[key] || null;
+    tb._sortSet = (ci, d) => { if(d && hr.cells[ci] && hr.cells[ci].classList.contains('th-sort')) store[key] = { c: ci, d }; else { delete store[key]; d = 0; } try { localStorage.setItem('vela_tbl_sort', JSON.stringify(store)); } catch(e){} apply(ci, d); };
   });
 }
 /* ★ v0.40.3 (디자인 다듬기 · 표시만) — 화면 제목 옆 버전·개발 꼬리표 알약 제거(버전 = 사이드바 로고 옆 + 아래 바닥글) · 제목 아래 설명 한 줄 = 한 줄로 줄이고 눌러서 펼침 */
@@ -10937,7 +10954,8 @@ function mobileTabs(active){
    진입: 폰(터치 ∧ 폭 ≤ 768) + 현장 작업자 아님 → 로그인 후 #p/home · [PC 화면으로] = 이 기기 취향 'pc' · 메뉴 노출 = menuCanSee 1벌 */
 function isPhoneDevice(){ try { return window.matchMedia('(pointer:coarse)').matches && Math.min(screen.width || 9999, window.innerWidth || 9999) <= 768; } catch(e){ return false; } }
 function isPhoneHash(h){ h = h == null ? (location.hash || '') : h; return h === '#p' || h.startsWith('#p/'); }
-function phoneEntryDefault(){ if(isWorkerRole()) return false; let pref = null; try { pref = localStorage.getItem(M_UI_KEY); } catch(e){} if(pref === 'pc') return false; return pref === 'phone' || isPhoneDevice(); }
+// ★ v0.40.8 (GPT P-3) — 폰 첫 화면 = 폰 홈 · 사용자가 직접 고른 「🖥 PC 모양」(vela_ph_ui='off')만 존중 · 옛 'pc' 값(현장 모드 나가기·옛 [PC 화면으로] 가 자동으로 남긴 것)은 폰에서는 무시
+function phoneEntryDefault(){ if(isWorkerRole()) return false; let pref = null; try { pref = localStorage.getItem(M_UI_KEY); } catch(e){} if(pref === 'phone') return true; return isPhoneDevice() && phUiPref() !== 'off'; }
 function _pCan(id){ const pg = PAGES.find(x => x.id === id); return !!pg && menuCanSee(pg); }
 function _pEdit(id){ return _pCan(id) && (SESSION.role === 'manager' || SESSION.role === 'vendor' || getUserPerm(SESSION.userId, id) === 'edit'); }
 function phoneTabs(active){
@@ -10991,13 +11009,31 @@ function _phUiApply(){
   }
   let tabs = document.getElementById('ph-tabs');
   if(!tabs){ tabs = document.createElement('div'); tabs.id = 'ph-tabs-host'; document.body.appendChild(tabs); }
+  // ★ v0.40.8 (GPT P-2) — 화면 제목 옆 = 이름 있는 등록 버튼 하나(「+ 새 발주」 등 · 같은 버튼을 자리만 옮겨 보임 · CSS)
+  try { const ph = view && view.querySelector(':scope > .pghead'); const pb = ph && ph.querySelector('.pgtools > .btn.primary'); if(pb) pb.classList.add('ph-prim'); } catch(e){}
   const host = document.getElementById('ph-tabs-host') || tabs;
   host.innerHTML = phoneTabs('').replace('id="p-tabs"', 'id="ph-tabs"');
   return true;
 }
+/* ★ v0.40.8 (GPT P-1) — 화면별 카드 칸 지정: [제목 칸, 보일 칸…] (머리글 이름 · 공백 무시) · 지정 없는 표 = 첫 이름 있는 칸 제목 + 앞 4칸
+   · 상태·납기·HOLD·잔량 칸은 어느 표든 접지 않음 · 나머지 = 「더 보기」 */
+const PH_CARD_SPEC = {
+  po:    [['발주번호·일자', '상태', '거래처', '품명', '입고/발주', '납기']],
+  so:    [['수주번호', '상태', '고객사', '품번', '잔량/수주수량', '납기']],
+  os:    [['전표·일자', '상태', '외주처·공정', '품번·LOT', '반출', '입고'], ['입고번호', '반출전표', '양품/불량', '일자']],
+  qc:    [['NC번호', '상태', '품번·LOT', '유형', '수량', '일자']],
+  plan:  [['품번·품명', '상태', '계획일', '설비', '계획', '실적']],
+  perf:  [['품번·품명', '시각', 'LOT', '공정', '양품', '불량']],
+  lot:   [['LOT', '상태', '품번', '진행위치', '잔량']],
+  ship:  [['품번', '품명', '수량', '일시', 'SO', 'LOT']],
+  quote: [['견적번호', '상태', '고객', '품번', '금액', '유효일']],
+  wo:    [['WO번호', '품번·품명', '지시수량', '공정별진행·설비', '생성']],
+};
+const PH_KEEP_RE = /상태|납기|HOLD|잔량|미입고|미출하/;
+const _phNorm = t => String(t || '').replace(/[▲▼↕]/g, '').replace(/\s+/g, '').trim();
 function _phCardsEnhance(root){
   root = root || document.getElementById('view'); if(!root) return 0;
-  let n = 0;
+  let n = 0; const pg = (location.hash || '#dash').replace('#', '').split('/')[0];
   root.querySelectorAll('table').forEach(tb => {
     if(tb.closest('#modal') || tb.classList.contains('ph-keep')) return;
     const th = tb.tHead && tb.tHead.rows.length ? tb.tHead.rows[tb.tHead.rows.length - 1] : null;
@@ -11006,29 +11042,51 @@ function _phCardsEnhance(root){
     const body = [...(tb.tBodies || [])];
     if(body.some(b => b.querySelector('input:not([type=checkbox]):not([type=radio]),select,textarea'))) return;   // 편집 표 = 그대로
     const heads = [...th.cells].map(c => (c.textContent || '').replace(/[▲▼↕]/g, '').trim());
-    const nc = heads.length;
-    tb.classList.add('ph-cards'); n++;
+    const nh = heads.map(_phNorm); const nc = heads.length;
+    const spec = (PH_CARD_SPEC[pg] || []).find(sp => nh.includes(_phNorm(sp[0])));
+    const titleIdx = spec ? nh.indexOf(_phNorm(spec[0])) : nh.findIndex(h => h);
+    const specIdx = spec ? spec.slice(1).map(x => nh.indexOf(_phNorm(x))).filter(i => i >= 0) : [];
+    tb.classList.add('ph-cards'); tb.dataset.phSpec = spec ? '1' : ''; n++;
     [...body, ...(tb.tFoot ? [tb.tFoot] : [])].forEach(sec => [...sec.rows].forEach(r => {
       if(r.classList.contains('ph-done')) return;
       r.classList.add('ph-done');
       const cells = [...r.cells];
       if(cells.length !== nc){ if(cells.length === 1) r.classList.add('ph-grp'); return; }
-      let shown = 0, extra = 0;
+      let extra = 0, filler = 0;
       cells.forEach((c, k) => {
         c.setAttribute('data-label', heads[k] || '');
         const isAct = k === nc - 1 && (c.classList.contains('ra-cell') || c.querySelector('button,.ra-open,a.btn'));
-        if(k === 0){ c.classList.add('ph-t'); return; }
-        if(isAct){ c.classList.add('ph-act'); return; }
+        if(k === titleIdx){ c.classList.add('ph-t'); c.style.order = '-20'; return; }
+        if(isAct){ c.classList.add('ph-act'); c.style.order = '200'; return; }
+        if(!heads[k] && c.querySelector('input[type=checkbox]') && !(c.textContent || '').trim()){ c.classList.add('ph-chk'); return; }
         if(c.classList.contains('col-hide')) return;
-        if(shown < PH_MAX_FIELDS - 1) shown++; else { c.classList.add('ph-x'); extra++; }
+        const si = specIdx.indexOf(k);
+        if(si >= 0){ c.style.order = String(si + 1); return; }
+        if(PH_KEEP_RE.test(heads[k])){ c.style.order = '50'; return; }                // 상태·납기·HOLD·잔량 = 접지 않음
+        if(!spec && heads[k] && filler < PH_MAX_FIELDS - 2){ filler++; c.style.order = '60'; return; }
+        c.classList.add('ph-x'); c.style.order = '100'; extra++;
       });
       if(extra){
         r.classList.add('ph-has-x');
-        const more = document.createElement('td'); more.className = 'ph-more'; more.textContent = `더 보기 (${extra}칸) ▾`;
+        const more = document.createElement('td'); more.className = 'ph-more'; more.style.order = '150'; more.textContent = `더 보기 (${extra}칸) ▾`;
         more.onclick = (e) => { e.stopPropagation(); const op = r.classList.toggle('ph-open'); more.textContent = op ? '접기 ▴' : `더 보기 (${extra}칸) ▾`; };
-        const act = r.querySelector('td.ph-act'); if(act) r.insertBefore(more, act); else r.appendChild(more);
+        r.appendChild(more);
       }
     }));
+    // ★ v0.40.8 (GPT P-4) — 폰 카드 정렬 고르기 「정렬: 납기 ↑」 (PC 머리글 정렬과 같은 함수·같은 기억)
+    if(typeof tb._sortSet === 'function'){
+      const host = tb.closest('.tbl-wrap') || tb; const prev = host.previousElementSibling;
+      if(!(prev && prev.classList.contains('ph-sort'))){
+        const opts = [...th.cells].map((c, k) => c.classList.contains('th-sort') && heads[k] ? [k, heads[k]] : null).filter(Boolean);
+        if(opts.length){
+          const cur = tb._sortGet(); const val = cur ? `${cur.c}:${cur.d}` : '';
+          const box = document.createElement('div'); box.className = 'ph-sort';
+          box.innerHTML = `<label>정렬</label><select aria-label="정렬 기준"><option value="">기본 순서</option>${opts.map(([k, h]) => `<option value="${k}:1"${val === k + ':1' ? ' selected' : ''}>${_esc(h)} ↑</option><option value="${k}:-1"${val === k + ':-1' ? ' selected' : ''}>${_esc(h)} ↓</option>`).join('')}</select>`;
+          box.querySelector('select').onchange = e => { const v = e.target.value; if(!v){ const c0 = tb._sortGet(); tb._sortSet(c0 ? c0.c : 0, 0); } else { const [k, d] = v.split(':').map(Number); tb._sortSet(k, d); } };
+          host.parentNode.insertBefore(box, host);
+        }
+      }
+    }
   });
   return n;
 }
@@ -16541,36 +16599,55 @@ VIEWS._osRecv = (dispId, keep) => {
   ['or-g', 'or-d'].forEach(id => $(id).addEventListener('input', upd)); $('or-unit').onchange = upd; upd();
   $('or-disp').onchange = () => { const nv = $('or-disp').value; if(nv && nv !== dispId) VIEWS._osRecv(nv, { id: $('or-id').value, unit: unit(), g: $('or-g').value, d: $('or-d').value }); };
   $('or-ok').onclick = () => {
-    const cg = conv($('or-g').value), cd = conv($('or-d').value);
+    /* ★ v0.40.8 (GPT v0.40.7 판정 재현 2건) — ① 환산 전에 원래 입력값 검사(음수·숫자 아님·ea 소수 · kg 음수가 0 으로 바뀌어 통과하던 것)
+       ② 수량·입고번호·파렛트 한도 등 사전 검사를 전부 끝낸 뒤에만 저장 시작(파렛트 한도 초과인데 실적만 저장되던 것)
+       ③ 저장 도중 이 기기에서 실패하면 앞서 만든 실적·파렛트 이동을 취소 처리(void · 물리 삭제 0)로 되돌림 — 연결 기록 일부만 남지 않게 */
+    const rawOf = id => String($(id).value == null ? '' : $(id).value).trim();
+    const chkRaw = (id, nm) => { const r = rawOf(id); if(r === '') return { ok: true, n: 0 }; const n = Number(r); if(!Number.isFinite(n)) return { ok: false, msg: `${nm} 은(는) 숫자로 입력하세요` }; if(n < 0) return { ok: false, msg: `${nm} 에 음수는 입력할 수 없습니다` }; return { ok: true, n }; };
+    const rg = chkRaw('or-g', '양품 수량'), rd = chkRaw('or-d', '불량 수량'), rp = chkRaw('or-prc', '파렛트 수량');
+    for(const c of [rg, rd, rp]) if(!c.ok){ toast(c.msg, 'warn'); return; }
+    if(!Number.isInteger(rp.n)){ toast('파렛트 수량은 정수로 입력하세요','warn'); return; }
+    if(unit() === 'ea' && (!Number.isInteger(rg.n) || !Number.isInteger(rd.n))){ toast('ea 는 정수로 입력하세요','warn'); return; }
+    const cg = conv(rawOf('or-g')), cd = conv(rawOf('or-d'));
     if(cg.ea == null || cd.ea == null){ toast('kg 환산 불가 — 단중이 없습니다 (ea 로 입력하세요)','warn',4000); return; }
-    const g = cg.ea, df = cd.ea; const prc = +($('or-prc')?.value || 0);
-    if(g < 0 || df < 0 || prc < 0){ toast('음수는 입력할 수 없습니다','warn'); return; }
-    if(unit() === 'ea' && (!Number.isInteger(g) || !Number.isInteger(df))){ toast('ea 는 정수로 입력하세요','warn'); return; }
+    if(unit() === 'kg' && ((rg.n > 0 && cg.ea <= 0) || (rd.n > 0 && cd.ea <= 0))){ toast('kg 이 단중보다 작아 0개로 환산됩니다 — 값을 확인하세요','warn',4000); return; }
+    const g = cg.ea, df = cd.ea; const prc = rp.n;
     if(g + df <= 0 && prc <= 0){ toast('수량 입력','warn'); return; }
+    if(prc > 0 && pOutTotal <= 0){ toast('이 반출에는 반출 파렛트가 없습니다','warn'); return; }
+    if(prc > pMiss){ toast(`파렛트 회수 한도 초과 (미회수 ${pMiss}개)`,'warn'); return; }
     const rid = String($('or-id').value || '').trim() || nextDocNo('OR');
     if(/[\/\\#?\s]/.test(rid) || rid.length > 60){ toast('입고번호에 / \\ # ? 공백은 쓸 수 없습니다 (60자 이내)','warn'); return; }
     if(g + df > 0 && DB.get('os_receipts', rid)){ toast(`입고번호 중복 — ${rid}`,'err'); return; }
+    // ── 여기부터 저장 (위 검사를 모두 통과한 경우만)
+    let recordId = null, palletMoveId = null, receiptSaved = false;
     try {
       // ★ v0.16.0 — record_id / pallet_move_id 를 os_receipts 에 함께 저장 (취소 연쇄 연결키) · 초과 차단 = registerRecord 가드 그대로
-      let recordId = null, palletMoveId = null;
       if(g + df > 0){
         const rec = LOT.registerRecord({plot_no:d.plot_no, proc:d.proc, equipment:'외주', vendor:d.vendor, good:g, defect:df, type:'out'});
         recordId = rec?.id || null;
       }
       if(prc > 0){
-        if(prc > pMiss) throw new Error(`회수 한도 초과 (미회수 ${pMiss}개)`);
         const mv = PALLET.add({vendor:d.vendor, type:'in', qty:prc, ref:{kind:'os', id:dispId}});
         palletMoveId = mv?.id || null;
       }
       if(g + df > 0){
         const doc = {id: rid, dispatch_id:dispId, qty:g+df, good:g, defect:df, scrap:0, pallets_recovered:prc, record_id:recordId, pallet_move_id:palletMoveId, ts:Date.now()};
-        if(unit() === 'kg'){ doc.input_mode = 'kg'; doc.input_value = +$('or-g').value || 0; doc.input_value_defect = +$('or-d').value || 0; }
-        DB.set('os_receipts', rid, doc);
+        if(unit() === 'kg'){ doc.input_mode = 'kg'; doc.input_value = rg.n; doc.input_value_defect = rd.n; }
+        DB.set('os_receipts', rid, doc); receiptSaved = true;
       }
-      toast(`외주 입고 — ${g + df > 0 ? `양품 ${g.toLocaleString()} · 불량 ${df.toLocaleString()}ea` : ''}${prc > 0 ? ` · 회수 파렛트 ${prc}개` : ''}`,'ok');
-      closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록');
-      closeModal(); router();
-    } catch(e){ toast(e.message,'err'); }
+    } catch(e){
+      // ③ 이 기기에서 중간 실패 = 앞서 만든 기록 되돌림 (void · 사유 기록)
+      const undo = [];
+      if(!receiptSaved){
+        try { if(palletMoveId && DB.get('pallet_moves', palletMoveId)){ voidDoc('pallet_moves', palletMoveId, `외주 입고 ${rid} 저장 실패 — 자동 취소`); undo.push('파렛트'); } } catch(x){}
+        try { if(recordId && DB.get('records', recordId)){ voidDoc('records', recordId, `외주 입고 ${rid} 저장 실패 — 자동 취소`); undo.push('실적'); } } catch(x){}
+      }
+      toast(`${e.message}${undo.length ? ` — 함께 만든 ${undo.join('·')} 기록은 취소 처리했습니다` : ''}`,'err',5000);
+      return;
+    }
+    toast(`외주 입고 — ${g + df > 0 ? `양품 ${g.toLocaleString()} · 불량 ${df.toLocaleString()}ea` : ''}${prc > 0 ? ` · 회수 파렛트 ${prc}개` : ''}`,'ok');
+    closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록');
+    closeModal(); router();
   };
 };
 VIEWS._printDisp = (id) => { printForm.os([id]); };  // ★ v0.12.0 — 새 양식 위임
