@@ -1279,6 +1279,21 @@ html[data-theme="light"]{--shift1:#fefce8;--shift2:#eef2ff;--shift3:#f5f3ff;--se
 .m-tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 8px;font-size:11px;color:var(--sub);text-decoration:none;min-height:56px;justify-content:center}
 .m-tabs a.on{color:var(--cyan);font-weight:700}
 .m-tabs .ic{font-size:20px;position:relative;line-height:1}
+/* ★ v0.40.12 — 폰 아래 탭(사무직·관리 #p/ · 폰 디자인 메뉴 화면) = 떠 있는 둥근 막대 */
+.m-tabs.p-tabbar{left:14px;right:14px;bottom:calc(12px + env(safe-area-inset-bottom));padding:6px;gap:4px;border-radius:24px;border:1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  background:color-mix(in srgb, var(--panel) 93%, transparent);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px);
+  box-shadow:0 10px 30px rgba(15,23,42,.14),0 2px 6px rgba(15,23,42,.06)}
+.m-tabs.p-tabbar a{min-height:54px;padding:6px 0;border-radius:18px;gap:3px;color:var(--sub);transition:background .18s,color .18s}
+.m-tabs.p-tabbar a .ic{display:flex;align-items:center;justify-content:center;width:44px;height:28px;border-radius:14px;transition:background .18s}
+.m-tabs.p-tabbar a .ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.m-tabs.p-tabbar a .lb{font-size:11px;font-weight:600;letter-spacing:.2px}
+.m-tabs.p-tabbar a.on{color:var(--mint-ink,var(--cyan))}
+.m-tabs.p-tabbar a.on .ic{background:var(--mint-bg,rgba(94,234,212,.14))}
+.m-tabs.p-tabbar a.on .ic svg{stroke-width:2.1}
+.m-tabs.p-tabbar a.on .lb{font-weight:800}
+.m-tabs.p-tabbar a:active{background:color-mix(in srgb, var(--line) 35%, transparent)}
+.m-tabs.p-tabbar .m-badge{top:-3px;right:2px;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:10px;border:2px solid var(--panel);border-radius:10px}
+#app.m-mode .p-shell{padding-bottom:28px}
 .m-badge{position:absolute;top:-6px;right:-12px;background:var(--red);color:#fff;font-size:9.5px;border-radius:9px;padding:1px 5px;font-weight:800}
 .m-shell .dim{color:var(--dim)} .m-shell .amber{color:var(--amber)} .m-shell .red{color:var(--red)} .m-shell .mono{font-family:'JetBrains Mono',monospace}
 .m-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
@@ -1448,7 +1463,7 @@ body.ph-ui #ph-bar .ph-ttl{flex:1;min-width:0;font-size:17px;font-weight:800;whi
 body.ph-ui #ph-bar .ph-menu{flex:none;min-height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
 body.ph-ui #ph-tabs{display:grid}
 body.ph-ui #nav,body.ph-ui #app > .foot,body.ph-ui #crumb,body.ph-ui .p-home-fab{display:none!important}
-body.ph-ui #view{padding-bottom:84px}
+body.ph-ui #view{padding-bottom:108px}
 body.ph-ui .scroll-nav{display:none!important}
 body.ph-ui #view .ph-kpi-hide{display:none!important}
 .ph-hold{display:none}
@@ -1686,7 +1701,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.11';
+const APP_VERSION = 'v0.40.12';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -11034,10 +11049,17 @@ function isPhoneHash(h){ h = h == null ? (location.hash || '') : h; return h ===
 function phoneEntryDefault(){ if(isWorkerRole()) return false; let pref = null; try { pref = localStorage.getItem(M_UI_KEY); } catch(e){} if(pref === 'phone') return true; return isPhoneDevice() && phUiPref() !== 'off'; }
 function _pCan(id){ const pg = PAGES.find(x => x.id === id); return !!pg && menuCanSee(pg); }
 function _pEdit(id){ return _pCan(id) && (SESSION.role === 'manager' || SESSION.role === 'vendor' || getUserPerm(SESSION.userId, id) === 'edit'); }
+// ★ v0.40.12 (사용자 요청 「고급스럽게」) — 폰 아래 탭 = 떠 있는 둥근 막대 · 선 아이콘(SVG) · 고른 탭 = 민트 알약 · 현장 작업자 화면(#m/) 탭은 무변
+const P_TAB_ICONS = {
+  home: '<path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9.5V19a1.5 1.5 0 0 0 1.5 1.5h3.5V15h3v5.5H17a1.5 1.5 0 0 0 1.5-1.5V9.5"/>',
+  todo: '<rect x="4.5" y="3.5" width="15" height="17" rx="3.5"/><path d="m8.5 12.2 2.4 2.4 4.6-4.8"/>',
+  find: '<circle cx="11" cy="11" r="6.2"/><path d="m19.5 19.5-3.9-3.9"/>',
+  more: '<path d="M5 7.5h14M5 12h14M5 16.5h9"/>',
+};
 function phoneTabs(active){
-  const tabs = [['home', '홈', '🏠'], ['todo', '할 일', '✅'], ['find', '조회', '🔍'], ['more', '더보기', '☰']];
+  const tabs = [['home', '홈'], ['todo', '할 일'], ['find', '조회'], ['more', '더보기']];
   let n = 0; try { n = phoneTodo().total; } catch(e){}
-  return `<nav class="m-tabs" id="p-tabs">${tabs.map(([id, l, ic]) => `<a href="#p/${id}" class="${active === id ? 'on' : ''}"><span class="ic">${ic}${id === 'todo' && n ? `<b class="m-badge">${n}</b>` : ''}</span><span>${l}</span></a>`).join('')}</nav>`;
+  return `<nav class="m-tabs p-tabbar" id="p-tabs" aria-label="폰 메뉴">${tabs.map(([id, l]) => `<a href="#p/${id}" class="${active === id ? 'on' : ''}"${active === id ? ' aria-current="page"' : ''}><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">${P_TAB_ICONS[id]}</svg>${id === 'todo' && n ? `<b class="m-badge">${n > 99 ? '99+' : n}</b>` : ''}</span><span class="lb">${l}</span></a>`).join('')}</nav>`;
 }
 function phoneShell(active, inner){
   document.getElementById('app').classList.add('m-mode');
@@ -15127,14 +15149,7 @@ VIEWS.inv = () => {
       </div>
     </div>
 
-    <!-- 업종 프리셋 표시 -->
-    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;font-size:11px;color:var(--sub)">
-      <span>업종:</span>
-      ${['forging','machining','heat'].map(k=>{
-        const lbl = k==='forging'?'단조':k==='machining'?'가공':'열처리';
-        return `<span class="pill ${preset===k?'cyan':'gray'}" style="cursor:default">${lbl}${preset===k?' ✓':''}</span>`;
-      }).join('')}
-    </div>
+    <!-- ★ v0.40.12 (사용자 요청) — 업종 프리셋 표시 줄 삭제 (PC·폰) · 업종은 설정에서만 -->
 
     <!-- 검색 + 필터 -->
     <div class="card" style="padding:14px;margin-bottom:12px">
@@ -15899,6 +15914,8 @@ VIEWS.ship = () => {
           </div>
         </div>
         <div><label>파렛트 수량 (개) <span style="color:var(--dim);font-weight:400">— 고객사 출고(편도)</span></label><input id="sh-plt" type="number" min="0" placeholder="0"></div>
+        <div class="m-ban amber" id="rq-ban" hidden style="margin-bottom:6px"></div>
+        <div id="rq-st" style="font-size:12.5px;min-height:18px;color:var(--sub)"></div>
         <div class="actions">
           <button class="btn" onclick="closeModal()">취소</button>
           <button class="btn primary" id="sh-ok">${ico('save')}출하</button>
@@ -16028,38 +16045,9 @@ VIEWS.ship = () => {
     drawWarn();   // ★ v0.35.6 — 초기 선택 LOT 의 잠금/HOLD 안내
     drawPack();
 
-    document.getElementById('sh-ok').onclick = () => {
-      const so_id = document.getElementById('sh-so').value;
-      const so = DB.get('orders', so_id);
-      const plot = document.getElementById('sh-lot').value;
-      const qty  = +document.getElementById('sh-qty').value;
-      const plt  = +document.getElementById('sh-plt').value || 0;
-      // ★ v0.16.11 — 실제 포장수량 (있을 때만 pack_qty_actual 로 저장 · 없으면 필드 자체 생략)
-      const packRaw = document.getElementById('sh-pack').value.trim();
-      const pack_qty_actual = packRaw==='' ? null : (+packRaw>0 ? Math.floor(+packRaw) : null);
-      if(!qty){ toast('수량 입력','warn'); return; }
-      // 출하 = shipment 레코드 (출하 직전 공정의 품번별 양품 검증)
-      try {
-        assertSoShipQty(so_id, qty);   // ★ v0.38.7 — 수주 종결 차단 + 수주 수량 초과 출하 차단 (저장 직전 최신 원장 기준)
-        const lotObj = DB.get('production_lots', plot);
-        if(!lotObj) throw new Error('LOT 없음');
-        assertLotNotHeld(plot, '출하');   // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 출하 차단
-        const route = getRoute(lotObj.itemCode);
-        const lastProd = route.length>1 ? route[route.length-2] : route[0];
-        const bal = LOT.acceptedGood(plot, lastProd.proc);   // ★ v0.36.0 — 출하 write path = 인정양품 (보류분 출하 불가)
-        const shippedFromLot = DB.query('shipments', x=>x.plot_no===plot).reduce((s,r)=>s+(r.qty||0),0);
-        const ciw = assertWithinAccepted(plot, qty, '출하', bal - shippedFromLot);   // ★ v0.36.0 (Q6-0) — 저장 직전 재검증 (동시성 잠금 assert 승계 · 사고 open 은 차단 아님)
-        // ★ v0.35.9-B — 최종 write path 재검증: 현재 원장 기준 잔량·격리·HOLD/Lock(위 assert)·요청수량 (UI 표시값 불신 · GPT 조건 ②)
-        const qz = assertQuarantine(plot, qty, '출하', bal - shippedFromLot);
-        const shNo = resolveDocNo('sh-id', 'SH');
-        if(shNo.dup) throw new Error(`출하번호 중복 — ${shNo.id}`);
-        const id = shNo.id;
-        DB.set('shipments', id, {id, so_id, itemCode:so.itemCode, plot_no:plot, qty, pallets:plt, pack_qty_actual, ts:Date.now(), by:SESSION.user});
-        if(qz.pending.length){ ncRecordPendingOut(qz.pending, 'ship', id, qty); toast(`⚠ 판정 대기 중 출하 — NC ${qz.pending.map(n=>n.id).join(', ')} 기록`, 'warn', 4500); }   // ★ v0.35.9-B — NC 문서에 기록(원장 무변)
-        if(ciw.incidents.length) ciRecordPendingOut(ciw.incidents, 'ship', id, qty);   // ★ v0.36.0 — 보류 중 인정분 출하 사실 (사고 문서)
-        // ★ v0.13.0 — 고객사 파렛트 출고 자동 (편도, 미회수 없음)
-        if(plt>0 && so?.cust){ PALLET.add({vendor:so.cust, type:'out', qty:plt, ref:{kind:'tx', id}}); }
-        toast(`출하 완료${plt>0?` · 파렛트 ${plt}개 출고`:''}`,'ok');
+    // ★ v0.40.12 — 출하 = 출하 + 고객사 파렛트 출고 + (NC·사고 기록) 한 묶음 · 서버 = 새 문서 만들기만 · 요청 기록·결과 확인
+    const shDone = (m) => { const L = window.__shLast || {}; const id = L.id, so = L.so || {}, qty = L.qty || 0, plt = L.plt || 0;
+        toast(m || `출하 완료${plt>0?` · 파렛트 ${plt}개 출고`:''}`,'ok');
         closingWarnIfClosed('sales', Date.now(), '출하 등록');
         // ★ v0.14.4 — 등록 직후 명세서 발행 액션 (선택 — 안 눌러도 등록은 완료)
         openModal(`
@@ -16078,7 +16066,48 @@ VIEWS.ship = () => {
           router();
           VIEWS._printStmt(id);
         };
+    };
+    const shGuard = _reqGuard({ kind: 'sh', label: '출하', box: document.getElementById('modal'), okSel: '#sh-ok', lockSel: '#modal input, #modal select, #sh-ok', onDone: shDone, resendWrite: (p) => shSave(p.vals, p) });
+    const shSave = (v, resendReq) => {
+      const { so_id, plot, qty, plt, pack_qty_actual } = v;
+      const so = DB.get('orders', so_id);
+      if(!qty){ toast('수량 입력','warn'); return; }
+      if(!Number.isInteger(plt) || plt < 0){ toast('파렛트 수량은 0 이상 정수','warn'); return; }
+      // 출하 = shipment 레코드 (출하 직전 공정의 품번별 양품 검증)
+      try {
+        assertSoShipQty(so_id, qty);   // ★ v0.38.7 — 수주 종결 차단 + 수주 수량 초과 출하 차단 (저장 직전 최신 원장 기준)
+        const lotObj = DB.get('production_lots', plot);
+        if(!lotObj) throw new Error('LOT 없음');
+        assertLotNotHeld(plot, '출하');   // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 출하 차단
+        const route = getRoute(lotObj.itemCode);
+        const lastProd = route.length>1 ? route[route.length-2] : route[0];
+        const bal = LOT.acceptedGood(plot, lastProd.proc);   // ★ v0.36.0 — 출하 write path = 인정양품 (보류분 출하 불가)
+        const shippedFromLot = DB.query('shipments', x=>x.plot_no===plot).reduce((s,r)=>s+(r.qty||0),0);
+        const ciw = assertWithinAccepted(plot, qty, '출하', bal - shippedFromLot);   // ★ v0.36.0 (Q6-0) — 저장 직전 재검증 (동시성 잠금 assert 승계 · 사고 open 은 차단 아님)
+        // ★ v0.35.9-B — 최종 write path 재검증: 현재 원장 기준 잔량·격리·HOLD/Lock(위 assert)·요청수량 (UI 표시값 불신 · GPT 조건 ②)
+        const qz = assertQuarantine(plot, qty, '출하', bal - shippedFromLot);
+        if(!resendReq && shGuard.pending()) throw new Error('이전 출하 요청 결과가 아직 확인되지 않았습니다 — 결과 확인 전에는 새로 출하할 수 없습니다 (중복 방지)');
+        const shNo = resendReq ? { id: resendReq.rid, dup: !!DB.get('shipments', resendReq.rid) } : resolveDocNo('sh-id', 'SH');
+        if(shNo.dup) throw new Error(`출하번호 중복 — ${shNo.id}`);
+        const id = shNo.id;
+        const pmId = resendReq ? resendReq.pmId : (plt > 0 && so?.cust ? PALLET.newId('out') : null);
+        const reqId = resendReq ? resendReq.reqId : _reqNewId();
+        const req = { key: 'new', rid: id, reqId, pmId, vals: v, chk: { col: 'shipments', id }, expect: { req_id: reqId, so_id, plot_no: plot, qty, pallets: plt } };
+        window.__shLast = { id, so, qty, plt };
+        shGuard.run(req, () => {
+          if(!DB.set('shipments', id, {id, so_id, itemCode:so.itemCode, plot_no:plot, qty, pallets:plt, pack_qty_actual, req_id: reqId, ts:Date.now(), by:SESSION.user})) throw new Error('출하 저장이 거부되었습니다 (권한 확인)');
+          if(qz.pending.length){ ncRecordPendingOut(qz.pending, 'ship', id, qty); toast(`⚠ 판정 대기 중 출하 — NC ${qz.pending.map(n=>n.id).join(', ')} 기록`, 'warn', 4500); }   // ★ v0.35.9-B — NC 문서에 기록(원장 무변)
+          if(ciw.incidents.length) ciRecordPendingOut(ciw.incidents, 'ship', id, qty);   // ★ v0.36.0 — 보류 중 인정분 출하 사실 (사고 문서)
+          // ★ v0.13.0 — 고객사 파렛트 출고 자동 (편도, 미회수 없음)
+          if(pmId){ const mv = PALLET.add({vendor:so.cust, type:'out', qty:plt, ref:{kind:'tx', id}, id: pmId, extra: { req_id: reqId }}); if(!mv) throw new Error('파렛트 출고 저장이 거부되었습니다 (권한 확인)'); }
+        }, [['shipments', id], pmId && ['pallet_moves', pmId]].filter(Boolean), !!resendReq);
       } catch(e){ toast(e.message,'err'); }
+    };
+    document.getElementById('sh-ok').onclick = () => {
+      // ★ v0.16.11 — 실제 포장수량 (있을 때만 pack_qty_actual 로 저장 · 없으면 필드 자체 생략)
+      const packRaw = document.getElementById('sh-pack').value.trim();
+      shSave({ so_id: document.getElementById('sh-so').value, plot: document.getElementById('sh-lot').value, qty: +document.getElementById('sh-qty').value, plt: +document.getElementById('sh-plt').value || 0,
+        pack_qty_actual: packRaw==='' ? null : (+packRaw>0 ? Math.floor(+packRaw) : null) }, null);
     };
   };
 
@@ -16437,6 +16466,8 @@ VIEWS.os = () => {
           <div><label>반출 수량 (ea) <span id="od-q-badge" style="color:var(--dim);font-weight:400;font-size:10px">— 가능량 자동 채움</span></label><input id="od-q" type="number" min="1" placeholder="예: 900"></div>
           <div><label>파렛트 수량 (개) <span id="od-plt-badge" style="color:var(--dim);font-weight:400;font-size:10px">— 외주처 출고·미회수 자동 반영</span></label><input id="od-plt" type="number" min="0" placeholder="0"></div>
         </div>
+        <div class="m-ban amber" id="rq-ban" hidden style="margin-bottom:6px"></div>
+        <div id="rq-st" style="font-size:12.5px;min-height:18px;color:var(--sub)"></div>
         <div class="actions">
           <button class="btn" onclick="closeModal()">취소</button>
           <button class="btn primary" id="od-ok">${ico('save')}반출</button>
@@ -16518,35 +16549,43 @@ VIEWS.os = () => {
       tr.style.background = 'rgba(94,234,212,.08)';
       toast(`선택 — ${plot} · 가능 ${(+avail).toLocaleString()}ea (수량 수정 = 부분 반출)`,'ok',2000);
     });
-    document.getElementById('od-ok').onclick = () => {
-      const vendor = document.getElementById('od-v').value;
-      const proc   = document.getElementById('od-p').value;
-      const plot   = document.getElementById('od-l').value;
-      const qty    = +document.getElementById('od-q').value;
-      const plt    = +document.getElementById('od-plt').value || 0;
+    // ★ v0.40.12 — 외주 반출 = 반출 + 파렛트 출고 + (NC·사고 기록) 한 묶음 · 서버 = 새 문서 만들기만 · 요청 기록·결과 확인 (외주 입고와 같은 규칙)
+    const odGuard = _reqGuard({ kind: 'od', label: '외주 반출', box: document.getElementById('modal'), okSel: '#od-ok', lockSel: '#modal input, #modal select, #od-ok',
+      onDone: (m) => { const p = window.__odLast || {}; toast(m || `외주 반출 등록${p.plt > 0 ? ` · 파렛트 ${p.plt}개 출고` : ''}`, 'ok'); closeModal(); router(); },
+      resendWrite: (p) => odSave(p.vals, p) });
+    const odSave = (v, resendReq) => {
+      const { vendor, proc, plot, qty, plt, mode, src } = v;
       if(!qty){ toast('수량 입력','warn'); return; }
       // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 외주 반출 차단
       try { assertLotNotHeld(plot, '외주 반출'); } catch(e){ toast(e.message, 'err', 5000); return; }   // ★ v0.36.0 — 동시성은 잠금이 아니라 보류: 수량은 osAvailable(인정양품)·assertWithinAccepted 가 판정
+      if(!Number.isInteger(plt) || plt < 0){ toast('파렛트 수량은 0 이상 정수','warn'); return; }
       // ★ v0.16.9 — 반출 가능량 초과 차단 (osAvailable 공용 · 이중 반출 방지 · 환산값도 동일 경로)
       const info = osAvailable(plot, proc);
       if(qty > info.avail){ toast(`반출 가능 수량 초과 — 가능 ${info.avail.toLocaleString()} ea`, 'err'); return; }
       // ★ v0.35.9-B — 최종 write path 재검증 (출하와 동일 규칙 · 완화 예외 없음 — GPT 조건 ③)
-      let qz, ciw; try { ciw = assertWithinAccepted(plot, qty, '외주 반출', info.avail); qz = assertQuarantine(plot, qty, '외주 반출', info.avail); } catch(e){ toast(e.message, 'err', 5000); return; }   // ★ v0.36.0 — 인정 기준 재검증 + 9-B 격리
+      let qz, ciw; try { ciw = assertWithinAccepted(plot, qty, '외주 반출', info.avail); qz = assertQuarantine(plot, qty, '외주 반출', info.avail); } catch(e){ toast(e.message, 'err', 5000); return; }   // ★ v0.36.0 — 인정 기준 재검증 + 9-B
+      if(!resendReq && odGuard.pending()){ toast('이전 외주 반출 요청 결과가 아직 확인되지 않았습니다 — 결과 확인 전에는 새로 반출할 수 없습니다 (중복 방지)', 'warn', 5000); return; }
       // ★ v0.20.0 — 채번 v2 (반출 모달에 번호 입력 UI 없음 → 자동만)
-      const id = nextDocNo('OD');
+      const id = resendReq ? resendReq.rid : nextDocNo('OD');
       if(DB.get('os_dispatches', id)){ toast(`반출번호 중복 — ${id}`,'err'); return; }
-      // ★ v0.16.18 — 입력 근거 병합 (ea 모드는 생략 · 저장은 항상 ea 확정)
-      const doc = {id, vendor, proc, plot_no:plot, qty, pallets:plt, ts:Date.now(), by:SESSION.user};
-      if(inputMode !== 'ea'){
-        doc.input_mode  = inputMode;
-        doc.input_value = +document.getElementById('od-src').value || 0;
-      }
-      DB.set('os_dispatches', id, doc);
-      if(qz && qz.pending.length){ ncRecordPendingOut(qz.pending, 'os', id, qty); toast(`⚠ 판정 대기 중 반출 — NC ${qz.pending.map(n=>n.id).join(', ')} 기록`, 'warn', 4500); }   // ★ v0.35.9-B
-      if(ciw && ciw.incidents.length) ciRecordPendingOut(ciw.incidents, 'os', id, qty);   // ★ v0.36.0 — 보류 중 인정분 반출 사실 (사고 문서)
-      // 파렛트 출고 자동
-      if(plt>0) PALLET.add({vendor, type:'out', qty:plt, ref:{kind:'os', id}});
-      toast(`외주 반출 등록${plt>0?` · 파렛트 ${plt}개 출고`:''}`,'ok'); closeModal(); router();
+      const pmId = resendReq ? resendReq.pmId : (plt > 0 ? PALLET.newId('out') : null);
+      const reqId = resendReq ? resendReq.reqId : _reqNewId();
+      const req = { key: 'new', rid: id, reqId, pmId, vals: v, chk: { col: 'os_dispatches', id }, expect: { req_id: reqId, plot_no: plot, proc, qty, pallets: plt, vendor } };
+      window.__odLast = { plt };
+      odGuard.run(req, () => {
+        // ★ v0.16.18 — 입력 근거 병합 (ea 모드는 생략 · 저장은 항상 ea 확정)
+        const doc = {id, vendor, proc, plot_no:plot, qty, pallets:plt, req_id: reqId, ts:Date.now(), by:SESSION.user};
+        if(mode !== 'ea'){ doc.input_mode = mode; doc.input_value = src; }
+        if(!DB.set('os_dispatches', id, doc)) throw new Error('반출 저장이 거부되었습니다 (권한 확인)');
+        if(qz && qz.pending.length){ ncRecordPendingOut(qz.pending, 'os', id, qty); toast(`⚠ 판정 대기 중 반출 — NC ${qz.pending.map(n=>n.id).join(', ')} 기록`, 'warn', 4500); }   // ★ v0.35.9-B
+        if(ciw && ciw.incidents.length) ciRecordPendingOut(ciw.incidents, 'os', id, qty);   // ★ v0.36.0 — 보류 중 인정분 반출 사실 (사고 문서)
+        // 파렛트 출고 자동
+        if(plt > 0){ const mv = PALLET.add({vendor, type:'out', qty:plt, ref:{kind:'os', id}, id: pmId, extra: { req_id: reqId }}); if(!mv) throw new Error('파렛트 출고 저장이 거부되었습니다 (권한 확인)'); }
+      }, [['os_dispatches', id], pmId && ['pallet_moves', pmId]].filter(Boolean), !!resendReq);
+    };
+    document.getElementById('od-ok').onclick = () => {
+      odSave({ vendor: document.getElementById('od-v').value, proc: document.getElementById('od-p').value, plot: document.getElementById('od-l').value, qty: +document.getElementById('od-q').value,
+        plt: +document.getElementById('od-plt').value || 0, mode: inputMode, src: +((document.getElementById('od-src') || {}).value) || 0 }, null);
     };
   };
 
@@ -16824,6 +16863,75 @@ VIEWS._osRecv = (dispId, keep) => {
   function _osReqPendUiEnsure(){ if(document.getElementById('or-pend-ban')) return; const b = document.createElement('div'); b.className = 'm-ban amber'; b.id = 'or-pend-ban'; b.style.marginBottom = '10px'; b.innerHTML = '<div id="or-pend-msg"></div><div id="or-pend-acts" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>'; const body = box.querySelector('.body'); if(body) body.insertBefore(b, body.firstChild); }
   function _osReqShowMismatch(dId, p){ _osReqPendUiEnsure(); pendUi(`입고 요청 <b>${_esc(p.rid)}</b> — <b>요청 내용 불일치 · 확인 필요</b>: 같은 번호의 서버 기록이 이 요청과 다릅니다(요청 번호·반출·수량·연결 기록 중 다름) · 이 반출의 새 입고는 잠김 유지`, 'red', [['or-pend-chk', '서버 결과 다시 확인', runCheck]].concat((SESSION.role === 'manager' || SESSION.role === 'vendor') ? [['or-pend-clear', '확인함 · 대기 요청 지우기(관리책임자)', () => { _osReqDrop(dId, p.rid); pendUi(`입고 요청 <b>${_esc(p.rid)}</b> 대기 기록을 지웠습니다 (관리책임자 확인) — 서버 기록은 그대로`, 'amber', []); const ok = $('or-ok'); if(ok) ok.disabled = false; }]] : [])); }
 };
+
+/* ★ v0.40.12 (사용자 결정 「파렛트 함께 기록 포함」 — 11/2 시험 범위) — 연결 기록 묶음 저장 공통 1벌: 외주 반출(반출 + 파렛트 출고 + NC·사고 기록) · 출하(출하 + 파렛트 출고 + NC·사고 기록)
+   외주 입고(v0.40.11)와 같은 규칙: 서버 = 새 문서 만들기만 트랜잭션(전부 또는 0 · 이미 있으면 안 씀) · 요청 번호 req_id · 요청을 이 기기에 먼저 기록(새로고침 유지)
+   · 결과: 성공 = 닫기 / 이미 있음 + 이 요청 것 = 반영 처리 / 다른 기록 = 저장 0 / 연결 문제 = 결과 확인 필요 → 서버 확인 → 반영·없음(같은 요청 다시 보내기)·불일치·확인 불가 / 거부 = 저장 0 */
+function _reqKey(kind, key){ return _osReqProj() + '|' + kind + ':' + key; }
+function _reqPut2(kind, req){ try { const m = _osReqAll(); const k = _reqKey(kind, req.key); m[k] = Object.assign({ kind }, req); localStorage.setItem(OS_REQ_KEY, JSON.stringify(m)); return !!(JSON.parse(localStorage.getItem(OS_REQ_KEY) || '{}')[k]); } catch(e){ return false; } }
+function _reqDrop2(kind, key, rid){ try { const m = _osReqAll(); const k = _reqKey(kind, key); if(m[k] && (!rid || m[k].rid === rid)){ delete m[k]; localStorage.setItem(OS_REQ_KEY, JSON.stringify(m)); } } catch(e){} }
+function _reqList(kind){ const p = _osReqProj() + '|' + kind + ':'; return Object.entries(_osReqAll()).filter(([k]) => k.startsWith(p)).map(([, v]) => v); }
+function _reqGetPath(o, path){ return String(path).split('.').reduce((a, k) => a == null ? undefined : a[k], o); }
+function _reqMatchExpect(req, d){ if(!req || !d || !req.expect) return false; return Object.entries(req.expect).every(([p, v]) => { const x = _reqGetPath(d, p); return typeof v === 'number' ? (+x || 0) === v : (x == null ? null : x) === (v == null ? null : v); }); }
+async function _reqCheck2(req){
+  const A = _ACTIVE_ADAPTER; const c = req && req.chk; if(!A || A.name !== 'firestore' || !A._fs || !c || !c.id) return 'unknown';
+  try { const sn = await A._fs.collection(c.col).doc(String(c.id)).get({ source: 'server' }); if(sn.exists) return _reqMatchExpect(req, sn.data()) ? 'applied' : 'mismatch'; } catch(e){ return 'unknown'; }
+  return DB.get(c.col, c.id) ? 'local' : 'absent';
+}
+// 창 하나에 붙는 요청 처리기: c = { kind, label, box, lockSel, onDone(msg), resendWrite(p) }
+function _reqGuard(c){
+  const tok = String((window._rqTok = (window._rqTok || 0) + 1)); c.box.dataset.rqTok = tok;
+  const mine = () => !!(document.getElementById('modal-bg').classList.contains('show') && c.box.dataset.rqTok === tok && document.getElementById('rq-st'));
+  const $ = id => document.getElementById(id);
+  const msg = (text, tone, lock) => { if(!mine()) return; const st = $('rq-st'); if(st){ st.textContent = text || ''; st.style.color = tone === 'err' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : tone === 'green' ? 'var(--green)' : 'var(--sub)'; } if(lock != null) c.box.querySelectorAll(c.lockSel).forEach(el => { el.disabled = !!lock; }); };
+  const ban = (html, tone, acts) => { if(!mine()) return; const b = $('rq-ban'); if(!b) return; b.hidden = !html; b.className = 'm-ban ' + (tone || 'amber'); b.innerHTML = `<div id="rq-ban-msg">${html || ''}</div><div id="rq-ban-acts" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>`; const a = $('rq-ban-acts'); (acts || []).forEach(([id, label, fn]) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'btn'; x.id = id; x.textContent = label; x.onclick = fn; a.appendChild(x); }); };
+  const okBtn = () => c.box.querySelector(c.okSel);
+  const setOk = (on) => { const b = okBtn(); if(b) b.disabled = !on; };
+  const g = { tok, mine, msg };
+  g.pending = () => _reqList(c.kind)[0] || null;
+  g.check = async () => {
+    const p = g.pending(); if(!p){ ban('', '', []); setOk(true); return; }
+    if((window._rqLive || {})[c.kind + ':' + p.key] === 'wait'){ ban(`${c.label} 요청 <b>${_esc(p.rid)}</b> 서버 확인 중 — 결과가 나올 때까지 새 ${c.label}을(를) 할 수 없습니다 (중복 방지)`, 'amber', []); setOk(false); return; }
+    setOk(false); ban(`이전 ${c.label} 요청 <b>${_esc(p.rid)}</b> — 서버 결과 확인 중…`, 'amber', []);
+    const r = await _reqCheck2(p); if(!mine()) return;
+    if(r === 'applied'){ _reqDrop2(c.kind, p.key, p.rid); ban(`이전 ${c.label} 요청 <b>${_esc(p.rid)}</b> = <b>서버에 반영되어 있습니다</b> (연결 기록 한 묶음 · 다시 등록하지 마세요)`, 'green', []); msg('', '', false); setOk(true); if(_reqList(c.kind).length) setTimeout(g.check, 0); try { router(); } catch(e){} return; }
+    if(r === 'absent'){ ban(`이전 ${c.label} 요청 <b>${_esc(p.rid)}</b> = <b>서버에 없습니다</b> — [같은 요청 다시 보내기] = 같은 번호로 보냄(먼저 보낸 것이 늦게 도착해도 거부되어 1건) · 끝내기 전에는 새 ${c.label} 불가`, 'amber', [['rq-resend', '같은 요청 다시 보내기', () => c.resendWrite(p)], ['rq-chk', '서버 결과 다시 확인', g.check]]); return; }
+    if(r === 'mismatch'){ g.mismatch(p); return; }
+    if(r === 'local'){ ban(`이전 ${c.label} 요청 <b>${_esc(p.rid)}</b> = 이 기기에서 보내는 중 — 잠시 뒤 [서버 결과 확인]`, 'amber', [['rq-chk', '서버 결과 확인', g.check]]); return; }
+    ban(`이전 ${c.label} 요청 <b>${_esc(p.rid)}</b> — 서버에 연결할 수 없어 결과를 확인하지 못했습니다 · 연결 후 [서버 결과 확인] (그 전에는 새 ${c.label} 불가)`, 'amber', [['rq-chk', '서버 결과 확인', g.check]]);
+  };
+  g.mismatch = (p) => { setOk(false); ban(`${c.label} 요청 <b>${_esc(p.rid)}</b> — <b>요청 내용 불일치 · 확인 필요</b>: 같은 번호의 서버 기록이 이 요청과 다릅니다 · 새 ${c.label}은(는) 잠김 유지`, 'red', [['rq-chk', '서버 결과 다시 확인', g.check]].concat((SESSION.role === 'manager' || SESSION.role === 'vendor') ? [['rq-clear', '확인함 · 대기 요청 지우기(관리책임자 · 서버 기록 무변)', () => { _reqDrop2(c.kind, p.key, p.rid); ban(`${c.label} 요청 <b>${_esc(p.rid)}</b> 대기 기록을 지웠습니다 (관리책임자 확인 · 서버 기록은 그대로 · 취소 아님)`, 'amber', []); setOk(true); }]] : [])); };
+  // 저장 실행: req = { key, rid, reqId, chk, expect, ids, vals } · write() = DB 쓰기(묶음 안 · null/예외 = 실패) · createOnly = 새 문서 목록
+  g.run = (req, write, createOnly, resend) => {
+    const srv = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore';
+    if(srv && !_reqPut2(c.kind, req)){ toast('이 기기 저장소를 쓸 수 없어 요청 기록을 남길 수 없습니다 — 저장하지 않았습니다 (중복 방지)', 'err', 6000); return false; }
+    let res;
+    try { res = DB.group(write, srv ? { createOnly } : undefined); }
+    catch(e){ if(srv && !resend) _reqDrop2(c.kind, req.key, req.rid); msg(`${e.message} — 저장 0 (연결 기록 모두 반영 안 됨)`, 'err', false); toast(`${e.message} — 저장 0`, 'err', 6000); return false; }
+    if(!res.server){ if(srv) _reqDrop2(c.kind, req.key, req.rid); c.onDone(); return true; }
+    const lk = c.kind + ':' + req.key; (window._rqLive = window._rqLive || {})[lk] = 'wait';
+    msg(`서버 저장 확인 중… (${c.label} 요청 ${req.rid}) — 확인될 때까지 입력은 잠깁니다`, '', true);
+    const slow = setTimeout(() => { if(window._rqLive[lk] === 'wait' && mine()) msg(`서버 응답이 늦습니다 — 실패로 판단하지 마세요 · 같은 ${c.label}을(를) 다시 등록하지 마세요 (${req.rid}) · [취소]로 닫기 가능`, 'warn', true); }, 10000);
+    const end = () => { clearTimeout(slow); delete window._rqLive[lk]; };
+    res.server.then(() => { end(); _reqDrop2(c.kind, req.key, req.rid); if(mine()) c.onDone(); else { toast(`${c.label} 요청 ${req.rid} — 서버 반영 확인`, 'ok', 5000); try { router(); } catch(e){} } }, (err) => {
+      end(); try { res.rollbackLocal(); } catch(e){}
+      const code = String((err && err.code) || ''); const why = String((err && (err.code || err.message)) || err || '알 수 없음');
+      if(code === 'already-exists'){
+        const ex = (err.existing || []).find(x => x.col === req.chk.col && x.id === req.chk.id);
+        if(ex && _reqMatchExpect(req, ex.data)){ _reqDrop2(c.kind, req.key, req.rid); if(mine()) c.onDone(`${c.label} 요청 ${req.rid} — 이미 서버에 반영된 요청입니다 (다시 쓰지 않음)`); else toast(`${c.label} 요청 ${req.rid} — 이미 서버에 반영됨`, 'ok', 6000); try { router(); } catch(e){} return; }
+        if(resend){ msg('', '', false); g.mismatch(req); return; }
+        _reqDrop2(c.kind, req.key, req.rid); msg(`같은 번호의 다른 기록이 서버에 있습니다 (${(err.existing || []).map(x => x.col + '/' + x.id).join(', ')}) — 저장 0 · 번호를 바꿔 다시 저장하세요`, 'err', false); return;
+      }
+      if(_osReqTransient(code, err)){ if(mine()){ msg(`서버 결과를 확인하지 못했습니다 (${why}) — 저장 여부 확인 필요 · 같은 ${c.label}을(를) 다시 등록하지 마세요`, 'warn', true); g.check(); } else toast(`${c.label} 요청 ${req.rid} — 서버 결과를 확인하지 못했습니다 · ${c.label} 창에서 [서버 결과 확인]`, 'warn', 8000); return; }
+      _reqDrop2(c.kind, req.key, req.rid);
+      if(mine()) msg(`서버가 받지 않았습니다 (${why}) — 연결 기록 모두 반영 안 됨 · 입력값 그대로`, 'err', false); else toast(`${c.label} 요청 ${req.rid} — 서버가 받지 않았습니다 (${why}) · 모두 반영 안 됨`, 'err', 8000);
+    });
+    return true;
+  };
+  if(g.pending()) setTimeout(g.check, 0);
+  return g;
+}
+function _reqNewId(){ return `OQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`; }
 // ★ v0.40.11 — 요청 일치 판정 1벌: 요청 번호(req_id · 만들 때만 붙고 업무 수정과 무관) + 반출 + 수량 + 연결 기록 번호
 function _osReqMatch(req, col, d){
   if(!req || !d) return false;
