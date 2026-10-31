@@ -1451,6 +1451,8 @@ body.ph-ui #nav,body.ph-ui #app > .foot,body.ph-ui #crumb,body.ph-ui .p-home-fab
 body.ph-ui #view{padding-bottom:84px}
 body.ph-ui .scroll-nav{display:none!important}
 body.ph-ui #view .ph-kpi-hide{display:none!important}
+.ph-hold{display:none}
+body.ph-ui #view .ph-hold{display:flex;align-items:center;gap:6px;margin:0 0 10px;padding:11px 14px;border-radius:12px;border:1px solid var(--red);background:rgba(248,113,113,.08);color:var(--red);font-size:14px;font-weight:700;text-decoration:none;min-height:44px;box-sizing:border-box}
 body.ph-ui .topbar .clock{display:none}
 body.ph-ui .pg-head,body.ph-ui .page-head{gap:8px}
 body.ph-ui .pgtools{gap:6px}
@@ -1684,7 +1686,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.10';
+const APP_VERSION = 'v0.40.11';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2024,10 +2026,32 @@ const _FIRESTORE_ADAPTER = {
     }
   },
   // ★ v0.40.9 — 묶음 저장: writeBatch 1회 (전부 반영 또는 전부 거부) · 준비 전·관리자 인증 필요 = 보내기 전에 거절(이 기기 메모리는 DB.group 이 되돌림)
-  writeGroup(list){
+  writeGroup(list, opts){
+    opts = opts || {};
     if(_SEED_LOCAL){ list.forEach(w => this.write(w.col, w.id, w.doc, w.meta)); return null; }
     if(!this._ready || !this._fs) throw new Error('서버 연결 준비 전입니다 — 잠시 뒤 다시 저장하세요 (저장 0)');
     if(list.some(w => w.doc === null || (isStaffMode() && _needsAdmin(w.col, w.id, (w.meta && w.meta.changed) || w.doc || {}, w.meta && w.meta.prev)))) throw new Error('관리자 인증이 필요한 저장이 섞여 있어 한 묶음으로 보낼 수 없습니다 (저장 0)');
+    /* ★ v0.40.11 (GPT v0.40.10 판정 ②) — createOnly = 「새 문서 만들기만」 묶음: 서버 트랜잭션으로 대상 문서가 없을 때만 한 번에 저장
+       · 이미 있으면 아무것도 쓰지 않고 code 'already-exists' + 서버의 기존 문서(existing)를 돌려줌 → 이미 처리된 요청은 업무 문서를 다시 쓰지 않음
+       · 늦게 도착한 같은 요청도 서버가 「읽은 뒤 바뀜/이미 있음」 으로 거부 → 그 사이 정상 수정·취소된 값·이력이 덮이지 않음
+       · 트랜잭션은 연결이 없으면 대기하지 않고 실패(나중에 몰래 도착하는 쓰기 없음) */
+    if(opts.createOnly){
+      const ops = []; const rec = { set: (r, data, o) => ops.push({ k: 'set', r, data, o }), update: (r, data) => ops.push({ k: 'update', r, data }) };
+      const G = { b: rec, n: 0 }; _FS_GROUP = G;
+      try { list.forEach(w => _fsSend(this._fs, w.col, w.id, w.doc, w.meta)); } finally { _FS_GROUP = null; }
+      if(!ops.length) return Promise.resolve({ ok: true, n: 0 });
+      const fs = this._fs; const targets = (opts.createOnly === true ? list.map(w => [w.col, w.id]) : opts.createOnly).map(([c, i]) => fs.collection(c).doc(String(i)));
+      const last = list[list.length - 1];
+      const pr = fs.runTransaction(async tx => {
+        const snaps = await Promise.all(targets.map(r => tx.get(r)));
+        const ex = snaps.filter(sn => sn.exists);
+        if(ex.length){ const er = new Error('이미 서버에 있는 문서 — 다시 쓰지 않음'); er.code = 'already-exists'; er.existing = ex.map(sn => ({ col: sn.ref.parent.id, id: sn.id, data: sn.data() })); throw er; }
+        ops.forEach(o => { if(o.k === 'set') tx.set(o.r, o.data, o.o); else tx.update(o.r, o.data); });
+        return ops.length;
+      });
+      _fsTrack('group', list.map(w => w.col + '/' + w.id).join(','), pr, e => { if(!(e && e.code === 'already-exists')) _fsWriteRejected('묶음', last.col + '/' + last.id, e); });
+      return pr.then(n => ({ ok: true, n }));
+    }
     const G = { b: this._fs.batch(), n: 0 };
     _FS_GROUP = G;
     try { list.forEach(w => _fsSend(this._fs, w.col, w.id, w.doc, w.meta)); } finally { _FS_GROUP = null; }
@@ -2174,7 +2198,7 @@ const DB = (() => {
     query(col,fn){ ensure(col); return Object.values(state[col]).filter(x=>!x.void).filter(fn); },
     // ★ v0.40.9 — 묶음 저장 (위 설명) · 반환 { value, n, server: Promise|null, rollbackLocal() }
     //   server = 서버 모드에서 묶음 커밋 결과(성공 resolve · 거부 reject) · 이 기기 저장 모드 = null(이미 저장)
-    group(fn){
+    group(fn, opts){
       if(_GROUP) throw new Error('묶음 저장이 이미 진행 중입니다');
       const g = { buf: [], undo: new Map(), mine: new Map() };
       _GROUP = g; let value;
@@ -2185,7 +2209,7 @@ const DB = (() => {
       let server = null;
       try {
         if(g.buf.length){
-          if(typeof _ACTIVE_ADAPTER.writeGroup === 'function') server = _ACTIVE_ADAPTER.writeGroup(g.buf) || null;
+          if(typeof _ACTIVE_ADAPTER.writeGroup === 'function') server = _ACTIVE_ADAPTER.writeGroup(g.buf, opts || {}) || null;
           else g.buf.forEach(w => _ACTIVE_ADAPTER.write(w.col, w.id, w.doc, w.meta));
         }
       } catch(e){ _gRollback(g); throw e; }
@@ -7287,7 +7311,7 @@ function openModal(html, opts={}){
   bg.onclick = e => { if(e.target===bg && opts.closeOnBg===true) _modalUserClose(); };
   setTimeout(() => { try { if(md.contains(document.activeElement)) return; const f = [...md.querySelectorAll('input:not([type=hidden]):not([readonly]):not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea')].find(el => !el._velaCalBound && el.offsetParent !== null); if(f && !opts.noAutoFocus && !(window.matchMedia && window.matchMedia('(pointer:coarse)').matches)) f.focus({ preventScroll: true }); /* 터치 기기 = 자동 키보드 0 */ } catch(e){} }, 30);
 }
-function closeModal(){ try { const _m = document.getElementById('modal'); if(_m){ delete _m.dataset.orTok; delete _m.dataset.orDisp; _m.removeAttribute('aria-busy'); } } catch(e){}   // ★ v0.40.10 — 외주 입고 창 고유 번호를 닫을 때 지움 (앞 요청 응답이 다음 창을 건드리지 않게)
+function closeModal(){ try { const _m = document.getElementById('modal'); if(_m){ delete _m.dataset.orTok; delete _m.dataset.orDisp; delete _m.dataset.orSent; _m.removeAttribute('aria-busy'); } } catch(e){}   // ★ v0.40.10 — 외주 입고 창 고유 번호를 닫을 때 지움 (앞 요청 응답이 다음 창을 건드리지 않게)
   if(window._setEdUnlock){ const f = window._setEdUnlock; window._setEdUnlock = null; try { f(); } catch(e){} }   // ★ v0.40.3 — 서버 확인 중 닫으면 잠근 입력을 먼저 풀고 제자리로
   if(_raMoved) _raRestore(); if(typeof _closeCal==='function') _closeCal(); document.getElementById('modal-bg').classList.remove('show'); _modalDirty = false;
   if(window._setEdDeferred){ window._setEdDeferred = false; setTimeout(() => { try { if(SESSION.loggedIn && !document.getElementById('modal-bg').classList.contains('show')) router(); } catch(e){} }, 0); }   // ★ v0.40.3 — 미뤄 둔 다시 그리기
@@ -11046,6 +11070,7 @@ function phUiPref(){ try { return localStorage.getItem(PH_UI_KEY) === 'off' ? 'o
 function setPhUiPref(v){ try { if(v === 'off') localStorage.setItem(PH_UI_KEY, 'off'); else localStorage.removeItem(PH_UI_KEY); } catch(e){} }
 function phUiWidth(){ try { return window.matchMedia('(max-width:640px)').matches; } catch(e){ return false; } }
 function phUiActive(){ return !!(SESSION.loggedIn && !isWorkerRole() && !isMobileHash() && !isPhoneHash() && phUiPref() !== 'off' && phUiWidth()); }
+const PH_HOLD_PAGES = ['lot', 'ship', 'os', 'perf', 'plan', 'wo', 'inv', 'matin', 'qc', 'so'];   // ★ v0.40.11 — LOT 가 지나가는 화면
 function _phUiApply(){
   const on = phUiActive();
   document.body.classList.toggle('ph-ui', on);
@@ -11068,6 +11093,10 @@ function _phUiApply(){
     view.querySelectorAll('.sales-hero').forEach(el => { const pv = el.previousElementSibling; if(pv && pv.classList.contains('secttl')) pv.classList.add('ph-kpi-hide'); });
     view.querySelectorAll('.kpi-mini').forEach(k => { const par = k.parentElement; if(par && par !== view && [...par.children].every(c => c.classList.contains('kpi-mini'))) par.classList.add('ph-kpi-hide'); else k.classList.add('ph-kpi-hide'); });
   } } catch(e){}
+  // ★ v0.40.11 (GPT v0.40.10 권고) — 요약 카드 대신 조건부 한 줄 경고: 품질 HOLD·동시성 사고가 있을 때만 「⚠ 품질 확인 필요 N건 · 보기」 (LOT 가 지나가는 화면 · 목록 필터와 무관하게 이 화면에 표시) — 작업·출하 차단은 그대로
+  try { const _pg2 = (location.hash || '#dash').replace('#', '').split('/')[0] || 'dash'; const old = document.getElementById('ph-hold'); if(old) old.remove();
+    if(view && PH_HOLD_PAGES.includes(_pg2)){ let n = 0; try { n += heldPlotSet().size; } catch(e){} try { if(SESSION.role === 'manager' || SESSION.role === 'vendor') n += lockedPlotSet().size; } catch(e){}
+      if(n > 0){ const a = document.createElement('a'); a.id = 'ph-hold'; a.className = 'ph-hold'; a.href = _pCan('qc') ? '#qc' : '#p/todo'; a.innerHTML = `⚠ 품질 확인 필요 <b>${n}</b>건 · 보기 ›`; const hd = view.querySelector(':scope > .pghead'); if(hd && hd.nextSibling) view.insertBefore(a, hd.nextSibling); else view.insertBefore(a, view.firstChild); } } } catch(e){}
   // ★ v0.40.8 (GPT P-2) — 화면 제목 옆 = 이름 있는 등록 버튼 하나(「+ 새 발주」 등 · 같은 버튼을 자리만 옮겨 보임 · CSS)
   try { const ph = view && view.querySelector(':scope > .pghead'); const pb = ph && ph.querySelector('.pgtools > .btn.primary'); if(pb) pb.classList.add('ph-prim'); } catch(e){}
   const host = document.getElementById('ph-tabs-host') || tabs;
@@ -11181,7 +11210,7 @@ VIEWS.p_home = () => {
     <div class="m-strip">${cards.join('')}</div>
     ${acts.length ? `<div class="m-sec">등록</div>${acts.join('')}` : ''}
     <div class="m-sec">바로 가기</div>
-    <div class="p-links">${[['so', '수주'], ['ship', '출하'], ['matin', '입고'], ['po', '구매'], ['lot', 'LOT 추적'], ['qc', '품질'], ['plan', '생산계획'], ['wo', '작업지시']].filter(([id]) => _pCan(id)).map(([id, l]) => `<a class="p-link" href="#${id}" data-p-pc="${id}">${l}<span>PC 화면 ↗</span></a>`).join('')}</div>
+    <div class="p-links">${[['so', '수주'], ['ship', '출하'], ['matin', '입고'], ['inv', '재고'], ['po', '구매'], ['lot', 'LOT 추적'], ['qc', '품질'], ['plan', '생산계획'], ['wo', '작업지시']].filter(([id]) => _pCan(id)).map(([id, l]) => `<a class="p-link" href="#${id}" data-p-pc="${id}">${l}<span>열기 ›</span></a>`).join('')}</div>
     <div class="m-foot">VELA MES SYSTEM · ${APP_VERSION} · 폰 화면 · MADE BY JUNS</div>`);
   document.querySelectorAll('[data-p-form]').forEach(b => b.onclick = () => phoneOpenForm(b.dataset.pForm));
 };
@@ -16656,7 +16685,7 @@ VIEWS._osRecv = (dispId, keep) => {
   const $ = id => document.getElementById(id);
   /* ★ v0.40.10 (GPT v0.40.9 판정 ①) — 창마다 고유 번호(토큰): 앞 요청의 늦은 응답·10초 타이머는 「그 요청을 보낸 그 창」 에만 잠금·안내·닫기를 함 (공용 창 #modal 재사용 때문에 다른 반출 창이 잠기던 것) */
   const tok = String((window._osRecvTok = (window._osRecvTok || 0) + 1));
-  const box = $('modal'); box.dataset.orTok = tok; box.dataset.orDisp = dispId; box.setAttribute('aria-busy', 'false');   // 공용 창 — 앞 창의 「확인 중」 표시를 새 창에 남기지 않음
+  const box = $('modal'); box.dataset.orTok = tok; box.dataset.orDisp = dispId; delete box.dataset.orSent; box.setAttribute('aria-busy', 'false');   // 공용 창 — 앞 창의 「확인 중」 표시를 새 창에 남기지 않음
   const mine = () => !!(document.getElementById('modal-bg').classList.contains('show') && box.dataset.orTok === tok && document.getElementById('or-st'));
   const setBusy = (on, msg, tone) => { if(!mine()) return; box.querySelectorAll('#or-id,#or-disp,#or-unit,#or-prc,#or-g,#or-d,#or-ok').forEach(el => { el.disabled = !!on; }); box.setAttribute('aria-busy', on ? 'true' : 'false'); const st = document.getElementById('or-st'); if(st){ st.textContent = msg || ''; st.style.color = tone === 'err' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : 'var(--sub)'; } };
   let resendReq = null;   // 같은 요청 다시 보내기(새로고침 뒤 서버에 없음 확인) = 저장해 둔 번호 그대로
@@ -16673,6 +16702,8 @@ VIEWS._osRecv = (dispId, keep) => {
     const p = _osReqPendingOf(dispId); if(!p || p.live) return;
     pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> — 서버 결과 확인 중…`, 'amber', []);
     const r = await _osReqCheck(p); if(!mine()) return;
+    if(r === 'applied' && box.dataset.orSent === '1'){ _osReqDrop(dispId, p.rid); toast(`외주 입고 요청 ${p.rid} — 서버에 반영되어 있습니다 (다시 보내지 않음)`, 'ok', 6000); closeModal(); try { router(); } catch(e){} return; }
+    if(r === 'mismatch'){ _osReqShowMismatch(dispId, p); return; }
     if(r === 'applied'){ _osReqDrop(dispId, p.rid); pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> = <b>서버에 반영되어 있습니다</b> (실적·입고·파렛트 한 묶음 · 다시 입고하지 마세요) — 새 입고만 입력하세요`, 'green', []); const ok = $('or-ok'); if(ok) ok.disabled = false; try { router(); } catch(e){} }
     else if(r === 'absent'){ pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> = <b>서버에 없습니다</b> (연결 전에 새로고침되어 보내지지 않음) — [같은 요청 다시 보내기] = 같은 번호로 보냄 · 먼저 보낸 것이 늦게 도착해도 각 1건 · 이 요청을 끝내기 전에는 이 반출에 새 입고를 할 수 없습니다`, 'amber', [['or-pend-resend', '같은 요청 다시 보내기', () => doResend(p)], ['or-pend-chk', '서버 결과 다시 확인', runCheck]]); }
     else if(r === 'local'){ pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> = 이 기기에서 서버로 보내는 중 — 연결되면 자동 반영 · 잠시 뒤 [서버 결과 확인]`, 'amber', [['or-pend-chk', '서버 결과 확인', runCheck]]); }
@@ -16708,10 +16739,12 @@ VIEWS._osRecv = (dispId, keep) => {
        · 이 기기에서 어느 하나라도 실패(거부·null) = 화면 메모리 되돌림 · 아무것도 보내지 않음 (자동 취소 기록 없음 → 「취소 실패」 상황 자체가 없음)
        · 서버 모드 = writeBatch 1회 — 전부 반영 또는 전부 거부 · 서버 확인 전에는 창·입력 유지(잠금) · 응답 없음 = 실패로 단정하지 않고 같은 반출 재입고를 막음(요청 번호 = 입고번호) */
     // ★ v0.40.10 — 기록 번호를 저장 전에 정함 · 서버 모드 = 요청을 이 기기에 먼저 기록(새로고침해도 남음) → 결과 확인 전 새 요청 막음 · 같은 요청 재전송 = 같은 번호
+    // ★ v0.40.11 (GPT v0.40.10 판정 ①) — 요청 고유 번호 req_id(입고번호와 별개 · 사용자가 못 바꿈)를 입고 문서·파렛트 이동에 함께 저장 → 완료 판정 = req_id + 반출 + 수량 + 연결 기록 번호 일치일 때만
     const recId = resendReq ? resendReq.recId : (g + df > 0 ? newRecId(`R-${d.proc}-${d.plot_no}`) : null);
     const pmId  = resendReq ? resendReq.pmId  : (prc > 0 ? PALLET.newId('in') : null);
+    const reqId = resendReq && resendReq.reqId ? resendReq.reqId : `OQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
     const srvMode = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore';
-    const preq = { rid, dispId, recId, pmId, g, df, prc, unit: unit(), rawG: rawOf('or-g'), rawD: rawOf('or-d'), ts: Date.now(), chk: g + df > 0 ? { col: 'os_receipts', id: rid } : { col: 'pallet_moves', id: pmId } };
+    const preq = { reqId, rid, dispId, recId, pmId, g, df, prc, unit: unit(), rawG: rawOf('or-g'), rawD: rawOf('or-d'), ts: Date.now(), chk: g + df > 0 ? { col: 'os_receipts', id: rid } : { col: 'pallet_moves', id: pmId } };
     if(srvMode && !_osReqPut(preq)){ toast('이 기기 저장소를 쓸 수 없어 요청 기록을 남길 수 없습니다 — 저장하지 않았습니다 (중복 방지)','err',6000); return; }
     const wasResend = !!resendReq; resendReq = null;
     let res;
@@ -16725,18 +16758,18 @@ VIEWS._osRecv = (dispId, keep) => {
           recordId = rec.id;
         }
         if(prc > 0){
-          const mv = PALLET.add({vendor:d.vendor, type:'in', qty:prc, ref:{kind:'os', id:dispId}, id: pmId});
+          const mv = PALLET.add({vendor:d.vendor, type:'in', qty:prc, ref:{kind:'os', id:dispId}, id: pmId, extra: { req_id: reqId }});
           if(!mv || !mv.id) throw new Error('파렛트 회수 저장이 거부되었습니다 (권한 확인)');
           palletMoveId = mv.id;
         }
         if(g + df > 0){
-          const doc = {id: rid, dispatch_id:dispId, qty:g+df, good:g, defect:df, scrap:0, pallets_recovered:prc, record_id:recordId, pallet_move_id:palletMoveId, ts:Date.now()};
+          const doc = {id: rid, dispatch_id:dispId, qty:g+df, good:g, defect:df, scrap:0, pallets_recovered:prc, record_id:recordId, pallet_move_id:palletMoveId, req_id: reqId, ts:Date.now()};
           if(unit() === 'kg'){ doc.input_mode = 'kg'; doc.input_value = rg.n; doc.input_value_defect = rd.n; }
           const r = DB.set('os_receipts', rid, doc);
           if(!r) throw new Error('입고 문서 저장이 거부되었습니다 (권한 확인)');
         }
         return { recordId, palletMoveId };
-      });
+      }, srvMode ? { createOnly: [recId && ['records', recId], pmId && ['pallet_moves', pmId], g + df > 0 && ['os_receipts', rid]].filter(Boolean) } : undefined);   // ★ v0.40.11 — 서버 = 새 문서 만들기만(이미 있으면 아무것도 안 씀)
     } catch(e){
       if(srvMode && !wasResend) _osReqDrop(dispId, rid);   // 이 기기에서 실패 = 아무것도 안 보냄 → 요청 기록도 지움 (재전송 실패는 기록 유지 · 다시 확인 가능)
       setBusy(false, `${e.message} — 저장 0 (실적·입고·파렛트 모두 반영 안 됨)`, 'err');
@@ -16744,27 +16777,62 @@ VIEWS._osRecv = (dispId, keep) => {
       return;
     }
     const doneMsg = `외주 입고 — ${g + df > 0 ? `양품 ${g.toLocaleString()} · 불량 ${df.toLocaleString()}ea` : ''}${prc > 0 ? ` · 회수 파렛트 ${prc}개` : ''}`;
-    const finishOk = () => { toast(doneMsg,'ok'); closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록'); if(mine()) closeModal(); router(); };
+    const finishOk = (msg) => { toast(msg || doneMsg,'ok'); closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록'); if(mine()) closeModal(); router(); };
     if(!res.server){ if(srvMode) _osReqDrop(dispId, rid); finishOk(); return; }   // 이 기기 저장 모드 = 이미 저장 완료
     // 서버 모드 — 확인 전 = 창·입력 잠금 · 요청 표시(같은 반출 재입고 막음)
+    box.dataset.orSent = '1';   // 이 창이 보낸 요청 (결과 확인 「반영됨」 = 창 닫기)
     const req = { rid, dispId, tok, ts: Date.now(), state: 'wait' };
     (window._osReqPending = window._osReqPending || {})[dispId] = req;
     setBusy(true, `서버 저장 확인 중… (입고 요청 ${rid}) — 확인될 때까지 입력은 잠깁니다`);
-    const slow = setTimeout(() => { if(req.state === 'wait' && mine()) setBusy(true, `서버 응답이 늦습니다 — 실패로 판단하지 마세요. 연결되면 한 묶음으로 반영됩니다 · 같은 입고를 다시 등록하지 마세요 (입고 요청 ${rid}) · [닫기] 가능`, 'warn'); }, 10000);
+    const slow = setTimeout(() => { if(req.state === 'wait' && mine()) setBusy(true, `서버 응답이 늦습니다 — 실패로 판단하지 마세요 · 같은 입고를 다시 등록하지 마세요 (입고 요청 ${rid}) · [닫기] 가능`, 'warn'); }, 10000);
     const stillMine = mine;   // ★ v0.40.10 — 입고번호가 아니라 이 창의 고유 번호로 판정
+    const endLive = (st) => { clearTimeout(slow); req.state = st; if(window._osReqPending && window._osReqPending[dispId] === req) delete window._osReqPending[dispId]; };
     res.server.then(() => {
-      clearTimeout(slow); req.state = 'ok'; if(window._osReqPending && window._osReqPending[dispId] === req) delete window._osReqPending[dispId]; _osReqDrop(dispId, rid);
+      endLive('ok'); _osReqDrop(dispId, rid);
       if(stillMine()) finishOk(); else { toast(`${doneMsg} · 서버 반영 확인 (입고 요청 ${rid})`,'ok',5000); _osReqNotify(dispId, `이전 입고 요청 <b>${_esc(rid)}</b> = 서버 반영 확인 — 새 입고만 입력하세요`, 'green'); try { router(); } catch(e){} }
     }, (err) => {
-      clearTimeout(slow); req.state = 'fail'; if(window._osReqPending && window._osReqPending[dispId] === req) delete window._osReqPending[dispId]; _osReqDrop(dispId, rid);   // 서버 거부 확인 = 묶음 전체 0 → 요청 기록 지움 · 같은 창에서 안전하게 다시 저장
       try { res.rollbackLocal(); } catch(e){}
-      const why = String((err && (err.code || err.message)) || err || '알 수 없음');
+      const code = String((err && err.code) || ''); const why = String((err && (err.code || err.message)) || err || '알 수 없음');
+      if(code === 'already-exists'){
+        // ★ v0.40.11 — 서버에 이미 같은 번호 문서 = 아무것도 쓰지 않았음 · 이 요청이 만든 것(req_id·반출·수량·연결 번호 일치)인지 확인
+        const ex = (err.existing || []).find(x => x.col === preq.chk.col && x.id === preq.chk.id);
+        endLive('done');
+        if(ex && _osReqMatch(preq, preq.chk.col, ex.data)){ _osReqDrop(dispId, rid); if(stillMine()) finishOk(`외주 입고 요청 ${rid} — 이미 서버에 반영된 요청입니다 (다시 쓰지 않음)`); else toast(`외주 입고 요청 ${rid} — 이미 서버에 반영됨 (다시 쓰지 않음)`,'ok',6000); try { router(); } catch(e){} return; }
+        if(wasResend){ if(stillMine()){ setBusy(false, '', ''); const ok = $('or-ok'); if(ok) ok.disabled = true; } _osReqShowMismatch(dispId, preq); return; }   // 재전송인데 다른 내용 = 확인 필요 · 잠금 유지
+        _osReqDrop(dispId, rid);   // 첫 요청 = 다른 기록이 같은 번호를 쓰는 중 → 우리 쓰기 0 확정
+        const what = (err.existing || []).map(x => `${x.col}/${x.id}`).join(', ');
+        if(stillMine()) setBusy(false, `같은 번호의 다른 기록이 서버에 있습니다 (${what}) — 저장 0 · 입고번호를 바꿔 다시 저장하세요`, 'err'); else toast(`외주 입고 요청 ${rid} — 같은 번호의 다른 기록이 서버에 있어 저장 0`,'err',8000);
+        return;
+      }
+      if(_osReqTransient(code, err)){
+        // 연결·응답 문제 = 반영 여부를 단정하지 않음 → 요청 기록 유지 · 서버 결과 확인 후에만 다음 단계
+        endLive('unknown');
+        if(stillMine()){ setBusy(true, `서버 결과를 확인하지 못했습니다 (${why}) — 저장 여부 확인 필요 · 같은 입고를 다시 등록하지 마세요`, 'warn'); _osReqPendUiEnsure(); window.dispatchEvent(new CustomEvent('vela-osreq-unknown', { detail: { dispId, tok } })); }
+        else toast(`외주 입고 요청 ${rid} — 서버 결과를 확인하지 못했습니다 · 그 반출 입고 창에서 [서버 결과 확인]`,'warn',8000);
+        return;
+      }
+      endLive('fail'); _osReqDrop(dispId, rid);   // 서버 거부 확인 = 묶음 전체 0 → 요청 기록 지움 · 같은 창에서 안전하게 다시 저장
       if(stillMine()){ setBusy(false, `서버가 이 입고를 받지 않았습니다 (${why}) — 실적·입고·파렛트 모두 반영 안 됨 · 입력값 그대로`, 'err'); }
       else { toast(`외주 입고 요청 ${rid} — 서버가 받지 않았습니다 (${why}) · 실적·입고·파렛트 모두 반영 안 됨`,'err',8000); _osReqNotify(dispId, `이전 입고 요청 <b>${_esc(rid)}</b> = 서버가 받지 않음 (모두 반영 안 됨) — 다시 입력해 저장할 수 있습니다`, 'red'); }
       try { if(!stillMine()) router(); } catch(e){}
     });
   };
+  // 이 창에서 결과 불명이 되면 = 같은 창에 결과 확인 영역을 만들고 바로 서버 확인
+  const _onUnknown = (ev) => { if(!ev.detail || ev.detail.tok !== tok || !mine()) return; runCheck(); };
+  window.addEventListener('vela-osreq-unknown', _onUnknown);
+  window._osRecvOff && window._osRecvOff(); window._osRecvOff = () => window.removeEventListener('vela-osreq-unknown', _onUnknown);
+  function _osReqPendUiEnsure(){ if(document.getElementById('or-pend-ban')) return; const b = document.createElement('div'); b.className = 'm-ban amber'; b.id = 'or-pend-ban'; b.style.marginBottom = '10px'; b.innerHTML = '<div id="or-pend-msg"></div><div id="or-pend-acts" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>'; const body = box.querySelector('.body'); if(body) body.insertBefore(b, body.firstChild); }
+  function _osReqShowMismatch(dId, p){ _osReqPendUiEnsure(); pendUi(`입고 요청 <b>${_esc(p.rid)}</b> — <b>요청 내용 불일치 · 확인 필요</b>: 같은 번호의 서버 기록이 이 요청과 다릅니다(요청 번호·반출·수량·연결 기록 중 다름) · 이 반출의 새 입고는 잠김 유지`, 'red', [['or-pend-chk', '서버 결과 다시 확인', runCheck]].concat((SESSION.role === 'manager' || SESSION.role === 'vendor') ? [['or-pend-clear', '확인함 · 대기 요청 지우기(관리책임자)', () => { _osReqDrop(dId, p.rid); pendUi(`입고 요청 <b>${_esc(p.rid)}</b> 대기 기록을 지웠습니다 (관리책임자 확인) — 서버 기록은 그대로`, 'amber', []); const ok = $('or-ok'); if(ok) ok.disabled = false; }]] : [])); }
 };
+// ★ v0.40.11 — 요청 일치 판정 1벌: 요청 번호(req_id · 만들 때만 붙고 업무 수정과 무관) + 반출 + 수량 + 연결 기록 번호
+function _osReqMatch(req, col, d){
+  if(!req || !d) return false;
+  if(col === 'os_receipts') return !!req.reqId && d.req_id === req.reqId && d.dispatch_id === req.dispId && (+d.good || 0) === (+req.g || 0) && (+d.defect || 0) === (+req.df || 0) && (+d.pallets_recovered || 0) === (+req.prc || 0) && (d.record_id || null) === (req.recId || null) && (d.pallet_move_id || null) === (req.pmId || null);
+  if(col === 'pallet_moves') return !!req.reqId && d.req_id === req.reqId && d.type === 'in' && d.ref && d.ref.id === req.dispId && (+d.qty || 0) === (+req.prc || 0);
+  return false;
+}
+// 연결·응답 문제(반영 여부 불명) 판정 — 이 경우 단정하지 않고 서버 결과 확인
+function _osReqTransient(code, err){ return ['unavailable', 'deadline-exceeded', 'cancelled', 'unknown', 'internal', 'resource-exhausted', 'aborted', 'failed-precondition'].includes(code) || (!code && /network|offline|fetch|timeout/i.test(String((err && err.message) || err || ''))); }
 // ★ v0.40.9 — 외주 입고 서버 확인 대기 요청 · ★ v0.40.10 (GPT v0.40.9 판정 ②) — 이 기기에 기록(localStorage vela_os_req · 접속 서버별 · DB 밖 §1-7) → 새로고침해도 유지
 //   live = 이 탭에서 응답을 기다리는 중 · 아니면 새로고침 뒤 남은 요청(창을 열면 서버에서 결과 확인)
 const OS_REQ_KEY = 'vela_os_req';
@@ -16779,7 +16847,7 @@ function _osReqPendingOf(dispId){ const live = (window._osReqPending || {})[disp
 // 서버에서 직접 확인 (캐시 아님): 묶음 저장이라 대표 문서 1개(입고 문서 · 파렛트만이면 파렛트 이동)가 있으면 전부 반영 · 'applied' | 'absent' | 'local'(이 기기 대기열에 남음) | 'unknown'(연결 불가)
 async function _osReqCheck(req){
   const A = _ACTIVE_ADAPTER; const c = req && req.chk; if(!A || A.name !== 'firestore' || !A._fs || !c || !c.id) return 'unknown';
-  try { const sn = await A._fs.collection(c.col).doc(String(c.id)).get({ source: 'server' }); if(sn.exists) return 'applied'; }
+  try { const sn = await A._fs.collection(c.col).doc(String(c.id)).get({ source: 'server' }); if(sn.exists) return _osReqMatch(req, c.col, sn.data()) ? 'applied' : 'mismatch'; }   // ★ v0.40.11 — 문서가 있다는 것만으로 완료 판정하지 않음
   catch(e){ return 'unknown'; }
   return DB.get(c.col, c.id) ? 'local' : 'absent';
 }
@@ -17589,12 +17657,12 @@ VIEWS._perfEdit = (recId)=>{
    ================================================================================================= */
 const PALLET = {
   newId(type){ return `PLT-${String(type || 'in').toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random()*999)}`; },   // ★ v0.40.10 — 번호 생성 1벌 (외주 입고 요청 = 저장 전에 번호를 정해 둠)
-  add({vendor, type, qty, ref, id: fixedId}){
+  add({vendor, type, qty, ref, id: fixedId, extra}){
     qty = Math.max(0, +qty||0);
     if(!vendor || !type || qty<=0) return null;
     if(fixedId && DB.get('pallet_moves', fixedId)) return null;   // ★ v0.40.10 — 같은 번호 재전송 시 이 기기에 이미 있으면 거부
     const id = fixedId || PALLET.newId(type);
-    return DB.set('pallet_moves', id, {id, vendor, type, qty, ref:ref||{kind:'manual'}, ts:Date.now(), by:SESSION.user});
+    return DB.set('pallet_moves', id, {id, vendor, type, qty, ref:ref||{kind:'manual'}, ts:Date.now(), by:SESSION.user, ...(extra || {})});   // ★ v0.40.11 — extra = 외주 입고 요청 번호(req_id) 등 만들 때만 붙는 표식
   },
   totalsByVendor(){
     const out = {}, inn = {};
