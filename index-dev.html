@@ -1607,7 +1607,7 @@ td.ra-cell{white-space:nowrap;text-align:right}
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.5';
+const APP_VERSION = 'v0.40.6';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -8766,7 +8766,7 @@ const RD_DOC = {
                   ...DB.all('material_receipts').filter(r => r.po_id === p.id).map(r => [r.id, r.date || fmtDate(r.ts), `${r.mat || ''} Ø${r.dia || ''} ${r.heat || ''}`, `${_rdN(r.kg)} kg`])];
     return { head: p.id, sub: `${_rdNm.v(p.vendor)} · 납기 ${p.due || '—'} · ${st.state}`, tabs: [
       ['기본 정보', _rdKV([['발주번호', p.id], ['거래처', _rdNm.v(p.vendor)], ['발주일', p.ts ? fmtDate(p.ts) : '—'], ['납기', p.due || '—'], ['진행 상태', st.state], ['품목 수', `${items.length}건`], P ? ['발주액', amt ? `₩${Math.round(amt).toLocaleString()}` : '—'] : null, ['메모', p.memo || ''], ['등록', p.by || ''], ..._rdVoid(p)])],
-      [`품목 ${items.length}`, _rdTbl(['품명', '규격', '품번', '재질', '단위', '발주', '입고', '잔량', ...(P ? ['단가', '금액'] : [])], items.map((it, k) => { const r = st.items[k] || {}; const pp = poItemParts(it); return [pp.name || it.name || '—', it.spec || '', pp.code || '—', pp.mat || '—', it.unit || '', _rdN(it.qty), _rdN(r.received), _rdN(r.remain), ...(P ? [it.price != null ? _rdN(it.price) : '—', it.price != null ? _rdN((+it.qty || 0) * (+it.price || 0)) : '—'] : [])]; }), '품목 없음')],
+      [`품목 ${items.length}`, _rdTbl(['품명', '규격', '품번', '재질', '단위', '발주', '입고', '잔량', ...(P ? ['단가', '금액'] : [])], items.map((it, k) => { const r = st.items[k] || {}; const pp = poItemParts(it); return [pp.name || it.name || '—', it.spec || '', pp.code ? `${pp.code} (${pp.codeKind})` : '—', pp.mat || '—', it.unit || '', _rdN(it.qty), _rdN(r.received), _rdN(r.remain), ...(P ? [it.price != null ? _rdN(it.price) : '—', it.price != null ? _rdN((+it.qty || 0) * (+it.price || 0)) : '—'] : [])]; }), '품목 없음')],
       [`입고 ${recs.length}`, _rdTbl(['입고번호', '입고일', '품목', '수량'], recs, '연결된 입고 없음 — 입고는 자재 › 입고 에서 등록')],
       ['이력', _rdLogs(p)] ] }; },
   work_orders(w){ const procs = typeof getRouteProcs === 'function' ? getRouteProcs(w.itemCode) : []; const recs = DB.all('records').filter(r => r.plot_no === w.plot_no);
@@ -12737,21 +12737,36 @@ VIEWS._lotHistory = (plot_no) => {
 function nextPoId(){ return nextDocNo('PO'); }
 
 /* ★ v0.40.4 (사용자 요청) — 발주 품목 → 품명 · 품번 · 재질 (표시용 파생 · 저장 0 · 발주 문서 구조 무변)
-   · 재질 = 품목의 재질(mat) → 소재 마스터(이름·규격 일치) → 품명·규격 안의 강종 표기(S45C·SCM440 등)
-   · 품번 = 이 소재로 만들 수주 품번(so_ids → 수주 품번) → 소재 마스터 코드 → 없으면 —
+   ★ v0.40.6 (GPT v0.40.4·v0.40.5 판정) — 소재 마스터 연결 = 정확 일치 후보가 「딱 하나」 일 때만 (숫자 부분일치 삭제: Ø55 에 Ø5 소재가 붙던 오류)
+   · 재질 = 품목의 재질(mat) → 품명·규격 안의 강종 표기(S45C·SCM440 등) → (연결된 소재 마스터의 재질)
+   · 품번 = ① 수주 연결(so_ids) = 「제품」 품번(수주 품번) ② 소재 마스터 정확 일치 1건 = 「소재」 코드
+       - 소재(mat): 재질이 같고(대소문자·공백 무시) + 규격의 지름(Ø·φ 뒤 숫자 전체)이 마스터 지름과 같은 숫자 · 지름을 못 읽으면 연결 안 함
+       - 일반(gen): 이름·규격이 글자 그대로 같은 마스터
+       - 후보 0건 또는 2건 이상 = 연결 안 함(—)
    · 품명 = 품목 이름에서 재질 표기를 뺀 이름(빈 값이면 원래 이름) */
 const PO_GRADE_RE = /\b(SCM\s?\d{3}H?|SNCM\s?\d{3}|SCr\s?\d{3}|SUJ\s?\d|SUS\s?\d{3}[A-Z]?|SKD\s?\d{1,2}|SKH\s?\d{1,2}|SM\s?\d{2}C|S\d{2}C|SS\s?\d{3}|SPCC|SPHC|SWRCH\s?\d+[A-Z]?|SACM\s?\d{3}|A\d{4})\b/i;
+function _poNormMat(x){ return String(x || '').replace(/\s+/g, '').toUpperCase(); }
+function _poDia(spec, name){ const m = String(spec || '').match(/[Øø∅φΦ]\s*(\d+(?:\.\d+)?)(?![\d.])/) || String(name || '').match(/[Øø∅φΦ]\s*(\d+(?:\.\d+)?)(?![\d.])/); return m ? +m[1] : null; }
 function poItemParts(it){
   it = it || {}; const name = String(it.name || ''), spec = String(it.spec || '');
-  const mats = (typeof DB !== 'undefined' ? DB.all('materials') : []);
-  const mm = mats.find(m => m.name && m.name === name && (!m.spec || m.spec === spec)) || mats.find(m => m.kind === 'mat' && m.mat && name.includes(m.mat) && (!m.dia || spec.includes(String(m.dia))));
   const g = (name + ' ' + spec).match(PO_GRADE_RE);
-  const mat = String(it.mat || (mm && mm.mat) || (g ? g[1].replace(/\s+/g, '').toUpperCase() : '')).trim();
+  const gMat = _poNormMat(it.mat || (g ? g[1] : ''));
+  const mats = (typeof DB !== 'undefined' ? DB.all('materials') : []);
+  let cands = [];
+  if(it.kind === 'gen' || !gMat){
+    cands = mats.filter(m => m.kind === 'gen' && m.name && m.name.trim() === name.trim() && String(m.spec || '').trim() === spec.trim());
+  } else {
+    const dia = _poDia(spec, name);
+    if(dia != null) cands = mats.filter(m => m.kind === 'mat' && _poNormMat(m.mat) === gMat && m.dia != null && m.dia !== '' && +m.dia === dia);
+  }
+  const mm = cands.length === 1 ? cands[0] : null;
+  const mat = String(gMat || (mm && mm.mat) || '').trim();
   let nm = mat ? name.replace(new RegExp('\\s*' + mat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*', 'i'), ' ').trim() : name.trim();
   if(!nm) nm = name.trim();
   const so = Array.isArray(it.so_ids) ? [...new Set(it.so_ids.map(id => (DB.get('orders', id) || {}).itemCode).filter(Boolean))] : [];
-  const code = so.length ? so.join(', ') : (it.code || it.itemCode || (mm && mm.id) || '');
-  return { name: nm, spec, mat, code };
+  const code = so.length ? so.join(', ') : (mm ? mm.id : '');
+  const codeKind = so.length ? '제품' : (mm ? '소재' : '');
+  return { name: nm, spec, mat, code, codeKind, candidates: cands.length };
 }
 VIEWS.po = () => {
   const state = (window._poState = window._poState || { voidView:false, q:'' });
@@ -12780,7 +12795,7 @@ VIEWS.po = () => {
     const fp = first ? poItemParts(first) : null;   // ★ v0.40.4 — 품명 · 품번 · 재질 칸
     const more = items.length > 1 ? ` <span style="color:var(--dim);font-size:11px">외 ${items.length-1}건</span>` : '';
     const nameCell = !fp ? '<span class="muted">품목 없음</span>' : `${_esc(fp.name || '—')}${more}${items.some(i=>i.kind==='gen')?` <span class="pill blue" style="font-size:9px">일반 ${items.filter(i=>i.kind==='gen').length}</span>`:''}${fp.spec ? `<div style="font-size:10.5px;color:var(--dim)">${_esc(fp.spec)}</div>` : ''}`;
-    const codeCell = fp && fp.code ? `<span class="mono" style="font-size:11.5px">${_esc(fp.code)}</span>` : '<span class="muted">—</span>';
+    const codeCell = fp && fp.code ? `<span class="mono" style="font-size:11.5px">${_esc(fp.code)}</span> <span class="pill ${fp.codeKind === '제품' ? 'cyan' : 'gray'}" style="font-size:9px" title="${fp.codeKind === '제품' ? '이 소재로 만들 수주의 제품 품번' : '소재 마스터 코드(재질·지름 정확 일치 1건)'}">${_esc(fp.codeKind)}</span>` : '<span class="muted">—</span>';
     const matCell = fp && fp.mat ? _esc(fp.mat) : '<span class="muted">—</span>';
     const summary = items.length===0
       ? '<span class="muted">품목 없음</span>'
@@ -15651,7 +15666,7 @@ VIEWS.ship = () => {
       const _lotIds = new Set(useLot ? [selPlot] : DB.all('production_lots').filter(l => l.itemCode === itemCode).map(l => l.plot_no));
       const _recs = DB.query('records', x => _lotIds.has(x.plot_no));
       const _defOf = pc => _recs.filter(x => x.proc === pc).reduce((t, x) => t + (+x.defect || 0) + (+x.scrap || 0), 0);
-      const _defTag = d => d > 0 ? ` <span class="fl-def" title="이 공정 불량+폐기">불량 ${d.toLocaleString()}</span>` : '';
+      const _defTag = d => d > 0 ? ` <span class="fl-def" title="이 공정 불량+폐기">불량·폐기 ${d.toLocaleString()}</span>` : '';
       let _defSum = 0;
       if(useLot){
         parts.push(`<span class="fl-step" style="color:var(--cyan)"><b style="color:var(--cyan);margin:0">${_esc(selPlot)}</b> 기준</span>`);
@@ -15668,7 +15683,7 @@ VIEWS.ship = () => {
           parts.push(`<span class="fl-step">${_esc(p?.name || r.proc)} <b>${v.toLocaleString()}</b>${_defTag(_d)}</span>`);
         }
       });
-      parts.push(`<span class="fl-ship">출하누계 <b>${flow.shippedSum.toLocaleString()}</b> · <span class="fl-def-t" title="전 공정 불량+폐기 합 (${useLot ? '이 LOT' : '이 품번 LOT 전부'})">불량 누계 <b>${_defSum.toLocaleString()}</b></span></span>`);
+      parts.push(`<span class="fl-ship">출하누계 <b>${flow.shippedSum.toLocaleString()}</b> · <span class="fl-def-t" title="전 공정 불량+폐기 합 (${useLot ? '이 LOT' : '이 품번 LOT 전부'})">불량·폐기 누계 <b>${_defSum.toLocaleString()}</b></span></span>`);
       stripEl.innerHTML = parts.join('<span class="fl-arr">→</span>');
     };
     const drawWarn = () => {
