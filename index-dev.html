@@ -1683,7 +1683,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.8';
+const APP_VERSION = 'v0.40.9';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -1941,7 +1941,7 @@ const _FS_COLLECTIONS = [
   'lots','production_lots','heat_batches','records','rework',
   'material_receipts','purchase_receipts','os_dispatches','os_receipts','os_returns','os_lots',
   'purchase_orders','materials','material_lots','consigned_materials',
-  'pallets','packings','shipments',
+  'pallets','pallet_moves','packings','shipments',   // ★ v0.40.9 — pallet_moves 구독 누락 보정 (서버 모드에서 다른 기기·새로고침 뒤 파렛트 이동이 안 보이던 것 · 규칙 r16 과 한 쌍)
   'closings','nonconformances','documents','drawings','nc_programs','ecn',
   'audits','reviews','trainings','supplier_evals','claims','risks',
   'reports',   // ★ v0.24.0 — AI 보고서 스냅샷 (RP 채번)
@@ -2022,6 +2022,20 @@ const _FIRESTORE_ADAPTER = {
       this._pending.push({ col, id, doc, meta });
     }
   },
+  // ★ v0.40.9 — 묶음 저장: writeBatch 1회 (전부 반영 또는 전부 거부) · 준비 전·관리자 인증 필요 = 보내기 전에 거절(이 기기 메모리는 DB.group 이 되돌림)
+  writeGroup(list){
+    if(_SEED_LOCAL){ list.forEach(w => this.write(w.col, w.id, w.doc, w.meta)); return null; }
+    if(!this._ready || !this._fs) throw new Error('서버 연결 준비 전입니다 — 잠시 뒤 다시 저장하세요 (저장 0)');
+    if(list.some(w => w.doc === null || (isStaffMode() && _needsAdmin(w.col, w.id, (w.meta && w.meta.changed) || w.doc || {}, w.meta && w.meta.prev)))) throw new Error('관리자 인증이 필요한 저장이 섞여 있어 한 묶음으로 보낼 수 없습니다 (저장 0)');
+    const G = { b: this._fs.batch(), n: 0 };
+    _FS_GROUP = G;
+    try { list.forEach(w => _fsSend(this._fs, w.col, w.id, w.doc, w.meta)); } finally { _FS_GROUP = null; }
+    if(!G.n) return Promise.resolve({ ok: true, n: 0 });
+    const last = list[list.length - 1];
+    const pr = G.b.commit();
+    _fsTrack('group', list.map(w => w.col + '/' + w.id).join(','), pr, e => _fsWriteRejected('묶음', last.col + '/' + last.id, e));
+    return pr.then(() => ({ ok: true, n: G.n }));
+  },
   // ★ v0.28.9 — 물리 삭제 (마스터 한정 — DB.remove 가드 경유 전용).
   //   서버 rules 가 해당 마스터 delete 를 허용해야 실제 삭제됨 (firestore.rules v4 게시 필요 —
   //   미배포 시 서버가 거부 → onSnapshot 재동기화로 문서가 되살아나는 게 정직한 동작).
@@ -2063,7 +2077,14 @@ const DB = (() => {
   const state = _ACTIVE_ADAPTER.loadAll();
   _ACTIVE_ADAPTER.init && _ACTIVE_ADAPTER.init(state);
   const ensure = c => { if(!state[c]) state[c]={}; };
+  /* ★ v0.40.9 (GPT v0.40.8 판정) — 묶음 저장 DB.group(fn): fn 안의 쓰기를 모아 두었다가 fn 이 끝까지 성공해야 한 번에 보냄
+     · 서버 = Firestore writeBatch 1회(전부 반영 또는 전부 거부 · 일부만 남지 않음) · 이 기기 = 같은 묶음을 차례로 저장
+     · fn 이 실패(예외)하면 화면 메모리를 원래 값으로 되돌리고 아무것도 보내지 않음 (취소 기록·물리 삭제 0) */
+  let _GROUP = null;
+  const _gUndo = (col, id) => { if(!_GROUP) return; const k = col + '\u0001' + id; if(!_GROUP.undo.has(k)) _GROUP.undo.set(k, { col, id, had: Object.prototype.hasOwnProperty.call(state[col] || {}, id), prev: (state[col] || {})[id] }); };
+  const _gRollback = (g, onlyIfMine) => { let n = 0; [...g.undo.values()].reverse().forEach(u => { ensure(u.col); const cur = state[u.col][u.id]; if(onlyIfMine && cur !== g.mine.get(u.col + '\u0001' + u.id)) return; if(u.had) state[u.col][u.id] = u.prev; else delete state[u.col][u.id]; n++; }); _rev++; return n; };
   const persist = (col, id, doc, meta) => {
+    if(_GROUP){ _GROUP.buf.push({ col, id, doc, meta }); return; }
     try { _ACTIVE_ADAPTER.write(col, id, doc, meta); }
     catch(e){ console.warn('[VELA] backend write failed', col, id, e); }
   };
@@ -2081,7 +2102,7 @@ const DB = (() => {
     set(col,id,doc){
       // ★ v0.28.0 — 보기 전용 권한 쓰기 차단 (단일 쓰기 경로 가드 — correct/voidDoc 도 이 경로 경유)
       if(typeof _permBlockWrite === 'function' && _permBlockWrite(col, id)) return null;
-      ensure(col);
+      ensure(col); _gUndo(col, id);
       const prev = state[col][id]||null;
       // ★ v0.38.29 — 서버 시각 표식(SERVER_TS) → 로컬은 Date.now() · 서버는 serverTimestamp() (경로 기록)
       const _tsPaths = [];
@@ -2108,6 +2129,7 @@ const DB = (() => {
     // ★ v0.38.29 — 필드 제거 (구형 비밀번호 값 정리 전용 · 관리자 · 백업 후 — 업무 기록 삭제 아님 · GPT 조건 2)
     stripFields(col, id, keys){
       ensure(col);
+      if(_GROUP) throw new Error('묶음 저장 안에서는 필드 정리를 할 수 없습니다');
       const prev = state[col][id]; if(!prev || !keys || !keys.length) return false;
       const next = { ...prev }; keys.forEach(k => delete next[k]);
       state[col][id] = next; _rev++;
@@ -2120,6 +2142,7 @@ const DB = (() => {
       if(typeof _permBlockWrite === 'function' && _permBlockWrite(col)) return null;   // ★ v0.28.0
       const prev = state[col][id];
       if(!prev) return null;
+      _gUndo(col, id);
       const corr = {...prev, ...fields, _corrected: true, _correction_reason: reason||'', _updated: Date.now()};
       // ★ v0.33.1 — 변경 전 값 스냅샷 보존 (G-3a 해소 · Q2-2): 바뀐 필드의 전/후를 로그에 함께 기록
       //   (undefined 는 Firestore 비허용 → null 로 정규화 · 원본 문서는 여전히 무변 원칙 밖 — 보정 결과만 반영)
@@ -2135,6 +2158,7 @@ const DB = (() => {
     //   목적: 오등록 마스터를 지우고 그 번호를 즉시 재사용. 서버 모드는 firestore.rules v4(마스터 delete 허용) 게시 필요.
     //   ★ v0.31.5 — 전 마스터 확대 (사용자 요청 2026-08-05: "삭제버튼 없는곳 전부 — 이력 있으면 차단, 없으면 삭제")
     remove(col,id){
+      if(_GROUP) throw new Error('묶음 저장 안에서는 삭제할 수 없습니다');
       if(!MASTER_DEL_COLS.includes(col)){ console.warn('[VELA] DB.remove 불허 컬렉션 —', col); return false; }   // ★ v0.31.5 — 마스터 전체 (원장은 여전히 불허)
       if(typeof _permBlockWrite === 'function' && _permBlockWrite(col)) return false;
       ensure(col);
@@ -2147,6 +2171,26 @@ const DB = (() => {
       return true;
     },
     query(col,fn){ ensure(col); return Object.values(state[col]).filter(x=>!x.void).filter(fn); },
+    // ★ v0.40.9 — 묶음 저장 (위 설명) · 반환 { value, n, server: Promise|null, rollbackLocal() }
+    //   server = 서버 모드에서 묶음 커밋 결과(성공 resolve · 거부 reject) · 이 기기 저장 모드 = null(이미 저장)
+    group(fn){
+      if(_GROUP) throw new Error('묶음 저장이 이미 진행 중입니다');
+      const g = { buf: [], undo: new Map(), mine: new Map() };
+      _GROUP = g; let value;
+      try { value = fn(); }
+      catch(e){ _GROUP = null; _gRollback(g); throw e; }
+      _GROUP = null;
+      g.undo.forEach((u, k) => g.mine.set(k, (state[u.col] || {})[u.id]));
+      let server = null;
+      try {
+        if(g.buf.length){
+          if(typeof _ACTIVE_ADAPTER.writeGroup === 'function') server = _ACTIVE_ADAPTER.writeGroup(g.buf) || null;
+          else g.buf.forEach(w => _ACTIVE_ADAPTER.write(w.col, w.id, w.doc, w.meta));
+        }
+      } catch(e){ _gRollback(g); throw e; }
+      return { value, n: g.buf.length, server, rollbackLocal: () => _gRollback(g, true) };
+    },
+    get _inGroup(){ return !!_GROUP; },
     // ★ v0.16.0 — void 포함 Raw 조회 (이력 표시·복원 UI 전용)
     allRaw(col){ ensure(col); return Object.values(state[col]); },
     queryRaw(col,fn){ ensure(col); return Object.values(state[col]).filter(fn); },
@@ -2505,6 +2549,7 @@ function openAdminAuthModal(reason){
 /* 서버 쓰기 1벌 — staff 모드는 바뀐 필드만(mergeFields) · 서버 시각 표식은 serverTimestamp() 로 · legacy 는 기존 전체 병합 */
 /* ★ v0.39.6 (GPT 원문 검토 필수 1) — 서버 쓰기 추적: _FS_TRACK 이 켜져 있는 동안 보낸 쓰기의 서버 응답(성공·거부)을 모음 · 꺼져 있으면 기존 동작 그대로 */
 let _FS_TRACK = null;
+let _FS_GROUP = null;   // ★ v0.40.9 — 묶음 저장 중이면 _fsSend 의 쓰기를 이 writeBatch 에 담음 (커밋은 writeGroup 이 1회)
 function _fsTrack(col, id, pr, onErr){
   if(_FS_TRACK) _FS_TRACK.push(pr.then(() => ({ col, id, ok: true }), e => ({ col, id, ok: false, err: String((e && (e.code || e.message)) || e) })));
   return pr.catch(onErr);
@@ -2521,12 +2566,14 @@ function _fsSend(fs, col, id, doc, meta, viaAdmin){
   const ref = fs.collection(col).doc(String(id));
   const FV = window.firebase.firestore.FieldValue;
   const onErr = e => _fsWriteRejected(col, id, e);
-  const T = pr => _fsTrack(col, id, pr, onErr);   // ★ v0.39.6 — 복원 등에서 서버 응답(성공·거부)을 기다릴 수 있게 추적
-  if(doc === null && meta && meta.op === 'delete'){ ref.delete().catch(e => console.warn('[VELA] firestore delete 거부', col, id, e)); return; }
-  if(meta && meta.strip){ const up = {}; meta.strip.forEach(k => { up[k] = FV.delete(); }); T(ref.update(up)); return; }
+  const _G = _FS_GROUP;   // ★ v0.40.9 — 묶음 저장: 아래 쓰기를 묶음 writeBatch 에 담고 개별 전송·추적은 하지 않음
+  const T = pr => _G ? null : _fsTrack(col, id, pr, onErr);   // ★ v0.39.6 — 복원 등에서 서버 응답(성공·거부)을 기다릴 수 있게 추적
+  const W = (r, data, opts) => { if(_G){ _G.b.set(r, data, opts); _G.n++; return null; } return r.set(data, opts); };
+  if(doc === null && meta && meta.op === 'delete'){ if(_G) throw new Error('묶음 저장에 삭제 불가'); ref.delete().catch(e => console.warn('[VELA] firestore delete 거부', col, id, e)); return; }
+  if(meta && meta.strip){ const up = {}; meta.strip.forEach(k => { up[k] = FV.delete(); }); if(_G){ _G.b.update(ref, up); _G.n++; return; } T(ref.update(up)); return; }
   if(!_secSplitOn() || !meta || !meta.keys){
-    if(meta && meta.restore){ const w = {}; (meta.keys || []).forEach(k => { if(k in doc) w[k] = doc[k]; }); (meta.del || []).forEach(k => { w[k] = FV.delete(); }); if(Object.keys(w).length) T(ref.set(w, { merge: true })); return; }   // ★ v0.39.4 — 복원: 바뀐 필드만 + 백업 뒤 추가된 필드 지움
-    T(ref.set(doc, { merge: true })); return; }
+    if(meta && meta.restore){ const w = {}; (meta.keys || []).forEach(k => { if(k in doc) w[k] = doc[k]; }); (meta.del || []).forEach(k => { w[k] = FV.delete(); }); if(Object.keys(w).length) T(W(ref, w, { merge: true })); return; }   // ★ v0.39.4 — 복원: 바뀐 필드만 + 백업 뒤 추가된 필드 지움
+    T(W(ref, doc, { merge: true })); return; }
   const _secTop = (SEC_SPEC[col] && SEC_SPEC[col].top) || [];
   const _secArr = Object.keys((SEC_SPEC[col] && SEC_SPEC[col].arr) || {});
   const _delMain = (meta.del || []).filter(k => !_secTop.includes(k)), _delSec = (meta.del || []).filter(k => _secTop.includes(k)).concat((meta.del || []).filter(k => _secArr.includes(k)).map(k => k + '_sec'));   // ★ v0.39.7 (GPT v0.39.6 ③) — 배열 단가 묶음도 함께 지움
@@ -2539,25 +2586,26 @@ function _fsSend(fs, col, id, doc, meta, viaAdmin){
     const doSec = (sp.secKeys.length > 0 || _delSec.length > 0 || _delWhole.length > 0) && canSeePrice();   // ★ v0.39.7 (GPT v0.39.6 ③) — 단가 필드 「삭제만」 있어도 단가 문서에 보냄
     if(sp.secKeys.length && !doSec && (sp.whole || sp.secKeys.some(k => sp.sec[k] != null))) toast('단가·금액 권한이 없어 단가는 저장되지 않았습니다', 'warn', 3500);
     if(col === 'purchase_orders' && Array.isArray(doc.items) && doc.items.length > 20) toast('발주 1건의 품목은 최대 20개입니다 — 나눠서 등록하세요 (서버 규칙)', 'err', 6000);
-    if(sp.whole){ if(doSec){ const w = _fsWire(sp.sec, { ...meta, keys: sp.secKeys, prevHas: {} }, FV); _delWhole.forEach(k => { w.wire[k] = FV.delete(); w.fields.push(k); }); if(w.fields.length) T(secRef.set(w.wire, { mergeFields: w.fields })); } return; }   // ★ v0.39.7 — 통째 단가 문서(cost_rates)도 지운 필드 반영
+    if(sp.whole){ if(doSec){ const w = _fsWire(sp.sec, { ...meta, keys: sp.secKeys, prevHas: {} }, FV); _delWhole.forEach(k => { w.wire[k] = FV.delete(); w.fields.push(k); }); if(w.fields.length) T(W(secRef, w.wire, { mergeFields: w.fields })); } return; }   // ★ v0.39.7 — 통째 단가 문서(cost_rates)도 지운 필드 반영
     const mw = _fsWire(sp.main, { ...meta, keys: sp.mainKeys }, FV);
     _delMain.forEach(k => { mw.wire[k] = FV.delete(); mw.fields.push(k); });
     if(doSec){
       const sw = _fsWire(sp.sec, { ...meta, keys: sp.secKeys, prevHas: {} }, FV);
       _delSec.forEach(k => { sw.wire[k] = FV.delete(); sw.fields.push(k); });
+      if(_G){ if(mw.fields.length) W(ref, mw.wire, { mergeFields: mw.fields }); if(sw.fields.length) W(secRef, sw.wire, { mergeFields: sw.fields }); return; }   // ★ v0.40.9 — 묶음 안 = 같은 묶음
       const b = fs.batch();
       if(mw.fields.length) b.set(ref, mw.wire, { mergeFields: mw.fields });
       if(sw.fields.length) b.set(secRef, sw.wire, { mergeFields: sw.fields });
       T(b.commit());
       return;
     }
-    if(mw.fields.length) T(ref.set(mw.wire, { mergeFields: mw.fields }));
+    if(mw.fields.length) T(W(ref, mw.wire, { mergeFields: mw.fields }));
     return;
   }
   const w = _fsWire(doc, meta, FV);
   _delMain.forEach(k => { w.wire[k] = FV.delete(); w.fields.push(k); });
   if(!w.fields.length) return;
-  T(ref.set(w.wire, { mergeFields: w.fields }));
+  T(W(ref, w.wire, { mergeFields: w.fields }));
 }
 // staff 모드 쓰기 본문: 바뀐 필드만 · 서버 시각 경로는 점 경로로 (기존 맵 항목 보존)
 function _fsWire(doc, meta, FV){
@@ -3470,7 +3518,7 @@ function openRestorePreview(parsed, fname, colCount, docCount, opts){
     const hn = _restoreHealthHtml(plan.healthNew); const exN = plan.exclude ? Object.keys(plan.exclude).reduce((s, k) => s + plan.exclude[k].length, 0) : 0;
     const lockHtml = !lock ? '<div style="font-size:12px;color:var(--sub)">잠금 확인 중…</div>'
       : lock.mode === 'legacy' ? `<label style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:8px;padding:8px;border:1px solid var(--amber);border-radius:8px"><input type="checkbox" id="bk-lock-ok"> <span><b>다른 기기(직원 PC·폰) 모두 로그아웃 확인</b> — 기존 방식(v4)은 서버가 다른 사람 저장을 막지 못함 · 복원 뒤 서버 대조로 충돌을 표시</span></label>`
-      : lock.ok && lock.mode === 'recovery' ? `<div style="font-size:12px;color:var(--green);margin-top:8px">복구 모드 — 서버가 이 기기만 저장 허용 (직원·관리자·다른 기기 저장 거부 · 규칙 r15)${lock.secMigrated ? ' · 이관 완료 → 단가는 단가 문서로 나눠 저장 (원본 단가 저장 = 서버 거부)' : ''}</div>`
+      : lock.ok && lock.mode === 'recovery' ? `<div style="font-size:12px;color:var(--green);margin-top:8px">복구 모드 — 서버가 이 기기만 저장 허용 (직원·관리자·다른 기기 저장 거부 · 규칙 r16)${lock.secMigrated ? ' · 이관 완료 → 단가는 단가 문서로 나눠 저장 (원본 단가 저장 = 서버 거부)' : ''}</div>`
       : lock.ok ? `<div style="font-size:12px;color:var(--green);margin-top:8px">쓰기 중지 켜짐 — 복원 중 다른 직원 저장은 서버가 거부</div>`
       : `<div style="font-size:12px;color:var(--red);margin-top:8px">${_esc(lock.msg || '잠금 확인 실패')} <button class="btn ghost" id="bk-lock-re">다시 확인</button></div>`;
     const canRun = !plan.blocked && lock && lock.ok;
@@ -3626,8 +3674,8 @@ async function cutoverStatus(opts){
   let sr = {}; try { sr = (fs && (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data()) || {}; } catch(e){ st.srErr = String(e.code || e.message); }
   let log = null; try { const l = await fs.collection('settings').doc('sec_migration_log').get({ source: 'server' }); log = l.exists ? l.data() : null; } catch(e){}
   let probe = 'unknown'; try { await fs.collection('vela_rules_probe').doc('x').get({ source: 'server' }); probe = 'allow'; } catch(e){ probe = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
-  // ★ v0.39.8 (GPT v0.39.7 필수 2) — 설정값(version)이 아니라 실제 게시 규칙 확인 · ★ v0.39.13 = rules_probe/r14 (r14 만 허용 · r13 이하 = 거부 — 요청 판정 기록 plan_move_reqs 필요)
-  let probe13 = 'unknown'; try { await fs.collection('rules_probe').doc('r15').get({ source: 'server' }); probe13 = 'allow'; } catch(e){ probe13 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
+  // ★ v0.39.8 (GPT v0.39.7 필수 2) — 설정값(version)이 아니라 실제 게시 규칙 확인 · ★ v0.39.13 = rules_probe/r14 (r14 만 허용 · r13 이하 = 거부 — 요청 판정 기록 plan_move_reqs 필요) · ★ v0.40.9 = rules_probe/r16 (r16 = r15 + 파렛트 이동 pallet_moves · 외주 입고 묶음 저장에 필요 — r15 로는 파렛트 회수가 든 외주 입고가 전부 거부됨)
+  let probe13 = 'unknown'; try { await fs.collection('rules_probe').doc('r16').get({ source: 'server' }); probe13 = 'allow'; } catch(e){ probe13 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
   if(sr && Object.keys(sr).length) _SRV_LAST = sr;
   st.test = isTestProject(); st.sr = sr; st.probe = probe; st.probe13 = probe13;
   const logAt = log ? _tsMs(log.at) : 0; const final = sr.sec_migrated === true && sr.write_freeze !== true;
@@ -3640,9 +3688,9 @@ async function cutoverStatus(opts){
   const m = _cutLoad(); const resid = m.resid || null; const secret = legacySecretFieldsReport().total;
   st.mem = m; st.logAt = logAt;
   const S = (id, title, ok, msg, extra) => st.steps.push(Object.assign({ id, title, ok: !!ok, msg }, extra || {}));
-  S('server', '서버 확인 — 규칙 r15 · 관리자 계정', probe === 'deny' && probe13 === 'allow' && (+sr.version || 0) >= 15 && isStaffMode() && _STAFF.isApprover && !sr.recovery_uid,
-    `${sr.recovery_uid ? '⚠ 복구 모드 중(recovery_uid) — 전환 단계 진행 전 해제 · ' : ''}접속 서버 ${st.project}${st.test ? ' (시험)' : ' (운영)'} · 회차 ${st.run} · 규칙 확인 ${probe === 'allow' ? '허용 = 아직 v4' : probe13 === 'allow' ? '게시된 규칙 = r15 (확인 요청 rules_probe/r15 허용)' : probe13 === 'deny' ? 'r15 아님 (r14 이하 · rules_probe/r15 거부) — r15 게시 필요' : probe13} · version ${sr.version ?? '없음'}${(+sr.version || 0) < 15 ? ' (15 로)' : ''} · 관리자 계정 ${_STAFF.isApprover ? '예' : '아니오'}`,
-    { console: '콘솔: settings/server_rules 에 version=15 · write_freeze=true · sec_migrated=false · legacy_device=false · recovery_uid 없음 → Firestore 규칙 r15 게시 (이 순간부터 기존 방식 사용자 업무 중단)' });
+  S('server', '서버 확인 — 규칙 r16 · 관리자 계정', probe === 'deny' && probe13 === 'allow' && (+sr.version || 0) >= 16 && isStaffMode() && _STAFF.isApprover && !sr.recovery_uid,
+    `${sr.recovery_uid ? '⚠ 복구 모드 중(recovery_uid) — 전환 단계 진행 전 해제 · ' : ''}접속 서버 ${st.project}${st.test ? ' (시험)' : ' (운영)'} · 회차 ${st.run} · 규칙 확인 ${probe === 'allow' ? '허용 = 아직 v4' : probe13 === 'allow' ? '게시된 규칙 = r16 (확인 요청 rules_probe/r16 허용)' : probe13 === 'deny' ? 'r16 아님 (r15 이하 · rules_probe/r16 거부) — r16 게시 필요' : probe13} · version ${sr.version ?? '없음'}${(+sr.version || 0) < 15 ? ' (15 로)' : ''} · 관리자 계정 ${_STAFF.isApprover ? '예' : '아니오'}`,
+    { console: '콘솔: settings/server_rules 에 version=16 · write_freeze=true · sec_migrated=false · legacy_device=false · recovery_uid 없음 → Firestore 규칙 r16 게시 (이 순간부터 기존 방식 사용자 업무 중단)' });
   S('freeze', '쓰기 중지 켜짐 (직원 업무 저장 차단)', sr.write_freeze === true || final, `write_freeze = ${sr.write_freeze === true ? '켜짐' : '꺼짐'}`, { console: '콘솔: settings/server_rules.write_freeze = true' });
   const b = m.backup; const bOk = !!(b && b.verified) && (!m.migratedHere || b.at < m.migratedHere);   // 이 회차 이관보다 먼저 받은 백업만
   S('backup', '전체 백업 + 파일 확인 (SHA-256·문서 수)', bOk, b ? `${b.name} · 문서 ${b.docs} · ${b.verified ? '파일 확인 완료' : '[백업 파일 확인] 으로 내려받은 파일을 골라 주세요'}` : '아직 안 함',
@@ -3668,9 +3716,9 @@ async function cutoverStatus(opts){
   return st;
 }
 const CUTOVER_RECOVER = [
-  ['서버 확인 ~ 직원 계정 단계에서 멈춤', '규칙 r15 그대로 · 복구 기기 승인 불필요 (데이터 변화 없음) → 콘솔에서 규칙 v4 다시 게시 → 모든 기기 「기존 방식」 로그인 → 업무 계속'],
-  ['단가 이관 ~ 대조 단계에서 실패', '규칙 r15 그대로 둠 → 관리자 PC 를 「기존 방식」 으로 열어 로그인 화면의 「이 기기 ID (복구용)」 확인 → 콘솔: devices/{ID} = {status:"approved"} · server_rules.recovery_uid = ID (복구 모드: 서버가 이 기기만 저장 허용 — 직원·관리자·다른 승인 기기 저장 거부 · 쓰기 중지는 켜 둔 채) → 그 PC 에서 설정 › 백업 복원(이번 회차 전체 백업 파일 · 미리보기·대조) → 「완료」 확인 → 그 뒤에만 규칙 v4 게시 → recovery_uid 비우기 · devices/{ID}.status = "revoked" → 직원 업무 재개'],
-  ['업무 재개 뒤 문제', '쓰기 중지 다시 켬 → 원인 확인 · 복원이 필요하면 미리보기의 연결 검사에 따라 범위 조정 (재개 뒤 입력분은 유지됨) · 복구 기기로 복원하면 이관 완료 상태라 단가는 단가 문서로 나눠 저장됨(규칙 r15 가 원본 단가 저장 거부) → 복원 결과 「서버 원본 단가 0건」 확인 뒤에만 recovery_uid 비우기'],
+  ['서버 확인 ~ 직원 계정 단계에서 멈춤', '규칙 r16 그대로 · 복구 기기 승인 불필요 (데이터 변화 없음) → 콘솔에서 규칙 v4 다시 게시 → 모든 기기 「기존 방식」 로그인 → 업무 계속'],
+  ['단가 이관 ~ 대조 단계에서 실패', '규칙 r16 그대로 둠 → 관리자 PC 를 「기존 방식」 으로 열어 로그인 화면의 「이 기기 ID (복구용)」 확인 → 콘솔: devices/{ID} = {status:"approved"} · server_rules.recovery_uid = ID (복구 모드: 서버가 이 기기만 저장 허용 — 직원·관리자·다른 승인 기기 저장 거부 · 쓰기 중지는 켜 둔 채) → 그 PC 에서 설정 › 백업 복원(이번 회차 전체 백업 파일 · 미리보기·대조) → 「완료」 확인 → 그 뒤에만 규칙 v4 게시 → recovery_uid 비우기 · devices/{ID}.status = "revoked" → 직원 업무 재개'],
+  ['업무 재개 뒤 문제', '쓰기 중지 다시 켬 → 원인 확인 · 복원이 필요하면 미리보기의 연결 검사에 따라 범위 조정 (재개 뒤 입력분은 유지됨) · 복구 기기로 복원하면 이관 완료 상태라 단가는 단가 문서로 나눠 저장됨(규칙 r16 가 원본 단가 저장 거부) → 복원 결과 「서버 원본 단가 0건」 확인 뒤에만 recovery_uid 비우기'],
 ];
 function cutoverReportText(st){
   const L = ['# VELA MES 운영 전환 점검 결과', `- 시각 ${new Date(st.at).toISOString()} · 서버 ${st.project}${st.test ? ' (시험)' : ''} · 회차 ${st.run} · 앱 ${APP_VERSION}`, `- ${st.done ? '전환 완료 — 모든 단계 통과' : '진행 중 — 통과 ' + st.steps.filter(s => s.ok).length + '/' + st.steps.length}`, ''];
@@ -7736,7 +7784,7 @@ function renderGate(){
       <div class="fr-sub" style="line-height:1.6">운영 규칙이 직원 계정 방식(r11)으로 바뀌어 기존 방식 접속이 막혔습니다. 직원은 관리자 안내를 기다려 주세요.</div>
       <div class="fld"><label>이 기기 ID (복구용)</label><input id="gr-uid" readonly value="${_esc(uid)}" style="font-family:'JetBrains Mono',monospace;font-size:12px"></div>
       <button class="reg-btn" id="gr-copy" type="button">ID 복사</button>
-      <div class="fr-note">복구 담당 관리자 기기만: Firebase 콘솔 › <code>devices/{이 ID}</code> = <code>{status:"approved"}</code> · <code>settings/server_rules.recovery_uid = 이 ID</code> (규칙 r15 복구 모드 — 서버가 이 기기만 저장 허용 · 직원·관리자·다른 기기 저장 거부 · 이관 뒤엔 원본 단가 저장도 거부) → 새로고침 → 로그인 → 백업 복원 · 결과의 「서버 원본 단가 0건」 확인 뒤 <code>recovery_uid</code> 비우기 + <code>devices/{이 ID}.status = "revoked"</code></div>`;
+      <div class="fr-note">복구 담당 관리자 기기만: Firebase 콘솔 › <code>devices/{이 ID}</code> = <code>{status:"approved"}</code> · <code>settings/server_rules.recovery_uid = 이 ID</code> (규칙 r16 복구 모드 — 서버가 이 기기만 저장 허용 · 직원·관리자·다른 기기 저장 거부 · 이관 뒤엔 원본 단가 저장도 거부) → 새로고침 → 로그인 → 백업 복원 · 결과의 「서버 원본 단가 0건」 확인 뒤 <code>recovery_uid</code> 비우기 + <code>devices/{이 ID}.status = "revoked"</code></div>`;
     const cp = document.getElementById('gr-copy'); if(cp) cp.onclick = () => { const v = document.getElementById('gr-uid'); try { navigator.clipboard.writeText(v.value).then(() => toast('기기 ID 복사', 'ok'), () => { v.select(); }); } catch(e){ v.select(); } };
   } else if(rec){ rec.remove(); }
   if(DB.all('users').length === 0 && !isStaffMode() && !_denied){   // ★ v0.38.29 — 직원 계정 모드: 로그인 전엔 서버를 읽지 않으므로 최초 등록 카드 없음 (첫 관리자 = 관리자 계정 이메일 로그인)
@@ -16570,6 +16618,7 @@ VIEWS._osRecv = (dispId, keep) => {
   openModal(`
     <h2>외주 입고 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
+      ${_osReqPendingOf(dispId) ? `<div class="m-ban amber" id="or-pend-ban" style="margin-bottom:10px">이 반출의 입고 요청 <b>${_esc(_osReqPendingOf(dispId).rid)}</b> 서버 확인 중 — 결과가 나올 때까지 이 반출은 다시 입고할 수 없습니다 (같은 입고 중복 방지)</div>` : ''}
       <div><label>입고번호 (자동 · 수정 가능)</label>
         <input id="or-id" value="${_esc(kv.id || nextDocNo('OR'))}" style="font-family:'JetBrains Mono',monospace;letter-spacing:.3px" autocomplete="off"></div>
       <div><label>외주 반출 연결</label>
@@ -16586,9 +16635,10 @@ VIEWS._osRecv = (dispId, keep) => {
         <div><label>양품 수량 <span class="or-u" style="color:var(--dim);font-weight:400">(ea)</span></label><input id="or-g" type="number" min="0" step="any" placeholder="0" value="${_esc(String(kv.g ?? ''))}"><div id="or-g-hint" style="font-size:11.5px;color:var(--cyan);margin-top:4px"></div></div>
         <div><label>불량 수량 <span class="or-u" style="color:var(--dim);font-weight:400">(ea)</span></label><input id="or-d" type="number" min="0" step="any" placeholder="0" value="${_esc(String(kv.d ?? ''))}"><div id="or-d-hint" style="font-size:11.5px;color:var(--cyan);margin-top:4px"></div></div>
       </div>
+      <div id="or-st" style="font-size:12.5px;min-height:18px;color:var(--sub)"></div>
       <div class="actions">
-        <button class="btn" onclick="closeModal()">취소</button>
-        <button class="btn primary" id="or-ok">${ico('save')}입고 처리</button>
+        <button class="btn" id="or-cancel" onclick="closeModal()">닫기</button>
+        <button class="btn primary" id="or-ok"${_osReqPendingOf(dispId) ? ' disabled' : ''}>${ico('save')}입고 처리</button>
       </div>
     </div>
   `);
@@ -16618,38 +16668,65 @@ VIEWS._osRecv = (dispId, keep) => {
     const rid = String($('or-id').value || '').trim() || nextDocNo('OR');
     if(/[\/\\#?\s]/.test(rid) || rid.length > 60){ toast('입고번호에 / \\ # ? 공백은 쓸 수 없습니다 (60자 이내)','warn'); return; }
     if(g + df > 0 && DB.get('os_receipts', rid)){ toast(`입고번호 중복 — ${rid}`,'err'); return; }
+    if(_osReqPendingOf(dispId)){ toast('이 반출의 이전 입고 요청을 서버가 아직 확인 중입니다 — 결과를 기다리세요 (중복 방지)','warn',5000); return; }
     // ── 여기부터 저장 (위 검사를 모두 통과한 경우만)
-    let recordId = null, palletMoveId = null, receiptSaved = false;
+    /* ★ v0.40.9 (GPT v0.40.8 판정) — 실적 · 파렛트 회수 · 입고 문서 = 한 묶음 저장(DB.group)
+       · 이 기기에서 어느 하나라도 실패(거부·null) = 화면 메모리 되돌림 · 아무것도 보내지 않음 (자동 취소 기록 없음 → 「취소 실패」 상황 자체가 없음)
+       · 서버 모드 = writeBatch 1회 — 전부 반영 또는 전부 거부 · 서버 확인 전에는 창·입력 유지(잠금) · 응답 없음 = 실패로 단정하지 않고 같은 반출 재입고를 막음(요청 번호 = 입고번호) */
+    const box = document.getElementById('modal');
+    const setBusy = (on, msg, tone) => { box.querySelectorAll('#or-id,#or-disp,#or-unit,#or-prc,#or-g,#or-d,#or-ok').forEach(el => { el.disabled = !!on; }); box.setAttribute('aria-busy', on ? 'true' : 'false'); const st = document.getElementById('or-st'); if(st){ st.textContent = msg || ''; st.style.color = tone === 'err' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : 'var(--sub)'; } };
+    let res;
     try {
-      // ★ v0.16.0 — record_id / pallet_move_id 를 os_receipts 에 함께 저장 (취소 연쇄 연결키) · 초과 차단 = registerRecord 가드 그대로
-      if(g + df > 0){
-        const rec = LOT.registerRecord({plot_no:d.plot_no, proc:d.proc, equipment:'외주', vendor:d.vendor, good:g, defect:df, type:'out'});
-        recordId = rec?.id || null;
-      }
-      if(prc > 0){
-        const mv = PALLET.add({vendor:d.vendor, type:'in', qty:prc, ref:{kind:'os', id:dispId}});
-        palletMoveId = mv?.id || null;
-      }
-      if(g + df > 0){
-        const doc = {id: rid, dispatch_id:dispId, qty:g+df, good:g, defect:df, scrap:0, pallets_recovered:prc, record_id:recordId, pallet_move_id:palletMoveId, ts:Date.now()};
-        if(unit() === 'kg'){ doc.input_mode = 'kg'; doc.input_value = rg.n; doc.input_value_defect = rd.n; }
-        DB.set('os_receipts', rid, doc); receiptSaved = true;
-      }
+      res = DB.group(() => {
+        // ★ v0.16.0 — record_id / pallet_move_id 를 os_receipts 에 함께 저장 (취소 연쇄 연결키) · 초과 차단 = registerRecord 가드 그대로
+        let recordId = null, palletMoveId = null;
+        if(g + df > 0){
+          const rec = LOT.registerRecord({plot_no:d.plot_no, proc:d.proc, equipment:'외주', vendor:d.vendor, good:g, defect:df, type:'out'});
+          if(!rec || !rec.id) throw new Error('실적 저장이 거부되었습니다 (권한 확인)');
+          recordId = rec.id;
+        }
+        if(prc > 0){
+          const mv = PALLET.add({vendor:d.vendor, type:'in', qty:prc, ref:{kind:'os', id:dispId}});
+          if(!mv || !mv.id) throw new Error('파렛트 회수 저장이 거부되었습니다 (권한 확인)');
+          palletMoveId = mv.id;
+        }
+        if(g + df > 0){
+          const doc = {id: rid, dispatch_id:dispId, qty:g+df, good:g, defect:df, scrap:0, pallets_recovered:prc, record_id:recordId, pallet_move_id:palletMoveId, ts:Date.now()};
+          if(unit() === 'kg'){ doc.input_mode = 'kg'; doc.input_value = rg.n; doc.input_value_defect = rd.n; }
+          const r = DB.set('os_receipts', rid, doc);
+          if(!r) throw new Error('입고 문서 저장이 거부되었습니다 (권한 확인)');
+        }
+        return { recordId, palletMoveId };
+      });
     } catch(e){
-      // ③ 이 기기에서 중간 실패 = 앞서 만든 기록 되돌림 (void · 사유 기록)
-      const undo = [];
-      if(!receiptSaved){
-        try { if(palletMoveId && DB.get('pallet_moves', palletMoveId)){ voidDoc('pallet_moves', palletMoveId, `외주 입고 ${rid} 저장 실패 — 자동 취소`); undo.push('파렛트'); } } catch(x){}
-        try { if(recordId && DB.get('records', recordId)){ voidDoc('records', recordId, `외주 입고 ${rid} 저장 실패 — 자동 취소`); undo.push('실적'); } } catch(x){}
-      }
-      toast(`${e.message}${undo.length ? ` — 함께 만든 ${undo.join('·')} 기록은 취소 처리했습니다` : ''}`,'err',5000);
+      setBusy(false, `${e.message} — 저장 0 (실적·입고·파렛트 모두 반영 안 됨)`, 'err');
+      toast(`${e.message} — 저장 0 (실적·입고·파렛트 모두 반영 안 됨)`,'err',6000);
       return;
     }
-    toast(`외주 입고 — ${g + df > 0 ? `양품 ${g.toLocaleString()} · 불량 ${df.toLocaleString()}ea` : ''}${prc > 0 ? ` · 회수 파렛트 ${prc}개` : ''}`,'ok');
-    closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록');
-    closeModal(); router();
+    const doneMsg = `외주 입고 — ${g + df > 0 ? `양품 ${g.toLocaleString()} · 불량 ${df.toLocaleString()}ea` : ''}${prc > 0 ? ` · 회수 파렛트 ${prc}개` : ''}`;
+    const finishOk = () => { toast(doneMsg,'ok'); closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록'); closeModal(); router(); };
+    if(!res.server){ finishOk(); return; }   // 이 기기 저장 모드 = 이미 저장 완료
+    // 서버 모드 — 확인 전 = 창·입력 잠금 · 요청 표시(같은 반출 재입고 막음)
+    const req = { rid, dispId, ts: Date.now(), state: 'wait' };
+    (window._osReqPending = window._osReqPending || {})[dispId] = req;
+    setBusy(true, `서버 저장 확인 중… (입고 요청 ${rid}) — 확인될 때까지 입력은 잠깁니다`);
+    const slow = setTimeout(() => { if(req.state === 'wait' && document.getElementById('or-st') && box.contains(document.getElementById('or-st'))) setBusy(true, `서버 응답이 늦습니다 — 실패로 판단하지 마세요. 연결되면 한 묶음으로 반영됩니다 · 같은 입고를 다시 등록하지 마세요 (입고 요청 ${rid}) · [닫기] 가능`, 'warn'); }, 10000);
+    const stillMine = () => { const st = document.getElementById('or-st'); return !!(st && document.getElementById('modal-bg').classList.contains('show') && (document.getElementById('or-id') || {}).value === rid); };
+    res.server.then(() => {
+      clearTimeout(slow); req.state = 'ok'; if(window._osReqPending && window._osReqPending[dispId] === req) delete window._osReqPending[dispId];
+      if(stillMine()) finishOk(); else { toast(`${doneMsg} · 서버 반영 확인 (입고 요청 ${rid})`,'ok',5000); try { router(); } catch(e){} }
+    }, (err) => {
+      clearTimeout(slow); req.state = 'fail'; if(window._osReqPending && window._osReqPending[dispId] === req) delete window._osReqPending[dispId];
+      try { res.rollbackLocal(); } catch(e){}
+      const why = String((err && (err.code || err.message)) || err || '알 수 없음');
+      if(stillMine()){ setBusy(false, `서버가 이 입고를 받지 않았습니다 (${why}) — 실적·입고·파렛트 모두 반영 안 됨 · 입력값 그대로`, 'err'); }
+      else { toast(`외주 입고 요청 ${rid} — 서버가 받지 않았습니다 (${why}) · 실적·입고·파렛트 모두 반영 안 됨`,'err',8000); }
+      try { if(!stillMine()) router(); } catch(e){}
+    });
   };
 };
+// ★ v0.40.9 — 외주 입고 서버 확인 대기 요청 (반출별 · 이 탭 메모리) — 응답 전 같은 반출 재입고 막음
+function _osReqPendingOf(dispId){ const m = window._osReqPending || {}; const r = m[dispId]; return r && r.state === 'wait' ? r : null; }
 VIEWS._printDisp = (id) => { printForm.os([id]); };  // ★ v0.12.0 — 새 양식 위임
 
 /* =================================================================================================
@@ -23433,7 +23510,7 @@ async function _planReqFence(rq, opts){
   });
   const res = await Promise.race([txp.then(v => ({ v }), e => ({ e })), new Promise(r => setTimeout(() => r({ timeout: true }), opts.timeoutMs || PLAN_TX_TIMEOUT_MS))]);
   if(res.timeout) return { status: 'pending', why: '서버 확인 응답 대기 — 결과 미확정 유지 · 잠시 뒤 다시 [결과 확인]' };
-  if(res.e){ const m = String((res.e && (res.e.code || res.e.message)) || res.e); return { status: 'pending', why: (/permission|insufficient/i.test(m) ? '서버가 차단 기록을 거부 (규칙 r15 게시 확인)' : /unavailable|offline|network/i.test(m) ? '서버 연결 필요' : '서버 확인 실패') + ' — 결과 미확정 유지 (반영 여부 모름) · ' + m.slice(0, 60) }; }
+  if(res.e){ const m = String((res.e && (res.e.code || res.e.message)) || res.e); return { status: 'pending', why: (/permission|insufficient/i.test(m) ? '서버가 차단 기록을 거부 (규칙 r16 게시 확인)' : /unavailable|offline|network/i.test(m) ? '서버 연결 필요' : '서버 확인 실패') + ' — 결과 미확정 유지 (반영 여부 모름) · ' + m.slice(0, 60) }; }
   return res.v;
 }
 async function planPendCommit(opts){
