@@ -1450,6 +1450,7 @@ body.ph-ui #ph-tabs{display:grid}
 body.ph-ui #nav,body.ph-ui #app > .foot,body.ph-ui #crumb,body.ph-ui .p-home-fab{display:none!important}
 body.ph-ui #view{padding-bottom:84px}
 body.ph-ui .scroll-nav{display:none!important}
+body.ph-ui #view .ph-kpi-hide{display:none!important}
 body.ph-ui .topbar .clock{display:none}
 body.ph-ui .pg-head,body.ph-ui .page-head{gap:8px}
 body.ph-ui .pgtools{gap:6px}
@@ -1683,7 +1684,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.9';
+const APP_VERSION = 'v0.40.10';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -6932,7 +6933,7 @@ const LOT = {
   // ★ v0.6.0 — 등록 (제1원칙: 수량검증 통과해야 함)
   //  rework_returned는 '복구분' — 잔량 검증에서는 제외 (새 투입이 아님).
   //  단, 누적 복귀 ≤ 누적 재작업 한도 검증.
-  registerRecord({plot_no, proc, equipment, good=0, defect=0, rework=0, scrap=0, rework_returned=0, defect_reason='', vendor=null, type='in', shift='day', source='manual', worker=null, pallets=null}){   // ★ v0.35.9 — pallets: 파렛트 수(표시·추적용 · 수량 계산 무관)
+  registerRecord({plot_no, proc, equipment, good=0, defect=0, rework=0, scrap=0, rework_returned=0, defect_reason='', vendor=null, type='in', shift='day', source='manual', worker=null, pallets=null, _fixedId=null}){   // ★ v0.35.9 — pallets: 파렛트 수(표시·추적용 · 수량 계산 무관)
     // ★ v0.33.0 — 품질 Hold Gate: 미처리('접수') 부적합 LOT 은 판정 전 실적 등록 차단 (원장 단일 경로)
     if(typeof assertLotNotHeld === 'function') assertLotNotHeld(plot_no, '실적 등록');
     // ★ v0.36.0 (Q6-0) — 동시성 사고는 LOT 전체 잠금이 아니라 「보류」: 수량 차단은 balance(인정 기준) 가 스스로 · 사고 open 은 사실 기록·표시(Audit) 로 유지
@@ -6954,7 +6955,9 @@ const LOT = {
         throw new Error(`복귀 한도 초과 — 누적 재작업 ${cumRew+rework}, 기존 복귀 ${cumRet}, 신규 ${rework_returned}`);
       }
     }
-    const id = newRecId(`R-${proc}-${plot_no}`);   // ★ v0.35.6 — 같은 ms 충돌 방지
+    // ★ v0.40.10 — _fixedId = 외주 입고 요청을 같은 번호로 다시 보낼 때(새로고침 뒤 · 서버 결과 확인 「없음」) 같은 실적 번호 사용 → 먼저 보낸 것이 늦게 도착해도 1건 (이 기기에 이미 있으면 거부)
+    if(_fixedId && DB.get('records', _fixedId)) throw new Error(`같은 실적 번호가 이미 있습니다 — ${_fixedId}`);
+    const id = _fixedId || newRecId(`R-${proc}-${plot_no}`);   // ★ v0.35.6 — 같은 ms 충돌 방지
     const rec = {
       id, plot_no, proc, equipment, vendor, type,
       good, defect, rework, scrap, rework_returned, defect_reason,
@@ -7284,7 +7287,8 @@ function openModal(html, opts={}){
   bg.onclick = e => { if(e.target===bg && opts.closeOnBg===true) _modalUserClose(); };
   setTimeout(() => { try { if(md.contains(document.activeElement)) return; const f = [...md.querySelectorAll('input:not([type=hidden]):not([readonly]):not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea')].find(el => !el._velaCalBound && el.offsetParent !== null); if(f && !opts.noAutoFocus && !(window.matchMedia && window.matchMedia('(pointer:coarse)').matches)) f.focus({ preventScroll: true }); /* 터치 기기 = 자동 키보드 0 */ } catch(e){} }, 30);
 }
-function closeModal(){ if(window._setEdUnlock){ const f = window._setEdUnlock; window._setEdUnlock = null; try { f(); } catch(e){} }   // ★ v0.40.3 — 서버 확인 중 닫으면 잠근 입력을 먼저 풀고 제자리로
+function closeModal(){ try { const _m = document.getElementById('modal'); if(_m){ delete _m.dataset.orTok; delete _m.dataset.orDisp; _m.removeAttribute('aria-busy'); } } catch(e){}   // ★ v0.40.10 — 외주 입고 창 고유 번호를 닫을 때 지움 (앞 요청 응답이 다음 창을 건드리지 않게)
+  if(window._setEdUnlock){ const f = window._setEdUnlock; window._setEdUnlock = null; try { f(); } catch(e){} }   // ★ v0.40.3 — 서버 확인 중 닫으면 잠근 입력을 먼저 풀고 제자리로
   if(_raMoved) _raRestore(); if(typeof _closeCal==='function') _closeCal(); document.getElementById('modal-bg').classList.remove('show'); _modalDirty = false;
   if(window._setEdDeferred){ window._setEdDeferred = false; setTimeout(() => { try { if(SESSION.loggedIn && !document.getElementById('modal-bg').classList.contains('show')) router(); } catch(e){} }, 0); }   // ★ v0.40.3 — 미뤄 둔 다시 그리기
   const o = _modalOpener; _modalOpener = null; try { if(o && o.isConnected && typeof o.focus === 'function') o.focus({ preventScroll: true }); } catch(e){}
@@ -11057,6 +11061,13 @@ function _phUiApply(){
   }
   let tabs = document.getElementById('ph-tabs');
   if(!tabs){ tabs = document.createElement('div'); tabs.id = 'ph-tabs-host'; document.body.appendChild(tabs); }
+  // ★ v0.40.10 (사용자 요청 「작은 화면엔 팩트만」) — 폰에서는 메뉴 화면의 요약 숫자 카드 묶음(입고 kg 합계·LOT 요약·계획량/실적/달성률 등)을 숨김 · 대시보드·폰 홈은 그대로
+  //   (표시만 · 계산·DOM 무변 · 목록 카드의 상태·HOLD·잔량은 그대로 보임 · 넓은 화면 = 그대로)
+  try { const _pgId = (location.hash || '#dash').replace('#', '').split('/')[0] || 'dash'; if(view && _pgId !== 'dash'){
+    view.querySelectorAll('.mstrip, .sales-hero').forEach(el => el.classList.add('ph-kpi-hide'));
+    view.querySelectorAll('.sales-hero').forEach(el => { const pv = el.previousElementSibling; if(pv && pv.classList.contains('secttl')) pv.classList.add('ph-kpi-hide'); });
+    view.querySelectorAll('.kpi-mini').forEach(k => { const par = k.parentElement; if(par && par !== view && [...par.children].every(c => c.classList.contains('kpi-mini'))) par.classList.add('ph-kpi-hide'); else k.classList.add('ph-kpi-hide'); });
+  } } catch(e){}
   // ★ v0.40.8 (GPT P-2) — 화면 제목 옆 = 이름 있는 등록 버튼 하나(「+ 새 발주」 등 · 같은 버튼을 자리만 옮겨 보임 · CSS)
   try { const ph = view && view.querySelector(':scope > .pghead'); const pb = ph && ph.querySelector('.pgtools > .btn.primary'); if(pb) pb.classList.add('ph-prim'); } catch(e){}
   const host = document.getElementById('ph-tabs-host') || tabs;
@@ -16618,7 +16629,7 @@ VIEWS._osRecv = (dispId, keep) => {
   openModal(`
     <h2>외주 입고 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
-      ${_osReqPendingOf(dispId) ? `<div class="m-ban amber" id="or-pend-ban" style="margin-bottom:10px">이 반출의 입고 요청 <b>${_esc(_osReqPendingOf(dispId).rid)}</b> 서버 확인 중 — 결과가 나올 때까지 이 반출은 다시 입고할 수 없습니다 (같은 입고 중복 방지)</div>` : ''}
+      ${_osReqPendingOf(dispId) ? `<div class="m-ban amber" id="or-pend-ban" style="margin-bottom:10px"><div id="or-pend-msg">이 반출의 입고 요청 <b>${_esc(_osReqPendingOf(dispId).rid)}</b> 서버 확인 중 — 결과가 나올 때까지 이 반출은 다시 입고할 수 없습니다 (같은 입고 중복 방지)</div><div id="or-pend-acts" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div></div>` : ''}
       <div><label>입고번호 (자동 · 수정 가능)</label>
         <input id="or-id" value="${_esc(kv.id || nextDocNo('OR'))}" style="font-family:'JetBrains Mono',monospace;letter-spacing:.3px" autocomplete="off"></div>
       <div><label>외주 반출 연결</label>
@@ -16643,11 +16654,32 @@ VIEWS._osRecv = (dispId, keep) => {
     </div>
   `);
   const $ = id => document.getElementById(id);
+  /* ★ v0.40.10 (GPT v0.40.9 판정 ①) — 창마다 고유 번호(토큰): 앞 요청의 늦은 응답·10초 타이머는 「그 요청을 보낸 그 창」 에만 잠금·안내·닫기를 함 (공용 창 #modal 재사용 때문에 다른 반출 창이 잠기던 것) */
+  const tok = String((window._osRecvTok = (window._osRecvTok || 0) + 1));
+  const box = $('modal'); box.dataset.orTok = tok; box.dataset.orDisp = dispId; box.setAttribute('aria-busy', 'false');   // 공용 창 — 앞 창의 「확인 중」 표시를 새 창에 남기지 않음
+  const mine = () => !!(document.getElementById('modal-bg').classList.contains('show') && box.dataset.orTok === tok && document.getElementById('or-st'));
+  const setBusy = (on, msg, tone) => { if(!mine()) return; box.querySelectorAll('#or-id,#or-disp,#or-unit,#or-prc,#or-g,#or-d,#or-ok').forEach(el => { el.disabled = !!on; }); box.setAttribute('aria-busy', on ? 'true' : 'false'); const st = document.getElementById('or-st'); if(st){ st.textContent = msg || ''; st.style.color = tone === 'err' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : 'var(--sub)'; } };
+  let resendReq = null;   // 같은 요청 다시 보내기(새로고침 뒤 서버에 없음 확인) = 저장해 둔 번호 그대로
   const unit = () => $('or-unit').value;
   const conv = raw => { if(unit() !== 'kg') return { ea: (raw === '' ? 0 : +raw || 0), hint: '' }; if(raw === '' || !(+raw > 0)) return { ea: 0, hint: '' }; const c = osInputConvert('kg', raw, itemCode); return c.ea == null ? { ea: null, hint: '⚠ 단중(kg/ea)이 없어 환산할 수 없습니다 — 기준정보 › 품번에 단중 입력 또는 ea 로 입력' } : { ea: c.ea, hint: c.hint }; };
   const upd = () => { document.querySelectorAll('#modal .or-u').forEach(x => { x.textContent = unit() === 'kg' ? '(kg)' : '(ea)'; }); $('or-g-hint').innerHTML = conv($('or-g').value).hint; $('or-d-hint').innerHTML = conv($('or-d').value).hint; };
   ['or-g', 'or-d'].forEach(id => $(id).addEventListener('input', upd)); $('or-unit').onchange = upd; upd();
   $('or-disp').onchange = () => { const nv = $('or-disp').value; if(nv && nv !== dispId) VIEWS._osRecv(nv, { id: $('or-id').value, unit: unit(), g: $('or-g').value, d: $('or-d').value }); };
+  /* ★ v0.40.10 (GPT v0.40.9 판정 ②) — 새로고침 뒤에도 남는 요청(이 기기 저장 vela_os_req): 창을 열면 서버에서 결과를 직접 확인
+     · 반영됨 = 요청 지움 · 새 입고만 가능 / 없음 = [같은 요청 다시 보내기](같은 입고·실적·파렛트 번호 → 먼저 보낸 것이 늦게 도착해도 1건) / 확인 불가 = 잠김 유지 · [서버 결과 확인] */
+  const pend0 = _osReqPendingOf(dispId);
+  const pendUi = (msg, tone, acts) => { if(!mine()) return; const m = $('or-pend-msg'), a = $('or-pend-acts'), b = $('or-pend-ban'); if(!m || !a) return; m.innerHTML = msg; if(b) b.className = 'm-ban ' + (tone || 'amber'); a.innerHTML = ''; (acts || []).forEach(([id, label, fn]) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'btn'; x.id = id; x.textContent = label; x.onclick = fn; a.appendChild(x); }); };
+  const runCheck = async () => {
+    const p = _osReqPendingOf(dispId); if(!p || p.live) return;
+    pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> — 서버 결과 확인 중…`, 'amber', []);
+    const r = await _osReqCheck(p); if(!mine()) return;
+    if(r === 'applied'){ _osReqDrop(dispId, p.rid); pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> = <b>서버에 반영되어 있습니다</b> (실적·입고·파렛트 한 묶음 · 다시 입고하지 마세요) — 새 입고만 입력하세요`, 'green', []); const ok = $('or-ok'); if(ok) ok.disabled = false; try { router(); } catch(e){} }
+    else if(r === 'absent'){ pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> = <b>서버에 없습니다</b> (연결 전에 새로고침되어 보내지지 않음) — [같은 요청 다시 보내기] = 같은 번호로 보냄 · 먼저 보낸 것이 늦게 도착해도 각 1건 · 이 요청을 끝내기 전에는 이 반출에 새 입고를 할 수 없습니다`, 'amber', [['or-pend-resend', '같은 요청 다시 보내기', () => doResend(p)], ['or-pend-chk', '서버 결과 다시 확인', runCheck]]); }
+    else if(r === 'local'){ pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> = 이 기기에서 서버로 보내는 중 — 연결되면 자동 반영 · 잠시 뒤 [서버 결과 확인]`, 'amber', [['or-pend-chk', '서버 결과 확인', runCheck]]); }
+    else { pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> — 서버에 연결할 수 없어 결과를 확인하지 못했습니다 · 연결 후 [서버 결과 확인] (그 전에는 이 반출을 다시 입고할 수 없습니다)`, 'amber', [['or-pend-chk', '서버 결과 확인', runCheck]]); }
+  };
+  const doResend = (p) => { if(!mine()) return; resendReq = p; $('or-id').value = p.rid; $('or-unit').value = p.unit || 'ea'; upd(); $('or-g').value = p.rawG == null ? '' : String(p.rawG); $('or-d').value = p.rawD == null ? '' : String(p.rawD); if(!$('or-prc').disabled) $('or-prc').value = String(p.prc || 0); upd(); $('or-ok').disabled = false; $('or-ok').click(); };
+  if(pend0 && !pend0.live) setTimeout(runCheck, 0);
   $('or-ok').onclick = () => {
     /* ★ v0.40.8 (GPT v0.40.7 판정 재현 2건) — ① 환산 전에 원래 입력값 검사(음수·숫자 아님·ea 소수 · kg 음수가 0 으로 바뀌어 통과하던 것)
        ② 수량·입고번호·파렛트 한도 등 사전 검사를 전부 끝낸 뒤에만 저장 시작(파렛트 한도 초과인데 실적만 저장되던 것)
@@ -16667,26 +16699,33 @@ VIEWS._osRecv = (dispId, keep) => {
     if(prc > pMiss){ toast(`파렛트 회수 한도 초과 (미회수 ${pMiss}개)`,'warn'); return; }
     const rid = String($('or-id').value || '').trim() || nextDocNo('OR');
     if(/[\/\\#?\s]/.test(rid) || rid.length > 60){ toast('입고번호에 / \\ # ? 공백은 쓸 수 없습니다 (60자 이내)','warn'); return; }
+    if(resendReq && (rid !== resendReq.rid || g !== resendReq.g || df !== resendReq.df || prc !== resendReq.prc)){ toast('같은 요청 다시 보내기는 처음 값 그대로만 보낼 수 있습니다','warn',5000); resendReq = null; return; }
+    if(resendReq && DB.get('os_receipts', rid)){ _osReqDrop(dispId, rid); resendReq = null; toast(`입고 요청 ${rid} 는 이미 이 기기에 반영되어 있습니다 — 다시 보내지 않음`,'warn',5000); return; }
     if(g + df > 0 && DB.get('os_receipts', rid)){ toast(`입고번호 중복 — ${rid}`,'err'); return; }
-    if(_osReqPendingOf(dispId)){ toast('이 반출의 이전 입고 요청을 서버가 아직 확인 중입니다 — 결과를 기다리세요 (중복 방지)','warn',5000); return; }
+    if(_osReqPendingOf(dispId) && !resendReq){ toast('이 반출의 이전 입고 요청 결과가 아직 확인되지 않았습니다 — 결과 확인 전에는 새로 입고할 수 없습니다 (중복 방지)','warn',5000); return; }
     // ── 여기부터 저장 (위 검사를 모두 통과한 경우만)
     /* ★ v0.40.9 (GPT v0.40.8 판정) — 실적 · 파렛트 회수 · 입고 문서 = 한 묶음 저장(DB.group)
        · 이 기기에서 어느 하나라도 실패(거부·null) = 화면 메모리 되돌림 · 아무것도 보내지 않음 (자동 취소 기록 없음 → 「취소 실패」 상황 자체가 없음)
        · 서버 모드 = writeBatch 1회 — 전부 반영 또는 전부 거부 · 서버 확인 전에는 창·입력 유지(잠금) · 응답 없음 = 실패로 단정하지 않고 같은 반출 재입고를 막음(요청 번호 = 입고번호) */
-    const box = document.getElementById('modal');
-    const setBusy = (on, msg, tone) => { box.querySelectorAll('#or-id,#or-disp,#or-unit,#or-prc,#or-g,#or-d,#or-ok').forEach(el => { el.disabled = !!on; }); box.setAttribute('aria-busy', on ? 'true' : 'false'); const st = document.getElementById('or-st'); if(st){ st.textContent = msg || ''; st.style.color = tone === 'err' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : 'var(--sub)'; } };
+    // ★ v0.40.10 — 기록 번호를 저장 전에 정함 · 서버 모드 = 요청을 이 기기에 먼저 기록(새로고침해도 남음) → 결과 확인 전 새 요청 막음 · 같은 요청 재전송 = 같은 번호
+    const recId = resendReq ? resendReq.recId : (g + df > 0 ? newRecId(`R-${d.proc}-${d.plot_no}`) : null);
+    const pmId  = resendReq ? resendReq.pmId  : (prc > 0 ? PALLET.newId('in') : null);
+    const srvMode = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore';
+    const preq = { rid, dispId, recId, pmId, g, df, prc, unit: unit(), rawG: rawOf('or-g'), rawD: rawOf('or-d'), ts: Date.now(), chk: g + df > 0 ? { col: 'os_receipts', id: rid } : { col: 'pallet_moves', id: pmId } };
+    if(srvMode && !_osReqPut(preq)){ toast('이 기기 저장소를 쓸 수 없어 요청 기록을 남길 수 없습니다 — 저장하지 않았습니다 (중복 방지)','err',6000); return; }
+    const wasResend = !!resendReq; resendReq = null;
     let res;
     try {
       res = DB.group(() => {
         // ★ v0.16.0 — record_id / pallet_move_id 를 os_receipts 에 함께 저장 (취소 연쇄 연결키) · 초과 차단 = registerRecord 가드 그대로
         let recordId = null, palletMoveId = null;
         if(g + df > 0){
-          const rec = LOT.registerRecord({plot_no:d.plot_no, proc:d.proc, equipment:'외주', vendor:d.vendor, good:g, defect:df, type:'out'});
+          const rec = LOT.registerRecord({plot_no:d.plot_no, proc:d.proc, equipment:'외주', vendor:d.vendor, good:g, defect:df, type:'out', _fixedId: recId});
           if(!rec || !rec.id) throw new Error('실적 저장이 거부되었습니다 (권한 확인)');
           recordId = rec.id;
         }
         if(prc > 0){
-          const mv = PALLET.add({vendor:d.vendor, type:'in', qty:prc, ref:{kind:'os', id:dispId}});
+          const mv = PALLET.add({vendor:d.vendor, type:'in', qty:prc, ref:{kind:'os', id:dispId}, id: pmId});
           if(!mv || !mv.id) throw new Error('파렛트 회수 저장이 거부되었습니다 (권한 확인)');
           palletMoveId = mv.id;
         }
@@ -16699,34 +16738,51 @@ VIEWS._osRecv = (dispId, keep) => {
         return { recordId, palletMoveId };
       });
     } catch(e){
+      if(srvMode && !wasResend) _osReqDrop(dispId, rid);   // 이 기기에서 실패 = 아무것도 안 보냄 → 요청 기록도 지움 (재전송 실패는 기록 유지 · 다시 확인 가능)
       setBusy(false, `${e.message} — 저장 0 (실적·입고·파렛트 모두 반영 안 됨)`, 'err');
       toast(`${e.message} — 저장 0 (실적·입고·파렛트 모두 반영 안 됨)`,'err',6000);
       return;
     }
     const doneMsg = `외주 입고 — ${g + df > 0 ? `양품 ${g.toLocaleString()} · 불량 ${df.toLocaleString()}ea` : ''}${prc > 0 ? ` · 회수 파렛트 ${prc}개` : ''}`;
-    const finishOk = () => { toast(doneMsg,'ok'); closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록'); closeModal(); router(); };
-    if(!res.server){ finishOk(); return; }   // 이 기기 저장 모드 = 이미 저장 완료
+    const finishOk = () => { toast(doneMsg,'ok'); closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록'); if(mine()) closeModal(); router(); };
+    if(!res.server){ if(srvMode) _osReqDrop(dispId, rid); finishOk(); return; }   // 이 기기 저장 모드 = 이미 저장 완료
     // 서버 모드 — 확인 전 = 창·입력 잠금 · 요청 표시(같은 반출 재입고 막음)
-    const req = { rid, dispId, ts: Date.now(), state: 'wait' };
+    const req = { rid, dispId, tok, ts: Date.now(), state: 'wait' };
     (window._osReqPending = window._osReqPending || {})[dispId] = req;
     setBusy(true, `서버 저장 확인 중… (입고 요청 ${rid}) — 확인될 때까지 입력은 잠깁니다`);
-    const slow = setTimeout(() => { if(req.state === 'wait' && document.getElementById('or-st') && box.contains(document.getElementById('or-st'))) setBusy(true, `서버 응답이 늦습니다 — 실패로 판단하지 마세요. 연결되면 한 묶음으로 반영됩니다 · 같은 입고를 다시 등록하지 마세요 (입고 요청 ${rid}) · [닫기] 가능`, 'warn'); }, 10000);
-    const stillMine = () => { const st = document.getElementById('or-st'); return !!(st && document.getElementById('modal-bg').classList.contains('show') && (document.getElementById('or-id') || {}).value === rid); };
+    const slow = setTimeout(() => { if(req.state === 'wait' && mine()) setBusy(true, `서버 응답이 늦습니다 — 실패로 판단하지 마세요. 연결되면 한 묶음으로 반영됩니다 · 같은 입고를 다시 등록하지 마세요 (입고 요청 ${rid}) · [닫기] 가능`, 'warn'); }, 10000);
+    const stillMine = mine;   // ★ v0.40.10 — 입고번호가 아니라 이 창의 고유 번호로 판정
     res.server.then(() => {
-      clearTimeout(slow); req.state = 'ok'; if(window._osReqPending && window._osReqPending[dispId] === req) delete window._osReqPending[dispId];
-      if(stillMine()) finishOk(); else { toast(`${doneMsg} · 서버 반영 확인 (입고 요청 ${rid})`,'ok',5000); try { router(); } catch(e){} }
+      clearTimeout(slow); req.state = 'ok'; if(window._osReqPending && window._osReqPending[dispId] === req) delete window._osReqPending[dispId]; _osReqDrop(dispId, rid);
+      if(stillMine()) finishOk(); else { toast(`${doneMsg} · 서버 반영 확인 (입고 요청 ${rid})`,'ok',5000); _osReqNotify(dispId, `이전 입고 요청 <b>${_esc(rid)}</b> = 서버 반영 확인 — 새 입고만 입력하세요`, 'green'); try { router(); } catch(e){} }
     }, (err) => {
-      clearTimeout(slow); req.state = 'fail'; if(window._osReqPending && window._osReqPending[dispId] === req) delete window._osReqPending[dispId];
+      clearTimeout(slow); req.state = 'fail'; if(window._osReqPending && window._osReqPending[dispId] === req) delete window._osReqPending[dispId]; _osReqDrop(dispId, rid);   // 서버 거부 확인 = 묶음 전체 0 → 요청 기록 지움 · 같은 창에서 안전하게 다시 저장
       try { res.rollbackLocal(); } catch(e){}
       const why = String((err && (err.code || err.message)) || err || '알 수 없음');
       if(stillMine()){ setBusy(false, `서버가 이 입고를 받지 않았습니다 (${why}) — 실적·입고·파렛트 모두 반영 안 됨 · 입력값 그대로`, 'err'); }
-      else { toast(`외주 입고 요청 ${rid} — 서버가 받지 않았습니다 (${why}) · 실적·입고·파렛트 모두 반영 안 됨`,'err',8000); }
+      else { toast(`외주 입고 요청 ${rid} — 서버가 받지 않았습니다 (${why}) · 실적·입고·파렛트 모두 반영 안 됨`,'err',8000); _osReqNotify(dispId, `이전 입고 요청 <b>${_esc(rid)}</b> = 서버가 받지 않음 (모두 반영 안 됨) — 다시 입력해 저장할 수 있습니다`, 'red'); }
       try { if(!stillMine()) router(); } catch(e){}
     });
   };
 };
-// ★ v0.40.9 — 외주 입고 서버 확인 대기 요청 (반출별 · 이 탭 메모리) — 응답 전 같은 반출 재입고 막음
-function _osReqPendingOf(dispId){ const m = window._osReqPending || {}; const r = m[dispId]; return r && r.state === 'wait' ? r : null; }
+// ★ v0.40.9 — 외주 입고 서버 확인 대기 요청 · ★ v0.40.10 (GPT v0.40.9 판정 ②) — 이 기기에 기록(localStorage vela_os_req · 접속 서버별 · DB 밖 §1-7) → 새로고침해도 유지
+//   live = 이 탭에서 응답을 기다리는 중 · 아니면 새로고침 뒤 남은 요청(창을 열면 서버에서 결과 확인)
+const OS_REQ_KEY = 'vela_os_req';
+// 요청 결과가 나왔을 때 같은 반출의 다른 입고 창(나중에 다시 연 창)이 열려 있으면 안내만 갱신하고 [입고 처리] 잠금 해제 — 다른 반출 창은 건드리지 않음
+function _osReqNotify(dispId, html, tone){ try { const box = document.getElementById('modal'); if(!document.getElementById('modal-bg').classList.contains('show') || box.dataset.orDisp !== dispId) return; const m = document.getElementById('or-pend-msg'); const b = document.getElementById('or-pend-ban'); if(m) m.innerHTML = html; if(b) b.className = 'm-ban ' + (tone || 'amber'); const a = document.getElementById('or-pend-acts'); if(a) a.innerHTML = ''; const ok = document.getElementById('or-ok'); if(ok && box.getAttribute('aria-busy') !== 'true') ok.disabled = false; } catch(e){} }
+function _osReqProj(){ try { return (_ACTIVE_ADAPTER && _ACTIVE_ADAPTER._cfg && _ACTIVE_ADAPTER._cfg.projectId) || (_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name) || 'local'; } catch(e){ return 'local'; } }
+function _osReqAll(){ try { return JSON.parse(localStorage.getItem(OS_REQ_KEY) || '{}') || {}; } catch(e){ return {}; } }
+function _osReqPut(req){ try { const m = _osReqAll(); m[_osReqProj() + '|' + req.dispId] = req; localStorage.setItem(OS_REQ_KEY, JSON.stringify(m)); return JSON.parse(localStorage.getItem(OS_REQ_KEY) || '{}')[_osReqProj() + '|' + req.dispId] ? true : false; } catch(e){ return false; } }
+function _osReqDrop(dispId, rid){ try { const m = _osReqAll(); const k = _osReqProj() + '|' + dispId; if(m[k] && (!rid || m[k].rid === rid)){ delete m[k]; localStorage.setItem(OS_REQ_KEY, JSON.stringify(m)); } } catch(e){} }
+function _osReqStored(dispId){ return _osReqAll()[_osReqProj() + '|' + dispId] || null; }
+function _osReqPendingOf(dispId){ const live = (window._osReqPending || {})[dispId]; const st = _osReqStored(dispId); if(live && live.state === 'wait') return Object.assign({}, st || {}, live, { live: true }); return st ? Object.assign({}, st, { live: false }) : null; }
+// 서버에서 직접 확인 (캐시 아님): 묶음 저장이라 대표 문서 1개(입고 문서 · 파렛트만이면 파렛트 이동)가 있으면 전부 반영 · 'applied' | 'absent' | 'local'(이 기기 대기열에 남음) | 'unknown'(연결 불가)
+async function _osReqCheck(req){
+  const A = _ACTIVE_ADAPTER; const c = req && req.chk; if(!A || A.name !== 'firestore' || !A._fs || !c || !c.id) return 'unknown';
+  try { const sn = await A._fs.collection(c.col).doc(String(c.id)).get({ source: 'server' }); if(sn.exists) return 'applied'; }
+  catch(e){ return 'unknown'; }
+  return DB.get(c.col, c.id) ? 'local' : 'absent';
+}
 VIEWS._printDisp = (id) => { printForm.os([id]); };  // ★ v0.12.0 — 새 양식 위임
 
 /* =================================================================================================
@@ -17532,10 +17588,12 @@ VIEWS._perfEdit = (recId)=>{
    - 고객사(편도) = 출고만 기록 (파렛트업체가 회수)
    ================================================================================================= */
 const PALLET = {
-  add({vendor, type, qty, ref}){
+  newId(type){ return `PLT-${String(type || 'in').toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random()*999)}`; },   // ★ v0.40.10 — 번호 생성 1벌 (외주 입고 요청 = 저장 전에 번호를 정해 둠)
+  add({vendor, type, qty, ref, id: fixedId}){
     qty = Math.max(0, +qty||0);
     if(!vendor || !type || qty<=0) return null;
-    const id = `PLT-${type.toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random()*999)}`;
+    if(fixedId && DB.get('pallet_moves', fixedId)) return null;   // ★ v0.40.10 — 같은 번호 재전송 시 이 기기에 이미 있으면 거부
+    const id = fixedId || PALLET.newId(type);
     return DB.set('pallet_moves', id, {id, vendor, type, qty, ref:ref||{kind:'manual'}, ts:Date.now(), by:SESSION.user});
   },
   totalsByVendor(){
