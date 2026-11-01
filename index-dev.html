@@ -1701,7 +1701,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.14';
+const APP_VERSION = 'v0.40.15';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -7212,6 +7212,42 @@ const LOT = {
    반환: {A, B, C, avail} — 힌트 표시에 A/B/C 개별 노출. */
 /* ★ v0.16.15 — 반출 중(미입고 잔량) 소함수 1벌 · osAvailable(C)·calcItemFlow(outAtVendor) 공용
    LOT+공정 단위: Σ live os_dispatches(plot+proc).qty − Σ live os_receipts(dispatch_id).qty (음수 방지) */
+/* ★ v0.40.15 — 동시 저장 보호 1단계 (SPEC 동시저장보호 v0.1 · 사용자 승인 2026-11-01 「누계 문서 예외 · 현장 실적 포함」)
+   서버 누계 qty_guard 의 정의를 원장에서 다시 계산하는 함수 1벌 — 저장 0 · 화면·계산 무변
+   · 전환 도구(초기값 생성)·누계 대조 화면·2단계 저장 경로가 모두 이 정의를 씀 (규칙 r17 의 gRec·gDisp·gShip 와 같은 셈법)
+   · L:{LOT} = 공정별 실적 투입 inp(사내·외주 실적 모두) · 외주 반출 disp · 외주 입고 rcv(입고 문서 수량) · 양품 good(= 양품 + 재작업 복귀) · 출하 ship · 공정 순서 prev/next/last · 투입 수량 start
+   · 공급(supply) = 첫 공정·병합 시작 = start / 병합 이전 공정 = 0('__none') / 그 밖 = 직전 공정 good
+   · 소비 = inp + disp − rcv  (= 지금 계산의 「실적 투입 합 B + 외주 진행 C」 · 외주 입고는 실적 투입과 입고 수량이 같이 늘어 소비 무변) */
+function qgRouteOf(lot){
+  const route = getRoute(lot.itemCode).map(r => r.proc);
+  const mIdx = lot.merge_at_proc ? route.indexOf(lot.merge_at_proc) : -1;
+  const prev = {}, next = {};
+  route.forEach((p, i) => {
+    prev[p] = (mIdx >= 0 && i < mIdx) ? '__none' : (i === 0 || i === mIdx) ? '__start' : route[i - 1];   // 병합 이전 판정이 먼저 (_prevAvail 과 같은 순서)
+    next[p] = i + 1 < route.length ? route[i + 1] : '';
+  });
+  const last = route.length > 1 ? route[route.length - 2] : (route[0] || '');
+  if(last) next[last] = '';   // 마지막 생산 공정 다음 = 출하(ship 로 따로 셈)
+  return { prev, next, last, start: +lot.qty_initial || 0 };
+}
+function qgRecIn(r){ return (+r.good || 0) + (+r.defect || 0) + (+r.rework || 0) + (+r.scrap || 0) + (+r.transferred || 0); }
+function qgRecGood(r){ return (+r.good || 0) + (+r.rework_returned || 0); }
+function qgLotCalc(plot){
+  const lot = DB.get('production_lots', plot); if(!lot) return null;
+  const g = { ...qgRouteOf(lot), inp: {}, disp: {}, rcv: {}, good: {}, ship: 0 };
+  const add = (m, k, v) => { if(v) m[k] = (m[k] || 0) + v; };
+  DB.query('records', r => r.plot_no === plot).forEach(r => { add(g.inp, r.proc, qgRecIn(r)); add(g.good, r.proc, qgRecGood(r)); });
+  DB.query('os_dispatches', d => d.plot_no === plot).forEach(d => { add(g.disp, d.proc, +d.qty || 0);
+    add(g.rcv, d.proc, DB.query('os_receipts', x => x.dispatch_id === d.id).reduce((t, x) => t + (+x.qty || 0), 0)); });
+  g.ship = DB.query('shipments', x => x.plot_no === plot).reduce((t, x) => t + (+x.qty || 0), 0);
+  return g;
+}
+function qgSoCalc(so_id){ return { shipped: DB.query('shipments', x => x.so_id === so_id).reduce((t, x) => t + (+x.qty || 0), 0) }; }
+function qgSupply(g, p){ const pv = g.prev[p]; return pv === '__start' ? g.start : pv === '__none' || !pv ? 0 : (g.good[pv] || 0); }
+function qgCons(g, p){ return (g.inp[p] || 0) + (g.disp[p] || 0) - (g.rcv[p] || 0); }
+function qgFree(g, p){ return qgSupply(g, p) - qgCons(g, p); }   // 서버 기준 그 공정에 더 쓸 수 있는 양 (음수 = 이미 넘침)
+function qgShipFree(g){ return (g.good[g.last] || 0) - g.ship; }
+
 function osInFlight(plot, proc){
   if(!plot || !proc) return 0;
   return DB.query('os_dispatches', d => d.plot_no===plot && d.proc===proc)
