@@ -1701,11 +1701,11 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.12';
+const APP_VERSION = 'v0.40.13';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-10-31';
+const APP_DATE    = '2026-11-01';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -16071,6 +16071,17 @@ VIEWS.ship = () => {
     const shSave = (v, resendReq) => {
       const { so_id, plot, qty, plt, pack_qty_actual } = v;
       const so = DB.get('orders', so_id);
+      /* ★ v0.40.13 (GPT v0.40.12 판정) — 같은 요청 = 같은 내용: 첫 요청 때 고객사·품번·파렛트 거래처를 확정해 요청 기록에 보존 → 다시 보내기는 그 값으로만 저장
+         · 그 사이 수주의 고객사·품번이 바뀌었으면 저장하지 않고 「요청 내용 불일치 · 확인 필요」 + 잠금 유지 (조용히 다른 내용으로 바꾸지 않음) */
+      if(resendReq){
+        const fx = resendReq.vals || {};
+        const diff = [];
+        if(!fx.itemCode || !('cust' in fx)) diff.push('요청 기록에 첫 확정 내용 없음(옛 요청)');
+        else if(!so) diff.push('수주 없음');
+        else { if((so.cust || null) !== (fx.cust || null)) diff.push(`고객사 ${fx.cust || '—'} → ${so.cust || '—'}`); if((so.itemCode || null) !== (fx.itemCode || null)) diff.push(`품번 ${fx.itemCode || '—'} → ${so.itemCode || '—'}`); if(so.void) diff.push('수주 취소됨'); }
+        if(diff.length){ shGuard.mismatch(resendReq, /옛 요청/.test(diff[0]) ? '이전 버전에서 만든 요청 — 첫 요청 때의 확정 내용이 기록에 없어 같은 내용인지 확인할 수 없습니다' : `요청 이후 기준정보가 바뀌었습니다 (${diff.join(' · ')})`); return; }
+      } else if(so){ v = Object.assign({}, v, { cust: so.cust || null, itemCode: so.itemCode || null, pltVendor: (plt > 0 && so.cust) ? so.cust : null }); }
+      const fixed = v;   // 저장 내용 = 이 확정값 (현재 수주를 다시 읽지 않음)
       if(!qty){ toast('수량 입력','warn'); return; }
       if(!Number.isInteger(plt) || plt < 0){ toast('파렛트 수량은 0 이상 정수','warn'); return; }
       // 출하 = shipment 레코드 (출하 직전 공정의 품번별 양품 검증)
@@ -16090,16 +16101,16 @@ VIEWS.ship = () => {
         const shNo = resendReq ? { id: resendReq.rid, dup: !!DB.get('shipments', resendReq.rid) } : resolveDocNo('sh-id', 'SH');
         if(shNo.dup) throw new Error(`출하번호 중복 — ${shNo.id}`);
         const id = shNo.id;
-        const pmId = resendReq ? resendReq.pmId : (plt > 0 && so?.cust ? PALLET.newId('out') : null);
+        const pmId = resendReq ? resendReq.pmId : (fixed.pltVendor ? PALLET.newId('out') : null);
         const reqId = resendReq ? resendReq.reqId : _reqNewId();
-        const req = { key: 'new', rid: id, reqId, pmId, vals: v, chk: { col: 'shipments', id }, expect: { req_id: reqId, so_id, plot_no: plot, qty, pallets: plt } };
-        window.__shLast = { id, so, qty, plt };
+        const req = { key: 'new', rid: id, reqId, pmId, vals: fixed, chk: { col: 'shipments', id }, expect: { req_id: reqId, so_id, plot_no: plot, qty, pallets: plt, itemCode: fixed.itemCode } };
+        window.__shLast = { id, so: Object.assign({}, so, { itemCode: fixed.itemCode, cust: fixed.cust }), qty, plt };
         shGuard.run(req, () => {
-          if(!DB.set('shipments', id, {id, so_id, itemCode:so.itemCode, plot_no:plot, qty, pallets:plt, pack_qty_actual, req_id: reqId, ts:Date.now(), by:SESSION.user})) throw new Error('출하 저장이 거부되었습니다 (권한 확인)');
+          if(!DB.set('shipments', id, {id, so_id, itemCode:fixed.itemCode, plot_no:plot, qty, pallets:plt, pack_qty_actual, req_id: reqId, ts:Date.now(), by:SESSION.user})) throw new Error('출하 저장이 거부되었습니다 (권한 확인)');
           if(qz.pending.length){ ncRecordPendingOut(qz.pending, 'ship', id, qty); toast(`⚠ 판정 대기 중 출하 — NC ${qz.pending.map(n=>n.id).join(', ')} 기록`, 'warn', 4500); }   // ★ v0.35.9-B — NC 문서에 기록(원장 무변)
           if(ciw.incidents.length) ciRecordPendingOut(ciw.incidents, 'ship', id, qty);   // ★ v0.36.0 — 보류 중 인정분 출하 사실 (사고 문서)
           // ★ v0.13.0 — 고객사 파렛트 출고 자동 (편도, 미회수 없음)
-          if(pmId){ const mv = PALLET.add({vendor:so.cust, type:'out', qty:plt, ref:{kind:'tx', id}, id: pmId, extra: { req_id: reqId }}); if(!mv) throw new Error('파렛트 출고 저장이 거부되었습니다 (권한 확인)'); }
+          if(pmId){ const mv = PALLET.add({vendor:fixed.pltVendor, type:'out', qty:plt, ref:{kind:'tx', id}, id: pmId, extra: { req_id: reqId }}); if(!mv) throw new Error('파렛트 출고 저장이 거부되었습니다 (권한 확인)'); }   // ★ v0.40.13 — 첫 요청 때 확정한 파렛트 거래처
         }, [['shipments', id], pmId && ['pallet_moves', pmId]].filter(Boolean), !!resendReq);
       } catch(e){ toast(e.message,'err'); }
     };
@@ -16554,6 +16565,14 @@ VIEWS.os = () => {
       onDone: (m) => { const p = window.__odLast || {}; toast(m || `외주 반출 등록${p.plt > 0 ? ` · 파렛트 ${p.plt}개 출고` : ''}`, 'ok'); closeModal(); router(); },
       resendWrite: (p) => odSave(p.vals, p) });
     const odSave = (v, resendReq) => {
+      // ★ v0.40.13 — 같은 요청 = 같은 내용: 외주처·공정·LOT·수량·파렛트·입력 근거는 첫 요청 값(vals) 그대로 · LOT 품번을 첫 요청 때 확정 → 다시 보낼 때 LOT 품번이 바뀌었거나 LOT·외주처가 없어졌으면 불일치(저장 0)
+      if(resendReq){
+        const fx = resendReq.vals || {}; const lt = DB.get('production_lots', fx.plot); const vd = DB.get('vendors', fx.vendor); const diff = [];
+        if(!('itemCode' in fx)) diff.push('요청 기록에 첫 확정 내용 없음(옛 요청)');
+        else { if(!lt || lt.void) diff.push('LOT 없음·취소'); else if((lt.itemCode || null) !== (fx.itemCode || null)) diff.push(`LOT 품번 ${fx.itemCode || '—'} → ${lt.itemCode || '—'}`);
+          if(!vd || vd.active === false || vd.void) diff.push('외주처 없음·사용 안 함'); }
+        if(diff.length){ odGuard.mismatch(resendReq, /옛 요청/.test(diff[0]) ? '이전 버전에서 만든 요청 — 첫 요청 때의 확정 내용이 기록에 없어 같은 내용인지 확인할 수 없습니다' : `요청 이후 기준정보가 바뀌었습니다 (${diff.join(' · ')})`); return; }
+      } else { const lt = DB.get('production_lots', v.plot); v = Object.assign({}, v, { itemCode: lt ? (lt.itemCode || null) : null }); }
       const { vendor, proc, plot, qty, plt, mode, src } = v;
       if(!qty){ toast('수량 입력','warn'); return; }
       // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 외주 반출 차단
@@ -16769,6 +16788,13 @@ VIEWS._osRecv = (dispId, keep) => {
     if(prc > pMiss){ toast(`파렛트 회수 한도 초과 (미회수 ${pMiss}개)`,'warn'); return; }
     const rid = String($('or-id').value || '').trim() || nextDocNo('OR');
     if(/[\/\\#?\s]/.test(rid) || rid.length > 60){ toast('입고번호에 / \\ # ? 공백은 쓸 수 없습니다 (60자 이내)','warn'); return; }
+    // ★ v0.40.13 — 다시 보내기 = 첫 요청 때의 반출 내용 그대로여야 함 (그 사이 반출이 취소되었거나 LOT·공정·외주처가 다르면 저장 0 · 불일치 잠금)
+    const wasResendReq = resendReq;
+    if(resendReq){ const f = resendReq.dFix; const dn = DB.get('os_dispatches', dispId); const diff = [];   // 창을 연 뒤 바뀌었을 수 있으므로 지금 값으로 비교
+      if(!f) diff.push('요청 기록에 첫 확정 내용 없음(옛 요청)');
+      else if(!dn) diff.push('반출 없음');
+      else { if(dn.void) diff.push('반출 취소됨'); if(dn.plot_no !== f.plot) diff.push(`LOT ${f.plot} → ${dn.plot_no}`); if(dn.proc !== f.proc) diff.push(`공정 ${f.proc} → ${dn.proc}`); if(dn.vendor !== f.vendor) diff.push(`외주처 ${f.vendor} → ${dn.vendor}`); }
+      if(diff.length){ const p = resendReq; resendReq = null; $('or-ok').disabled = true; _osReqShowMismatch(dispId, p, /옛 요청/.test(diff[0]) ? '이전 버전에서 만든 요청 — 첫 요청 때의 확정 내용이 기록에 없어 같은 내용인지 확인할 수 없습니다' : `요청 이후 반출 내용이 바뀌었습니다 (${diff.join(' · ')})`); return; } }
     if(resendReq && (rid !== resendReq.rid || g !== resendReq.g || df !== resendReq.df || prc !== resendReq.prc)){ toast('같은 요청 다시 보내기는 처음 값 그대로만 보낼 수 있습니다','warn',5000); resendReq = null; return; }
     if(resendReq && DB.get('os_receipts', rid)){ _osReqDrop(dispId, rid); resendReq = null; toast(`입고 요청 ${rid} 는 이미 이 기기에 반영되어 있습니다 — 다시 보내지 않음`,'warn',5000); return; }
     if(g + df > 0 && DB.get('os_receipts', rid)){ toast(`입고번호 중복 — ${rid}`,'err'); return; }
@@ -16783,7 +16809,8 @@ VIEWS._osRecv = (dispId, keep) => {
     const pmId  = resendReq ? resendReq.pmId  : (prc > 0 ? PALLET.newId('in') : null);
     const reqId = resendReq && resendReq.reqId ? resendReq.reqId : `OQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
     const srvMode = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore';
-    const preq = { reqId, rid, dispId, recId, pmId, g, df, prc, unit: unit(), rawG: rawOf('or-g'), rawD: rawOf('or-d'), ts: Date.now(), chk: g + df > 0 ? { col: 'os_receipts', id: rid } : { col: 'pallet_moves', id: pmId } };
+    const preq = { reqId, rid, dispId, recId, pmId, g, df, prc, unit: unit(), rawG: rawOf('or-g'), rawD: rawOf('or-d'), ts: Date.now(), chk: g + df > 0 ? { col: 'os_receipts', id: rid } : { col: 'pallet_moves', id: pmId },
+      dFix: wasResendReq ? wasResendReq.dFix : { plot: d.plot_no, proc: d.proc, vendor: d.vendor } };   // ★ v0.40.13 — 첫 요청 때의 반출 내용(LOT·공정·외주처) 보존
     if(srvMode && !_osReqPut(preq)){ toast('이 기기 저장소를 쓸 수 없어 요청 기록을 남길 수 없습니다 — 저장하지 않았습니다 (중복 방지)','err',6000); return; }
     const wasResend = !!resendReq; resendReq = null;
     let res;
@@ -16792,12 +16819,12 @@ VIEWS._osRecv = (dispId, keep) => {
         // ★ v0.16.0 — record_id / pallet_move_id 를 os_receipts 에 함께 저장 (취소 연쇄 연결키) · 초과 차단 = registerRecord 가드 그대로
         let recordId = null, palletMoveId = null;
         if(g + df > 0){
-          const rec = LOT.registerRecord({plot_no:d.plot_no, proc:d.proc, equipment:'외주', vendor:d.vendor, good:g, defect:df, type:'out', _fixedId: recId});
+          const rec = LOT.registerRecord({plot_no:preq.dFix.plot, proc:preq.dFix.proc, equipment:'외주', vendor:preq.dFix.vendor, good:g, defect:df, type:'out', _fixedId: recId});   // ★ v0.40.13 — 첫 요청 때 확정한 반출 내용
           if(!rec || !rec.id) throw new Error('실적 저장이 거부되었습니다 (권한 확인)');
           recordId = rec.id;
         }
         if(prc > 0){
-          const mv = PALLET.add({vendor:d.vendor, type:'in', qty:prc, ref:{kind:'os', id:dispId}, id: pmId, extra: { req_id: reqId }});
+          const mv = PALLET.add({vendor:preq.dFix.vendor, type:'in', qty:prc, ref:{kind:'os', id:dispId}, id: pmId, extra: { req_id: reqId }});
           if(!mv || !mv.id) throw new Error('파렛트 회수 저장이 거부되었습니다 (권한 확인)');
           palletMoveId = mv.id;
         }
@@ -16861,7 +16888,7 @@ VIEWS._osRecv = (dispId, keep) => {
   window.addEventListener('vela-osreq-unknown', _onUnknown);
   window._osRecvOff && window._osRecvOff(); window._osRecvOff = () => window.removeEventListener('vela-osreq-unknown', _onUnknown);
   function _osReqPendUiEnsure(){ if(document.getElementById('or-pend-ban')) return; const b = document.createElement('div'); b.className = 'm-ban amber'; b.id = 'or-pend-ban'; b.style.marginBottom = '10px'; b.innerHTML = '<div id="or-pend-msg"></div><div id="or-pend-acts" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>'; const body = box.querySelector('.body'); if(body) body.insertBefore(b, body.firstChild); }
-  function _osReqShowMismatch(dId, p){ _osReqPendUiEnsure(); pendUi(`입고 요청 <b>${_esc(p.rid)}</b> — <b>요청 내용 불일치 · 확인 필요</b>: 같은 번호의 서버 기록이 이 요청과 다릅니다(요청 번호·반출·수량·연결 기록 중 다름) · 이 반출의 새 입고는 잠김 유지`, 'red', [['or-pend-chk', '서버 결과 다시 확인', runCheck]].concat((SESSION.role === 'manager' || SESSION.role === 'vendor') ? [['or-pend-clear', '확인함 · 대기 요청 지우기(관리책임자)', () => { _osReqDrop(dId, p.rid); pendUi(`입고 요청 <b>${_esc(p.rid)}</b> 대기 기록을 지웠습니다 (관리책임자 확인) — 서버 기록은 그대로`, 'amber', []); const ok = $('or-ok'); if(ok) ok.disabled = false; }]] : [])); }
+  function _osReqShowMismatch(dId, p, why){ _osReqPendUiEnsure(); pendUi(`입고 요청 <b>${_esc(p.rid)}</b> — <b>요청 내용 불일치 · 확인 필요</b>: ${why ? _esc(why) : '같은 번호의 서버 기록이 이 요청과 다릅니다(요청 번호·반출·수량·연결 기록 중 다름)'} · 다른 내용으로 바꿔 보내지 않음 · 이 반출의 새 입고는 잠김 유지`, 'red', [['or-pend-chk', '서버 결과 다시 확인', runCheck]].concat((SESSION.role === 'manager' || SESSION.role === 'vendor') ? [['or-pend-clear', '확인함 · 대기 요청 지우기(관리책임자)', () => { _osReqDrop(dId, p.rid); pendUi(`입고 요청 <b>${_esc(p.rid)}</b> 대기 기록을 지웠습니다 (관리책임자 확인) — 서버 기록은 그대로`, 'amber', []); const ok = $('or-ok'); if(ok) ok.disabled = false; }]] : [])); }
 };
 
 /* ★ v0.40.12 (사용자 결정 「파렛트 함께 기록 포함」 — 11/2 시험 범위) — 연결 기록 묶음 저장 공통 1벌: 외주 반출(반출 + 파렛트 출고 + NC·사고 기록) · 출하(출하 + 파렛트 출고 + NC·사고 기록)
@@ -16900,7 +16927,7 @@ function _reqGuard(c){
     if(r === 'local'){ ban(`이전 ${c.label} 요청 <b>${_esc(p.rid)}</b> = 이 기기에서 보내는 중 — 잠시 뒤 [서버 결과 확인]`, 'amber', [['rq-chk', '서버 결과 확인', g.check]]); return; }
     ban(`이전 ${c.label} 요청 <b>${_esc(p.rid)}</b> — 서버에 연결할 수 없어 결과를 확인하지 못했습니다 · 연결 후 [서버 결과 확인] (그 전에는 새 ${c.label} 불가)`, 'amber', [['rq-chk', '서버 결과 확인', g.check]]);
   };
-  g.mismatch = (p) => { setOk(false); ban(`${c.label} 요청 <b>${_esc(p.rid)}</b> — <b>요청 내용 불일치 · 확인 필요</b>: 같은 번호의 서버 기록이 이 요청과 다릅니다 · 새 ${c.label}은(는) 잠김 유지`, 'red', [['rq-chk', '서버 결과 다시 확인', g.check]].concat((SESSION.role === 'manager' || SESSION.role === 'vendor') ? [['rq-clear', '확인함 · 대기 요청 지우기(관리책임자 · 서버 기록 무변)', () => { _reqDrop2(c.kind, p.key, p.rid); ban(`${c.label} 요청 <b>${_esc(p.rid)}</b> 대기 기록을 지웠습니다 (관리책임자 확인 · 서버 기록은 그대로 · 취소 아님)`, 'amber', []); setOk(true); }]] : [])); };
+  g.mismatch = (p, why) => { setOk(false); ban(`${c.label} 요청 <b>${_esc(p.rid)}</b> — <b>요청 내용 불일치 · 확인 필요</b>: ${why ? _esc(why) : '같은 번호의 서버 기록이 이 요청과 다릅니다'} · 다른 내용으로 바꿔 보내지 않음 · 새 ${c.label}은(는) 잠김 유지`, 'red', [['rq-chk', '서버 결과 다시 확인', g.check]].concat((SESSION.role === 'manager' || SESSION.role === 'vendor') ? [['rq-clear', '확인함 · 대기 요청 지우기(관리책임자 · 서버 기록 무변)', () => { _reqDrop2(c.kind, p.key, p.rid); ban(`${c.label} 요청 <b>${_esc(p.rid)}</b> 대기 기록을 지웠습니다 (관리책임자 확인 · 서버 기록은 그대로 · 취소 아님)`, 'amber', []); setOk(true); }]] : [])); };
   // 저장 실행: req = { key, rid, reqId, chk, expect, ids, vals } · write() = DB 쓰기(묶음 안 · null/예외 = 실패) · createOnly = 새 문서 목록
   g.run = (req, write, createOnly, resend) => {
     const srv = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore';
