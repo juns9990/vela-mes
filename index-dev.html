@@ -1701,7 +1701,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.13';
+const APP_VERSION = 'v0.40.14';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -4863,6 +4863,9 @@ function applyIndustryPack(pack){
    날짜 분산: 등록 후 DB.set 로 ts/필드 병합 (기존 시뮬 기법과 동일) — 가짜 집계 없이 시각화만 채움. */
 // ★ v0.40.7 — 데모 시드 「k개월 전」 = 달력 기준 (예전 = 오늘 − 30·32일 → 31일·1일에 이번 달/전전월이 잡힘 · 데모 시드 전용)
 function _demoMonthAgo(k){ const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - k); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
+/* ★ v0.40.14 (GPT v0.40.13 판정 — 월초 실패 원인) — 데모 마감 시각 = 그 달이 끝난 뒤 (다음 달 3일 09:00 · 지금보다 늦으면 지금 직전 · 다음 달 1일 00:00 보다 이르지 않게)
+   · 이전: closed_at = 지금 − 90/60/30일 → 11/1 에는 10월 마감이 10/2 에 된 것으로 기록 → 그 뒤 등록된 10월 경비가 「마감 뒤 바뀐 경비」 로 잡힘(데모 데이터 모순) */
+function _demoClosedAt(month, now){ const [y, mo] = String(month).split('-').map(Number); const start = new Date(y, mo, 1, 0, 0, 0).getTime(); const third = new Date(y, mo, 3, 9, 0, 0).getTime(); return Math.max(start, Math.min(now - 60000, third)); }
 function seedDemoData(){
   const now = Date.now();
   const DAY = 86400000;
@@ -5164,7 +5167,7 @@ function seedDemoData(){
     });
     const totals = rows.reduce((t,r) => ({ prev:t.prev+r.prev, amount:t.amount+r.amount, paid:t.paid+r.paid, carry:t.carry+r.carry }), {prev:0,amount:0,paid:0,carry:0});
     const id = _closingId('sales', m);
-    DB.set('closings', id, { id, type:'sales', month:m, rows, totals, missingCount:0, closed_at: now - (90-idx*30)*DAY, by:'데모', void:null });
+    DB.set('closings', id, { id, type:'sales', month:m, rows, totals, missingCount:0, closed_at: _demoClosedAt(m, now), by:'데모', void:null });   // ★ v0.40.14
   });
 
   // ─────────────── 12-1. ★ v0.27.0 — 회계 데모 시드 (수금·지급·경비·계산서) ───────────────
@@ -5186,7 +5189,7 @@ function seedDemoData(){
     const lastM = _demoMonthAgo(1), thisM = _tsMonth(now);   // ★ v0.40.7 — 달력 기준 전월
     [
       { id:'EX-DEMO-001', category:'지급임차료', name:'공장 임차료', amount:2000000, date:`${lastM}-05`, cl_month:lastM, repeat_monthly:true,  memo:'', ts:daysBack(32) },
-      { id:'EX-DEMO-002', category:'소모품비',   name:'절삭유',      amount: 150000, date:`${thisM}-03`, cl_month:thisM, repeat_monthly:false, memo:'', ts:daysBack(3) },
+      { id:'EX-DEMO-002', category:'소모품비',   name:'절삭유',      amount: 150000, date:(`${thisM}-03` > fmtDate(now) ? fmtDate(now) : `${thisM}-03`), cl_month:thisM, repeat_monthly:false, memo:'', ts:daysBack(3) },   // ★ v0.40.14 — 월초(1~2일)에 앞날짜 경비가 되지 않게
     ].forEach(e => DB.set('acct_expenses', e.id, { ...e, by:'데모' }));
   }
   { // 계산서 발행 기록 1건 — 지난달 C001
@@ -5619,7 +5622,7 @@ function seedDemoData(){
         });
         const totals = rows.reduce((t,r) => ({ prev:t.prev+r.prev, amount:t.amount+r.amount, paid:t.paid+r.paid, carry:t.carry+r.carry }), {prev:0,amount:0,paid:0,carry:0});
         const id = _closingId('sales', m);
-        DB.set('closings', id, { id, type:'sales', month:m, rows, totals, missingCount:0, closed_at: now - (90-idx*30)*DAY, by:'데모', void:null });
+        DB.set('closings', id, { id, type:'sales', month:m, rows, totals, missingCount:0, closed_at: _demoClosedAt(m, now), by:'데모', void:null });   // ★ v0.40.14
       });
     }
     // 견적 +5 (총 16)
@@ -5685,12 +5688,17 @@ function seedDemoExtension(){
   // ② 올해 말까지 수주 (오늘 이후 납기만 · 품번 단가·고객 사용)
   const items = DB.all('items').filter(i => i.active !== false && i.cust && (+i.price||0) > 0).sort((a,b) => a.code.localeCompare(b.code)).slice(0, 8);
   const y = new Date(now).getFullYear(), today = fmt(now);
+  /* ★ v0.40.14 (GPT v0.40.13 판정 — 날짜 경계) — 수주 기간 = 올해 말 또는 오늘부터 61일 중 늦은 날까지
+     · 이전: 올해 말까지만 → 11월 중순 이후·12월에는 앞으로의 수주가 거의 없어 데모 수주·계획이 비고 12/31→1/1 에는 0건
+     · 10월 말까지 실행하면 이전과 같은 결과(61일 ≤ 올해 말) */
+  const horizon = fmt(Math.max(new Date(y, 11, 31).getTime(), now + 61 * DAY));
+  const hy = +horizon.slice(0, 4), hm = +horizon.slice(5, 7);
   let k = 0;
-  for(let m = new Date(now).getMonth() + 1; m <= 12; m++){
+  for(let yy = y, m = new Date(now).getMonth() + 1; yy < hy || (yy === hy && m <= hm); m === 12 ? (yy++, m = 1) : m++){
     items.forEach((it, i) => {
       const day = Math.min(28, 5 + ((i * 3 + m) % 22));
-      const due = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      if(due <= today) return;
+      const due = `${yy}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      if(due <= today || due > horizon) return;
       k++;
       const id = `SO-${y}-E${String(k).padStart(2,'0')}`;
       if(!DB.get('orders', id)) DB.set('orders', id, { id, cust: it.cust, itemCode: it.code, qty: 200 + ((i * 37 + m * 11) % 8) * 50, price: +it.price, due, created: now - (20 - (k % 10)) * DAY, demo_ext: true });
@@ -28278,7 +28286,12 @@ VIEWS.qc = () => {
   const ncAll = (st.voidView ? DB.allRaw('nc_records') : DB.all('nc_records'))
     .filter(n => n.ts >= startTs && n.ts <= endTs)
     .slice().sort((a,b) => b.ts - a.ts);
-  const ncFiltered = ncAll.filter(n => {
+  /* ★ v0.40.14 (GPT v0.40.13 판정 — 월초 실패 원인 확인 중 발견) — 이번 달 보기에서 이전 달 미처리(접수: 판정 대기·HOLD) 부적합이 목록에서 사라지던 것
+     · 월초(1일)에는 지난달 말에 접수된 HOLD·판정 지체 건이 기본 목록에 0건으로 보였음 (안전 신호 은폐 금지 원칙 위반)
+     · 이번 달 보기일 때만 이전 달의 「접수」(취소 아님) 건을 목록에 함께 표시 + 「이전 달 미처리」 표시 · 위 요약 숫자(이번 달 집계)는 그대로 · 계산·저장 무변 */
+  const _qcThisMonth = st.month === fmtDate(Date.now()).slice(0,7);
+  const ncCarry = (_qcThisMonth && !st.voidView) ? DB.all('nc_records').filter(n => (n.ts || 0) < startTs && n.status === NC_STATUS.RCV).sort((a,b) => b.ts - a.ts) : [];
+  const ncFiltered = ncAll.concat(ncCarry).filter(n => {
     if(st.status && n.status !== st.status) return false;
     if(st.q){
       const q = st.q.toLowerCase();
@@ -28360,7 +28373,7 @@ VIEWS.qc = () => {
 
     <div class="card" data-sec-id="qc-nc-list" data-sec-lock="safety">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <h3 style="margin:0">부적합 목록 <span class="tag">${ncFiltered.length}건 / 전체 ${ncAll.length}건 · 최신 위</span></h3>
+        <h3 style="margin:0">부적합 목록 <span class="tag">${ncFiltered.length}건 / 전체 ${ncAll.length}건${ncCarry.length ? ` + 이전 달 미처리 ${ncCarry.length}건` : ''} · 최신 위</span></h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <input id="qc-q" placeholder="검색 — NC · LOT · 품번 · 유형 · 공정" value="${_esc(st.q)}" style="width:240px;padding:6px 10px">
           <select id="qc-status" style="width:120px">
@@ -28385,8 +28398,9 @@ VIEWS.qc = () => {
             actBtn = `<button class="btn sm ghost" data-nc-detail="${_esc(n.id)}">상세</button>`;
           }
           const voidBadge = isVoid ? ` <span class="pill" style="background:rgba(248,113,113,.15);color:var(--red);font-size:9px;margin-left:4px;text-decoration:none">「취소」</span>` : '';
+          const carryBadge = ncCarry.includes(n) ? ` <span class="pill amber qc-carry" style="font-size:9px;margin-left:4px">이전 달 미처리</span>` : '';
           return `<tr style="${rowStyle}">
-            <td style="font-family:'JetBrains Mono',monospace;cursor:pointer" data-nc-detail="${_esc(n.id)}"><b style="color:var(--cyan)">${_esc(n.id)}</b>${voidBadge}</td>
+            <td style="font-family:'JetBrains Mono',monospace;cursor:pointer" data-nc-detail="${_esc(n.id)}"><b style="color:var(--cyan)">${_esc(n.id)}</b>${voidBadge}${carryBadge}</td>
             <td style="font-family:'JetBrains Mono',monospace">${_esc(n.date||fmtDate(n.ts))}</td>
             <td><b>${_esc(n.item_code||'—')}</b>${n.lot_id?` · <span style="font-family:'JetBrains Mono',monospace;font-size:11px">${_esc(n.lot_id)}</span>`:''}</td>
             <td>${_esc(p?.name||n.process||'—')}</td>
