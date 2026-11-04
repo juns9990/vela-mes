@@ -1716,7 +1716,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.18';
+const APP_VERSION = 'v0.40.19';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -3837,17 +3837,18 @@ async function cutoverStatus(opts){
     { action: 'reconcile', label: '이관 대조 (이 기기 이관분 · 또는 파일)', console: rcOk && sr.sec_migrated !== true ? '콘솔: settings/server_rules.sec_migrated = true (대조 합격 뒤에만)' : '' });
   // ★ v0.40.17 — 동시 저장 보호 전환 (쓰기 중지 중 · 이관 대조 뒤): 규칙 r17 → qg_init → 누계 생성 + 점검 차이 0 → qg_live 켬 (qg_init 끔)
   // ★ v0.40.18 (GPT v0.40.17 판정 ②) — 스위치가 켜졌다는 것만으로 합격 0 · 생성 기록 + 같은 원장 지문의 생성 직후 점검 합격만 · 보호가 꺼진 것을 본 뒤에는 이전 기록 무효(다시 생성)
-  if(sr.qg_live !== true && m.qgLiveCheck){ m = _cutSave({ qgLiveCheck: null, qgOffSeenAt: Date.now() }); }
+  if(sr.qg_live === true && !m.qgWasLive) m = _cutSave({ qgWasLive: true });   // 켜진 것을 본 적 있음 → 그 뒤 꺼짐을 보면 이전 기록 무효
+  if(sr.qg_live !== true && (m.qgLiveCheck || m.qgWasLive)){ m = _cutSave({ qgLiveCheck: null, qgWasLive: false, qgOffSeenAt: Date.now() }); }
   const qa = m.qgBuildAudit || null; const qb = m.qgBuilt || null; const offAt = m.qgOffSeenAt || 0;
-  const qgOk = probe17 === 'allow' && !!qb && !!qa && qa.ok && qa.at >= qb.at && qa.hash === qb.hash && qb.at > offAt && (!logAt || qb.at > logAt);
+  const qgOk = probe17 === 'allow' && !!qb && !!qa && qa.ok && !qa.pending && qa.at >= qb.at && qa.hash === qb.hash && qb.at > offAt && (!logAt || qb.at > logAt);
   S('qgbuild', '수량 누계 생성 + 점검 차이 0 (동시 저장 보호 · 보류 반영)', qgOk,
     `${probe17 === 'allow' ? '규칙 r17 게시됨' : '규칙 r17 아님'} · qg_init = ${sr.qg_init === true} · ${qb ? '생성 ' + new Date(qb.at).toLocaleTimeString() + ' (쓰기 ' + qb.writes + ' · 입고 표시 채움 ' + qb.fills + ')' : '생성 안 함'} · ${qa ? `점검 ${qa.ok ? `차이 0 (서버 원장 LOT ${qa.lots})` : qa.why ? '불합격 — ' + qa.why : `누계 없음 ${qa.missing} · 값 차이 ${qa.diff} · 보류 차이 ${qa.hold} · 입고 표시 ${qa.fills}`}${qa.over ? ' · 이미 넘친 LOT ' + qa.over : ''}` : '점검 안 함'}${offAt && (!qb || qb.at <= offAt) ? ' · ⚠ 보호가 꺼진 것을 확인함 — 쓰기 중지 → 다시 생성 필요' : ''}`,
     { action: probe17 === 'allow' && sr.qg_init === true && sr.write_freeze === true ? 'qg-build' : 'qg-audit', label: probe17 === 'allow' && sr.qg_init === true && sr.write_freeze === true ? '누계 생성 + 점검' : '누계 점검',
       console: probe17 !== 'allow' ? '콘솔: Firestore 규칙 r17 게시 (쓰기 중지 켠 채로)' : sr.qg_init !== true ? '콘솔: settings/server_rules.qg_init = true (쓰기 중지 켠 채로)' : '' });
   // 켠 뒤 확인 = 쓰기 중지 중 · 보호 켜짐에서 서버 원장을 다시 읽어 점검 합격 + 원장 지문이 생성 때와 같음 (그 사이 저장 0)
-  const lc = m.qgLiveCheck || null; const liveOk = qgOk && sr.qg_live === true && sr.qg_init !== true && !!lc && lc.ok && lc.live && lc.frozen && lc.hash === qb.hash && lc.at > qb.at;
+  const lc = m.qgLiveCheck || null; const liveOk = qgOk && sr.qg_live === true && sr.qg_init !== true && !!lc && lc.ok && !lc.pending && lc.live && lc.frozen && lc.hash === qb.hash && lc.at > qb.at;
   S('qglive', '동시 저장 보호 켬 → 켠 상태 점검 (쓰기 중지 중 · 생성 때 원장과 같음)', liveOk,
-    `qg_live = ${sr.qg_live === true} · qg_init = ${sr.qg_init === true} · ${lc ? `켠 뒤 점검 ${lc.ok ? (lc.hash === (qb && qb.hash) ? '합격 · 원장 같음' : '원장 지문 다름 — 생성 뒤 저장이 있었음 → 다시 생성') : '불합격'}` : '켠 뒤 점검 안 함'}`,
+    `qg_live = ${sr.qg_live === true} · qg_init = ${sr.qg_init === true} · ${lc ? `켠 뒤 점검 ${lc.pending ? '확인 중 (불합격)' : lc.ok ? (lc.hash === (qb && qb.hash) ? '합격 · 원장 같음' : '원장 지문 다름 — 생성 뒤 저장이 있었음 → 다시 생성') : '불합격' + (lc.why ? ' — ' + lc.why : '')}` : '켠 뒤 점검 안 함'}`,
     { action: sr.qg_live === true && sr.qg_init !== true && sr.write_freeze === true ? 'qg-live-check' : null, label: '켠 상태 점검',
       console: sr.qg_live !== true || sr.qg_init === true ? '콘솔: settings/server_rules.qg_init = false · qg_live = true (쓰기 중지는 켠 채로) → [켠 상태 점검]' : '' });
   const L = m.login || null;
@@ -3864,7 +3865,7 @@ async function cutoverStatus(opts){
   return st;
 }
 const CUTOVER_RECOVER = [
-  ['동시 저장 보호(qg_live)를 꺼야 할 때', '보호를 끄면 동시 저장 보호도 함께 꺼집니다 (안전한 원상복귀 아님) · 규칙 r17 개정 5: 꺼진 동안은 쓰기 중지 중에만 관리자가 저장 가능 → 직원 업무 중지 · 보호 없이 업무를 계속하려면 규칙 r16 재게시 · 다시 켤 때 = 쓰기 중지 → qg_init → [누계 생성 + 점검] → qg_live → [켠 상태 점검] (이 화면이 보호 꺼짐을 보면 이전 생성 기록을 무효로 함)'],
+  ['동시 저장 보호(qg_live)를 꺼야 할 때', '보호를 끄면 동시 저장 보호도 함께 꺼집니다 (안전한 원상복귀 아님) · 순서: ① 콘솔 write_freeze = true 먼저 → 앱에서 쓰기 중지 확인 ② 그다음 qg_live = false · 규칙 r17 개정 6: 보호가 꺼져 있으면 직원 수량 저장 전부 거부(누계를 함께 보내도 · 끄기 직전 시작한 요청도 커밋 때 거부) · 관리자 계정도 앱에서는 쓰기 중지 중에만 저장(보호가 꺼지면 앱이 누계를 보내지 않음) · 보호 없이 업무를 계속하려면 규칙 r16 재게시 · 다시 켤 때 = 쓰기 중지 → qg_init → [누계 생성 + 점검] → qg_live → [켠 상태 점검] (이 화면이 보호 꺼짐을 보면 이전 생성 기록을 무효로 함)'],
   ['서버 확인 ~ 직원 계정 단계에서 멈춤', '규칙 r16 그대로 · 복구 기기 승인 불필요 (데이터 변화 없음) → 콘솔에서 규칙 v4 다시 게시 → 모든 기기 「기존 방식」 로그인 → 업무 계속'],
   ['단가 이관 ~ 대조 단계에서 실패', '규칙 r16 그대로 둠 → 관리자 PC 를 「기존 방식」 으로 열어 로그인 화면의 「이 기기 ID (복구용)」 확인 → 콘솔: devices/{ID} = {status:"approved"} · server_rules.recovery_uid = ID (복구 모드: 서버가 이 기기만 저장 허용 — 직원·관리자·다른 승인 기기 저장 거부 · 쓰기 중지는 켜 둔 채) → 그 PC 에서 설정 › 백업 복원(이번 회차 전체 백업 파일 · 미리보기·대조) → 「완료」 확인 → 그 뒤에만 규칙 v4 게시 → recovery_uid 비우기 · devices/{ID}.status = "revoked" → 직원 업무 재개'],
   ['업무 재개 뒤 문제', '쓰기 중지 다시 켬 → 원인 확인 · 복원이 필요하면 미리보기의 연결 검사에 따라 범위 조정 (재개 뒤 입력분은 유지됨) · 복구 기기로 복원하면 이관 완료 상태라 단가는 단가 문서로 나눠 저장됨(규칙 r16 가 원본 단가 저장 거부) → 복원 결과 「서버 원본 단가 0건」 확인 뒤에만 recovery_uid 비우기'],
@@ -7496,12 +7497,20 @@ async function qgLedgerSnapshot(){
 }
 // 누계 점검: 서버 원장(새로 읽어 이 기기와 같음 확인) → 원장 계산 ↔ 서버 누계 — 원장 확인이 불합격이면 점검도 불합격
 async function qgAudit(opts){
+  // ★ v0.40.19 (GPT v0.40.18 판정 ①) — 점검 시작 = 요청한 단계 기록을 「확인 중(불합격)」 으로 먼저 바꿈 → 조회 실패·불일치·예외 어느 경우도 이전 합격이 남지 않음 · 합격은 끝까지 성공한 이번 점검만
+  const as = opts && opts.as; const t0 = Date.now();
+  const mark = (rec) => { try { _cutSave(Object.assign({ qgAudit: rec }, as ? { [as]: rec } : {})); } catch(e){} };
+  mark({ at: t0, ok: false, pending: true, why: '점검 중' });
+  try { return await _qgAuditRun(opts, mark); }
+  catch(e){ mark({ at: t0, ok: false, why: '점검 실패 — ' + String((e && (e.code || e.message)) || e).slice(0, 80) }); throw e; }
+}
+async function _qgAuditRun(opts, mark){
   const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 점검할 수 있습니다');
   const led = await qgLedgerSnapshot();
   let sr = {}; try { sr = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {}; } catch(e){}
   const snap = await fs.collection('qty_guard').get({ source: 'server' }); const srv = {}; snap.docs.forEach(d => { srv[d.id] = d.data(); });
   const out = { at: led.at, lots: 0, orders: 0, missing: [], diff: [], hold: [], over: [], fills: qgReceiptFills().length, ledger: { ok: led.ok, why: led.why, counts: led.counts, mismatch: led.mismatch.slice(0, 30), hash: led.hash }, guards: snap.size, live: sr.qg_live === true, frozen: sr.write_freeze === true };
-  if(!led.ok){ out.ok = false; try { _cutSave({ qgAudit: { at: out.at, ok: false, why: led.why, hash: led.hash || null } }); } catch(e){} return out; }
+  if(!led.ok){ out.ok = false; mark({ at: out.at, ok: false, why: led.why, hash: led.hash || null }); return out; }
   const C = m => JSON.stringify(Object.fromEntries(Object.entries(m || {}).filter(([, v]) => v).sort()));
   DB.all('production_lots').forEach(l => { const e = l.plot_no ? qgExpectLot(l.plot_no) : null; if(!e){ out.diff.push({ k: 'LOT/' + (l.id || '?'), what: 'LOT 번호(plot_no) 없음 — 누계 계산 불가 · 원장 정정 필요' }); return; } out.lots++; const s = srv['L:' + l.plot_no];
     if(!s){ out.missing.push('L:' + l.plot_no); return; }
@@ -7513,11 +7522,17 @@ async function qgAudit(opts){
   DB.all('orders').forEach(o => { out.orders++; const s = srv['S:' + o.id]; const e = qgSoCalc(o.id).shipped; if(!s){ if(e) out.missing.push('S:' + o.id); return; } if((s.shipped || 0) !== e) out.diff.push({ k: 'S:' + o.id, what: `출하 ${s.shipped}/${e}` }); });
   out.ok = out.lots === led.live.production_lots && out.lots > 0 && !out.missing.length && !out.diff.length && !out.hold.length && !out.fills;
   const rec = { at: out.at, ok: out.ok, hash: led.hash, live: out.live, frozen: out.frozen, lots: out.lots, orders: out.orders, missing: out.missing.length, diff: out.diff.length, hold: out.hold.length, over: out.over.length, fills: out.fills };
-  try { _cutSave(Object.assign({ qgAudit: rec }, opts && opts.as ? { [opts.as]: rec } : {})); } catch(e){}
+  mark(rec);
   return out;
 }
 // 누계 생성 (전환 모드) — 입고 LOT·공정 채우기 → L·S 누계 쓰기 → 점검
 async function qgBuildAll(){
+  // ★ v0.40.19 — 생성 다시 시도 = 이전 생성·생성 직후 점검·켠 상태 점검 합격을 먼저 무효로 (실패하면 무효 그대로 · 성공한 이번 생성만 인정)
+  try { _cutSave({ qgBuilt: null, qgBuildAudit: { at: Date.now(), ok: false, pending: true, why: '생성 중' }, qgLiveCheck: null }); } catch(e){}
+  try { return await _qgBuildRun(); }
+  catch(e){ try { _cutSave({ qgBuilt: null, qgBuildAudit: { at: Date.now(), ok: false, why: '생성 실패 — ' + String((e && e.message) || e).slice(0, 80) } }); } catch(_){} throw e; }
+}
+async function _qgBuildRun(){
   const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 누계를 만들 수 있습니다');
   if(!(isStaffMode() && _STAFF.isApprover)) throw new Error('관리자 계정(직원 계정 방식)으로 로그인해야 합니다');
   const sr = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {};
