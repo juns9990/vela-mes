@@ -1469,6 +1469,14 @@ body.ph-ui .scroll-nav{display:none!important}
 body.ph-ui #view .ph-kpi-hide{display:none!important}
 /* ★ v0.40.17 디자인 점검 — 폰: 화면 이름은 위 앱 막대 1곳만(본문 큰 제목 숨김 · 등록 버튼은 그대로) · 카드 제목의 설명 꼬리표는 다음 줄 · 넓은 표 머리글 줄바꿈 금지(가로 스크롤) */
 body.ph-ui #view > .pghead > .pgtitle{display:none!important}
+body.ph-ui #app > .topbar{display:none!important}
+body.ph-ui #ph-bar .ph-sync .sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green)} body.ph-ui #ph-bar .ph-sync.warn .sync-dot{background:var(--amber)} body.ph-ui #ph-bar .ph-sync.err .sync-dot{background:var(--red)}
+body.ph-ui #ph-bar .ph-sync{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--panel)}
+body.ph-ui #ph-bar .ph-demo{flex:none;font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:2px 7px}
+body.ph-ui .ph-more{position:relative}
+body.ph-ui .ph-more > summary{list-style:none;min-height:40px;display:inline-flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-weight:700;font-size:13px;cursor:pointer}
+body.ph-ui .ph-more > summary::-webkit-details-marker{display:none}
+body.ph-ui .ph-more[open] > .ph-more-body{position:absolute;right:0;top:calc(100% + 4px);z-index:30;display:flex;flex-direction:column;gap:6px;padding:8px;min-width:160px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh2)}
 body.ph-ui #view .card > h3{display:block}
 body.ph-ui #view .card > h3 .tag{display:block;width:100%;margin:4px 0 0;white-space:normal;line-height:1.5}
 body.ph-ui #view .tbl-wrap table:not(.ph-cards) th{white-space:nowrap}
@@ -1708,7 +1716,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.17';
+const APP_VERSION = 'v0.40.18';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -3810,7 +3818,7 @@ async function cutoverStatus(opts){
   const noAcct = users.filter(u => !(u.auth_uids || []).length && !auths.some(a => a.user_id === u.id && a.active));
   const conv = permUnconvertedList().todo.filter(u => u.active !== false);
   if(opts && opts.deep){ try { const r = await secResidualCheck(); if(r) _cutSave({ resid: { price: r.price.length, secret: r.secret.length, at: Date.now() } }); } catch(e){ st.residErr = e.message; } }
-  const m = _cutLoad(); const resid = m.resid || null; const secret = legacySecretFieldsReport().total;
+  let m = _cutLoad(); const resid = m.resid || null; const secret = legacySecretFieldsReport().total;
   st.mem = m; st.logAt = logAt;
   const S = (id, title, ok, msg, extra) => st.steps.push(Object.assign({ id, title, ok: !!ok, msg }, extra || {}));
   S('server', '서버 확인 — 규칙 r16 · 관리자 계정', probe === 'deny' && probe13 === 'allow' && (+sr.version || 0) >= 16 && isStaffMode() && _STAFF.isApprover && !sr.recovery_uid,
@@ -3828,13 +3836,20 @@ async function cutoverStatus(opts){
   S('reconcile', '이관 대조 합격 (이번 이관 기록과 일치) → sec_migrated 켬', rcOk && sr.sec_migrated === true, `대조 ${rc ? rc.v + (rcBound ? '' : ' (다른 이관 기록 — 다시 대조)') : '안 함'} · sec_migrated = ${sr.sec_migrated === true}`,
     { action: 'reconcile', label: '이관 대조 (이 기기 이관분 · 또는 파일)', console: rcOk && sr.sec_migrated !== true ? '콘솔: settings/server_rules.sec_migrated = true (대조 합격 뒤에만)' : '' });
   // ★ v0.40.17 — 동시 저장 보호 전환 (쓰기 중지 중 · 이관 대조 뒤): 규칙 r17 → qg_init → 누계 생성 + 점검 차이 0 → qg_live 켬 (qg_init 끔)
-  const qa = m.qgAudit || null; const qb = m.qgBuilt || null; const qgOk = sr.qg_live === true || (probe17 === 'allow' && !!qb && !!qa && qa.ok && qa.at >= qb.at && (!logAt || qb.at > logAt));
+  // ★ v0.40.18 (GPT v0.40.17 판정 ②) — 스위치가 켜졌다는 것만으로 합격 0 · 생성 기록 + 같은 원장 지문의 생성 직후 점검 합격만 · 보호가 꺼진 것을 본 뒤에는 이전 기록 무효(다시 생성)
+  if(sr.qg_live !== true && m.qgLiveCheck){ m = _cutSave({ qgLiveCheck: null, qgOffSeenAt: Date.now() }); }
+  const qa = m.qgBuildAudit || null; const qb = m.qgBuilt || null; const offAt = m.qgOffSeenAt || 0;
+  const qgOk = probe17 === 'allow' && !!qb && !!qa && qa.ok && qa.at >= qb.at && qa.hash === qb.hash && qb.at > offAt && (!logAt || qb.at > logAt);
   S('qgbuild', '수량 누계 생성 + 점검 차이 0 (동시 저장 보호 · 보류 반영)', qgOk,
-    `${probe17 === 'allow' ? '규칙 r17 게시됨' : '규칙 r17 아님'} · qg_init = ${sr.qg_init === true} · ${qb ? '생성 ' + new Date(qb.at).toLocaleTimeString() + ' (쓰기 ' + qb.writes + ' · 입고 표시 채움 ' + qb.fills + ')' : '생성 안 함'} · ${qa ? `점검 ${qa.ok ? '차이 0' : `누계 없음 ${qa.missing} · 값 차이 ${qa.diff} · 보류 차이 ${qa.hold} · 입고 표시 ${qa.fills}`}${qa.over ? ' · 이미 넘친 LOT ' + qa.over : ''}` : '점검 안 함'}`,
+    `${probe17 === 'allow' ? '규칙 r17 게시됨' : '규칙 r17 아님'} · qg_init = ${sr.qg_init === true} · ${qb ? '생성 ' + new Date(qb.at).toLocaleTimeString() + ' (쓰기 ' + qb.writes + ' · 입고 표시 채움 ' + qb.fills + ')' : '생성 안 함'} · ${qa ? `점검 ${qa.ok ? `차이 0 (서버 원장 LOT ${qa.lots})` : qa.why ? '불합격 — ' + qa.why : `누계 없음 ${qa.missing} · 값 차이 ${qa.diff} · 보류 차이 ${qa.hold} · 입고 표시 ${qa.fills}`}${qa.over ? ' · 이미 넘친 LOT ' + qa.over : ''}` : '점검 안 함'}${offAt && (!qb || qb.at <= offAt) ? ' · ⚠ 보호가 꺼진 것을 확인함 — 쓰기 중지 → 다시 생성 필요' : ''}`,
     { action: probe17 === 'allow' && sr.qg_init === true && sr.write_freeze === true ? 'qg-build' : 'qg-audit', label: probe17 === 'allow' && sr.qg_init === true && sr.write_freeze === true ? '누계 생성 + 점검' : '누계 점검',
       console: probe17 !== 'allow' ? '콘솔: Firestore 규칙 r17 게시 (쓰기 중지 켠 채로)' : sr.qg_init !== true ? '콘솔: settings/server_rules.qg_init = true (쓰기 중지 켠 채로)' : '' });
-  S('qglive', '동시 저장 보호 켬 (qg_live · 전환 모드 끔)', sr.qg_live === true && sr.qg_init !== true, `qg_live = ${sr.qg_live === true} · qg_init = ${sr.qg_init === true}`,
-    { console: '콘솔: settings/server_rules.qg_init = false · qg_live = true (쓰기 중지는 아직 켠 채로)' });
+  // 켠 뒤 확인 = 쓰기 중지 중 · 보호 켜짐에서 서버 원장을 다시 읽어 점검 합격 + 원장 지문이 생성 때와 같음 (그 사이 저장 0)
+  const lc = m.qgLiveCheck || null; const liveOk = qgOk && sr.qg_live === true && sr.qg_init !== true && !!lc && lc.ok && lc.live && lc.frozen && lc.hash === qb.hash && lc.at > qb.at;
+  S('qglive', '동시 저장 보호 켬 → 켠 상태 점검 (쓰기 중지 중 · 생성 때 원장과 같음)', liveOk,
+    `qg_live = ${sr.qg_live === true} · qg_init = ${sr.qg_init === true} · ${lc ? `켠 뒤 점검 ${lc.ok ? (lc.hash === (qb && qb.hash) ? '합격 · 원장 같음' : '원장 지문 다름 — 생성 뒤 저장이 있었음 → 다시 생성') : '불합격'}` : '켠 뒤 점검 안 함'}`,
+    { action: sr.qg_live === true && sr.qg_init !== true && sr.write_freeze === true ? 'qg-live-check' : null, label: '켠 상태 점검',
+      console: sr.qg_live !== true || sr.qg_init === true ? '콘솔: settings/server_rules.qg_init = false · qg_live = true (쓰기 중지는 켠 채로) → [켠 상태 점검]' : '' });
   const L = m.login || null;
   const lgOk = !!L && L.at > logAt && !L.mustChange && L.read === 'allow' && L.deny === 'deny' && (!L.frozen || L.frozenWrite === 'deny') && L.frozenWrite !== 'no-target' && sr.sec_migrated === true;
   S('login', '이관 뒤 직원 새 로그인 (허용 조회 · 무권한 차단 · 쓰기 중지 중 저장 거부)', lgOk,
@@ -3849,11 +3864,12 @@ async function cutoverStatus(opts){
   return st;
 }
 const CUTOVER_RECOVER = [
+  ['동시 저장 보호(qg_live)를 꺼야 할 때', '보호를 끄면 동시 저장 보호도 함께 꺼집니다 (안전한 원상복귀 아님) · 규칙 r17 개정 5: 꺼진 동안은 쓰기 중지 중에만 관리자가 저장 가능 → 직원 업무 중지 · 보호 없이 업무를 계속하려면 규칙 r16 재게시 · 다시 켤 때 = 쓰기 중지 → qg_init → [누계 생성 + 점검] → qg_live → [켠 상태 점검] (이 화면이 보호 꺼짐을 보면 이전 생성 기록을 무효로 함)'],
   ['서버 확인 ~ 직원 계정 단계에서 멈춤', '규칙 r16 그대로 · 복구 기기 승인 불필요 (데이터 변화 없음) → 콘솔에서 규칙 v4 다시 게시 → 모든 기기 「기존 방식」 로그인 → 업무 계속'],
   ['단가 이관 ~ 대조 단계에서 실패', '규칙 r16 그대로 둠 → 관리자 PC 를 「기존 방식」 으로 열어 로그인 화면의 「이 기기 ID (복구용)」 확인 → 콘솔: devices/{ID} = {status:"approved"} · server_rules.recovery_uid = ID (복구 모드: 서버가 이 기기만 저장 허용 — 직원·관리자·다른 승인 기기 저장 거부 · 쓰기 중지는 켜 둔 채) → 그 PC 에서 설정 › 백업 복원(이번 회차 전체 백업 파일 · 미리보기·대조) → 「완료」 확인 → 그 뒤에만 규칙 v4 게시 → recovery_uid 비우기 · devices/{ID}.status = "revoked" → 직원 업무 재개'],
   ['업무 재개 뒤 문제', '쓰기 중지 다시 켬 → 원인 확인 · 복원이 필요하면 미리보기의 연결 검사에 따라 범위 조정 (재개 뒤 입력분은 유지됨) · 복구 기기로 복원하면 이관 완료 상태라 단가는 단가 문서로 나눠 저장됨(규칙 r16 가 원본 단가 저장 거부) → 복원 결과 「서버 원본 단가 0건」 확인 뒤에만 recovery_uid 비우기'],
 ];
-function cutoverReportText(st){
+function cutoverReportText(st){   // (v0.40.18 — 단계 13: 켠 상태 점검 포함)
   const L = ['# VELA MES 운영 전환 점검 결과', `- 시각 ${new Date(st.at).toISOString()} · 서버 ${st.project}${st.test ? ' (시험)' : ''} · 회차 ${st.run} · 앱 ${APP_VERSION}`, `- ${st.done ? '전환 완료 — 모든 단계 통과' : '진행 중 — 통과 ' + st.steps.filter(s => s.ok).length + '/' + st.steps.length}`, ''];
   st.steps.forEach((s, i) => L.push(`${i + 1}. [${s.ok ? '통과' : s.unlocked ? '미통과' : '잠김'}] ${s.title} — ${s.msg}`));
   L.push('', '(비밀번호·단가 값 0)'); return L.join('\n');
@@ -3897,6 +3913,7 @@ function openCutoverModal(){
       else if(a === 'login'){ const box = document.getElementById('cut-login'); if(box){ box.hidden = false; document.getElementById('cut-lp').focus(); } return; }
       else if(a === 'qg-build'){ const r = await qgBuildAll(); toast(`수량 누계 생성 — 쓰기 ${r.writes} · 점검 ${r.audit.ok ? '차이 0' : '차이 있음 (누계 점검 화면 확인)'}`, r.audit.ok ? 'ok' : 'warn', 6000); if(!r.audit.ok){ openQgAuditModal(); return; } }
       else if(a === 'qg-audit'){ openQgAuditModal(); return; }
+      else if(a === 'qg-live-check'){ const r = await qgAudit({ as: 'qgLiveCheck' }); toast(r.ok ? '켠 상태 점검 합격' : '켠 상태 점검 불합격 — ' + (r.ledger.why || '누계 차이'), r.ok ? 'ok' : 'err', 6000); if(!r.ok){ openQgAuditModal(); return; } }
       else if(a === 'resume'){ const r = await cutoverResumeTest(); toast(`직원 저장 ${r.write === 'allow' ? '허용 — 업무 재개 확인' : r.write}`, r.write === 'allow' ? 'ok' : 'err', 5000); }
       else if(a === 'strip'){ if(!(await adminEnsure('구형 비밀번호 값 정리는 관리자 계정만 할 수 있습니다.'))) return; exportFullBackup('before-strip'); legacySecretFieldsStrip(); await new Promise(r => setTimeout(r, 1500)); }
     } catch(e){ toast(e.message || String(e), 'err', 5000); }
@@ -7453,13 +7470,40 @@ function qgExpectLot(plot){ const g = qgLotCalc(plot); if(!g) return null; const
 function qgReceiptFills(){   // 입고 문서에 LOT·공정이 없으면 반출에서 (취소된 문서 포함 — 복원 때도 누계 대상)
   return DB.allRaw('os_receipts').filter(r => !r.plot_no || !r.proc).map(r => { const d = DB.allRaw('os_dispatches').find(x => x.id === r.dispatch_id); return d && d.plot_no && d.proc ? { id: r.id, plot_no: d.plot_no, proc: d.proc } : { id: r.id, missing: true }; });
 }
-// 누계 점검: 서버 누계 ↔ 원장 계산 (같은 정의) — 차이 종류별 목록
-async function qgAudit(){
+/* ★ v0.40.18 (GPT v0.40.17 판정 ①) — 원장 확인: 누계 계산에 쓰는 원장을 서버에서 새로 읽어(캐시 아님) 이 기기 원장과 문서마다 대조
+   · 같아야만 이 기기 계산(qgLotCalc·보류 = 화면과 같은 함수 1벌)이 서버 원장 계산과 같다 → 다르면 · 조회 실패 · LOT 0건 = 불합격 (합격으로 표시하지 않음)
+   · 대조 필드 = 누계·공정 순서에 쓰이는 값만 (단가 등 무관 필드 제외) · 지문(SHA-256) = 생성·점검이 같은 원장인지 묶는 값 */
+const QG_LEDGER = { production_lots: d => [d.itemCode, +d.qty_initial || 0, d.merge_at_proc || ''], records: d => [d.plot_no, d.proc, +d.good || 0, +d.defect || 0, +d.rework || 0, +d.scrap || 0, +d.transferred || 0, +d.rework_returned || 0, +d.ts || 0],
+  os_dispatches: d => [d.plot_no, d.proc, +d.qty || 0], os_receipts: d => [d.dispatch_id, d.plot_no || '', d.proc || '', +d.qty || 0, +d.good || 0, d.record_id || ''], shipments: d => [d.plot_no, d.so_id, +d.qty || 0],
+  orders: d => [+d.qty || 0], bom: d => (d.route || []).map(r => [+r.seq || 0, r.proc, r.mode || '']), processes: d => [d.code, +d.seq || 0, d.type || ''] };
+async function qgLedgerSnapshot(){
+  const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 확인할 수 있습니다');
+  const out = { at: Date.now(), ok: false, counts: {}, live: {}, mismatch: [], why: '' }; const rows = [];
+  for(const col of Object.keys(QG_LEDGER)){
+    let snap; try { snap = await fs.collection(col).get({ source: 'server' }); } catch(e){ out.why = `${col} 서버 조회 실패 (${String((e && (e.code || e.message)) || e).slice(0, 60)})`; return out; }
+    const f = QG_LEDGER[col]; const srv = {}; snap.docs.forEach(d => { const v = d.data() || {}; srv[d.id] = JSON.stringify([v.void == null, f(v)]); });
+    const loc = {}; DB.allRaw(col).forEach(d => { const id = String(d.id || d.plot_no || d.code || ''); if(id) loc[id] = JSON.stringify([d.void == null, f(d)]); });
+    out.counts[col] = snap.size; out.live[col] = snap.docs.filter(d => (d.data() || {}).void == null).length;
+    Object.keys(srv).forEach(id => { if(!(id in loc)) out.mismatch.push(`${col}/${id} 이 기기에 없음`); else if(loc[id] !== srv[id]) out.mismatch.push(`${col}/${id} 값 다름`); });
+    Object.keys(loc).forEach(id => { if(!(id in srv)) out.mismatch.push(`${col}/${id} 서버에 없음`); });
+    Object.keys(srv).sort().forEach(id => rows.push(col + '/' + id + '=' + srv[id]));
+  }
+  out.hash = await _secSha(rows.join('\n'));
+  if(!out.live.production_lots) out.why = '서버 원장 LOT 0건(취소 제외) — 예상한 상태인지 확인 필요 (합격 아님)';
+  else if(out.mismatch.length) out.why = `이 기기 원장이 서버와 다름 ${out.mismatch.length}건 — 새로고침(서버 데이터 다시 받기) 뒤 다시`;
+  else out.ok = true;
+  return out;
+}
+// 누계 점검: 서버 원장(새로 읽어 이 기기와 같음 확인) → 원장 계산 ↔ 서버 누계 — 원장 확인이 불합격이면 점검도 불합격
+async function qgAudit(opts){
   const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 점검할 수 있습니다');
+  const led = await qgLedgerSnapshot();
+  let sr = {}; try { sr = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {}; } catch(e){}
   const snap = await fs.collection('qty_guard').get({ source: 'server' }); const srv = {}; snap.docs.forEach(d => { srv[d.id] = d.data(); });
-  const out = { at: Date.now(), lots: 0, orders: 0, missing: [], diff: [], hold: [], over: [], fills: qgReceiptFills().length };
+  const out = { at: led.at, lots: 0, orders: 0, missing: [], diff: [], hold: [], over: [], fills: qgReceiptFills().length, ledger: { ok: led.ok, why: led.why, counts: led.counts, mismatch: led.mismatch.slice(0, 30), hash: led.hash }, guards: snap.size, live: sr.qg_live === true, frozen: sr.write_freeze === true };
+  if(!led.ok){ out.ok = false; try { _cutSave({ qgAudit: { at: out.at, ok: false, why: led.why, hash: led.hash || null } }); } catch(e){} return out; }
   const C = m => JSON.stringify(Object.fromEntries(Object.entries(m || {}).filter(([, v]) => v).sort()));
-  DB.all('production_lots').forEach(l => { const e = qgExpectLot(l.plot_no); if(!e) return; out.lots++; const s = srv['L:' + l.plot_no];
+  DB.all('production_lots').forEach(l => { const e = l.plot_no ? qgExpectLot(l.plot_no) : null; if(!e){ out.diff.push({ k: 'LOT/' + (l.id || '?'), what: 'LOT 번호(plot_no) 없음 — 누계 계산 불가 · 원장 정정 필요' }); return; } out.lots++; const s = srv['L:' + l.plot_no];
     if(!s){ out.missing.push('L:' + l.plot_no); return; }
     const bad = ['inp', 'disp', 'rcv', 'good', 'rw', 'rr'].filter(k => C(s[k]) !== C(e[k])); if((s.ship || 0) !== e.ship) bad.push('ship'); if(s.start !== e.start) bad.push('start');
     if(JSON.stringify(s.prev) !== JSON.stringify(e.prev) || s.last !== e.last) bad.push('공정 순서');
@@ -7467,8 +7511,9 @@ async function qgAudit(){
     Object.keys({ ...(s.hold || {}), ...e.hold }).forEach(p => { const a = (s.hold || {})[p] || 0, b = e.hold[p] || 0; if(a !== b) out.hold.push({ plot: l.plot_no, p, srv: a, ledger: b, ver: s.ver }); });
     const g = { ...s, hold: s.hold || {} }; getRoute(l.itemCode).forEach(r => { if(r.proc !== 'SHIP' && qgFree(g, r.proc) < 0) out.over.push(`${l.plot_no} ${DB.get('processes', r.proc)?.name || r.proc} ${qgFree(g, r.proc)}`); }); if(qgShipFree(g) < 0) out.over.push(`${l.plot_no} 출하 ${qgShipFree(g)}`); });
   DB.all('orders').forEach(o => { out.orders++; const s = srv['S:' + o.id]; const e = qgSoCalc(o.id).shipped; if(!s){ if(e) out.missing.push('S:' + o.id); return; } if((s.shipped || 0) !== e) out.diff.push({ k: 'S:' + o.id, what: `출하 ${s.shipped}/${e}` }); });
-  out.ok = !out.missing.length && !out.diff.length && !out.hold.length && !out.fills;
-  try { _cutSave({ qgAudit: { at: out.at, ok: out.ok, lots: out.lots, orders: out.orders, missing: out.missing.length, diff: out.diff.length, hold: out.hold.length, over: out.over.length, fills: out.fills } }); } catch(e){}
+  out.ok = out.lots === led.live.production_lots && out.lots > 0 && !out.missing.length && !out.diff.length && !out.hold.length && !out.fills;
+  const rec = { at: out.at, ok: out.ok, hash: led.hash, live: out.live, frozen: out.frozen, lots: out.lots, orders: out.orders, missing: out.missing.length, diff: out.diff.length, hold: out.hold.length, over: out.over.length, fills: out.fills };
+  try { _cutSave(Object.assign({ qgAudit: rec }, opts && opts.as ? { [opts.as]: rec } : {})); } catch(e){}
   return out;
 }
 // 누계 생성 (전환 모드) — 입고 LOT·공정 채우기 → L·S 누계 쓰기 → 점검
@@ -7477,17 +7522,25 @@ async function qgBuildAll(){
   if(!(isStaffMode() && _STAFF.isApprover)) throw new Error('관리자 계정(직원 계정 방식)으로 로그인해야 합니다');
   const sr = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {};
   if(sr.qg_init !== true || sr.write_freeze !== true) throw new Error('전환 모드가 아닙니다 — 콘솔에서 settings/server_rules 의 write_freeze = true · qg_init = true 를 먼저 켜세요');
+  const ledFail = (led, what) => new Error(`${what} — ${led.why}${led.mismatch.length ? ` (${led.mismatch.slice(0, 3).join(' · ')})` : ''}`);
+  let led1 = await qgLedgerSnapshot(); if(!led1.ok) throw ledFail(led1, '원장 확인 불합격');   // ★ v0.40.18 — 서버 원장 = 이 기기 원장 확인 뒤에만 생성
   const fills = qgReceiptFills(); const miss = fills.filter(f => f.missing);
   if(miss.length) throw new Error(`반출을 찾을 수 없는 외주 입고 ${miss.length}건 (${miss.slice(0, 3).map(f => f.id).join(', ')}) — 정정 뒤 다시`);
+  if(fills.length){   // ① 옛 입고 LOT·공정 채우기 먼저 → 원장을 다시 읽어 확인 (이 지문이 생성 기준)
+    for(let i = 0; i < fills.length; i += 400){ const b = fs.batch(); fills.slice(i, i + 400).forEach(f => b.set(fs.collection('os_receipts').doc(String(f.id)), { plot_no: f.plot_no, proc: f.proc }, { merge: true })); await b.commit(); }
+    fills.forEach(f => { const st = _ACTIVE_ADAPTER._state; if(st && st.os_receipts && st.os_receipts[f.id]) st.os_receipts[f.id] = { ...st.os_receipts[f.id], plot_no: f.plot_no, proc: f.proc }; });
+    DB._bump(); led1 = await qgLedgerSnapshot(); if(!led1.ok) throw ledFail(led1, '입고 표시 채운 뒤 원장 확인 불합격');
+  }
+  // ② 확인된 원장(= 이 기기 원장)으로 누계 쓰기
   const writes = [];
-  fills.forEach(f => writes.push([fs.collection('os_receipts').doc(String(f.id)), { plot_no: f.plot_no, proc: f.proc }, true]));
-  DB.all('production_lots').forEach(l => { const e = qgExpectLot(l.plot_no); if(e) writes.push([fs.collection('qty_guard').doc('L:' + l.plot_no), { ...e, ver: 0 }, false]); });
-  DB.all('orders').forEach(o => writes.push([fs.collection('qty_guard').doc('S:' + o.id), { shipped: qgSoCalc(o.id).shipped, ver: 0 }, false]));
-  for(let i = 0; i < writes.length; i += 400){ const b = fs.batch(); writes.slice(i, i + 400).forEach(([r, d, merge]) => merge ? b.set(r, d, { merge: true }) : b.set(r, d)); await b.commit(); }
-  fills.forEach(f => { const st = _ACTIVE_ADAPTER._state; if(st && st.os_receipts && st.os_receipts[f.id]) st.os_receipts[f.id] = { ...st.os_receipts[f.id], plot_no: f.plot_no, proc: f.proc }; });
-  DB._bump();
-  _cutSave({ qgBuilt: { at: Date.now(), writes: writes.length, fills: fills.length } });   // 생성 기록 먼저 → 그 뒤의 점검만 통과로 인정 (점검 시각 ≥ 생성 시각)
-  const a = await qgAudit(); return { writes: writes.length, fills: fills.length, audit: a };
+  DB.all('production_lots').forEach(l => { const e = qgExpectLot(l.plot_no); if(e) writes.push([fs.collection('qty_guard').doc('L:' + l.plot_no), { ...e, ver: 0 }]); });
+  DB.all('orders').forEach(o => writes.push([fs.collection('qty_guard').doc('S:' + o.id), { shipped: qgSoCalc(o.id).shipped, ver: 0 }]));
+  for(let i = 0; i < writes.length; i += 400){ const b = fs.batch(); writes.slice(i, i + 400).forEach(([r, d]) => b.set(r, d)); await b.commit(); }
+  // ③ 생성 뒤 원장을 다시 읽어 생성 기준과 같은지 (다른 쓰기가 끼어들었으면 불합격) · 서버 스위치도 그대로인지
+  const led2 = await qgLedgerSnapshot(); const sr2 = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {};
+  if(!led2.ok || led2.hash !== led1.hash || sr2.write_freeze !== true || sr2.qg_init !== true){ _cutSave({ qgBuilt: null, qgBuildAudit: null }); throw new Error('생성 중 원장 또는 서버 스위치가 바뀌었습니다 — 쓰기 중지 확인 뒤 다시 생성 (' + (led2.why || (led2.hash !== led1.hash ? '원장 지문 다름' : '스위치 바뀜')) + ')'); }
+  _cutSave({ qgBuilt: { at: Date.now(), writes: writes.length + fills.length, fills: fills.length, hash: led2.hash } });   // 생성 기록 먼저 → 그 뒤의 점검만 통과로 인정 (점검 시각 ≥ 생성 시각 · 같은 지문)
+  const a = await qgAudit({ as: 'qgBuildAudit' }); return { writes: writes.length + fills.length, fills: fills.length, audit: a, hash: led2.hash };
 }
 // 보류 맞추기 (운영 중 · 관리 역할) — 보류 기록 qg_holds 1건 + 누계 한 트랜잭션 · 사유 2자 이상 · 자동 인정 없음(원장 보류가 줄었을 때 그 값으로만)
 async function qgHoldSet(plot, p, to, reason){
@@ -7508,7 +7561,8 @@ function openQgAuditModal(){
     const li = (arr, f) => arr.length ? `<ul style="margin:4px 0 0 18px">${arr.slice(0, 30).map(f).join('')}${arr.length > 30 ? `<li>… ${arr.length - 30}건 더</li>` : ''}</ul>` : ' 0';
     openModal(`<h2>수량 누계 점검 (동시 저장 보호) <span class="pill ${a && a.ok ? 'green' : 'red'}" style="font-size:10px">${a ? (a.ok ? '차이 0' : '차이 있음') : '확인 전'}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body" style="font-size:12px;line-height:1.7">
       <div style="color:var(--sub)">서버 누계(qty_guard)를 다시 읽어 이 기기 원장 계산과 대조합니다. 판정은 서버 · 이 화면은 대조와 안내만 · 보류는 자동으로 인정하지 않습니다.</div>
-      ${a ? `<div style="margin-top:6px">LOT ${a.lots} · 수주 ${a.orders} · 점검 ${new Date(a.at).toLocaleTimeString()}</div>
+      ${a ? `<div style="margin-top:6px"><b>원장 확인 (서버에서 새로 읽음)</b> ${a.ledger.ok ? `<span style="color:var(--green)">이 기기 = 서버</span> · LOT ${a.ledger.counts.production_lots} · 실적 ${a.ledger.counts.records} · 출하 ${a.ledger.counts.shipments} · 수주 ${a.ledger.counts.orders} · 지문 ${_esc(String(a.ledger.hash || '').slice(0, 12))}` : `<span style="color:var(--red)">불합격 — ${_esc(a.ledger.why)}</span>${a.ledger.mismatch.length ? `<ul style="margin:4px 0 0 18px">${a.ledger.mismatch.slice(0, 10).map(x => `<li class="mono">${_esc(x)}</li>`).join('')}</ul>` : ''}`}</div>
+      <div>점검 LOT ${a.lots} · 수주 ${a.orders} · 서버 누계 ${a.guards}건 · ${new Date(a.at).toLocaleTimeString()} · 보호 ${a.live ? '켜짐' : '꺼짐'}${a.frozen ? ' · 쓰기 중지 중' : ''}</div>
       <div><b>누계 없음</b>${li(a.missing, k => `<li class="mono">${_esc(k)}</li>`)}</div>
       <div><b>값 차이</b>${li(a.diff, d => `<li><span class="mono">${_esc(d.k)}</span> — ${_esc(d.what)}</li>`)}</div>
       <div><b>보류 차이</b> (서버 ↔ 원장)${li(a.hold, h => `<li><span class="mono">${_esc(h.plot)}</span> ${_esc(DB.get('processes', h.p)?.name || h.p)} 서버 ${h.srv} · 원장 ${h.ledger}${canHold ? ` <button class="btn ghost" data-qh="${_esc(h.plot)}|${_esc(h.p)}|${h.ledger}">원장 값으로 맞추기</button>` : ''}</li>`)}</div>
@@ -11424,7 +11478,10 @@ function _phUiApply(){
   if(bar){
     const id = (location.hash || '#dash').replace('#', '').split('/')[0];
     const pg = PAGES.find(p => p.id === id);
-    bar.innerHTML = `<a class="ph-back" href="#p/home" aria-label="폰 홈">‹ 홈</a><span class="ph-ttl">${_esc(pg ? pg.title : '')}</span><button type="button" class="ph-menu" id="ph-menu" aria-label="전체 메뉴">☰ 메뉴</button>`;
+    // ★ v0.40.18 디자인 P1 (GPT 권고 순서 1) — 폰 하위 화면 = 위 막대 1개: 기존 상단 막대(로고·데모·연결·사용자·시계)는 숨기고 연결 상태·데모 표시만 이 막대에
+    const sp = document.getElementById('sync-pill'); const dot = sp ? `<span class="ph-sync ${_esc(sp.className.replace('sync-pill', '').trim())}" title="${_esc(sp.title || (document.getElementById('sync-txt') || {}).textContent || '저장 상태')}"><span class="sync-dot"></span></span>` : '';
+    const demo = isDemoMode() ? '<span class="ph-demo">DEMO</span>' : '';
+    bar.innerHTML = `<a class="ph-back" href="#p/home" aria-label="폰 홈">‹ 홈</a><span class="ph-ttl">${_esc(pg ? pg.title : '')}</span>${demo}${dot}<button type="button" class="ph-menu" id="ph-menu" aria-label="전체 메뉴">☰ 메뉴</button>`;
     const mb = document.getElementById('ph-menu'); if(mb) mb.onclick = () => { try { openAllMenuModal(); } catch(e){ location.hash = '#p/more'; } };
   }
   let tabs = document.getElementById('ph-tabs');
@@ -11440,6 +11497,12 @@ function _phUiApply(){
   try { const _pg2 = (location.hash || '#dash').replace('#', '').split('/')[0] || 'dash'; const old = document.getElementById('ph-hold'); if(old) old.remove();
     if(view && PH_HOLD_PAGES.includes(_pg2)){ let n = 0; try { n += heldPlotSet().size; } catch(e){} try { if(SESSION.role === 'manager' || SESSION.role === 'vendor') n += lockedPlotSet().size; } catch(e){}
       if(n > 0){ const a = document.createElement('a'); a.id = 'ph-hold'; a.className = 'ph-hold'; a.href = _pCan('qc') ? '#qc' : '#p/todo'; a.innerHTML = `⚠ 품질 확인 필요 <b>${n}</b>건 · 보기 ›`; const hd = view.querySelector(':scope > .pghead'); if(hd && hd.nextSibling) view.insertBefore(a, hd.nextSibling); else view.insertBefore(a, view.firstChild); } } } catch(e){}
+  // ★ v0.40.18 디자인 P2 (GPT 권고 순서 2) — 폰: [엑셀] 은 없애지 않고 「⋯ 더보기」 안으로 · PC 용 문구 「행 클릭」 → 「카드를 누르면」 (표시만 · 버튼 동작 그대로)
+  try { const head = view && view.querySelector(':scope > .pghead'); const tools = head && head.querySelector('.pgtools');
+    if(tools && !tools.querySelector(':scope > .ph-more')){ const xs = [...tools.querySelectorAll(':scope > .btn, :scope > button')].filter(b => /엑셀/.test(b.textContent || ''));
+      if(xs.length){ const d = document.createElement('details'); d.className = 'ph-more'; d.innerHTML = '<summary>⋯ 더보기</summary><div class="ph-more-body"></div>'; const body = d.querySelector('.ph-more-body'); xs.forEach(b => body.appendChild(b)); tools.appendChild(d); } }
+    view.querySelectorAll('.tag').forEach(tg => { if(/행 클릭/.test(tg.textContent || '')) tg.textContent = tg.textContent.replace(/행 클릭\s*→\s*/g, '카드를 누르면 ').replace(/행 클릭/g, '카드 누르기'); });
+  } catch(e){}
   // ★ v0.40.8 (GPT P-2) — 화면 제목 옆 = 이름 있는 등록 버튼 하나(「+ 새 발주」 등 · 같은 버튼을 자리만 옮겨 보임 · CSS)
   try { const ph = view && view.querySelector(':scope > .pghead'); const pb = ph && ph.querySelector('.pgtools > .btn.primary'); if(pb) pb.classList.add('ph-prim'); } catch(e){}
   const host = document.getElementById('ph-tabs-host') || tabs;
