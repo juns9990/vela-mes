@@ -351,6 +351,7 @@ td.muted{color:var(--sub)}
 /* 스크롤 화살표 (우하단 고정 — 대상: 모달 > 마지막 사용 리스트 > 화면 최대 리스트 > 페이지) */
 .scroll-nav{position:fixed;right:16px;bottom:74px;display:none;flex-direction:column;gap:8px;z-index:1400}
 .scroll-nav.show{display:flex}
+@media (pointer:fine){ body:not(.ph-ui):has(.scroll-nav.show) #app > #view{padding-right:68px} }   /* ★ v0.40.17 — 오른쪽 아래 ▲▼ 가 표 끝 칸(상세 보기)을 가리지 않게 */
 .scroll-nav button{width:42px;height:42px;border-radius:12px;border:1px solid var(--line2);background:var(--panel);color:var(--cyan);font-size:15px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,.45);transition:.15s;user-select:none}
 .scroll-nav button:hover{border-color:var(--cyan-dim);background:rgba(94,234,212,.08)}
 @media print{.scroll-nav{display:none !important}}
@@ -1466,6 +1467,12 @@ body.ph-ui #nav,body.ph-ui #app > .foot,body.ph-ui #crumb,body.ph-ui .p-home-fab
 body.ph-ui #view{padding-bottom:108px}
 body.ph-ui .scroll-nav{display:none!important}
 body.ph-ui #view .ph-kpi-hide{display:none!important}
+/* ★ v0.40.17 디자인 점검 — 폰: 화면 이름은 위 앱 막대 1곳만(본문 큰 제목 숨김 · 등록 버튼은 그대로) · 카드 제목의 설명 꼬리표는 다음 줄 · 넓은 표 머리글 줄바꿈 금지(가로 스크롤) */
+body.ph-ui #view > .pghead > .pgtitle{display:none!important}
+body.ph-ui #view .card > h3{display:block}
+body.ph-ui #view .card > h3 .tag{display:block;width:100%;margin:4px 0 0;white-space:normal;line-height:1.5}
+body.ph-ui #view .tbl-wrap table:not(.ph-cards) th{white-space:nowrap}
+.m-btn svg.ic{width:18px;height:18px;flex:none;vertical-align:-3px;margin-right:6px;stroke:currentColor;fill:none;stroke-width:1.8}
 .ph-hold{display:none}
 body.ph-ui #view .ph-hold{display:flex;align-items:center;gap:6px;margin:0 0 10px;padding:11px 14px;border-radius:12px;border:1px solid var(--red);background:rgba(248,113,113,.08);color:var(--red);font-size:14px;font-weight:700;text-decoration:none;min-height:44px;box-sizing:border-box}
 body.ph-ui .topbar .clock{display:none}
@@ -1701,11 +1708,11 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.15';
+const APP_VERSION = 'v0.40.17';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-11-01';
+const APP_DATE    = '2026-11-04';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1998,6 +2005,15 @@ function _fsWriteRejected(col, id, e){
   const now = Date.now(); if(now - _fsRejTs < 4000) return; _fsRejTs = now;
   try { toast(`⚠ 서버 저장 실패 — ${col}/${id} (${(e && (e.code || e.message)) || '알 수 없음'}) · 새로고침하면 이 변경은 사라집니다`, 'err', 8000); } catch(_){}
 }
+// ★ v0.40.16 — 누계 트랜잭션 거부: 안내 + 이 기기 메모리를 서버 문서로 되돌림 (화면에 저장된 것처럼 남지 않게)
+function qgOnReject(pairs, e){
+  const code = (e && e.code) || ''; const msg = String((e && e.message) || e || '').slice(0, 160);
+  try { if(/^qg-/.test(code)) toast(`${msg} — 저장 0`, 'err', 8000); else _fsWriteRejected(pairs.map(p => p[0]).join('·'), pairs.map(p => p[1]).join('·'), e); } catch(_){}
+  try { const fs = _ACTIVE_ADAPTER._fs; const st = _ACTIVE_ADAPTER._state; if(!fs || !st) return;
+    Promise.all(pairs.map(([c, i]) => fs.collection(c).doc(String(i)).get({ source: 'server' }).then(d => { st[c] = st[c] || {};
+      if(d.exists){ const v = { ...(d.data() || {}), id: d.id }; st[c][i] = (typeof _secMergeInto === 'function') ? _secMergeInto(c, d.id, v) : v; } else delete st[c][i]; }).catch(() => {})))
+      .then(() => { try { DB._bump(); if(SESSION.loggedIn) router(); } catch(_){} }); } catch(_){}
+}
 const _FIRESTORE_ADAPTER = {
   name: 'firestore',
   _state: null,
@@ -2050,21 +2066,81 @@ const _FIRESTORE_ADAPTER = {
        · 이미 있으면 아무것도 쓰지 않고 code 'already-exists' + 서버의 기존 문서(existing)를 돌려줌 → 이미 처리된 요청은 업무 문서를 다시 쓰지 않음
        · 늦게 도착한 같은 요청도 서버가 「읽은 뒤 바뀜/이미 있음」 으로 거부 → 그 사이 정상 수정·취소된 값·이력이 덮이지 않음
        · 트랜잭션은 연결이 없으면 대기하지 않고 실패(나중에 몰래 도착하는 쓰기 없음) */
-    if(opts.createOnly){
+    const useQg = qgLive() && list.some(w => (QG_COLS.includes(w.col) || w.col === 'production_lots') && w.doc);   // LOT 생성 = 같은 요청에 L 누계 생성(규칙 r17)   // ★ v0.40.16 — 수량 문서 = 서버 누계와 같은 트랜잭션 (동시 저장 보호 2단계)
+    if(opts.createOnly || useQg){
       const ops = []; const rec = { set: (r, data, o) => ops.push({ k: 'set', r, data, o }), update: (r, data) => ops.push({ k: 'update', r, data }) };
       const G = { b: rec, n: 0 }; _FS_GROUP = G;
       try { list.forEach(w => _fsSend(this._fs, w.col, w.id, w.doc, w.meta)); } finally { _FS_GROUP = null; }
       if(!ops.length) return Promise.resolve({ ok: true, n: 0 });
-      const fs = this._fs; const targets = (opts.createOnly === true ? list.map(w => [w.col, w.id]) : opts.createOnly).map(([c, i]) => fs.collection(c).doc(String(i)));
+      const fs = this._fs; const FV = window.firebase.firestore.FieldValue;
+      const targets = !opts.createOnly ? [] : (opts.createOnly === true ? list.map(w => [w.col, w.id]) : opts.createOnly).map(([c, i]) => fs.collection(c).doc(String(i)));
       const last = list[list.length - 1];
-      const pr = fs.runTransaction(async tx => {
+      const cand = useQg ? list.filter(w => QG_COLS.includes(w.col) && w.doc) : [];
+      const lotsW = useQg ? list.filter(w => w.col === 'production_lots' && w.doc) : [];
+      let lastPlan = null;   // 거부 이유 설명용 (서버가 규칙으로 거부한 경우 = 그 사이 다른 기기가 같은 누계를 바꿨는지 다시 확인)
+      const pr0 = fs.runTransaction(async tx => {
         const snaps = await Promise.all(targets.map(r => tx.get(r)));
         const ex = snaps.filter(sn => sn.exists);
         if(ex.length){ const er = new Error('이미 서버에 있는 문서 — 다시 쓰지 않음'); er.code = 'already-exists'; er.existing = ex.map(sn => ({ col: sn.ref.parent.id, id: sn.id, data: sn.data() })); throw er; }
-        ops.forEach(o => { if(o.k === 'set') tx.set(o.r, o.data, o.o); else tx.update(o.r, o.data); });
-        return ops.length;
+        const gw = []; const qgPaths = new Set();
+        if(useQg){
+          // ① 문서 저장 전 값(서버) → 수량이 실제로 바뀌는 문서만
+          const bs = await Promise.all(cand.map(w => tx.get(fs.collection(w.col).doc(String(w.id)))));
+          const items = []; cand.forEach((w, i) => { const b = bs[i].exists ? bs[i].data() : null; const a = qgAfterDoc(b, w); if(qgQtyChanged(w.col, b, a)) items.push({ w, b, a }); });
+          const plan = qgPlan(items); lastPlan = plan;
+          const lotB = await Promise.all(lotsW.map(w => tx.get(fs.collection('production_lots').doc(String(w.id)))));
+          const newLots = lotsW.filter((w, i) => !lotB[i].exists).filter((w, i, a) => a.findIndex(x => String(x.id) === String(w.id)) === i);   // 같은 LOT 를 묶음 안에서 두 번 쓰면(생성 + 속성) 누계 생성은 1번
+          // ② 서버 누계 읽기 (LOT · 수주)
+          const gRefs = plan.map(x => fs.collection('qty_guard').doc('L:' + x.plot));
+          const gs = await Promise.all(gRefs.map(r => tx.get(r)));
+          const soOf = x => x.op.a.so_id || (x.op.b && x.op.b.so_id) || '';
+          const soIds = [...new Set(plan.filter(x => x.op.w.col === 'shipments').map(soOf))];
+          const sRefs = soIds.map(so => fs.collection('qty_guard').doc('S:' + so));
+          const ss = await Promise.all(sRefs.map(r => tx.get(r)));
+          const opOf = x => ({ col: x.op.w.col, id: String(x.op.w.id), at: FV.serverTimestamp(), new: x.op.b == null });
+          // ③ 서버 값으로 변경량·한도 계산 (같은 누계를 다른 기기가 먼저 쓰면 Firestore 가 이 함수를 다시 실행 → 늘어난 값으로 다시 검사)
+          plan.forEach((x, i) => {
+            if(newLots.some(w => String(w.id) === x.plot)) throw Object.assign(new Error(`새 LOT ${x.plot} 과 그 LOT 의 수량 문서를 한 번에 저장할 수 없습니다`), { code: 'qg-plan' });
+            if(!gs[i].exists) throw Object.assign(new Error(`LOT ${x.plot} 의 서버 수량 누계가 없습니다 — 관리자 전환(누계 생성) 뒤 저장할 수 있습니다`), { code: 'qg-missing' });
+            const o = gs[i].data(); const st = qgStep(o, x.op.w.col, x.op.b, x.op.a);
+            if(st.err) throw Object.assign(new Error(`다른 기기에서 먼저 저장되었거나 남은 수량이 부족합니다 — ${st.err}`), { code: 'qg-limit' });
+            const up = {}; ({ records: ['inp', 'good', 'rw', 'rr'], os_receipts: ['inp', 'rcv', 'good'], os_dispatches: ['disp'], shipments: ['ship'] })[x.op.w.col].forEach(k => { up[k] = st.n[k]; });
+            up.ver = (+o.ver || 0) + 1; up.op = opOf(x); gw.push({ ref: gRefs[i], up, upd: true });
+            qgPaths.add(x.op.w.col + '/' + x.op.w.id); if(x.link) qgPaths.add(x.link.w.col + '/' + x.link.w.id);
+          });
+          soIds.forEach((so, j) => { const xs = plan.filter(x => x.op.w.col === 'shipments' && soOf(x) === so);
+            if(!so) throw Object.assign(new Error('출하에 수주 번호가 없어 수주 누계를 맞출 수 없습니다'), { code: 'qg-plan' });
+            if(xs.length > 1) throw Object.assign(new Error(`같은 수주(${so}) 출하 ${xs.length}건 — 한 번에 1건씩 저장하세요`), { code: 'qg-plan' });
+            const x = xs[0]; const sq = d => qgIsLive(d) ? (+d.qty || 0) : 0; const d = sq(x.op.a) - sq(x.op.b);
+            const cur = ss[j].exists ? ss[j].data() : null; const shipped = (cur ? +cur.shipped || 0 : 0) + d;
+            const ord = DB.get('orders', so); if(d > 0 && ord && shipped > (+ord.qty || 0)) throw Object.assign(new Error(`다른 기기에서 먼저 저장되었거나 수주 잔량이 부족합니다 — 수주 ${so} 남은 ${Math.max(0, (+ord.qty || 0) - shipped + d)}ea (서버 기준)`), { code: 'qg-limit' });
+            gw.push({ ref: sRefs[j], up: { shipped, ver: cur ? (+cur.ver || 0) + 1 : 1, op: opOf(x) }, upd: !!cur }); });
+          newLots.forEach(w => { const r = qgRouteOf(w.doc); gw.push({ ref: fs.collection('qty_guard').doc('L:' + w.id), upd: false,
+            up: { start: r.start, prev: r.prev, next: r.next, last: r.last, inp: {}, disp: {}, rcv: {}, good: {}, rw: {}, rr: {}, hold: {}, ship: 0, ver: 0 } }); });
+        }
+        // ④ 업무 문서(+ _qg = 서버 시각 · 누계와 함께 쓰는 문서만) → 누계
+        ops.forEach(o => { let data = o.data, opt = o.o;
+          if(data && typeof data === 'object' && '_qg' in data){ data = { ...data }; delete data._qg; if(opt && opt.mergeFields) opt = { ...opt, mergeFields: opt.mergeFields.filter(f => f !== '_qg') }; }
+          if(qgPaths.has(o.r.path)){ data = { ...data, _qg: FV.serverTimestamp() }; if(opt && opt.mergeFields) opt = { ...opt, mergeFields: opt.mergeFields.concat(['_qg']) }; }
+          if(o.k === 'set') tx.set(o.r, data, opt); else tx.update(o.r, data); });
+        gw.forEach(g => { if(g.upd) tx.update(g.ref, g.up); else tx.set(g.ref, g.up); });
+        return ops.length + gw.length;
       });
-      _fsTrack('group', list.map(w => w.col + '/' + w.id).join(','), pr, e => { if(!(e && e.code === 'already-exists')) _fsWriteRejected('묶음', last.col + '/' + last.id, e); });
+      // 두 기기가 같은 누계를 동시에 쓰면 늦은 쪽은 서버 규칙(누계 버전·한도)으로 거부될 수 있음 → 서버 누계를 다시 읽어 그 사이 바뀌었는지 설명 (판정은 서버 · 이 설명은 안내만)
+      const pr = !useQg ? pr0 : pr0.catch(async e => {
+        const m = String((e && (e.code || e.message)) || e);
+        if(!lastPlan || !lastPlan.length || !/permission|insufficient/i.test(m)) throw e;
+        let why = '';
+        try { for(const x of lastPlan){ const g = await fs.collection('qty_guard').doc('L:' + x.plot).get({ source: 'server' }); if(!g.exists) continue;
+            const st = qgStep(g.data(), x.op.w.col, x.op.b, x.op.a); if(st.err){ why = st.err; break; }
+            if(x.op.w.col === 'shipments'){ const so = x.op.a.so_id; const s = await fs.collection('qty_guard').doc('S:' + so).get({ source: 'server' }); const ord = DB.get('orders', so);
+              const d = (qgIsLive(x.op.a) ? +x.op.a.qty || 0 : 0) - (qgIsLive(x.op.b) ? +x.op.b.qty || 0 : 0); const shipped = (s.exists ? +s.data().shipped || 0 : 0) + d;
+              if(d > 0 && ord && shipped > (+ord.qty || 0)){ why = `수주 ${so} 남은 ${Math.max(0, (+ord.qty || 0) - shipped + d)}ea (서버 기준)`; break; } } } } catch(_){}
+        if(why) throw Object.assign(new Error(`다른 기기에서 먼저 저장되었습니다 — ${why}`), { code: 'qg-limit' });
+        if(lastPlan.length) throw Object.assign(new Error(`다른 기기에서 먼저 저장되었거나 서버 규칙이 거부했습니다 (${m.slice(0, 40)}) — 화면을 새로 고쳐 남은 수량을 확인하세요`), { code: 'qg-conflict' });
+        throw e;
+      });
+      _fsTrack('group', list.map(w => w.col + '/' + w.id).join(','), pr, e => { if(!(e && (e.code === 'already-exists' || /^qg-/.test(e.code || '')))) _fsWriteRejected('묶음', last.col + '/' + last.id, e); });
       return pr.then(n => ({ ok: true, n }));
     }
     const G = { b: this._fs.batch(), n: 0 };
@@ -2125,6 +2201,12 @@ const DB = (() => {
   const _gRollback = (g, onlyIfMine) => { let n = 0; [...g.undo.values()].reverse().forEach(u => { ensure(u.col); const cur = state[u.col][u.id]; if(onlyIfMine && cur !== g.mine.get(u.col + '\u0001' + u.id)) return; if(u.had) state[u.col][u.id] = u.prev; else delete state[u.col][u.id]; n++; }); _rev++; return n; };
   const persist = (col, id, doc, meta) => {
     if(_GROUP){ _GROUP.buf.push({ col, id, doc, meta }); return; }
+    // ★ v0.40.16 — 수량 문서 1건 저장도 서버 누계와 같은 트랜잭션 (동시 저장 보호 켜짐일 때만 · 거부 = 이 기기 메모리를 서버 값으로 되돌림)
+    if(doc && typeof QG_COLS !== 'undefined' && (QG_COLS.includes(col) || col === 'production_lots') && typeof qgLive === 'function' && qgLive() && typeof _ACTIVE_ADAPTER.writeGroup === 'function'){
+      try { const pr = _ACTIVE_ADAPTER.writeGroup([{ col, id, doc, meta }], {}); if(pr && pr.catch) pr.catch(e => qgOnReject([[col, id]], e)); }
+      catch(e){ qgOnReject([[col, id]], e); }
+      return;
+    }
     try { _ACTIVE_ADAPTER.write(col, id, doc, meta); }
     catch(e){ console.warn('[VELA] backend write failed', col, id, e); }
   };
@@ -2603,6 +2685,8 @@ function _secMigratedSrv(){
 }
 function _secSplitOn(){ return isStaffMode() || (_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' && _secMigratedSrv()); }
 function _fsSend(fs, col, id, doc, meta, viaAdmin){
+  // ★ v0.40.16 — _qg(누계 연결 표시)는 누계 트랜잭션만 씀 · 메모리 문서를 그대로 다시 보낼 때 섞여 나가지 않게
+  if(doc && typeof doc === 'object' && '_qg' in doc){ doc = { ...doc }; delete doc._qg; if(meta && Array.isArray(meta.keys)) meta = { ...meta, keys: meta.keys.filter(k => k !== '_qg') }; }
   const ref = fs.collection(col).doc(String(id));
   const FV = window.firebase.firestore.FieldValue;
   const onErr = e => _fsWriteRejected(col, id, e);
@@ -3716,8 +3800,9 @@ async function cutoverStatus(opts){
   let probe = 'unknown'; try { await fs.collection('vela_rules_probe').doc('x').get({ source: 'server' }); probe = 'allow'; } catch(e){ probe = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
   // ★ v0.39.8 (GPT v0.39.7 필수 2) — 설정값(version)이 아니라 실제 게시 규칙 확인 · ★ v0.39.13 = rules_probe/r14 (r14 만 허용 · r13 이하 = 거부 — 요청 판정 기록 plan_move_reqs 필요) · ★ v0.40.9 = rules_probe/r16 (r16 = r15 + 파렛트 이동 pallet_moves · 외주 입고 묶음 저장에 필요 — r15 로는 파렛트 회수가 든 외주 입고가 전부 거부됨)
   let probe13 = 'unknown'; try { await fs.collection('rules_probe').doc('r16').get({ source: 'server' }); probe13 = 'allow'; } catch(e){ probe13 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
+  let probe17 = 'unknown'; try { await fs.collection('rules_probe').doc('r17').get({ source: 'server' }); probe17 = 'allow'; } catch(e){ probe17 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }   // ★ v0.40.17 — 규칙 r17(동시 저장 보호) 게시 확인
   if(sr && Object.keys(sr).length) _SRV_LAST = sr;
-  st.test = isTestProject(); st.sr = sr; st.probe = probe; st.probe13 = probe13;
+  st.test = isTestProject(); st.sr = sr; st.probe = probe; st.probe13 = probe13; st.probe17 = probe17;
   const logAt = log ? _tsMs(log.at) : 0; const final = sr.sec_migrated === true && sr.write_freeze !== true;
   const me = SESSION.userId;
   const users = DB.all('users').filter(u => u.active !== false && u.id !== me && u.role !== 'vendor');
@@ -3742,6 +3827,14 @@ async function cutoverStatus(opts){
   const rc = m.rc || null; const rcBound = !!rc && !!log && rc.logAt === logAt && rc.hash === log.ids_hash; const rcOk = rcBound && (rc.v === 'PASS' || rc.v === 'EMPTY');
   S('reconcile', '이관 대조 합격 (이번 이관 기록과 일치) → sec_migrated 켬', rcOk && sr.sec_migrated === true, `대조 ${rc ? rc.v + (rcBound ? '' : ' (다른 이관 기록 — 다시 대조)') : '안 함'} · sec_migrated = ${sr.sec_migrated === true}`,
     { action: 'reconcile', label: '이관 대조 (이 기기 이관분 · 또는 파일)', console: rcOk && sr.sec_migrated !== true ? '콘솔: settings/server_rules.sec_migrated = true (대조 합격 뒤에만)' : '' });
+  // ★ v0.40.17 — 동시 저장 보호 전환 (쓰기 중지 중 · 이관 대조 뒤): 규칙 r17 → qg_init → 누계 생성 + 점검 차이 0 → qg_live 켬 (qg_init 끔)
+  const qa = m.qgAudit || null; const qb = m.qgBuilt || null; const qgOk = sr.qg_live === true || (probe17 === 'allow' && !!qb && !!qa && qa.ok && qa.at >= qb.at && (!logAt || qb.at > logAt));
+  S('qgbuild', '수량 누계 생성 + 점검 차이 0 (동시 저장 보호 · 보류 반영)', qgOk,
+    `${probe17 === 'allow' ? '규칙 r17 게시됨' : '규칙 r17 아님'} · qg_init = ${sr.qg_init === true} · ${qb ? '생성 ' + new Date(qb.at).toLocaleTimeString() + ' (쓰기 ' + qb.writes + ' · 입고 표시 채움 ' + qb.fills + ')' : '생성 안 함'} · ${qa ? `점검 ${qa.ok ? '차이 0' : `누계 없음 ${qa.missing} · 값 차이 ${qa.diff} · 보류 차이 ${qa.hold} · 입고 표시 ${qa.fills}`}${qa.over ? ' · 이미 넘친 LOT ' + qa.over : ''}` : '점검 안 함'}`,
+    { action: probe17 === 'allow' && sr.qg_init === true && sr.write_freeze === true ? 'qg-build' : 'qg-audit', label: probe17 === 'allow' && sr.qg_init === true && sr.write_freeze === true ? '누계 생성 + 점검' : '누계 점검',
+      console: probe17 !== 'allow' ? '콘솔: Firestore 규칙 r17 게시 (쓰기 중지 켠 채로)' : sr.qg_init !== true ? '콘솔: settings/server_rules.qg_init = true (쓰기 중지 켠 채로)' : '' });
+  S('qglive', '동시 저장 보호 켬 (qg_live · 전환 모드 끔)', sr.qg_live === true && sr.qg_init !== true, `qg_live = ${sr.qg_live === true} · qg_init = ${sr.qg_init === true}`,
+    { console: '콘솔: settings/server_rules.qg_init = false · qg_live = true (쓰기 중지는 아직 켠 채로)' });
   const L = m.login || null;
   const lgOk = !!L && L.at > logAt && !L.mustChange && L.read === 'allow' && L.deny === 'deny' && (!L.frozen || L.frozenWrite === 'deny') && L.frozenWrite !== 'no-target' && sr.sec_migrated === true;
   S('login', '이관 뒤 직원 새 로그인 (허용 조회 · 무권한 차단 · 쓰기 중지 중 저장 거부)', lgOk,
@@ -3802,6 +3895,8 @@ function openCutoverModal(){
       else if(a === 'migrate'){ _cutSave({ rc: null, login: null, resume: null }); const r = await secMigrateAll(); _cutSave({ migratedHere: Date.now() }); toast(`단가 분리 이관 — ${r ? r.moved : 0}건`, 'ok', 4000); await refresh(true); return; }
       else if(a === 'reconcile'){ if(window._SEC_LAST_BACKUP) await _cutReconcile(window._SEC_LAST_BACKUP); else { document.getElementById('cut-rc-file').click(); return; } }
       else if(a === 'login'){ const box = document.getElementById('cut-login'); if(box){ box.hidden = false; document.getElementById('cut-lp').focus(); } return; }
+      else if(a === 'qg-build'){ const r = await qgBuildAll(); toast(`수량 누계 생성 — 쓰기 ${r.writes} · 점검 ${r.audit.ok ? '차이 0' : '차이 있음 (누계 점검 화면 확인)'}`, r.audit.ok ? 'ok' : 'warn', 6000); if(!r.audit.ok){ openQgAuditModal(); return; } }
+      else if(a === 'qg-audit'){ openQgAuditModal(); return; }
       else if(a === 'resume'){ const r = await cutoverResumeTest(); toast(`직원 저장 ${r.write === 'allow' ? '허용 — 업무 재개 확인' : r.write}`, r.write === 'allow' ? 'ok' : 'err', 5000); }
       else if(a === 'strip'){ if(!(await adminEnsure('구형 비밀번호 값 정리는 관리자 계정만 할 수 있습니다.'))) return; exportFullBackup('before-strip'); legacySecretFieldsStrip(); await new Promise(r => setTimeout(r, 1500)); }
     } catch(e){ toast(e.message || String(e), 'err', 5000); }
@@ -3862,6 +3957,20 @@ function unvoidDoc(col,id,reason){
   return DB.set(col,id,{void:null});
 }
 
+// ★ v0.40.17 — 묶음 저장 + 값 반환 (병합·분할·분기): 이미 묶음 안이면 그대로 · 이 기기 실패 = 예외(저장 0) · 서버 거부 = 메모리 되돌림 + 안내
+function dbGroupValue(fn, label){
+  if(DB._inGroup || !qgLive()) return fn();   // 보호 꺼짐 = 지금과 같은 1건씩 저장 (동작 무변)
+  const res = DB.group(fn);
+  if(res && res.server) res.server.catch(e => { try { res.rollbackLocal(); } catch(_){} qgOnReject([], { code: (e && e.code) || '', message: `${label || '저장'} 실패 — ${(e && e.message) || e}` }); });
+  return res ? res.value : undefined;
+}
+// ★ v0.40.16 — 묶음 저장 실행 1벌 (취소·복원 연쇄): 이 기기 실패 = 저장 0 · 서버 거부 = 이 기기 메모리 되돌림 + 안내 (서버 누계 보호가 켜져 있으면 같은 트랜잭션)
+function dbGroupRun(fn, label){
+  if(!qgLive()){ try { fn(); return true; } catch(e){ toast(`${label || '저장'} — ${e.message}`, 'err', 6000); return false; } }   // 보호 꺼짐 = 지금과 같은 1건씩 저장 (동작 무변)
+  let res; try { res = DB.group(fn); } catch(e){ toast(`${label || '저장'} — ${e.message} (저장 0)`, 'err', 6000); return false; }
+  if(res && res.server) res.server.catch(e => { try { res.rollbackLocal(); } catch(_){} qgOnReject([], { code: (e && e.code) || '', message: `${label || '저장'} 실패 — ${(e && e.message) || e}` }); });
+  return true;
+}
 /* ★ v0.20.0 — 채번 v2 (유틸 1벌 · 전수 사용)
    형식: {PREFIX}-{YYYY}-{단말코드}{NNN} (예: PL-2026-A012)
    · 단말코드: v0.21.1 부터 localStorage 전용 키(vela_device_code) · 단말 고유 (서버 동기 제외) · getDeviceCode() 경유
@@ -4166,7 +4275,7 @@ const SES = {
   },
   set(s){ this._write({ ...s, userId: SESSION.userId || s?.userId || null }); return s; },
   clear(){ this._write(null); },
-  /* 출근 = 현장 세션 시작 (근태 저장 0 — GPT §7) · 설비는 QR 로 결정되므로 null */
+  /* 출근 = 현장 세션 시작 (근태 저장 0 — GPT §7) · 설비는 [설비 선택] 목록에서 고르므로 null (v0.37.4) */
   clockIn({ shift, worker }){ const s = { userId: SESSION.userId || null, shift, worker, equipment: null, started: Date.now() }; this._write(s); return s; },
   setEquipment(eq){ const s = this._read(); if(!s) return null; s.equipment = eq || null; if(!eq) s.current = null; this._write(s); return s; },
   /* ★ v0.37.3 — 「● 진행」 = 이 단말에서 마지막으로 연 작업 (단말 컨텍스트 · 원장 무관 · 저장 0) */
@@ -6980,14 +7089,16 @@ const LOT = {
   // ★ v0.6.0 — 등록 (제1원칙: 수량검증 통과해야 함)
   //  rework_returned는 '복구분' — 잔량 검증에서는 제외 (새 투입이 아님).
   //  단, 누적 복귀 ≤ 누적 재작업 한도 검증.
-  registerRecord({plot_no, proc, equipment, good=0, defect=0, rework=0, scrap=0, rework_returned=0, defect_reason='', vendor=null, type='in', shift='day', source='manual', worker=null, pallets=null, _fixedId=null}){   // ★ v0.35.9 — pallets: 파렛트 수(표시·추적용 · 수량 계산 무관)
+  registerRecord({plot_no, proc, equipment, good=0, defect=0, rework=0, scrap=0, rework_returned=0, defect_reason='', vendor=null, type='in', shift='day', source='manual', worker=null, pallets=null, _fixedId=null, _viaReceipt=false}){   // ★ v0.35.9 — pallets: 파렛트 수(표시·추적용 · 수량 계산 무관)
     // ★ v0.33.0 — 품질 Hold Gate: 미처리('접수') 부적합 LOT 은 판정 전 실적 등록 차단 (원장 단일 경로)
     if(typeof assertLotNotHeld === 'function') assertLotNotHeld(plot_no, '실적 등록');
     // ★ v0.36.0 (Q6-0) — 동시성 사고는 LOT 전체 잠금이 아니라 「보류」: 수량 차단은 balance(인정 기준) 가 스스로 · 사고 open 은 사실 기록·표시(Audit) 로 유지
-    const bal = LOT.balance(plot_no, proc);
+    // ★ v0.40.16 결정 (가) — 사내 실적 잔량 = 직전 양품 − 실적 투입 − 외주에 나가 있는 수량 (서버 누계 소비 정의와 같음) · 외주 실적(입고)은 반출분에서 받으므로 그대로
+    const fly = _viaReceipt ? 0 : osInFlight(plot_no, proc);   // 외주 입고 묶음의 실적 = 반출분에서 받음(소비 무변) · 그 밖(사내·외주 실적 직접) = 외주 진행분 제외
+    const bal = _viaReceipt ? LOT.balance(plot_no, proc) : qgInHouseBalance(plot_no, proc);
     const newInput = good+defect+rework+scrap;
     if(newInput<=0 && rework_returned<=0) throw new Error('수량을 입력하세요.');
-    if(newInput > bal) throw new Error(`초과 등록 차단 — 잔량 ${bal}ea, 등록 ${newInput}ea`);
+    if(newInput > bal) throw new Error(`초과 등록 차단 — 잔량 ${bal}ea${fly > 0 ? ` (외주 진행 ${fly}ea 제외)` : ''}, 등록 ${newInput}ea`);
     const proc_obj = DB.get('processes', proc);
     if(!proc_obj) throw new Error(`알 수 없는 공정: ${proc}`);
     // 라우트에 없는 공정 차단 (잘못된 QR/조작 방지)
@@ -7037,8 +7148,9 @@ const LOT = {
     if(DB.get('production_lots', newPlotNo)) throw new Error(`이미 존재: ${newPlotNo}`);
     const heats = [...new Set(sources.flatMap(s=>s.heat_nos||[]))];
     const mats  = [...new Set(sources.flatMap(s=>s.material_lot_ids||[]))];
-    const totalBal = sources.reduce((s,src)=>s+LOT.balance(src.plot_no, proc),0);
+    const totalBal = sources.reduce((s,src)=>s+qgInHouseBalance(src.plot_no, proc),0);   // ★ v0.40.17 (가) 외주 진행분은 옮길 수 없음 (서버 누계 소비 정의)
     if(totalBal<=0) throw new Error('병합할 잔량 없음 (모든 부모 LOT의 해당 공정 잔량이 0)');
+    return dbGroupValue(() => {   // ★ v0.40.17 — 새 LOT + 부모 이관 실적 = 한 묶음 (서버 누계와 같은 트랜잭션 · 일부만 저장 0)
     // 자식: merge_at_proc 명시
     const newLot = LOT.create({
       plot_no:newPlotNo, itemCode:item, materialLots:mats,
@@ -7049,7 +7161,7 @@ const LOT = {
     DB.set('production_lots', newPlotNo, newLot);
     // 부모 잔량 소진: transfer 레코드 (totalInput에 합산됨)
     sources.forEach(s=>{
-      const bal = LOT.balance(s.plot_no, proc);
+      const bal = qgInHouseBalance(s.plot_no, proc);
       if(bal>0){
         const id = newRecId(`R-MERGE-${s.plot_no}-${proc}`);
         DB.set('records', id, {
@@ -7061,6 +7173,7 @@ const LOT = {
       }
     });
     return newLot;
+    }, '병합');
   },
   // 분할 (절단공정 1회) — 부모LOT → 자식들 (heat 상속)
   split({parentPlotNo, parts}){
@@ -7068,12 +7181,13 @@ const LOT = {
     if(!parent) throw new Error('부모 LOT 없음');
     const route = getRoute(parent.itemCode);
     const cutCode = route[0]?.proc || 'CUT';
-    const bal = LOT.balance(parentPlotNo, cutCode);
+    const bal = qgInHouseBalance(parentPlotNo, cutCode);   // ★ v0.40.17 (가)
     const sum = parts.reduce((s,p)=>s+(+p.qty||0),0);
     if(sum > bal) throw new Error(`분할 합계 ${sum} > 잔량 ${bal}`);
+    return dbGroupValue(() => {   // ★ v0.40.17 — 자식 LOT + 부모 이관 실적 = 한 묶음
     parts.forEach(p=>{
       const child = LOT.create({plot_no:p.plot_no, itemCode:parent.itemCode, materialLots:parent.material_lot_ids, qty_initial:+p.qty, type:'split', sourceLots:[parentPlotNo]});
-      child.heat_nos = parent.heat_nos;
+      child.heat_nos = parent.heat_nos || [];   // ★ v0.40.17 — 부모에 heat 없음 = 빈 목록 (undefined 는 서버가 거부 → 자식 LOT 이 서버에 안 남던 결함)
       DB.set('production_lots', p.plot_no, child);
     });
     // ★ v0.32.7 — 분할 수량 보존 수정 (검증절차서 v2.1 I6 실측 FAIL → 즉시 수정)
@@ -7090,6 +7204,7 @@ const LOT = {
       });
     }
     return true;
+    }, '분할');
   },
   // ★ v0.7.0 — 분기(fork): 같은 단조품에서 후공정이 갈라져 여러 완성품으로 나뉘는 패턴
   //  · split과 달리 자식마다 itemCode가 다를 수 있음(서로 다른 완성품)
@@ -7103,7 +7218,7 @@ const LOT = {
     if(!fork_at_proc) throw new Error('분기 공정 선택 필요');
     if(!bomHasProc(parent.itemCode, fork_at_proc)) throw new Error(`부모 ${parent.itemCode} 라우트에 없는 공정: ${fork_at_proc}`);
     // 잔량 검증 — 자식 합 ≤ 부모 분기공정 잔량
-    const bal = LOT.balance(parentPlotNo, fork_at_proc);
+    const bal = qgInHouseBalance(parentPlotNo, fork_at_proc);   // ★ v0.40.17 (가)
     const sum = children.reduce((s,c)=>s+(+c.qty||0), 0);
     if(sum<=0) throw new Error('자식 수량 입력 필요');
     if(sum > bal) throw new Error(`분기 합계 ${sum} > 부모 잔량 ${bal} (분기공정 ${fork_at_proc})`);
@@ -7127,6 +7242,7 @@ const LOT = {
         throw new Error(`라우트 불일치 — 부모[${parentPrefix}] ≠ ${c.itemCode}[${childPrefix}] (분기공정까지 공정이 동일해야 함)`);
       }
     });
+    return dbGroupValue(() => {   // ★ v0.40.17 — 자식 LOT + 부모 이관 실적 = 한 묶음
     // 자식 생성 (merge_at_proc 재사용 → 이전공정 완료 간주)
     children.forEach(c=>{
       const child = LOT.create({
@@ -7138,7 +7254,7 @@ const LOT = {
         sourceLots: [parentPlotNo],
         merge_at_proc: fork_at_proc,
       });
-      child.heat_nos   = parent.heat_nos;     // heat 자식 상속
+      child.heat_nos   = parent.heat_nos || [];     // heat 자식 상속 · ★ v0.40.17 undefined 금지
       child.fork_from  = parentPlotNo;
       child.fork_at_proc = fork_at_proc;
       DB.set('production_lots', c.plot_no, child);
@@ -7153,6 +7269,7 @@ const LOT = {
       ts: Date.now(), by: SESSION.user,
     });
     return children.map(c=>DB.get('production_lots', c.plot_no));
+    }, '분기');
   },
   // ★ v0.6.0 — 라우팅 자동판정: BOM 라우트 순회, 잔량>0인 첫 공정 반환
   //  하드코딩 skippable·cond 제거 — 라우트에 없으면 자연 스킵
@@ -7236,17 +7353,177 @@ function qgLotCalc(plot){
   const lot = DB.get('production_lots', plot); if(!lot) return null;
   const g = { ...qgRouteOf(lot), inp: {}, disp: {}, rcv: {}, good: {}, ship: 0 };
   const add = (m, k, v) => { if(v) m[k] = (m[k] || 0) + v; };
-  DB.query('records', r => r.plot_no === plot).forEach(r => { add(g.inp, r.proc, qgRecIn(r)); add(g.good, r.proc, qgRecGood(r)); });
+  g.rw = {}; g.rr = {};
+  DB.query('records', r => r.plot_no === plot).forEach(r => { add(g.inp, r.proc, qgRecIn(r)); add(g.good, r.proc, qgRecGood(r)); add(g.rw, r.proc, +r.rework || 0); add(g.rr, r.proc, +r.rework_returned || 0); });
   DB.query('os_dispatches', d => d.plot_no === plot).forEach(d => { add(g.disp, d.proc, +d.qty || 0);
     add(g.rcv, d.proc, DB.query('os_receipts', x => x.dispatch_id === d.id).reduce((t, x) => t + (+x.qty || 0), 0)); });
   g.ship = DB.query('shipments', x => x.plot_no === plot).reduce((t, x) => t + (+x.qty || 0), 0);
   return g;
 }
 function qgSoCalc(so_id){ return { shipped: DB.query('shipments', x => x.so_id === so_id).reduce((t, x) => t + (+x.qty || 0), 0) }; }
-function qgSupply(g, p){ const pv = g.prev[p]; return pv === '__start' ? g.start : pv === '__none' || !pv ? 0 : (g.good[pv] || 0); }
-function qgCons(g, p){ return (g.inp[p] || 0) + (g.disp[p] || 0) - (g.rcv[p] || 0); }
+function qgAvail(g, p){ return ((g.good || {})[p] || 0) - ((g.hold || {})[p] || 0); }   // ★ v0.40.16 결정 (나) — 보류(과거 동시성 사고)는 공급에서 뺌 (규칙 r17 avail 과 같음)
+function qgSupply(g, p){ const pv = (g.prev || {})[p]; return pv === '__start' ? g.start : pv === '__none' || !pv ? 0 : qgAvail(g, pv); }
+function qgCons(g, p){ return ((g.inp || {})[p] || 0) + ((g.disp || {})[p] || 0) - ((g.rcv || {})[p] || 0); }
 function qgFree(g, p){ return qgSupply(g, p) - qgCons(g, p); }   // 서버 기준 그 공정에 더 쓸 수 있는 양 (음수 = 이미 넘침)
-function qgShipFree(g){ return (g.good[g.last] || 0) - g.ship; }
+function qgShipFree(g){ return qgAvail(g, g.last) - (g.ship || 0); }
+
+/* ★ v0.40.16 — 동시 저장 보호 2단계 (SPEC 동시저장보호 v0.3 · 규칙 r17 개정 3)
+   수량 문서(실적·외주 반출·외주 입고·출하) 저장 = 같은 Firestore 트랜잭션에서 서버 누계 qty_guard 를 읽고 → 변경량을 더하고 → 한도를 서버 값으로 검사 → 업무 문서와 함께 씀
+   · 두 기기가 같은 누계를 쓰면 Firestore 가 늦은 쪽 트랜잭션을 다시 실행 → 늘어난 서버 누계로 한도 검사 → 「다른 기기에서 먼저 저장」 으로 거부 (저장 0)
+   · 켜짐 조건 = 서버 모드 + settings/server_rules.qg_live === true (전환 도구가 규칙 r17 게시·누계 생성·대조 뒤에 켬) — 꺼져 있으면 지금과 같음
+   · 변경량 = 서버의 문서 (저장 뒤 − 저장 전) 값 · 취소 = 0 · 계산은 규칙 r17 의 gRec·gRcpt·gDisp·gShip 와 같은 식 (화면 판정이 아니라 서버 값 기준) */
+var QG_COLS = ['records', 'os_dispatches', 'os_receipts', 'shipments'];
+var QG_QTY_KEYS = { records: ['good', 'defect', 'rework', 'scrap', 'transferred', 'rework_returned', 'void'], os_dispatches: ['qty', 'void'], os_receipts: ['qty', 'good', 'defect', 'scrap', 'void'], shipments: ['qty', 'void'] };
+function qgLive(){ try { if(!DB || DB._backend !== 'firestore') return false; const s = DB.get('settings', 'server_rules'); return !!(s && s.qg_live === true); } catch(e){ return false; } }
+function qgIsLive(d){ return !!d && (d.void === undefined || d.void === null); }
+function qgAfterDoc(before, w){   // 서버 저장 뒤 문서 = 저장 전 서버 문서 + 이번에 보내는 필드
+  const keys = (w.meta && Array.isArray(w.meta.keys)) ? w.meta.keys : Object.keys(w.doc || {});
+  const a = { ...(before || {}) };
+  keys.forEach(k => { if(w.doc && k in w.doc) a[k] = w.doc[k]; });
+  ((w.meta && w.meta.del) || []).forEach(k => { delete a[k]; });
+  return a;
+}
+function qgQtyChanged(col, b, a){ const eq = (x, y) => JSON.stringify(x === undefined ? null : x) === JSON.stringify(y === undefined ? null : y);
+  if(!b) return true; return (QG_QTY_KEYS[col] || []).some(k => k === 'void' ? qgIsLive(b) !== qgIsLive(a) : !eq(b[k], a[k])); }
+// 문서 1건의 누계 변경 → 새 누계 (o = 서버 누계 복사본) · 반환 { n, err } (err = 화면 안내 · 서버 규칙과 같은 조건)
+function qgStep(o, col, b, a){
+  const n = JSON.parse(JSON.stringify(o)); ['inp', 'disp', 'rcv', 'good', 'rw', 'rr', 'hold'].forEach(k => { n[k] = n[k] || {}; }); n.ship = n.ship || 0;
+  const B = qgIsLive(b) ? b : {}, A = qgIsLive(a) ? a : {};
+  const p = a.proc; const add = (m, k, v) => { m[k] = (m[k] || 0) + v; };
+  const nm = DB.get('processes', p)?.name || p || '';
+  const downOk = dGd => { if(dGd >= 0) return ''; if(p === n.last) return n.ship <= qgAvail(n, p) ? '' : `${nm} 양품이 이미 출하된 수량보다 적어집니다 (출하 ${n.ship} · 양품 ${qgAvail(n, p)})`;
+    const nx = (n.next || {})[p]; return !nx || qgCons(n, nx) <= qgAvail(n, p) ? '' : `${nm} 양품이 다음 공정에서 이미 쓴 수량보다 적어집니다`; };
+  if(col === 'records'){
+    const dIn = qgRecIn(A) - qgRecIn(B), dRw = (+A.rework || 0) - (+B.rework || 0), dRr = (+A.rework_returned || 0) - (+B.rework_returned || 0);
+    const dGd = (+A.good || 0) - (+B.good || 0) + dRr;
+    add(n.inp, p, dIn); add(n.good, p, dGd); add(n.rw, p, dRw); add(n.rr, p, dRr);
+    if(!(dRr <= 0 && dRw >= 0) && n.rr[p] > n.rw[p]) return { n, err: `${nm} 재작업 복귀 합 ${n.rr[p]} 이 재작업 합 ${n.rw[p]} 보다 큽니다` };
+    if(dIn > 0 && qgCons(n, p) > qgSupply(n, p)) return { n, err: `${nm} 남은 수량 ${Math.max(0, qgSupply(n, p) - qgCons(n, p) + dIn)}ea · 등록 ${dIn}ea (서버 기준 · 외주 진행분 제외)` };
+    return { n, err: downOk(dGd) };
+  }
+  if(col === 'os_receipts'){
+    const q = d => qgIsLive(d) ? (+d.qty || 0) : 0, qg = d => qgIsLive(d) ? (+d.good || 0) : 0;
+    const dQ = q(a) - q(b), dGd = qg(a) - qg(b);
+    add(n.inp, p, dQ); add(n.rcv, p, dQ); add(n.good, p, dGd);
+    if(dQ > 0 && n.rcv[p] > (n.disp[p] || 0)) return { n, err: `${nm} 입고 합 ${n.rcv[p]} 이 반출 합 ${n.disp[p] || 0} 보다 큽니다` };
+    return { n, err: downOk(dGd) };
+  }
+  if(col === 'os_dispatches'){
+    const d = (qgIsLive(a) ? +a.qty || 0 : 0) - (qgIsLive(b) ? +b.qty || 0 : 0);
+    add(n.disp, p, d);
+    if(d > 0 && qgCons(n, p) > qgSupply(n, p)) return { n, err: `${nm} 반출 가능 ${Math.max(0, qgSupply(n, p) - qgCons(n, p) + d)}ea · 반출 ${d}ea (서버 기준)` };
+    if(d < 0 && (n.rcv[p] || 0) > (n.disp[p] || 0)) return { n, err: `입고된 수량보다 반출이 적어집니다` };
+    return { n, err: '' };
+  }
+  if(col === 'shipments'){
+    const d = (qgIsLive(a) ? +a.qty || 0 : 0) - (qgIsLive(b) ? +b.qty || 0 : 0);
+    n.ship += d;
+    if(d > 0 && n.ship > qgAvail(n, n.last)) return { n, err: `LOT 출하 가능 ${Math.max(0, qgAvail(n, n.last) - n.ship + d)}ea · 출하 ${d}ea (서버 기준)` };
+    return { n, err: '' };
+  }
+  return { n, err: '알 수 없는 문서' };
+}
+// 한 묶음의 누계 계획 — LOT 마다 op 문서 1개 (외주 입고 묶음 = 입고 문서가 op · 연결 실적 1건 동반)
+function qgPlan(items){   // items = [{ w, b, a }] (수량이 실제로 바뀌는 문서만)
+  const byLot = {};
+  items.forEach(x => { const plot = x.a.plot_no || (x.b && x.b.plot_no); if(!plot) throw Object.assign(new Error(`${x.w.col}/${x.w.id} 에 LOT 번호가 없어 수량 누계를 맞출 수 없습니다`), { code: 'qg-plan' }); (byLot[plot] = byLot[plot] || []).push(x); });
+  return Object.keys(byLot).map(plot => { const xs = byLot[plot]; const rc = xs.filter(x => x.w.col === 'os_receipts');
+    if(rc.length > 1) throw Object.assign(new Error(`같은 LOT(${plot}) 외주 입고 ${rc.length}건 — 한 번에 1건씩 저장하세요`), { code: 'qg-plan' });
+    if(rc.length === 1){ const op = rc[0]; const rid = op.a.record_id; const links = xs.filter(x => x !== op);
+      if(!rid || links.length !== 1 || links[0].w.col !== 'records' || String(links[0].w.id) !== String(rid)) throw Object.assign(new Error(`외주 입고 ${op.w.id} 는 연결 실적과 함께 저장해야 합니다`), { code: 'qg-plan' });
+      return { plot, op, link: links[0] }; }
+    if(xs.length > 1) throw Object.assign(new Error(`같은 LOT(${plot})의 수량 문서 ${xs.length}건을 한 번에 저장할 수 없습니다 — 나눠서 저장하세요`), { code: 'qg-plan' });
+    return { plot, op: xs[0], link: null }; });
+}
+// 사내 실적 잔량 (결정 (가) — 외주에 나가 있는 수량을 뺌 · 서버 누계 소비 = 투입 + 반출 − 입고 와 같은 정의)
+function qgInHouseBalance(plot, proc){ return Math.max(0, LOT.balance(plot, proc) - osInFlight(plot, proc)); }
+
+/* ★ v0.40.17 — 동시 저장 보호 4단계: 전환(누계 생성)·누계 점검·보류 맞추기 (SPEC 동시저장보호 v0.5)
+   · 누계 생성 = 원장(이 기기에 받은 서버 문서)으로 qgLotCalc + 보류 → qty_guard 를 한 번에 씀 — 서버가 「관리자 계정 + qg_init + 쓰기 중지」 일 때만 허용 (규칙 gInitMode)
+   · 보류 hold[p] = 보고 양품 − 인정양품 (= 과거 동시성 사고 보류분 · 자동 인정 0) → 서버 공급 = 앱 인정양품과 같음
+   · 외주 입고 문서 plot_no·proc 채우기(반출에서) = 같은 전환 모드에서만 (규칙 r17 개정 4)
+   · 누계 점검 = 서버 누계를 다시 읽어 원장 계산과 대조 (차이 0 이어야 qg_live 켬) · 운영 중에도 같은 화면으로 점검 */
+function qgExpectHold(plot){   // 원장 보류 = 공정별 (보고 양품 − 인정양품) · 0 은 뺌
+  const lot = DB.get('production_lots', plot); const h = {}; if(!lot) return h;
+  getRoute(lot.itemCode).forEach(r => { if(r.proc === 'SHIP') return; const d = LOT.totalGood(plot, r.proc) - LOT.acceptedGood(plot, r.proc); if(d > 0) h[r.proc] = d; });
+  return h;
+}
+function qgExpectLot(plot){ const g = qgLotCalc(plot); if(!g) return null; const clean = m => Object.fromEntries(Object.entries(m || {}).filter(([, v]) => v));
+  return { start: g.start, prev: g.prev, next: g.next, last: g.last, inp: clean(g.inp), disp: clean(g.disp), rcv: clean(g.rcv), good: clean(g.good), rw: clean(g.rw), rr: clean(g.rr), hold: qgExpectHold(plot), ship: g.ship || 0 }; }
+function qgReceiptFills(){   // 입고 문서에 LOT·공정이 없으면 반출에서 (취소된 문서 포함 — 복원 때도 누계 대상)
+  return DB.allRaw('os_receipts').filter(r => !r.plot_no || !r.proc).map(r => { const d = DB.allRaw('os_dispatches').find(x => x.id === r.dispatch_id); return d && d.plot_no && d.proc ? { id: r.id, plot_no: d.plot_no, proc: d.proc } : { id: r.id, missing: true }; });
+}
+// 누계 점검: 서버 누계 ↔ 원장 계산 (같은 정의) — 차이 종류별 목록
+async function qgAudit(){
+  const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 점검할 수 있습니다');
+  const snap = await fs.collection('qty_guard').get({ source: 'server' }); const srv = {}; snap.docs.forEach(d => { srv[d.id] = d.data(); });
+  const out = { at: Date.now(), lots: 0, orders: 0, missing: [], diff: [], hold: [], over: [], fills: qgReceiptFills().length };
+  const C = m => JSON.stringify(Object.fromEntries(Object.entries(m || {}).filter(([, v]) => v).sort()));
+  DB.all('production_lots').forEach(l => { const e = qgExpectLot(l.plot_no); if(!e) return; out.lots++; const s = srv['L:' + l.plot_no];
+    if(!s){ out.missing.push('L:' + l.plot_no); return; }
+    const bad = ['inp', 'disp', 'rcv', 'good', 'rw', 'rr'].filter(k => C(s[k]) !== C(e[k])); if((s.ship || 0) !== e.ship) bad.push('ship'); if(s.start !== e.start) bad.push('start');
+    if(JSON.stringify(s.prev) !== JSON.stringify(e.prev) || s.last !== e.last) bad.push('공정 순서');
+    if(bad.length) out.diff.push({ k: 'L:' + l.plot_no, what: bad.join('·') });
+    Object.keys({ ...(s.hold || {}), ...e.hold }).forEach(p => { const a = (s.hold || {})[p] || 0, b = e.hold[p] || 0; if(a !== b) out.hold.push({ plot: l.plot_no, p, srv: a, ledger: b, ver: s.ver }); });
+    const g = { ...s, hold: s.hold || {} }; getRoute(l.itemCode).forEach(r => { if(r.proc !== 'SHIP' && qgFree(g, r.proc) < 0) out.over.push(`${l.plot_no} ${DB.get('processes', r.proc)?.name || r.proc} ${qgFree(g, r.proc)}`); }); if(qgShipFree(g) < 0) out.over.push(`${l.plot_no} 출하 ${qgShipFree(g)}`); });
+  DB.all('orders').forEach(o => { out.orders++; const s = srv['S:' + o.id]; const e = qgSoCalc(o.id).shipped; if(!s){ if(e) out.missing.push('S:' + o.id); return; } if((s.shipped || 0) !== e) out.diff.push({ k: 'S:' + o.id, what: `출하 ${s.shipped}/${e}` }); });
+  out.ok = !out.missing.length && !out.diff.length && !out.hold.length && !out.fills;
+  try { _cutSave({ qgAudit: { at: out.at, ok: out.ok, lots: out.lots, orders: out.orders, missing: out.missing.length, diff: out.diff.length, hold: out.hold.length, over: out.over.length, fills: out.fills } }); } catch(e){}
+  return out;
+}
+// 누계 생성 (전환 모드) — 입고 LOT·공정 채우기 → L·S 누계 쓰기 → 점검
+async function qgBuildAll(){
+  const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 누계를 만들 수 있습니다');
+  if(!(isStaffMode() && _STAFF.isApprover)) throw new Error('관리자 계정(직원 계정 방식)으로 로그인해야 합니다');
+  const sr = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {};
+  if(sr.qg_init !== true || sr.write_freeze !== true) throw new Error('전환 모드가 아닙니다 — 콘솔에서 settings/server_rules 의 write_freeze = true · qg_init = true 를 먼저 켜세요');
+  const fills = qgReceiptFills(); const miss = fills.filter(f => f.missing);
+  if(miss.length) throw new Error(`반출을 찾을 수 없는 외주 입고 ${miss.length}건 (${miss.slice(0, 3).map(f => f.id).join(', ')}) — 정정 뒤 다시`);
+  const writes = [];
+  fills.forEach(f => writes.push([fs.collection('os_receipts').doc(String(f.id)), { plot_no: f.plot_no, proc: f.proc }, true]));
+  DB.all('production_lots').forEach(l => { const e = qgExpectLot(l.plot_no); if(e) writes.push([fs.collection('qty_guard').doc('L:' + l.plot_no), { ...e, ver: 0 }, false]); });
+  DB.all('orders').forEach(o => writes.push([fs.collection('qty_guard').doc('S:' + o.id), { shipped: qgSoCalc(o.id).shipped, ver: 0 }, false]));
+  for(let i = 0; i < writes.length; i += 400){ const b = fs.batch(); writes.slice(i, i + 400).forEach(([r, d, merge]) => merge ? b.set(r, d, { merge: true }) : b.set(r, d)); await b.commit(); }
+  fills.forEach(f => { const st = _ACTIVE_ADAPTER._state; if(st && st.os_receipts && st.os_receipts[f.id]) st.os_receipts[f.id] = { ...st.os_receipts[f.id], plot_no: f.plot_no, proc: f.proc }; });
+  DB._bump();
+  _cutSave({ qgBuilt: { at: Date.now(), writes: writes.length, fills: fills.length } });   // 생성 기록 먼저 → 그 뒤의 점검만 통과로 인정 (점검 시각 ≥ 생성 시각)
+  const a = await qgAudit(); return { writes: writes.length, fills: fills.length, audit: a };
+}
+// 보류 맞추기 (운영 중 · 관리 역할) — 보류 기록 qg_holds 1건 + 누계 한 트랜잭션 · 사유 2자 이상 · 자동 인정 없음(원장 보류가 줄었을 때 그 값으로만)
+async function qgHoldSet(plot, p, to, reason){
+  const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만');
+  reason = String(reason || '').trim(); if(reason.length < 2) throw new Error('사유를 2자 이상 적어 주세요');
+  to = Math.trunc(+to); if(!(to >= 0)) throw new Error('보류 수량 = 0 이상 정수');
+  const FV = window.firebase.firestore.FieldValue; const gRef = fs.collection('qty_guard').doc('L:' + plot);
+  const id = 'QH-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase(); const hRef = fs.collection('qg_holds').doc(id);
+  await fs.runTransaction(async tx => { const g = await tx.get(gRef); if(!g.exists) throw new Error('서버 누계 없음');
+    const o = g.data(); const from = (o.hold || {})[p] || 0; if(from === to) throw new Error('지금 값과 같습니다');
+    // 늘리기(공급 감소)는 규칙이 이미 쓴 양을 넘지 않는지 확인 (downOk)
+    tx.set(hRef, { id, k: 'L:' + plot, p, from, to, reason, by_uid: currentAuthUid() || '', by: SESSION.user || '', at: FV.serverTimestamp(), _qg: FV.serverTimestamp() });
+    tx.update(gRef, { hold: { ...(o.hold || {}), [p]: to }, ver: (+o.ver || 0) + 1, op: { col: 'qg_holds', id, at: FV.serverTimestamp(), new: true } }); });
+  return id;
+}
+function openQgAuditModal(){
+  const draw = (a, msg) => { const canHold = isStaffMode() && (_STAFF.isApprover || SESSION.role === 'manager');
+    const li = (arr, f) => arr.length ? `<ul style="margin:4px 0 0 18px">${arr.slice(0, 30).map(f).join('')}${arr.length > 30 ? `<li>… ${arr.length - 30}건 더</li>` : ''}</ul>` : ' 0';
+    openModal(`<h2>수량 누계 점검 (동시 저장 보호) <span class="pill ${a && a.ok ? 'green' : 'red'}" style="font-size:10px">${a ? (a.ok ? '차이 0' : '차이 있음') : '확인 전'}</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body" style="font-size:12px;line-height:1.7">
+      <div style="color:var(--sub)">서버 누계(qty_guard)를 다시 읽어 이 기기 원장 계산과 대조합니다. 판정은 서버 · 이 화면은 대조와 안내만 · 보류는 자동으로 인정하지 않습니다.</div>
+      ${a ? `<div style="margin-top:6px">LOT ${a.lots} · 수주 ${a.orders} · 점검 ${new Date(a.at).toLocaleTimeString()}</div>
+      <div><b>누계 없음</b>${li(a.missing, k => `<li class="mono">${_esc(k)}</li>`)}</div>
+      <div><b>값 차이</b>${li(a.diff, d => `<li><span class="mono">${_esc(d.k)}</span> — ${_esc(d.what)}</li>`)}</div>
+      <div><b>보류 차이</b> (서버 ↔ 원장)${li(a.hold, h => `<li><span class="mono">${_esc(h.plot)}</span> ${_esc(DB.get('processes', h.p)?.name || h.p)} 서버 ${h.srv} · 원장 ${h.ledger}${canHold ? ` <button class="btn ghost" data-qh="${_esc(h.plot)}|${_esc(h.p)}|${h.ledger}">원장 값으로 맞추기</button>` : ''}</li>`)}</div>
+      <div><b>LOT·공정·반출 표시 없는 외주 입고</b> ${a.fills}</div>
+      <div><b>이미 넘친 LOT</b> (줄이는 정정만 가능)${li(a.over, s => `<li>${_esc(s)}</li>`)}</div>` : ''}
+      ${canHold ? `<div id="qh-box" hidden style="margin-top:8px;padding:8px;border:1px solid var(--line);border-radius:9px">보류 맞추기 <b id="qh-what"></b><div style="display:flex;gap:6px;margin-top:6px"><input id="qh-reason" placeholder="사유 (예: 실물 대조 · 초과 실적 취소 반영)" style="flex:1"><button class="btn primary" id="qh-ok">맞추기</button></div></div>` : ''}
+      <div id="qa-msg" style="margin-top:6px;color:var(--amber)">${_esc(msg || '')}</div>
+      <div class="actions"><button class="btn" onclick="closeModal()">닫기</button><button class="btn primary" id="qa-run">${ico('refresh')}다시 점검</button></div></div>`, { width: '760px' });
+    document.getElementById('qa-run').onclick = run;
+    let pick = null; document.querySelectorAll('[data-qh]').forEach(b => b.onclick = () => { const [plot, p, to] = b.dataset.qh.split('|'); pick = { plot, p, to: +to }; document.getElementById('qh-box').hidden = false; document.getElementById('qh-what').textContent = `${plot} ${p} → ${to}`; document.getElementById('qh-reason').focus(); });
+    const ok = document.getElementById('qh-ok'); if(ok) ok.onclick = async () => { if(!pick) return; try { await qgHoldSet(pick.plot, pick.p, pick.to, document.getElementById('qh-reason').value); toast('보류 맞춤 — 기록 남김', 'ok'); run(); } catch(e){ document.getElementById('qa-msg').textContent = String((e && e.message) || e); } };
+  };
+  const run = async () => { try { draw(await qgAudit()); } catch(e){ draw(null, String((e && e.message) || e)); } };
+  draw(null, '점검 중…'); run();
+}
 
 function osInFlight(plot, proc){
   if(!plot || !proc) return 0;
@@ -10678,7 +10955,7 @@ function renderScanPhone(session){
       if(procList.length && !procList.some(p => p.code === parsed.proc)){
         // 스캔 시 QR 의 proc 이 잔량 0이거나 라우트 밖이면 기본 선택으로 시프트
         parsed.proc = procList[procDefault].code;
-        bal = LOT.balance(parsed.plot_no, parsed.proc);
+        bal = qgInHouseBalance(parsed.plot_no, parsed.proc);
       }
     }
     const procName = parsed ? (DB.get('processes', parsed.proc)?.name||parsed.proc) : '';
@@ -10791,7 +11068,7 @@ function renderScanPhone(session){
       scProc.onchange = ()=>{
         if(!parsed) return;
         parsed.proc = scProc.value;
-        bal = LOT.balance(parsed.plot_no, parsed.proc);
+        bal = qgInHouseBalance(parsed.plot_no, parsed.proc);
         qval = ''; qreason = '';
         render();
       };
@@ -10828,7 +11105,7 @@ function renderScanPhone(session){
       const eq = resolveScanEquipment(p, session);
       if(eq && (eq.name !== session.equipment?.name)){ SES.setEquipment(eq); session.equipment = eq; toast(`현재 설비: ${eq.name}`,'ok'); }
     }
-    bal = LOT.balance(p.plot_no, p.proc);
+    bal = qgInHouseBalance(p.plot_no, p.proc);
     qval = ''; qreason = '';
     render();
   }
@@ -10858,7 +11135,7 @@ function renderScanPhone(session){
     try {
       LOT.registerRecord(payload);
       scanFeedback();
-      const remain = LOT.balance(parsed.plot_no, parsed.proc);
+      const remain = qgInHouseBalance(parsed.plot_no, parsed.proc);
       toast(`✓ 등록 ${qtype==='good'?'양품':qtype==='def'?'불량':'재작업'} ${v}ea · 잔량 ${remain}`,'ok');
       const next = LOT.nextProcess(parsed.plot_no);
       if(remain<=0 && next){ toast(`다음 공정: ${next.name}`,'ok'); }
@@ -10992,7 +11269,7 @@ function mobileJobs(session){
     // 설비 공정이 라우트에 있으면 그 공정 · 없으면(설비에 공정 미지정) 다음 공정
     let proc = eqProc && route.some(r => r.proc === eqProc) ? eqProc : (LOT.nextProcess(plot_no)?.code || null);
     if(!proc) return;
-    const avail = LOT.balance(plot_no, proc);   // 공통 Core — 인정 기준 잔량 (Q6-0)
+    const avail = qgInHouseBalance(plot_no, proc);   // 공통 Core — 인정 기준 잔량 (Q6-0) · ★ v0.40.16 (가) 외주 진행분 제외
     if(avail <= 0) return;
     const wo = DB.query('work_orders', w => w.plot_no === plot_no)[0] || null;
     const so = wo?.so_id ? DB.get('orders', wo.so_id) : null;
@@ -11268,9 +11545,9 @@ VIEWS.p_home = () => {
   if(_pCan('perf') || isMgr){ const recs = DB.query('records', r => fmtDate(r.ts) === today); const good = recs.reduce((s, r) => s + (+r.good || 0), 0); cards.push(`<div class="m-stat blue"><span>오늘 생산 (양품)</span><b>${good.toLocaleString()}</b></div>`); }
   if(_pCan('ship')){ const sh = DB.query('shipments', s => fmtDate(s.ts || s.date) === today || s.date === today); cards.push(`<div class="m-stat"><span>오늘 출하</span><b>${sh.length}</b></div>`); }
   const acts = [];
-  if(isMgr || _pCan('perf')) acts.push(`<a class="m-btn" href="#p/today">📊 오늘 현황 (공정·설비별)</a>`);   // ★ v0.39.9 — 관리책임자 폰 「오늘 현황 한 화면」 (SPEC 스마트폰 v0.2 §1)
-  if(_pEdit('ship')) acts.push(`<button class="m-btn primary" data-p-form="ship">🚚 출하 등록</button>`);
-  if(_pEdit('matin')) acts.push(`<div class="m-strip"><button class="m-btn" data-p-form="buy">📦 구매품 입고</button><button class="m-btn" data-p-form="material">🧱 소재 입고</button></div>`);
+  if(isMgr || _pCan('perf')) acts.push(`<a class="m-btn" href="#p/today"><svg class="ic" viewBox="0 0 24 24">${pgIcon('dash')}</svg>오늘 현황 (공정·설비별)</a>`);   // ★ v0.39.9 — 관리책임자 폰 「오늘 현황 한 화면」 (SPEC 스마트폰 v0.2 §1)
+  if(_pEdit('ship')) acts.push(`<button class="m-btn primary" data-p-form="ship"><svg class="ic" viewBox="0 0 24 24">${pgIcon('ship')}</svg>출하 등록</button>`);
+  if(_pEdit('matin')) acts.push(`<div class="m-strip"><button class="m-btn" data-p-form="buy"><svg class="ic" viewBox="0 0 24 24">${pgIcon('po')}</svg>구매품 입고</button><button class="m-btn" data-p-form="material"><svg class="ic" viewBox="0 0 24 24">${pgIcon('matin')}</svg>소재 입고</button></div>`);
   phoneShell('home', `
     <div class="m-head"><span>안녕하세요, <b style="color:var(--ink)">${_esc(SESSION.user || '')}</b> 님</span><span class="mono dim">${today}</span></div>
     <div class="m-strip">${cards.join('')}</div>
@@ -11308,7 +11585,7 @@ VIEWS.p_so = (args) => {
         <div class="m-kv big"><span>미납</span><b class="mono">${soOpenQty(o).toLocaleString()}</b></div>
         <div class="m-kv"><span>납기</span><b class="${row && row.status.label === '지연' ? 'red' : ''}">${_esc(o.due || '—')} ${row ? '· ' + _esc(row.status.label) : ''}</b></div>
       </div>
-      ${_pEdit('ship') && soOpenQty(o) > 0 ? `<button class="m-btn primary" data-p-form="ship">🚚 이 수주 출하 등록</button>` : ''}`);
+      ${_pEdit('ship') && soOpenQty(o) > 0 ? `<button class="m-btn primary" data-p-form="ship"><svg class="ic" viewBox="0 0 24 24">${pgIcon('ship')}</svg>이 수주 출하 등록</button>` : ''}`);
     document.querySelectorAll('[data-p-form]').forEach(b => b.onclick = () => phoneOpenForm(b.dataset.pForm));
     return;
   }
@@ -11382,8 +11659,8 @@ VIEWS.p_more = () => {
     <div class="m-card static" style="display:flex;flex-direction:column;gap:10px"><div style="font-size:13px;color:var(--sub)">화면 모드 <span class="dim">— 이 폰에만 저장</span></div>
       <div class="m-seg">${[['auto', '◐ 자동'], ['light', '☀ 밝게'], ['dark', '🌙 어둡게']].map(([v, l]) => `<button type="button" class="m-seg-btn ${getThemePref() === v ? 'on' : ''}" data-theme-pick="${v}">${l}</button>`).join('')}</div></div>
     <div class="m-card static" style="display:flex;flex-direction:column;gap:10px"><div style="font-size:13px;color:var(--sub)">메뉴 화면 모양 <span class="dim">— 이 폰에만 저장 · 폭 좁은 화면에서</span></div>
-      <div class="m-seg" style="grid-template-columns:1fr 1fr">${[['on', '📱 폰 디자인', '카드 · 아래 탭'], ['off', '🖥 PC 모양', '줄여서 보기']].map(([v, l, d]) => `<button type="button" class="m-seg-btn ${phUiPref() === v ? 'on' : ''}" data-phui-pick="${v}">${l}<small>${d}</small></button>`).join('')}</div></div>
-    ${_pCan('scan') ? `<a class="m-btn ghost" href="#m/home">🏭 현장 모드 (실적 등록)</a>` : ''}
+      <div class="m-seg" style="grid-template-columns:1fr 1fr">${[['on', '폰 디자인', '카드 · 아래 탭'], ['off', 'PC 모양', '줄여서 보기']].map(([v, l, d]) => `<button type="button" class="m-seg-btn ${phUiPref() === v ? 'on' : ''}" data-phui-pick="${v}">${l}<small>${d}</small></button>`).join('')}</div></div>
+    ${_pCan('scan') ? `<a class="m-btn ghost" href="#m/home"><svg class="ic" viewBox="0 0 24 24">${pgIcon('scan')}</svg>현장 모드 (실적 등록)</a>` : ''}
     <button class="m-btn ghost" id="p-pc">☰ 전체 메뉴 화면으로</button>
     <button class="m-btn ghost" id="p-logout">로그아웃</button>
     <div class="m-foot">VELA MES SYSTEM · ${APP_VERSION} · MADE BY JUNS</div>`);
@@ -11430,7 +11707,7 @@ VIEWS.m_clockin = () => {
         <div class="m-seg">${shifts.map(sh => `<button type="button" class="m-seg-btn ${sel.shift?.code===sh.code?'on':''}" data-sh="${_esc(sh.code)}">${_esc(sh.name)}<small>${_esc(sh.start||'')}~${_esc(sh.end||'')}</small></button>`).join('')}</div>
         <div class="m-clock-note">교대는 지금 시각으로 자동 선택됐습니다 · 다르면 탭해서 바꾸세요</div>
         <button class="m-btn primary" id="m-ci-go" ${sel.worker && sel.shift ? '' : 'disabled'}>출근 · 업무 시작</button>
-        <div class="m-clock-note">출근 후 작업지시 QR 을 찍으면 그 설비의 작업이 표시됩니다</div>
+        <div class="m-clock-note">출근 후 [설비 선택] 에서 설비를 고르면 그 설비의 작업 순서가 표시됩니다</div>
         ${!isWorkerRole() ? `<button class="m-btn ghost" id="m-ci-pc">🖥 PC 화면으로</button>` : ''}
         <button class="m-btn ghost" id="m-ci-logout">로그아웃</button>
       </div>
@@ -11513,7 +11790,7 @@ VIEWS.m_job = (session, [plot_no, proc]) => {
   const route = getRoute(lot.itemCode); const idx = route.findIndex(r => r.proc === proc);
   const wo = DB.query('work_orders', w => w.plot_no === plot_no)[0]; const so = wo?.so_id ? DB.get('orders', wo.so_id) : null;
   const item = DB.get('items', lot.itemCode); const p = DB.get('processes', proc);
-  const avail = LOT.balance(plot_no, proc); const held = lotHoldInfo(plot_no).held;
+  const avail = qgInHouseBalance(plot_no, proc); const held = lotHoldInfo(plot_no).held;   // ★ v0.40.16 (가)
   const prev = idx > 0 ? route[idx-1] : null;
   const prevRecs = prev ? DB.query('records', r => r.plot_no === plot_no && r.proc === prev.proc).sort((a,b) => b.ts - a.ts).slice(0,3) : [];
   mobileShell('home', `
@@ -11589,7 +11866,7 @@ VIEWS.m_run = (session, [plot_no, proc]) => {
   const saveDraft = () => { try { sessionStorage.setItem(M_DRAFT_KEY, JSON.stringify(draft)); } catch(e){} };
   let err = '';
   const render = () => {
-    const bal = LOT.balance(plot_no, proc);   // 표시용 · 저장 시 registerRecord 가 다시 계산
+    const bal = qgInHouseBalance(plot_no, proc);   // 표시용 · 저장 시 registerRecord 가 다시 계산 · ★ v0.40.16 (가) 외주 진행분 제외
     const v = +draft.qval || 0; const rem = bal - v;
     const held = lotHoldInfo(plot_no).held;
     const nextJob = mobileNextJob(SES.get(), { plot_no, proc, order: (mobileJobs(SES.get()).jobs.find(j => j.plot_no === plot_no && j.proc === proc) || {}).order });
@@ -11618,7 +11895,7 @@ VIEWS.m_run = (session, [plot_no, proc]) => {
         LOT.registerRecord(payload);   // ★ 최종 재검증은 여기(현재 원장 · HOLD · 잔량 · 라우트) — 화면 값 불신
         try { scanFeedback(); } catch(e){}
         try { sessionStorage.removeItem(M_DRAFT_KEY); } catch(e){}
-        const rem = LOT.balance(plot_no, proc);
+        const rem = qgInHouseBalance(plot_no, proc);
         // ★ v0.37.3 — 잔량 0 = 완료 → ✓ · 다음 순번 ● · 다음 작업 입력 화면으로 자동 이동(수량 빈 값 · 실적 생성 0) · 잔량 > 0 = 현재 작업 유지
         if(rem <= 0){
           const nxt = nextJob;
@@ -11748,7 +12025,7 @@ VIEWS.m_more = (session) => {
     <div class="m-title">더보기</div>
     <div class="m-card static">
       <div class="m-kv"><span>작업자</span><b>${_esc(session?.worker?.name||'—')}</b>${session?.started?` <span class="dim">출근 ${new Date(session.started).toTimeString().slice(0,5)}</span>`:''}</div>
-      <div class="m-kv"><span>교대 · 현재 설비</span><b>${_esc(session?.shift?.name||'—')} · ${_esc(session?.equipment?.name||'없음 (QR 로 결정)')}</b></div>
+      <div class="m-kv"><span>교대 · 현재 설비</span><b>${_esc(session?.shift?.name||'—')} · ${_esc(session?.equipment?.name||'없음 (설비 선택에서 고름)')}</b></div>
       <div class="m-kv"><span>오늘 내 실적</span><b class="mono">${mine.length}건 · 양품 ${good.toLocaleString()}${def?` · 불량 ${def.toLocaleString()}`:''}</b></div>
     </div>
     ${session ? `<div class="m-card static" style="display:flex;flex-direction:column;gap:10px">
@@ -16193,10 +16470,10 @@ VIEWS.ship = () => {
       const note= document.getElementById('sh-void-note').value.trim();
       const reason = note ? `${rsn} · ${note}` : rsn;
       const _pre = DB.get('shipments', id);
-      voidDoc('shipments', id, reason);
-      // 연쇄: pallet_moves ref.kind='tx' && ref.id===id
-      DB.queryRaw('pallet_moves', m => m.ref?.kind==='tx' && m.ref?.id===id && !m.void)
-        .forEach(m => voidDoc('pallet_moves', m.id, `SHIP ${id} 연쇄 취소`));
+      if(!dbGroupRun(() => { voidDoc('shipments', id, reason);   // ★ v0.40.16 — 출하 취소 + 파렛트 = 한 묶음(서버 누계와 같은 트랜잭션)
+        // 연쇄: pallet_moves ref.kind='tx' && ref.id===id
+        DB.queryRaw('pallet_moves', m => m.ref?.kind==='tx' && m.ref?.id===id && !m.void)
+          .forEach(m => voidDoc('pallet_moves', m.id, `SHIP ${id} 연쇄 취소`)); }, '출하 취소')) return;
       toast('출하 취소 · 파렛트 연쇄 처리 (원본 보존)','ok');
       if(_pre) closingWarnIfClosed('sales', _pre.ts, '출하 취소');
       closeModal(); router();
@@ -16206,9 +16483,9 @@ VIEWS.ship = () => {
     const id = b.dataset.shUnvoid;
     toast('복원 시 수량이 이중 계상될 수 있습니다 — 확인 후 진행','warn');
     setTimeout(()=>{
-      unvoidDoc('shipments', id);
-      DB.queryRaw('pallet_moves', m => m.ref?.kind==='tx' && m.ref?.id===id && m.void)
-        .forEach(m => unvoidDoc('pallet_moves', m.id));
+      if(!dbGroupRun(() => { unvoidDoc('shipments', id);
+        DB.queryRaw('pallet_moves', m => m.ref?.kind==='tx' && m.ref?.id===id && m.void)
+          .forEach(m => unvoidDoc('pallet_moves', m.id)); }, '출하 복원')) return;
       const _r = DB.get('shipments', id);
       if(_r) closingWarnIfClosed('sales', _r.ts, '출하 복원');
       toast('출하·파렛트 복원','ok'); router();
@@ -16677,16 +16954,16 @@ VIEWS.os = () => {
     const id = b.dataset.odVoid;
     const liveRecvs = DB.query('os_receipts', r=>r.dispatch_id===id);
     if(liveRecvs.length){ toast('입고 있는 반출 — 입고를 먼저 취소', 'err'); return; }
-    voidDoc('os_dispatches', id, '오입력');
-    DB.queryRaw('pallet_moves', m => m.ref?.kind==='os' && m.ref?.id===id && !m.void)
-      .forEach(m => voidDoc('pallet_moves', m.id, `OD ${id} 연쇄 취소`));
+    if(!dbGroupRun(() => { voidDoc('os_dispatches', id, '오입력');   // ★ v0.40.16 — 한 묶음
+      DB.queryRaw('pallet_moves', m => m.ref?.kind==='os' && m.ref?.id===id && !m.void)
+        .forEach(m => voidDoc('pallet_moves', m.id, `OD ${id} 연쇄 취소`)); }, '반출 취소')) return;
     toast('외주 반출 취소 · 파렛트 연쇄','ok'); router();
   });
   document.querySelectorAll('[data-od-unvoid]').forEach(b=>b.onclick = ()=>{
     const id = b.dataset.odUnvoid;
-    unvoidDoc('os_dispatches', id);
-    DB.queryRaw('pallet_moves', m => m.ref?.kind==='os' && m.ref?.id===id && m.void)
-      .forEach(m => unvoidDoc('pallet_moves', m.id));
+    if(!dbGroupRun(() => { unvoidDoc('os_dispatches', id);
+      DB.queryRaw('pallet_moves', m => m.ref?.kind==='os' && m.ref?.id===id && m.void)
+        .forEach(m => unvoidDoc('pallet_moves', m.id)); }, '반출 복원')) return;
     toast('외주 반출 복원','ok'); router();
   });
   // C6. 입고 취소 (사유 모달 · 실적 record + 파렛트 회수 이동 연쇄)
@@ -16715,14 +16992,14 @@ VIEWS.os = () => {
       const rsn = document.getElementById('or-void-reason').value;
       const note= document.getElementById('or-void-note').value.trim();
       const reason = note ? `${rsn} · ${note}` : rsn;
-      voidDoc('os_receipts', id, reason);
-      // 연쇄: record_id (신규 데이터만) · pallet_move_id (회수 이동)
-      if(r.record_id && DB.get('records', r.record_id)){
-        voidDoc('records', r.record_id, `OR ${id} 연쇄 취소`);
-      }
-      if(r.pallet_move_id && DB.get('pallet_moves', r.pallet_move_id)){
-        voidDoc('pallet_moves', r.pallet_move_id, `OR ${id} 연쇄 취소`);
-      }
+      if(!dbGroupRun(() => { voidDoc('os_receipts', id, reason);   // ★ v0.40.16 — 입고·실적·파렛트 취소 = 한 묶음(서버 누계와 같은 트랜잭션)
+        // 연쇄: record_id (신규 데이터만) · pallet_move_id (회수 이동)
+        if(r.record_id && DB.get('records', r.record_id)){
+          voidDoc('records', r.record_id, `OR ${id} 연쇄 취소`);
+        }
+        if(r.pallet_move_id && DB.get('pallet_moves', r.pallet_move_id)){
+          voidDoc('pallet_moves', r.pallet_move_id, `OR ${id} 연쇄 취소`);
+        } }, '입고 취소')) return;
       toast(`외주 입고 취소${r.record_id?' · 실적/파렛트 연쇄':' · 실적은 실적현황에서 별도 취소'}`,'ok');
       closingWarnIfClosed('outsource', r.ts, '외주 입고 취소');
       closeModal(); router();
@@ -16733,9 +17010,9 @@ VIEWS.os = () => {
     const r = DB.get('os_receipts', id); if(!r) return;
     toast('복원 시 수량이 이중 계상될 수 있습니다 — 확인 후 진행','warn');
     setTimeout(()=>{
-      unvoidDoc('os_receipts', id);
-      if(r.record_id) unvoidDoc('records', r.record_id);
-      if(r.pallet_move_id) unvoidDoc('pallet_moves', r.pallet_move_id);
+      if(!dbGroupRun(() => { unvoidDoc('os_receipts', id);
+        if(r.record_id) unvoidDoc('records', r.record_id);
+        if(r.pallet_move_id) unvoidDoc('pallet_moves', r.pallet_move_id); }, '입고 복원')) return;
       closingWarnIfClosed('outsource', r.ts, '외주 입고 복원');
       toast('외주 입고·실적·파렛트 복원','ok'); router();
     }, 400);
@@ -16863,7 +17140,7 @@ VIEWS._osRecv = (dispId, keep) => {
         // ★ v0.16.0 — record_id / pallet_move_id 를 os_receipts 에 함께 저장 (취소 연쇄 연결키) · 초과 차단 = registerRecord 가드 그대로
         let recordId = null, palletMoveId = null;
         if(g + df > 0){
-          const rec = LOT.registerRecord({plot_no:preq.dFix.plot, proc:preq.dFix.proc, equipment:'외주', vendor:preq.dFix.vendor, good:g, defect:df, type:'out', _fixedId: recId});   // ★ v0.40.13 — 첫 요청 때 확정한 반출 내용
+          const rec = LOT.registerRecord({plot_no:preq.dFix.plot, proc:preq.dFix.proc, equipment:'외주', vendor:preq.dFix.vendor, good:g, defect:df, type:'out', _fixedId: recId, _viaReceipt: true});   // ★ v0.40.13 — 첫 요청 때 확정한 반출 내용
           if(!rec || !rec.id) throw new Error('실적 저장이 거부되었습니다 (권한 확인)');
           recordId = rec.id;
         }
@@ -16873,7 +17150,7 @@ VIEWS._osRecv = (dispId, keep) => {
           palletMoveId = mv.id;
         }
         if(g + df > 0){
-          const doc = {id: rid, dispatch_id:dispId, qty:g+df, good:g, defect:df, scrap:0, pallets_recovered:prc, record_id:recordId, pallet_move_id:palletMoveId, req_id: reqId, ts:Date.now()};
+          const doc = {id: rid, dispatch_id:dispId, plot_no: preq.dFix.plot, proc: preq.dFix.proc, qty:g+df, good:g, defect:df, scrap:0, pallets_recovered:prc, record_id:recordId, pallet_move_id:palletMoveId, req_id: reqId, ts:Date.now()};   // ★ v0.40.16 — LOT·공정(누계 대상 · 규칙 r17)
           if(unit() === 'kg'){ doc.input_mode = 'kg'; doc.input_value = rg.n; doc.input_value_defect = rd.n; }
           const r = DB.set('os_receipts', rid, doc);
           if(!r) throw new Error('입고 문서 저장이 거부되었습니다 (권한 확인)');
@@ -16902,7 +17179,7 @@ VIEWS._osRecv = (dispId, keep) => {
       if(stillMine()) finishOk(); else { toast(`${doneMsg} · 서버 반영 확인 (입고 요청 ${rid})`,'ok',5000); _osReqNotify(dispId, `이전 입고 요청 <b>${_esc(rid)}</b> = 서버 반영 확인 — 새 입고만 입력하세요`, 'green'); try { router(); } catch(e){} }
     }, (err) => {
       try { res.rollbackLocal(); } catch(e){}
-      const code = String((err && err.code) || ''); const why = String((err && (err.code || err.message)) || err || '알 수 없음');
+      const code = String((err && err.code) || ''); const why = /^qg-/.test(code) ? String(err.message) : String((err && (err.code || err.message)) || err || '알 수 없음');   // ★ v0.40.16
       if(code === 'already-exists'){
         // ★ v0.40.11 — 서버에 이미 같은 번호 문서 = 아무것도 쓰지 않았음 · 이 요청이 만든 것(req_id·반출·수량·연결 번호 일치)인지 확인
         const ex = (err.existing || []).find(x => x.col === preq.chk.col && x.id === preq.chk.id);
@@ -16986,7 +17263,7 @@ function _reqGuard(c){
     const end = () => { clearTimeout(slow); delete window._rqLive[lk]; };
     res.server.then(() => { end(); _reqDrop2(c.kind, req.key, req.rid); if(mine()) c.onDone(); else { toast(`${c.label} 요청 ${req.rid} — 서버 반영 확인`, 'ok', 5000); try { router(); } catch(e){} } }, (err) => {
       end(); try { res.rollbackLocal(); } catch(e){}
-      const code = String((err && err.code) || ''); const why = String((err && (err.code || err.message)) || err || '알 수 없음');
+      const code = String((err && err.code) || ''); const why = /^qg-/.test(code) ? String(err.message) : String((err && (err.code || err.message)) || err || '알 수 없음');   // ★ v0.40.16 — 수량 누계 거부 = 이유 그대로
       if(code === 'already-exists'){
         const ex = (err.existing || []).find(x => x.col === req.chk.col && x.id === req.chk.id);
         if(ex && _reqMatchExpect(req, ex.data)){ _reqDrop2(c.kind, req.key, req.rid); if(mine()) c.onDone(`${c.label} 요청 ${req.rid} — 이미 서버에 반영된 요청입니다 (다시 쓰지 않음)`); else toast(`${c.label} 요청 ${req.rid} — 이미 서버에 반영됨`, 'ok', 6000); try { router(); } catch(e){} return; }
@@ -17697,7 +17974,7 @@ VIEWS._perfAddPC = (prefill)=>{
     const proc = document.getElementById('pa-proc').value;
     const balEl = document.getElementById('pa-bal');
     if(!proc){ balEl.textContent = plot && LOT.availableProcesses(plot).list.some(p => p.code === 'SHIP') ? `생산 공정 완료 · 출하 대기 ${LOT.balance(plot,'SHIP').toLocaleString()}ea — 출하 메뉴에서 수주와 연결해 출하` : '등록 가능 공정 없음 — 라우트 전 공정 소진'; return; }
-    const bal = LOT.balance(plot, proc);
+    const bal = qgInHouseBalance(plot, proc);   // ★ v0.40.16 (가)
     balEl.textContent = `잔량 ${bal.toLocaleString()}ea`;
     // ★ v0.35.5 — 잠금·HOLD LOT 은 창 안에서 바로 알린다 (클릭해야 막히는 구조 → 5초 이해)
     try {
@@ -29541,6 +29818,7 @@ function _userWorkerCardsHTML(){
           <button class="btn" id="usr-sec-migrate">단가 분리 이관 (백업 후)</button>
           <button class="btn" id="usr-sec-check">이관 검증 (남은 단가·비밀번호 0건 확인)</button>
           <button class="btn primary" id="usr-cutover">운영 전환 점검 (단계별)</button>
+          <button class="btn" id="usr-qg-audit">수량 누계 점검 (동시 저장 보호)</button>
           <button class="btn" id="usr-perm-conv">권한 전환 점검 (옛 형식 ${permUnconvertedList().todo.length}명)</button>
           ${isTestProject() ? `<button class="btn" id="usr-tp" style="border-color:var(--amber);color:var(--amber)">시험 자동 점검 (시험 프로젝트 전용)</button>` : ''}
         </div>
@@ -29860,6 +30138,7 @@ function bindUserWorkerCards(){
   const _pcv = document.getElementById('usr-perm-conv'); if(_pcv) _pcv.onclick = () => openPermConvertModal({ done: renderUsers });
   const _tpb = document.getElementById('usr-tp'); if(_tpb) _tpb.onclick = openTpModal;
   const _cub = document.getElementById('usr-cutover'); if(_cub) _cub.onclick = openCutoverModal;
+  const _qga = document.getElementById('usr-qg-audit'); if(_qga) _qga.onclick = openQgAuditModal;   // ★ v0.40.17
   const _sc = document.getElementById('usr-sec-check');
   if(_sc) _sc.onclick = async () => {
     try { const r = await secResidualCheck(); if(!r) return;
