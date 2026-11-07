@@ -1716,7 +1716,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.21';
+const APP_VERSION = 'v0.40.22';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -3916,7 +3916,7 @@ function openCutoverModal(){
       else if(a === 'login'){ const box = document.getElementById('cut-login'); if(box){ box.hidden = false; document.getElementById('cut-lp').focus(); } return; }
       else if(a === 'qg-build'){ const r = await qgBuildAll(); toast(`수량 누계 생성 — 쓰기 ${r.writes} · 점검 ${r.audit.ok ? '차이 0' : '차이 있음 (누계 점검 화면 확인)'}`, r.audit.ok ? 'ok' : 'warn', 6000); if(!r.audit.ok){ openQgAuditModal(); return; } }
       else if(a === 'qg-audit'){ openQgAuditModal(); return; }
-      else if(a === 'qg-confirm'){ const r = await qgWriteConfirm(); toast(`저장 결과 확인 — 서버 누계 ${r.guards || 0}건 · 이전 생성 기록 무효 → 다시 [누계 생성 + 점검]`, 'ok', 6000); }
+      else if(a === 'qg-confirm'){ const r = await qgWriteConfirm(); toast(r.none ? '미확정 저장 없음' : `옛 생성 서버 차단 확인 — 반영된 묶음 ${r.landed ? r.landed.length : '?'} / 보낸 묶음 ${r.sent || '?'} (그 밖의 묶음은 이제 반영될 수 없음) · 이전 생성 기록 무효 → 다시 [누계 생성 + 점검]`, 'ok', 8000); }
       else if(a === 'qg-live-check'){ const r = await qgAudit({ as: 'qgLiveCheck' }); toast(r.ok ? '켠 상태 점검 합격' : '켠 상태 점검 불합격 — ' + (r.ledger.why || '누계 차이'), r.ok ? 'ok' : 'err', 6000); if(!r.ok){ openQgAuditModal(); return; } }
       else if(a === 'resume'){ const r = await cutoverResumeTest(); toast(`직원 저장 ${r.write === 'allow' ? '허용 — 업무 재개 확인' : r.write}`, r.write === 'allow' ? 'ok' : 'err', 5000); }
       else if(a === 'strip'){ if(!(await adminEnsure('구형 비밀번호 값 정리는 관리자 계정만 할 수 있습니다.'))) return; exportFullBackup('before-strip'); legacySecretFieldsStrip(); await new Promise(r => setTimeout(r, 1500)); }
@@ -7505,7 +7505,7 @@ async function qgLedgerSnapshot(){
    · 응답이 오지 않는 실행은 QG_RUN_STALE_MS 뒤 새 실행이 대신함(그 옛 실행의 결과는 기록 0)
    ★ v0.40.21 (GPT v0.40.20 판정) — 읽기 전용 점검과 서버에 쓰는 생성을 구분: 생성은 시간으로 풀지 않음 · 생성 중 새 회차·재생성·무효화 거부 · 서버 저장마다 직전에 유효 확인 · 보낸 저장의 결과가 미확정이면 새 생성 금지([저장 결과 확인] 까지) · 같은 브라우저 다른 탭도 잠금 */
 const QG_RUN_STALE_MS = 90000;   // ★ v0.40.21 — 읽기 전용 점검만 이 시간 뒤 새 실행 허용 · 서버에 쓰는 누계 생성은 시간으로 풀지 않음(끝날 때까지)
-const QG_LOCK_BEAT_MS = 5000, QG_LOCK_DEAD_MS = 90000; var QG_CONFIRM_MS = 20000;   // 저장 결과 확인 대기 (시험에서 줄임)   // ★ v0.40.21 — 같은 브라우저 다른 탭 잠금(5초마다 표시 · 90초 표시 없음 = 닫힌 탭 · 숨은 탭 타이머 1분 지연 고려)
+const QG_LOCK_BEAT_MS = 5000, QG_LOCK_DEAD_MS = 90000; var QG_CONFIRM_MS = 20000;   // 저장 결과 확인 = 서버 차단 응답 대기 (시험에서 줄임)   // ★ v0.40.21 — 같은 브라우저 다른 탭 잠금(5초마다 표시 · 90초 표시 없음 = 닫힌 탭 · 숨은 탭 타이머 1분 지연 고려)
 const _QG_TAB = 'T-' + Math.random().toString(36).slice(2, 9).toUpperCase();
 let _QG_RUN = null, _QG_BEAT = null;
 function _qgLS(k, v){ try { if(v === undefined) return JSON.parse(localStorage.getItem(k) || 'null'); if(v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch(e){} return null; }
@@ -7534,17 +7534,29 @@ function qgBuildBusy(){ const o = _qgOtherTabLock(); return (!!_QG_RUN && _QG_RU
 function qgRunBusy(){ return (!!_QG_RUN && (_QG_RUN.kind === 'build' || Date.now() - _QG_RUN.at < QG_RUN_STALE_MS)) || !!_qgOtherTabLock(); }
 // 무효화 = 읽기 전용 점검만 · 생성 중(또는 저장 결과 미확정)이면 거부(false) — 실행 번호를 지워도 이미 보낸 서버 저장은 취소되지 않음
 function qgRunInvalidate(){ if(qgBuildBusy()) return false; const cur = _QG_RUN; if(cur) qgRunEnd(cur); try { _cutSave({ qgRun: null }); } catch(e){} return true; }
-// 저장 결과 확인: 이 탭에 진행 중 생성 없음 → SDK 대기 저장 0(서버 응답 받음) → 서버 누계 다시 읽음 → 미확정 표시 지움 · 이전 생성 기록 무효(다시 생성 + 점검 필요)
+// ★ v0.40.22 (GPT v0.40.21 판정) — 저장 결과 확인 = 「이 SDK 의 대기 저장 0」 으로 판단하지 않음 (새로고침하면 새 SDK 는 옛 요청을 모름)
+//   서버에서 옛 실행을 차단(생성 임대 qg_build/lease 를 새 번호로 가져감 · 규칙 r17 개정 7 → 옛 묶음은 나중에 도착해도 전부 거부) → 서버가 차단을 받았는지 다시 읽어 확인
+//   → 옛 실행의 묶음 기록(qg_build_log)으로 이미 반영된 묶음을 보여 줌(기록이 없다고 실패로 단정하지 않음) → 미확정 표시 지움 · 이전 생성 기록 무효 → 다시 생성
+function _qgLeaseRef(fs){ return fs.collection('qg_build').doc('lease'); }
+function _qgLeaseDoc(run, seq, take){ return { run, seq, take, at: window.firebase.firestore.FieldValue.serverTimestamp(), by_uid: currentAuthUid() || '' }; }
+async function _qgAck(p, why){ let to; const r = await Promise.race([Promise.resolve(p).then(() => true), new Promise(res => { to = setTimeout(() => res(false), QG_CONFIRM_MS); })]); clearTimeout(to);
+  if(!r) throw Object.assign(new Error(why), { code: 'qg-unsure' }); }
 async function qgWriteConfirm(){
   if(_QG_RUN && _QG_RUN.kind === 'build') throw _qgBusyErr('build');
   const o = _qgOtherTabLock(); if(o) throw _qgBusyErr(o.kind, '이 브라우저의 다른 탭에서 ');
   const p = qgWritePending(); if(!p) return { ok: true, none: true };
   const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 확인할 수 있습니다');
-  let to; const done = await Promise.race([Promise.resolve(fs.waitForPendingWrites ? fs.waitForPendingWrites() : null).then(() => true), new Promise(r => { to = setTimeout(() => r(false), QG_CONFIRM_MS); })]); clearTimeout(to);
-  if(!done) throw Object.assign(new Error('서버 응답을 아직 받지 못했습니다 — 연결 확인 뒤 다시 [저장 결과 확인]'), { code: 'qg-unsure' });
-  const snap = await fs.collection('qty_guard').get({ source: 'server' });
-  _qgLS(_qgPendKey(), null); _cutSave({ qgBuilt: null, qgBuildAudit: null, qgLiveCheck: null, qgWriteConfirmed: { at: Date.now(), run: p.run, guards: snap.size } });
-  return { ok: true, run: p.run, guards: snap.size };
+  const sr = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {};
+  if(sr.qg_init !== true || sr.write_freeze !== true) throw Object.assign(new Error('전환 모드(쓰기 중지 + qg_init)에서만 확인할 수 있습니다 — 그 상태에서만 옛 생성을 서버에서 차단할 수 있음 · 미확정 그대로'), { code: 'qg-unsure' });
+  const cid = 'QC-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 7).toUpperCase(); const ref = _qgLeaseRef(fs);
+  await _qgAck(ref.set(_qgLeaseDoc(cid, 0, true)), '서버 응답이 없어 옛 생성 차단을 확인하지 못했습니다 — 연결 확인 뒤 다시 [저장 결과 확인] (미확정 그대로)');
+  const L = await ref.get({ source: 'server' }); const ld = (L && L.exists && L.data()) || {};
+  if(ld.run !== cid || ld.take !== true) throw Object.assign(new Error('서버의 생성 임대가 이 확인 번호가 아닙니다 — 다른 기기·탭에서 생성 중일 수 있음 (미확정 그대로)'), { code: 'qg-unsure' });
+  let landed = []; try { const q = await fs.collection('qg_build_log').where('run', '==', p.run).get({ source: 'server' }); landed = q.docs.map(d => (d.data() || {}).seq).filter(x => x != null).sort((a, b) => a - b); } catch(e){ landed = null; }
+  _qgLS(_qgPendKey(), null);
+  const rec = { at: Date.now(), run: p.run, fence: cid, sent: p.seq || null, landed };
+  _cutSave({ qgBuilt: null, qgBuildAudit: null, qgLiveCheck: null, qgWriteConfirmed: rec });
+  return { ok: true, ...rec };
 }
 async function qgAudit(opts){
   // ★ v0.40.19 (GPT v0.40.18 판정 ①) — 점검 시작 = 요청한 단계 기록을 「확인 중(불합격)」 으로 먼저 바꿈 → 조회 실패·불일치·예외 어느 경우도 이전 합격이 남지 않음 · 합격은 끝까지 성공한 이번 점검만
@@ -7593,15 +7605,22 @@ async function qgBuildAll(){
 const QG_FAIL_SURE = ['permission-denied', 'invalid-argument', 'failed-precondition', 'not-found', 'already-exists', 'unauthenticated', 'out-of-range', 'resource-exhausted'];
 async function _qgCommit(run, b, n){
   if(!qgRunValid(run)) throw Object.assign(new Error('무효가 된 생성 — 다음 서버 저장을 보내지 않음'), { code: 'qg-stale' });
-  _qgLS(_qgPendKey(), { run: run.id, at: Date.now(), n, tab: _QG_TAB }); run.sent = (run.sent || 0) + 1;
-  try { await b.commit(); } catch(e){ if(QG_FAIL_SURE.includes(e && e.code)) _qgLS(_qgPendKey(), null); throw e; }   // 연결 끊김·시간 초과 등 = 결과 미확정 그대로
-  _qgLS(_qgPendKey(), null);
+  // ★ v0.40.22 — 같은 묶음에 생성 임대 순번 +1 + 묶음 기록 (규칙 개정 7: 임대를 다른 번호가 가져가면 이 묶음 전체 거부 · 기록 = 반영 증거)
+  const fs = _ACTIVE_ADAPTER._fs; const seq = (run.seq || 0) + 1; run.seq = seq;
+  b.set(_qgLeaseRef(fs), _qgLeaseDoc(run.id, seq, false));
+  b.set(fs.collection('qg_build_log').doc(run.id + '-' + seq), { run: run.id, seq, n, at: window.firebase.firestore.FieldValue.serverTimestamp(), by_uid: currentAuthUid() || '' });
+  _qgLS(_qgPendKey(), { run: run.id, seq, at: Date.now(), n, tab: _QG_TAB }); run.sent = (run.sent || 0) + 1;
+  const mine = () => { const x = qgWritePending(); return !!x && x.run === run.id && x.seq === seq; };   // ★ v0.40.22 — 이 묶음의 표시만 지움 (다른 실행의 미확정 표시는 건드리지 않음)
+  try { await b.commit(); } catch(e){ if(QG_FAIL_SURE.includes(e && e.code) && mine()) _qgLS(_qgPendKey(), null); throw e; }   // 연결 끊김·시간 초과 등 = 결과 미확정 그대로
+  if(mine()) _qgLS(_qgPendKey(), null);
 }
 async function _qgBuildRun(run, save){
   const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 누계를 만들 수 있습니다');
   if(!(isStaffMode() && _STAFF.isApprover)) throw new Error('관리자 계정(직원 계정 방식)으로 로그인해야 합니다');
   const sr = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {};
   if(sr.qg_init !== true || sr.write_freeze !== true) throw new Error('전환 모드가 아닙니다 — 콘솔에서 settings/server_rules 의 write_freeze = true · qg_init = true 를 먼저 켜세요');
+  if(!qgRunValid(run)) throw Object.assign(new Error('무효가 된 생성 — 서버 저장을 보내지 않음'), { code: 'qg-stale' });
+  await _qgLeaseRef(fs).set(_qgLeaseDoc(run.id, 0, true));   // ★ v0.40.22 — 생성 임대를 이 실행 번호로 (그 전 실행의 늦은 묶음 = 서버 거부)
   const ledFail = (led, what) => new Error(`${what} — ${led.why}${led.mismatch.length ? ` (${led.mismatch.slice(0, 3).join(' · ')})` : ''}`);
   let led1 = await qgLedgerSnapshot(); if(!led1.ok) throw ledFail(led1, '원장 확인 불합격');   // ★ v0.40.18 — 서버 원장 = 이 기기 원장 확인 뒤에만 생성
   const fills = qgReceiptFills(); const miss = fills.filter(f => f.missing);
