@@ -3358,6 +3358,8 @@ function _fsStopSync(adapter){
    · 개발자 메일 = 앱에 원문 대신 해시만 (sha256("VELA-DEV::" + 소문자 메일)) · 메일 인증(emailVerified) 끝난 계정만 → 남이 그 메일로 먼저 가입해도 인증 못 하면 입장 0
    · 비밀번호 잊음 = 그 메일로 재설정 링크 (Firebase) · 처음 = [처음 등록] → 인증 메일 → 인증 뒤 로그인
    · 서버 권한: 지금 운영 규칙 v4 = 로그인 계정이면 읽기·쓰기 (단독 사용 가능) · 직원 계정 규칙(r16·r17) = 서버가 approvers 등록 계정만 관리 권한 → 그 업체 서버에 등록 필요 (화면 안내) */
+// ★ v0.40.23 (사용자 지적 「일반 사용자가 쓸 수 있으니 문구 지우기」) — 개발자 계정·시험 서버 연결 링크 = 주소 끝 #dev 로 열었을 때만 (일반 화면에 없음)
+function _gateDevLinks(){ try { return location.hash === '#dev'; } catch(e){ return false; } }
 var DEV_EMAIL_SHA = ['ad99802b19dd7c44ebfb2c512d40203381a578560c931b44c0b1ce80243dda27'];
 async function isDevEmail(email){ if(!email) return false; const h = await hashPassword(String(email).trim().toLowerCase(), 'VELA-DEV'); return DEV_EMAIL_SHA.includes(h.replace(/^sha256:/, '')); }
 const _DEV_AUTH_ERR = { 'auth/operation-not-allowed': 'Firebase 콘솔에서 이메일/비밀번호 로그인을 「사용 설정」 해야 합니다 (Authentication › 로그인 방법)', 'auth/too-many-requests': '시도가 너무 많습니다 — 잠시 후 다시', 'auth/email-already-in-use': '이미 등록된 메일입니다 — 로그인하거나 [비밀번호 재설정 메일]', 'auth/weak-password': '비밀번호가 너무 짧습니다 (8자 이상)', 'auth/network-request-failed': '연결이 끊겼습니다 — 다시' };
@@ -3366,8 +3368,8 @@ async function _devRestoreAnon(){ try { if(!isStaffMode()) await window.firebase
 async function devEmailLogin(email, pw){
   const fb = window.firebase; if(!fb || !fb.apps || !fb.apps.length) throw Object.assign(new Error('서버 연결 준비 중 — 잠시 후 다시'), { ui: true });
   email = String(email || '').trim();
-  if(!(await isDevEmail(email))) throw Object.assign(new Error('개발자 계정 메일이 아닙니다'), { ui: true });
-  let cred; try { cred = await fb.auth().signInWithEmailAndPassword(email, pw); } catch(e){ throw Object.assign(new Error(_devErr(e)), { ui: true, code: e && e.code }); }
+  if(!(await isDevEmail(email))) throw Object.assign(new Error('이름 또는 비밀번호가 올바르지 않습니다'), { ui: true });
+  let cred; try { cred = await fb.auth().signInWithEmailAndPassword(email, pw); } catch(e){ throw Object.assign(new Error(_devErr(e) + (_DEV_AUTH_ERR[e && e.code] ? '' : ' (잊었으면 주소 끝에 #dev → 비밀번호 재설정)')), { ui: true, code: e && e.code }); }
   const user = cred.user; try { await user.reload(); } catch(e){}
   if(!user.emailVerified){ try { await user.sendEmailVerification(); } catch(e){} await fb.auth().signOut().catch(() => {}); await _devRestoreAnon();
     throw Object.assign(new Error('메일 인증이 아직입니다 — 방금 보낸 인증 메일의 링크를 누른 뒤 다시 로그인'), { ui: true, code: 'dev-unverified' }); }
@@ -8462,7 +8464,7 @@ function renderPinPad(){
       <div class="pw-hint">${isStaffMode() ? '처음이면 관리책임자에게 받은 <b style="color:var(--cyan)">임시 비밀번호</b> · 첫 로그인 때 새 비밀번호로 변경' : '초기 비밀번호 <b style="color:var(--cyan)">000000</b> · 첫 로그인 시 새 정책으로 변경'}</div>
     </form>
     ${_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' && !isDemoMode() && !isDefaultFirebaseConfig() ? `<div style="text-align:center;margin:6px 0;font-size:12px;font-weight:700;color:var(--amber);border:1px solid var(--amber);border-radius:8px;padding:6px 8px">⚠ 운영이 아닌 서버에 연결됨 — ${_esc((loadFirestoreConfig() || {}).projectId || '?')} · <a href="javascript:void(0)" id="gt-srv-reset" style="color:var(--amber)">운영 서버로 되돌리기</a></div>` : ''}
-    ${!isDemoMode() ? `<div style="text-align:center;margin:2px 0;font-size:11px;color:var(--dim)"><a href="javascript:void(0)" id="gt-dev-login" style="color:var(--sub)">개발자 계정 (처음 등록 · 비밀번호 재설정)</a> · <a href="javascript:void(0)" id="gt-srv-test" style="color:var(--sub)">시험 서버 연결 (로그인 없이 · 이 기기만)</a></div>` : ''}
+    ${!isDemoMode() && _gateDevLinks() ? `<div style="text-align:center;margin:2px 0;font-size:11px;color:var(--dim)"><a href="javascript:void(0)" id="gt-dev-login" style="color:var(--sub)">개발자 계정 (처음 등록 · 비밀번호 재설정)</a> · <a href="javascript:void(0)" id="gt-srv-test" style="color:var(--sub)">시험 서버 연결 (로그인 없이 · 이 기기만)</a></div>` : ''}
     ${_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' && !isDemoMode() && !isDefaultFirebaseConfig() ? `<div style="text-align:center;margin:6px 0 2px;font-size:11px;color:var(--dim)">(시험 서버) 로그인 방식: <b>${isStaffMode() ? '직원 계정' : '기존'}</b> · <a href="javascript:void(0)" id="gt-authmode" style="color:var(--sub)">${isStaffMode() ? '기존 방식으로' : '직원 계정 방식으로'} 바꾸기</a> <span title="서버 규칙 v5 r7 이 게시된 서버는 직원 계정 방식만 동작합니다">ⓘ</span></div>` : ''}
     <!-- ★ v0.22.0 — 데모 체험 진입 (보조 스타일 · 주 동선 방해 금지) -->
     <button class="gate-demo-btn" type="button" onclick="onDemoClick()" title="샘플 체험 또는 빈 상태 시연·테스트 (실데이터·서버와 완전 분리)">▶ 데모 · 테스트</button>
