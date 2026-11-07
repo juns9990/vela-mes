@@ -1716,11 +1716,11 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.19';
+const APP_VERSION = 'v0.40.20';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-11-04';
+const APP_DATE    = '2026-11-05';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -3838,7 +3838,7 @@ async function cutoverStatus(opts){
   // ★ v0.40.17 — 동시 저장 보호 전환 (쓰기 중지 중 · 이관 대조 뒤): 규칙 r17 → qg_init → 누계 생성 + 점검 차이 0 → qg_live 켬 (qg_init 끔)
   // ★ v0.40.18 (GPT v0.40.17 판정 ②) — 스위치가 켜졌다는 것만으로 합격 0 · 생성 기록 + 같은 원장 지문의 생성 직후 점검 합격만 · 보호가 꺼진 것을 본 뒤에는 이전 기록 무효(다시 생성)
   if(sr.qg_live === true && !m.qgWasLive) m = _cutSave({ qgWasLive: true });   // 켜진 것을 본 적 있음 → 그 뒤 꺼짐을 보면 이전 기록 무효
-  if(sr.qg_live !== true && (m.qgLiveCheck || m.qgWasLive)){ m = _cutSave({ qgLiveCheck: null, qgWasLive: false, qgOffSeenAt: Date.now() }); }
+  if(sr.qg_live !== true && (m.qgLiveCheck || m.qgWasLive)){ qgRunInvalidate(); m = _cutSave({ qgLiveCheck: null, qgWasLive: false, qgOffSeenAt: Date.now() }); }   // ★ v0.40.20 — 진행 중 점검도 무효
   const qa = m.qgBuildAudit || null; const qb = m.qgBuilt || null; const offAt = m.qgOffSeenAt || 0;
   const qgOk = probe17 === 'allow' && !!qb && !!qa && qa.ok && !qa.pending && qa.at >= qb.at && qa.hash === qb.hash && qb.at > offAt && (!logAt || qb.at > logAt);
   S('qgbuild', '수량 누계 생성 + 점검 차이 0 (동시 저장 보호 · 보류 반영)', qgOk,
@@ -3893,7 +3893,7 @@ function openCutoverModal(){
       <input type="file" id="cut-rc-file" accept=".json,application/json" style="display:none"><input type="file" id="cut-bk-file" accept=".json,application/json" style="display:none">
       <div class="actions"><button class="btn ghost" id="cut-newrun" title="새 전환을 처음부터 (이 기기 기록만 새로)">새 전환 회차</button><button class="btn" id="cut-dl">결과 보고서</button><button class="btn" onclick="closeModal()">닫기</button><button class="btn primary" id="cut-recheck">다시 검사 (서버 확인)</button></div></div>`);
     document.getElementById('cut-recheck').onclick = () => refresh(true);
-    document.getElementById('cut-newrun').onclick = () => { _cutRun(true); refresh(true); };
+    document.getElementById('cut-newrun').onclick = () => { qgRunInvalidate(); _cutRun(true); refresh(true); };   // ★ v0.40.20 — 새 회차 = 진행 중 점검·생성 무효 (늦은 응답이 새 회차에 기록 0)
     document.getElementById('cut-dl').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([cutoverReportText(last)], { type: 'text/markdown' })); a.download = `vela-mes-cutover-report_${fmtDate(Date.now())}.md`; a.click(); };
     document.querySelectorAll('[data-cut]').forEach(b => b.onclick = () => act(b.dataset.cut));
     const rf = document.getElementById('cut-rc-file'); rf.onchange = async () => { const f = rf.files && rf.files[0]; if(!f) return; try { await _cutReconcile(JSON.parse(await f.text())); } catch(e){ toast(e.message || String(e), 'err', 5000); } refresh(false); };
@@ -3904,6 +3904,8 @@ function openCutoverModal(){
   };
   const refresh = async (deep) => { const out = document.getElementById('cut-recheck'); if(out) out.textContent = '검사 중…'; try { draw(await cutoverStatus({ deep })); } catch(e){ toast('검사 실패 — ' + (e.message || e), 'err', 5000); } };
   const act = async (a) => {
+    if(/^qg-/.test(a) && qgRunBusy()){ toast('누계 점검·생성이 이미 진행 중입니다 — 끝난 뒤 다시', 'warn', 4000); return; }   // ★ v0.40.20 — 버튼 잠금 (함수에서도 거부)
+    document.querySelectorAll('[data-cut]').forEach(b => { b.disabled = true; });
     try {
       if(a === 'backup'){ await cutoverBackup(); toast('백업 내려받음 — 이어서 [백업 파일 확인] 에서 그 파일을 고르세요', 'ok', 5000); }
       else if(a === 'backup-verify'){ document.getElementById('cut-bk-file').click(); return; }
@@ -7496,13 +7498,34 @@ async function qgLedgerSnapshot(){
   return out;
 }
 // 누계 점검: 서버 원장(새로 읽어 이 기기와 같음 확인) → 원장 계산 ↔ 서버 누계 — 원장 확인이 불합격이면 점검도 불합격
+/* ★ v0.40.20 (GPT v0.40.19 판정) — 점검·누계 생성 실행 번호 + 중복 실행 잠금
+   · 실행 1건 = 번호(run id) · 이 탭의 「지금 유효한 실행」 과 이 회차 기록(qgRun)이 그 번호일 때만 결과를 기록 → 늦게 도착한 옛 응답은 기록 0
+   · 진행 중이면 새 점검·생성 거부(함수에서 · 버튼도 잠금) · 누계 생성은 진행 중 점검을 무효로 하고 시작 · 새 전환 회차 = 모든 실행 무효
+   · 응답이 오지 않는 실행은 QG_RUN_STALE_MS 뒤 새 실행이 대신함(그 옛 실행의 결과는 기록 0) */
+const QG_RUN_STALE_MS = 90000;
+let _QG_RUN = null;
+function qgRunBegin(kind, opts){
+  const now = Date.now(); const cur = _QG_RUN;
+  if(cur && now - cur.at < QG_RUN_STALE_MS && !(opts && opts.supersede && opts.supersede.includes(cur.kind)))
+    throw Object.assign(new Error(`${cur.kind === 'build' ? '누계 생성' : '누계 점검'}이 이미 진행 중입니다 — 끝난 뒤 다시 하세요 (중복 실행 잠금)`), { code: 'qg-busy' });
+  const run = { id: 'QR-' + now.toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 7).toUpperCase(), kind, at: now, key: _cutKey() };
+  _QG_RUN = run; try { _cutSave({ qgRun: run.id }); } catch(e){}
+  return run;
+}
+function qgRunValid(run){ try { return !!run && _QG_RUN === run && _cutKey() === run.key && _cutLoad().qgRun === run.id; } catch(e){ return false; } }
+function qgRunEnd(run){ if(_QG_RUN === run) _QG_RUN = null; }
+function qgRunBusy(){ return !!_QG_RUN && Date.now() - _QG_RUN.at < QG_RUN_STALE_MS; }
+function qgRunInvalidate(){ _QG_RUN = null; try { _cutSave({ qgRun: null }); } catch(e){} }
 async function qgAudit(opts){
   // ★ v0.40.19 (GPT v0.40.18 판정 ①) — 점검 시작 = 요청한 단계 기록을 「확인 중(불합격)」 으로 먼저 바꿈 → 조회 실패·불일치·예외 어느 경우도 이전 합격이 남지 않음 · 합격은 끝까지 성공한 이번 점검만
+  // ★ v0.40.20 — 실행 번호: 이 점검이 아직 유효한 실행일 때만 기록 (누계 생성 안의 점검 = 생성 실행 번호를 그대로 씀)
+  const own = !(opts && opts.parentRun); const run = own ? qgRunBegin('audit', opts) : opts.parentRun;
   const as = opts && opts.as; const t0 = Date.now();
-  const mark = (rec) => { try { _cutSave(Object.assign({ qgAudit: rec }, as ? { [as]: rec } : {})); } catch(e){} };
+  const mark = (rec) => { if(!qgRunValid(run)) return false; try { _cutSave(Object.assign({ qgAudit: { ...rec, run: run.id } }, as ? { [as]: { ...rec, run: run.id } } : {})); } catch(e){} return true; };
   mark({ at: t0, ok: false, pending: true, why: '점검 중' });
-  try { return await _qgAuditRun(opts, mark); }
+  try { const out = await _qgAuditRun(opts, mark); if(!qgRunValid(run)){ out.ok = false; out.stale = true; out.staleWhy = '더 새로운 실행으로 무효가 된 점검 — 결과를 기록하지 않음'; } return out; }
   catch(e){ mark({ at: t0, ok: false, why: '점검 실패 — ' + String((e && (e.code || e.message)) || e).slice(0, 80) }); throw e; }
+  finally { if(own) qgRunEnd(run); }
 }
 async function _qgAuditRun(opts, mark){
   const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 점검할 수 있습니다');
@@ -7528,11 +7551,15 @@ async function _qgAuditRun(opts, mark){
 // 누계 생성 (전환 모드) — 입고 LOT·공정 채우기 → L·S 누계 쓰기 → 점검
 async function qgBuildAll(){
   // ★ v0.40.19 — 생성 다시 시도 = 이전 생성·생성 직후 점검·켠 상태 점검 합격을 먼저 무효로 (실패하면 무효 그대로 · 성공한 이번 생성만 인정)
-  try { _cutSave({ qgBuilt: null, qgBuildAudit: { at: Date.now(), ok: false, pending: true, why: '생성 중' }, qgLiveCheck: null }); } catch(e){}
-  try { return await _qgBuildRun(); }
-  catch(e){ try { _cutSave({ qgBuilt: null, qgBuildAudit: { at: Date.now(), ok: false, why: '생성 실패 — ' + String((e && e.message) || e).slice(0, 80) } }); } catch(_){} throw e; }
+  // ★ v0.40.20 — 실행 번호: 진행 중 점검은 무효로 하고 시작(그 점검의 늦은 결과 = 기록 0) · 진행 중 생성이 있으면 거부
+  const run = qgRunBegin('build', { supersede: ['audit'] });
+  const save = (p) => { if(qgRunValid(run)) { try { _cutSave(p); } catch(e){} return true; } return false; };
+  save({ qgBuilt: null, qgBuildAudit: { at: Date.now(), ok: false, pending: true, why: '생성 중', run: run.id }, qgLiveCheck: null });
+  try { return await _qgBuildRun(run, save); }
+  catch(e){ save({ qgBuilt: null, qgBuildAudit: { at: Date.now(), ok: false, why: '생성 실패 — ' + String((e && e.message) || e).slice(0, 80), run: run.id } }); throw e; }
+  finally { qgRunEnd(run); }
 }
-async function _qgBuildRun(){
+async function _qgBuildRun(run, save){
   const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 누계를 만들 수 있습니다');
   if(!(isStaffMode() && _STAFF.isApprover)) throw new Error('관리자 계정(직원 계정 방식)으로 로그인해야 합니다');
   const sr = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {};
@@ -7553,9 +7580,10 @@ async function _qgBuildRun(){
   for(let i = 0; i < writes.length; i += 400){ const b = fs.batch(); writes.slice(i, i + 400).forEach(([r, d]) => b.set(r, d)); await b.commit(); }
   // ③ 생성 뒤 원장을 다시 읽어 생성 기준과 같은지 (다른 쓰기가 끼어들었으면 불합격) · 서버 스위치도 그대로인지
   const led2 = await qgLedgerSnapshot(); const sr2 = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {};
-  if(!led2.ok || led2.hash !== led1.hash || sr2.write_freeze !== true || sr2.qg_init !== true){ _cutSave({ qgBuilt: null, qgBuildAudit: null }); throw new Error('생성 중 원장 또는 서버 스위치가 바뀌었습니다 — 쓰기 중지 확인 뒤 다시 생성 (' + (led2.why || (led2.hash !== led1.hash ? '원장 지문 다름' : '스위치 바뀜')) + ')'); }
-  _cutSave({ qgBuilt: { at: Date.now(), writes: writes.length + fills.length, fills: fills.length, hash: led2.hash } });   // 생성 기록 먼저 → 그 뒤의 점검만 통과로 인정 (점검 시각 ≥ 생성 시각 · 같은 지문)
-  const a = await qgAudit({ as: 'qgBuildAudit' }); return { writes: writes.length + fills.length, fills: fills.length, audit: a, hash: led2.hash };
+  if(!qgRunValid(run)) throw Object.assign(new Error('이 생성은 더 새로운 실행으로 무효가 됨 — 기록하지 않음'), { code: 'qg-stale' });
+  if(!led2.ok || led2.hash !== led1.hash || sr2.write_freeze !== true || sr2.qg_init !== true){ save({ qgBuilt: null, qgBuildAudit: null }); throw new Error('생성 중 원장 또는 서버 스위치가 바뀌었습니다 — 쓰기 중지 확인 뒤 다시 생성 (' + (led2.why || (led2.hash !== led1.hash ? '원장 지문 다름' : '스위치 바뀜')) + ')'); }
+  save({ qgBuilt: { at: Date.now(), writes: writes.length + fills.length, fills: fills.length, hash: led2.hash, run: run.id } });   // 생성 기록 먼저 → 그 뒤의 점검만 통과로 인정 (점검 시각 ≥ 생성 시각 · 같은 지문)
+  const a = await qgAudit({ as: 'qgBuildAudit', parentRun: run }); return { writes: writes.length + fills.length, fills: fills.length, audit: a, hash: led2.hash };
 }
 // 보류 맞추기 (운영 중 · 관리 역할) — 보류 기록 qg_holds 1건 + 누계 한 트랜잭션 · 사유 2자 이상 · 자동 인정 없음(원장 보류가 줄었을 때 그 값으로만)
 async function qgHoldSet(plot, p, to, reason){
@@ -7590,7 +7618,8 @@ function openQgAuditModal(){
     let pick = null; document.querySelectorAll('[data-qh]').forEach(b => b.onclick = () => { const [plot, p, to] = b.dataset.qh.split('|'); pick = { plot, p, to: +to }; document.getElementById('qh-box').hidden = false; document.getElementById('qh-what').textContent = `${plot} ${p} → ${to}`; document.getElementById('qh-reason').focus(); });
     const ok = document.getElementById('qh-ok'); if(ok) ok.onclick = async () => { if(!pick) return; try { await qgHoldSet(pick.plot, pick.p, pick.to, document.getElementById('qh-reason').value); toast('보류 맞춤 — 기록 남김', 'ok'); run(); } catch(e){ document.getElementById('qa-msg').textContent = String((e && e.message) || e); } };
   };
-  const run = async () => { try { draw(await qgAudit()); } catch(e){ draw(null, String((e && e.message) || e)); } };
+  const run = async () => { const b = document.getElementById('qa-run'); if(qgRunBusy()){ toast('누계 점검·생성이 이미 진행 중입니다', 'warn'); return; } if(b){ b.disabled = true; b.textContent = '점검 중…'; }   // ★ v0.40.20 — 진행 중 잠금
+    try { draw(await qgAudit()); } catch(e){ draw(null, String((e && e.message) || e)); } };
   draw(null, '점검 중…'); run();
 }
 
@@ -9301,6 +9330,7 @@ const RD_ATTR = [
   ['data-lot-void', 'production_lots'], ['data-lot-row', 'production_lots'], ['data-mr-void', 'material_receipts'], ['data-od-void', 'os_dispatches'],
   ['data-sh-void', 'shipments'], ['data-cl-void', 'closings'], ['data-dw-hist', 'drawings'], ['data-vedit', 'vendors'], ['data-iedit', 'items'],
   ['data-eedit', 'equipments'], ['data-dedit', 'defect_types'], ['data-mfedit', 'master_fields'], ['data-edit-mold', 'molds'],
+  ['data-proc-del', 'processes'], ['data-edit-bom', 'items'],   // ★ v0.40.20 (디자인 P4) — 공정 템플릿 행도 다른 기준정보처럼 실제 상세(기본 정보·사용 품번·설비·이력)
   ['data-ar-new', '_ar'], ['data-ap-new', '_ap'], ['data-recv', '_pallet']   // ★ v0.40.2 — 집계 행(거래처별 미수·미지급 · 업체별 파렛트) = 집계에 들어간 거래 목록
 ];
 function _rdTarget(tr){
@@ -9424,6 +9454,16 @@ const RD_DOC = {
     return { head: d.code || d.id, sub: d.name || '', tabs }; }
 };
 ['vendors', 'items', 'equipments', 'defect_types', 'master_fields'].forEach(c => { RD_DOC[c] = d => RD_DOC._master(c, d); });
+/* ★ v0.40.20 (디자인 P4) — 공정 템플릿 상세 = 다른 기준정보 상세와 같은 구성 · 읽기만(DB.get/all · getBOM · getEquipment) · 저장 0 · 계산 무변 */
+RD_DOC.processes = d => { const TY = { in: '사내', out: '외주', both: '양쪽' };
+  const eqs = DB.all('equipments').filter(e => e.procCode === d.code); const fb = eqs.length ? [] : (d.equipment || []);
+  const uses = getItems().map(i => { const r = ((getBOM(i.code) || {}).route || []); const k = r.findIndex(x => x.proc === d.code); return k < 0 ? null : [i.code, i.name || '', `${k + 1} / ${r.length}`, r[k].mode === 'out' ? '외주' : '사내']; }).filter(Boolean);
+  const recs = DB.all('records').filter(r => r.proc === d.code && r.void == null).length;
+  return { head: d.code, sub: d.name || '', tabs: [
+    ['기본 정보', _rdKV([['코드', d.code], ['공정명', d.name], ['순서', d.seq], ['단위', d.unit], ['유형', TY[d.type] || d.type], ['검사', (d.inspect || []).join(', ') || '―'], ['실적', `${_rdN(recs)}건`], ['상태', d.active === false ? '비활성' : '사용중']])],
+    [`사용 품번 ${uses.length}`, _rdTbl(['품번', '품명', '라우트 순서', '구분'], uses, '이 공정을 쓰는 품번 없음 — BOM 라우팅에서 추가') + '<div class="rd-note">품번별 포함 여부·순서 = BOM 라우팅 · 삭제는 사용 이력이 없을 때만</div>'],
+    [`설비 ${eqs.length || fb.length}`, eqs.length ? _rdTbl(['설비', '상태', '비고'], eqs.map(e => [e.name || e.id, e.active === false ? '비활성' : '사용중', e.memo || e.note || ''])) : _rdTbl(['설비 (공정 템플릿 폴백)'], fb.map(n => [n]), '등록된 설비 없음') + (fb.length ? '<div class="rd-note">기준정보 › 설비에 등록하면 상태·비고 관리</div>' : '')],
+    ['이력', _rdLogs(d)] ] }; };
 function _rdAcct(v, kind){ const P = canSeePrice(); const isR = kind === 'receipt';
   const sum = isR ? calcReceivable(v) : calcPayable(v); const paid = isR ? sum.received : sum.paid;
   const types = isR ? ['sales'] : ['purchase', 'outsource']; const TL = { sales: '매출', purchase: '매입', outsource: '외주' };
