@@ -443,6 +443,7 @@ tr.mst-off td{opacity:.45}
 .sc-al{padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}.sc-al:first-of-type{border-top:0}.sc-al.ok{opacity:.75}
 .sc-al-in{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.sc-al-in label{display:flex;flex-direction:column;font-size:11.5px;gap:2px}.sc-al-in label span{color:var(--sub)}.sc-al-in input{width:110px;padding:5px 8px}
 .sc-cf>span{font-weight:400;color:var(--sub)}
+.pl-mat{font-size:12px;white-space:nowrap;color:var(--sub)}.pl-mat b{color:var(--ink);font-family:'JetBrains Mono',monospace}.pl-mat b.ok{color:var(--green);font-family:inherit}.pl-mat b.bad{color:var(--red)}   /* ★ v0.40.26 계획 목록 소재 */
 /* ★ v0.40.25 — 전자결재 */
 .ap-badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:10.5px;font-weight:800;line-height:18px;text-align:center;margin-left:4px}
 .ap-lines{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0}.ap-lines.sm{margin:0;gap:4px}
@@ -451,6 +452,24 @@ tr.mst-off td{opacity:.45}
 .ap-arr{color:var(--dim);font-size:11px}.ap-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--sub)}
 .ap-memo{font-size:12.5px;background:var(--bg2);border-radius:8px;padding:8px 10px}
 .ap-note{font-size:11.5px;color:var(--sub);line-height:1.6;border-left:2px solid var(--amber);padding:4px 10px}
+/* ★ v0.40.27 — 전자결재 작성 */
+.apc{display:flex;flex-direction:column;gap:12px}.apc-row{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center}.apc-row.top{align-items:start}.apc-row.top .apc-l{padding-top:8px}
+.apc-l{font-size:12.5px;font-weight:700;color:var(--sub);margin:0}.apc-row textarea{min-height:96px;resize:vertical;line-height:1.6}
+.apc-line{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px}.apc-u{display:flex;flex-direction:column;gap:3px;margin:0;min-width:150px;flex:1 1 150px;max-width:240px}.apc-u small{font-size:10.5px;color:var(--dim);font-weight:600}.apc-line .ap-arr{padding-bottom:9px}
+.apc-att{display:flex;flex-direction:column;gap:10px;min-width:0}.apc-tools{display:flex;flex-wrap:wrap;gap:6px}
+.apc-drop{border:1.5px dashed var(--line2);border-radius:10px;padding:14px;text-align:center;font-size:12px;color:var(--dim);line-height:1.6}.apc-drop.on{border-color:var(--cyan);color:var(--cyan);background:color-mix(in srgb,var(--cyan) 6%,transparent)}
+.apc-size{display:flex;align-items:center;gap:10px}.apc-size small{font-size:10.5px;color:var(--dim);white-space:nowrap;font-family:'JetBrains Mono',monospace}.apc-bar{flex:1;height:4px;border-radius:99px;background:var(--bg2);overflow:hidden;max-width:260px}.apc-bar span{display:block;height:100%;background:var(--cyan)}
+.apc-foot{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:12px}.apc-foot .ap-note{flex:1 1 260px}
+.apb{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--panel);margin-bottom:8px;min-width:0}.apb.apb-ro{border:0;padding:0;background:none;margin-bottom:14px}
+.apb-h{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}.apb-k{font-size:11px;font-weight:700;color:var(--sub);background:var(--bg2);border:1px solid var(--line);border-radius:99px;padding:2px 9px;white-space:nowrap;max-width:46%;overflow:hidden;text-overflow:ellipsis}
+.apb-cap{flex:1 1 160px;min-width:0;padding:5px 9px;font-size:12px}.apb-b{padding:3px 9px;font-size:12px}.apb-capv{font-weight:700;font-size:12.5px;margin-bottom:5px}
+.apb-xw{overflow:auto;max-height:440px;border:1px solid var(--line);border-radius:6px;width:fit-content;max-width:100%}.apb-x{border-collapse:collapse;font-size:11.5px;background:var(--panel);width:auto;min-width:0}.apc .apb-img{max-height:460px;width:auto}.apb-x td{border:1px solid var(--line);padding:3px 7px;white-space:pre-wrap;vertical-align:top;color:var(--ink)}.apb-x td.n{text-align:right;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.apb-s{border-collapse:collapse;font-size:12px;width:100%;max-width:720px}.apb-s th,.apb-s td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}.apb-s th{font-size:11px;color:var(--dim);font-weight:600}.apb-s .n{text-align:right;font-family:'JetBrains Mono',monospace;white-space:nowrap}.apb-g{font-size:10.5px;color:var(--dim);margin-right:6px}.apb-sub{color:var(--sub);font-size:11.5px}
+.apb-img{display:block;max-width:100%;height:auto;border:1px solid var(--line);border-radius:6px}.apb-cut{font-size:10.5px;color:var(--dim);margin-top:4px}
+.apd{border:1px solid var(--line);border-radius:10px;padding:14px;max-height:44vh;overflow:auto;background:var(--panel)}.apd-body{font-size:13px;line-height:1.75;margin-bottom:12px;color:var(--ink)}
+.ap-hist summary{cursor:pointer;font-size:12px;color:var(--sub);padding:4px 0}.ap-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px}.ap-pick .pk-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;margin:0}.ap-pick .pk-row input{width:auto;margin:0}
+.ap-pick-g{margin-bottom:10px}.ap-pick-gl{font-size:11.5px;font-weight:700;color:var(--sub);margin-bottom:5px;display:flex;align-items:center;gap:8px}.ap-menu{display:flex;flex-wrap:wrap;gap:6px}.ap-menu .btn{font-size:12px;padding:6px 12px}
+@media (max-width:640px){.apc-row{grid-template-columns:1fr;gap:4px}.apc-row.top .apc-l{padding-top:0}.apc-u{max-width:none}.apc-line .ap-arr{display:none}}
 /* ★ v0.40.25 — 재고 상단 금액 줄 */
 .kpi-mini .val2{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;color:var(--ink);margin-top:2px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .kpi-mini .val2 .nop{font-family:inherit;font-size:10.5px;font-weight:600;color:var(--amber)}
@@ -1112,8 +1131,8 @@ html[data-theme="light"] #toast{box-shadow:var(--sh2)}
 .pk-sec{font-size:10px;font-weight:700;color:var(--dim);letter-spacing:1.3px;padding:6px 8px 4px;display:flex;align-items:center;gap:6px}
 .pk-sec .pk-n{font-family:'JetBrains Mono',monospace;font-weight:500;color:var(--sub);letter-spacing:0}
 .pk-grp{font-size:10.5px;color:var(--dim);padding:6px 8px 2px}
-.pk-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;border:1px solid transparent}
-.pk-row.on{border-color:var(--line);background:var(--bg2);margin-bottom:3px}
+.pk-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);margin-bottom:3px}   /* ★ v0.40.26 (사용자 요청) — 고른 줄·추가할 줄 모두 같은 칸 */
+.pk-row.on{border-color:var(--line);background:var(--bg2)}
 .pk-t{flex:1;font-size:12.8px;color:var(--ink)}
 .pk-d{font-size:10.5px;color:var(--dim);margin-left:8px}
 .pk-ctl{display:flex;align-items:center;gap:2px}
@@ -1778,7 +1797,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.25';
+const APP_VERSION = 'v0.40.27';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -4467,7 +4486,8 @@ const MODULE_DEFS = [
       ['ship',   '출하',           true, false],
       ['ship_qty_fix', '출하 수량 정정 (시험 — 서버 동시성 검증 전 · 기본 끔)', false, false],
       ['pr_qty_fix', '구매 입고 수량 정정 (시험 — 서버 동시성 검증 전 · 기본 끔)', false, false],
-      ['stock_count', '재고 실사 (시험 — GPT 판정 전 · 실데이터 확정 막힘 · 기본 끔)', false, false],   // ★ v0.40.25 (GPT v0.40.24 판정) — 보완 전 정식 사용 금지   // ★ v0.38.25 SPEC v0.4 · GPT D11~D14   // ★ v0.38.21 SPEC 등록 후 수정 v0.3 · GPT D5 조건부 승인 · 실운영 활성화는 서버 Gate 후
+      ['stock_count', '재고 실사 (시험 — GPT 판정 전 · 실데이터 확정 막힘 · 기본 끔)', false, false],
+      ['eapproval', '전자결재 결재 (시험 — 서버 결재자 확인 전 · 실데이터 결재 막힘 · 기본 끔)', false, false],   // ★ v0.40.26 (GPT v0.40.25 판정) — 보고서 작성·조회는 그대로 · 결재 올리기·승인·반려·회수만   // ★ v0.40.25 (GPT v0.40.24 판정) — 보완 전 정식 사용 금지   // ★ v0.38.25 SPEC v0.4 · GPT D11~D14   // ★ v0.38.21 SPEC 등록 후 수정 v0.3 · GPT D5 조건부 승인 · 실운영 활성화는 서버 Gate 후
       ['cust',   '거래처 마스터',  true, false],
       ['quote',  '견적(RFQ)',     false, false],  // v1.5
     ]},
@@ -4546,7 +4566,7 @@ const MODULE_DEFS = [
       ['closing',  '마감',           true, false],
     ]},
   // ★ v0.24.0 — AI 보고서 (일/주/월간) — 기존 헬퍼 재사용만 · 스냅샷 저장 · AI 브리핑은 선택
-  { mod:'report',  title:'보고서', desc:'일간·주간·월간 · 전사 KPI + 부서별 5섹션 + 이슈 + 자동 브리핑(옵션) · 담당자별 섹션 구성',
+  { mod:'report',  title:'전자결재', desc:'결재 문서 작성(글 · 엑셀 표 · 캡처 · 시스템 숫자 · 메뉴 화면) · 결재선 3명 · 결재함',
     items:[
       ['report',   '보고서',      true, false],
     ]},
@@ -4570,6 +4590,7 @@ const FEATURE_DEPS = {
   ship_qty_fix:{ needs:['ship'], breaks:[] },
   pr_qty_fix:  { needs:['purchase'], breaks:[] },
   stock_count: { needs:['inv'], breaks:[] },
+  eapproval:   { needs:['report'], breaks:[] },
   so:         { needs:[], breaks:['ship','quote'] },
   quote:      { needs:['so'], breaks:[] },                   // v0.7 — cost 권장(필수 아님)
   cost:       { needs:['pl_bom'], breaks:[] },               // v0.7 — 원가는 BOM 필수
@@ -4580,10 +4601,10 @@ const FEATURE_DEPS = {
   q_inspect:  { needs:[], breaks:['q_capa'] },
 };
 /* ★ v0.38.21 — 시험 기능(실운영 활성화 전 Gate 남음): 기본 끔 · 풀옵션 프리셋 제외 · 데모(풀옵션 시연)에서는 켜짐 */
-const EXPERIMENTAL_FLAGS = ['ship_qty_fix', 'pr_qty_fix', 'stock_count'];
+const EXPERIMENTAL_FLAGS = ['ship_qty_fix', 'pr_qty_fix', 'stock_count', 'eapproval'];
 /* ★ v0.38.22 (GPT v0.38.21 판정 ①) — 서버 Gate: 서버 권한·동시성·원자성 검증 전에는 실데이터에서 플래그를 켜도 저장 차단 (데모만 시험)
    Gate 통과 시 이 값을 true 로 바꾸는 것은 별도 SPEC·GPT 판정·사용자 승인 후 */
-const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false, stock_count: false };   // ★ v0.40.25 stock_count = 실데이터 실사 확정 Gate (GPT 판정·사용자 승인 뒤 true)
+const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false, stock_count: false, eapproval: false };   // ★ v0.40.25 stock_count = 실데이터 실사 확정 Gate (GPT 판정·사용자 승인 뒤 true)
 function experimentalEnabled(k){ return !!getFlags()[k] && (isDemoMode() || SERVER_GATES[k] === true); }
 function shipQtyFixEnabled(){ return experimentalEnabled('ship_qty_fix'); }
 function prQtyFixEnabled(){ return experimentalEnabled('pr_qty_fix'); }
@@ -8295,6 +8316,8 @@ function fmtDate(ts){
 function ico(name){
   const map = {
     plus:'<path d="M12 5v14M5 12h14"/>',
+    image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+    grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
     save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
     excel:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13l6 6M15 13l-6 6"/>',
     print:'<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
@@ -9744,7 +9767,7 @@ function _ruleNoteEnhance(){
 function _secScrollEnhance(){
   const cap = (window.innerHeight || 800) * 0.50;   // 단락 상한 = 화면 절반 (.tbl-wrap/.sec-scroll 의 50vh 와 동일)
   document.querySelectorAll('#view .card > div, #view .eqtable').forEach(el => {
-    if(el.classList.contains('tbl-wrap') || el.classList.contains('sec-scroll')) return;
+    if(el.classList.contains('tbl-wrap') || el.classList.contains('sec-scroll') || el.hasAttribute('data-noscroll')) return;   // ★ v0.40.27 data-noscroll = 작성 화면(전자결재) 제외
     if(el.querySelector('.tbl-wrap')) return;   // 안에 이미 스크롤 표가 있으면 이중 스크롤 방지
     const h = el.getBoundingClientRect ? el.getBoundingClientRect().height : 0;
     if(h > cap + 1) el.classList.add('sec-scroll');   // 한 칸이라도 넘으면 즉시 단락 스크롤
@@ -10695,7 +10718,7 @@ const _dkMemo = {}; function _dkOnce(k, fn){ const rev = DB._rev; const m = _dkM
 function _dkSum(a, b){ const recs = DB.all('records'); return recs.filter(r => r.ts >= a && r.ts < b); }
 function dashMetric(id, title, group, page, fn, opt){
   opt = opt || {};
-  return { id, kind:'kpi', title, group, page, flag: opt.flag, price: !!opt.price, desc: opt.desc, render: c => {
+  return { id, kind:'kpi', title, group, page, flag: opt.flag, price: !!opt.price, desc: opt.desc, calc: fn, render: c => {   // ★ v0.40.27 calc = 전자결재 시스템 항목 값
     let r; try { r = fn(c) || {}; } catch(e){ r = { v:'—', sub:'계산 오류' }; }
     return `<div class="dkpi clk" onclick="location.hash='#${page}'"><span class="goarrow">${_esc((PAGES.find(p => p.id === page) || {}).title || '')} ↗</span>
       <div class="lab">${_esc(canSeePrice() ? title : title.replace(/ · 금액$/, ''))}</div>
@@ -10727,7 +10750,7 @@ const DASH_METRICS = [
   // 구매 · 외주 · 품질 · 관리
   dashMetric('m_os_open', '외주 미입고', '구매 · 외주 숫자', 'os', () => { const w = DB.all('os_dispatches').filter(d => osDispRemain(d) > 0); const old = w.filter(d => Date.now() - (+d.ts||0) > 7 * 86400000).length; return { v: w.length.toLocaleString(), unit:'건', tone: old ? 'amber' : '', sub: `${w.reduce((t, d) => t + osDispRemain(d), 0).toLocaleString()} ea${old ? ` · 7일 넘음 ${old}` : ''}` }; }),
   dashMetric('m_nc_pending', '품질 판정 대기', '품질 숫자', 'qc', () => { const n = DB.query('nc_records', x => ncIsPending(x)).length; return { v: n.toLocaleString(), unit:'건', tone: n ? 'amber' : '', sub: `HOLD LOT ${heldPlotSet().size}` }; }, { flag:'qc' }),
-  dashMetric('m_appr', '내 결재 대기', '관리 숫자', 'report', () => { const n = apMyPending().length; return { v: n.toLocaleString(), unit:'건', tone: n ? 'amber' : '', sub: '전자결재 · 내 차례' }; }),
+  dashMetric('m_appr', '내 결재 대기', '관리 숫자', 'report', () => { const n = apMyPending().length; return { v: n.toLocaleString(), unit:'건', tone: n ? 'amber' : '', sub: '전자결재 · 내 차례' }; }, { flag:'eapproval' }),
 ];
 DASH_CARDS.push(...DASH_METRICS);   // ★ v0.40.25 — 카드 고르기 목록에 세부 숫자 카드 추가 (기존 12종 ID·회사 기본 6종 무변)
 function dashCardVisible(card, flags){
@@ -24864,7 +24887,7 @@ VIEWS.plan = () => {
             <td class="num" style="font-family:'JetBrains Mono',monospace">${pr.actual.toLocaleString()}</td>
             <td><div style="background:var(--bg2);border-radius:99px;height:8px;overflow:hidden"><div style="height:100%;width:${pr.pct.toFixed(1)}%;background:${pr.state==='완료'?'var(--green)':(pr.state==='지시발행'?'var(--amber)':'var(--cyan)')}"></div></div><div style="font-size:10px;color:var(--sub);margin-top:2px">${pr.pct.toFixed(0)}%</div></td>
             <td><span class="pill ${cls}">${pr.state}</span></td>
-            <td>${mat===null? '<span style="color:var(--dim);font-size:11px" title="품번 재질·단중 미등록">—</span>' : (mat.ok? `<span style="color:var(--green);font-size:11px" title="필요 ${Math.round(mat.need)}kg / 재고 ${Math.round(mat.stock)}kg">● 충분</span>` : `<span style="color:var(--red);font-size:11px" title="부족 ${Math.round(mat.shortage)}kg">● 부족</span>`)}</td>
+            <td>${mat===null? '<span style="color:var(--dim);font-size:11px" title="품번 재질·단중 미등록">—</span>' : (mat.ok ? `<span class="pl-mat" title="필요 ${Math.round(mat.need).toLocaleString()}kg / 재고 ${Math.round(mat.stock).toLocaleString()}kg">재고 <b>${Math.round(mat.stock).toLocaleString()}</b>kg · <b class="ok">충분</b></span>` : `<span class="pl-mat" title="필요 ${Math.round(mat.need).toLocaleString()}kg / 재고 ${Math.round(mat.stock).toLocaleString()}kg">재고 <b>${Math.round(mat.stock).toLocaleString()}</b>kg · 부족 <b class="bad">${Math.round(mat.shortage).toLocaleString()}</b>kg · <b class="bad">부족</b></span>`)}</td>
             <td>${woBtn} ${cancelBtn}</td>
           </tr>`;
         }).join('') : '<tr><td colspan="11" class="empty">이 기간에 계획 없음 — [+ 계획 수립]으로 추가</td></tr>'}</tbody>
@@ -28116,37 +28139,23 @@ window._reportState = window._reportState || { scope:'week', anchor: fmtDate(Dat
    흐름: [보고서 작성] 에서 세부 항목(구성) 고르기 → [결재 올리기] = 그 시점 보고서 스냅샷(reports) + 결재 문서(approvals) 한 묶음 저장
         → 결재선(최대 3명) 순서대로 [승인]/[반려] · 기안자 = 첫 결재 전 [회수] · [결재함] = 내가 결재할 문서 · 내가 올린 문서 · 전체(관리)
    기록: approvals/{AP-…} { title, report_id, scope, period, sections, drafter{id,name}, line[{id,name,status,ts,comment}], step, status, memo, ts, hist[] } · 삭제 없음
-   한계(정직 표기): 지금 운영 = 기존 로그인(익명 기기 + 앱 비밀번호) · 서버가 사람을 확인하지 않음 → 결재 기록은 업무 확인용 (위조 방지·전자서명 효력 아님) · 직원 계정(서버 개인 인증) 전환 때 규칙 추가
+   한계(정직 표기): 지금 운영 = 기존 로그인(익명 기기 + 앱 비밀번호) · 서버가 사람을 확인하지 않음 → ★ v0.40.26 실데이터 결재 = Gate 로 잠금 (위조 방지·전자서명 효력 아님) · 직원 계정(서버 개인 인증) 전환 때 규칙 추가
    ================================================================================================= */
 const AP_STATUS = { run: '결재 중', done: '결재 완료', rej: '반려', back: '회수' };
+/* ★ v0.40.26 (GPT v0.40.25 판정) — 결재 바꾸기(올리기·승인·반려·회수) = 시험 기능 Gate 뒤에서만 · 실행 함수에서도 확인 (버튼만 숨기지 않음)
+   이유: approvalAct 는 이 기기 문서로 순서를 확인 → 서버가 결재자 본인·최신 결재 상태를 함께 검증하지 않음 · 실데이터 = 막힘(데모만) · 보고서 작성·조회 = 그대로 */
+const AP_TEST_NOTE = '서버에서 결재자 본인과 기록 변경 방지를 검증하지 않는 시험 기능';
+function apEnabled(){ return stockCountSupported() && experimentalEnabled('eapproval'); }
+function apAssertEnabled(){ if(!stockCountSupported()) throw new Error('직원 계정 모드에서는 전자결재를 아직 지원하지 않습니다 (서버 규칙 추가 필요)'); if(!experimentalEnabled('eapproval')) throw new Error('전자결재 결재 기능은 운영에서 잠겨 있습니다 — ' + AP_TEST_NOTE + ' (데모에서만 시험 · 실제 결재는 기존 방식으로)'); }
 function apUsers(){ return DB.all('users').filter(u => u.active !== false && u.id && u.id !== SESSION.userId).sort((a, b) => ((b.role === 'manager') - (a.role === 'manager')) || String(a.name || '').localeCompare(String(b.name || ''))); }
 function apMyTurn(a){ return !!a && a.status === 'run' && a.line && a.line[a.step] && a.line[a.step].id === SESSION.userId; }
-function apMyPending(){ if(!stockCountSupported()) return []; return DB.all('approvals').filter(apMyTurn).sort((a, b) => (a.ts || 0) - (b.ts || 0)); }
+function apMyPending(){ if(!apEnabled()) return []; return DB.all('approvals').filter(apMyTurn).sort((a, b) => (a.ts || 0) - (b.ts || 0)); }
 function apTabsHtml(cur){ const n = apMyPending().length;
-  return `<div style="display:inline-flex;gap:2px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:2px"><button class="btn ${cur === 'write' ? 'primary' : 'ghost'}" data-ap-tab="write" style="padding:5px 12px;font-size:12px;border-radius:6px">보고서 작성</button><button class="btn ${cur === 'box' ? 'primary' : 'ghost'}" data-ap-tab="box" style="padding:5px 12px;font-size:12px;border-radius:6px">결재함${n ? ` <span class="ap-badge">${n}</span>` : ''}</button></div>`; }
-function apBindTabs(){ document.querySelectorAll('[data-ap-tab]').forEach(b => b.onclick = () => { window._reportState.tab = b.dataset.apTab === 'box' ? 'box' : 'write'; router(); }); }
+  return `<div style="display:inline-flex;gap:2px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:2px"><button class="btn ${cur === 'write' ? 'primary' : 'ghost'}" data-ap-tab="write" style="padding:5px 12px;font-size:12px;border-radius:6px">결재 작성</button><button class="btn ${cur === 'box' ? 'primary' : 'ghost'}" data-ap-tab="box" style="padding:5px 12px;font-size:12px;border-radius:6px">결재함${n ? ` <span class="ap-badge">${n}</span>` : ''}</button></div>`; }
+function apBindTabs(){ document.querySelectorAll('[data-ap-tab]').forEach(b => b.onclick = () => { const st = window._reportState; if(window._apSync && document.getElementById('ap-compose')) window._apSync(); st.tab = b.dataset.apTab === 'box' ? 'box' : 'write'; st.viewSnapshotId = null; router(); }); }
 function apLineHtml(a){ return (a.line || []).map((l, i) => `<span class="ap-ln ${l.status === '승인' ? 'ok' : l.status === '반려' ? 'rej' : (a.status === 'run' && i === a.step) ? 'cur' : ''}" title="${_esc(l.comment || '')}">${l.status === '승인' ? '✓' : l.status === '반려' ? '✕' : (a.status === 'run' && i === a.step) ? '●' : '○'} ${_esc(l.name || l.id)}${l.ts ? ` <small>${fmtDate(l.ts).slice(5)}</small>` : ''}</span>`).join('<span class="ap-arr">→</span>'); }
-/* 결재 올리기 = 스냅샷 + 결재 문서 한 묶음 (둘 다 저장되거나 둘 다 안 됨) */
-async function approvalSubmit({ title, approvers, memo }, st){
-  if(!stockCountSupported()) throw new Error('직원 계정 모드에서는 전자결재를 아직 지원하지 않습니다 (서버 규칙 추가 필요)');
-  if(!SESSION.userId) throw new Error('로그인한 직원만 결재를 올릴 수 있습니다');
-  const ids = (approvers || []).filter(Boolean); if(!ids.length) throw new Error('결재자를 1명 이상 고르세요');
-  if(new Set(ids).size !== ids.length) throw new Error('같은 결재자를 두 번 넣을 수 없습니다'); if(ids.length > 3) throw new Error('결재자는 3명까지');
-  if(ids.includes(SESSION.userId)) throw new Error('본인은 결재자가 될 수 없습니다');
-  const line = ids.map(id => { const u = DB.get('users', id); if(!u) throw new Error(`결재자 없음 — ${id}`); return { id, name: u.name || id, status: '대기', ts: null, comment: '' }; });
-  const fresh = reportWithExtras(buildReportData(st.scope, st.anchor));
-  const sections = reportSectionsFor(fresh);
-  const rid = nextDocNo('RP'), aid = nextDocNo('AP');
-  if(DB.get('reports', rid) || DB.get('approvals', aid)) throw new Error('문서 번호 중복 — 다시 시도');
-  const now = Date.now(), t = String(title || '').trim() || `${_REPORT_TITLES[fresh.scope] || '보고서'} ${fresh.period.label}`;
-  const g = DB.group(() => {
-    if(!DB.set('reports', rid, { id: rid, scope: fresh.scope, period: fresh.period, data: fresh, sections, ts: now, by: SESSION.user || '', approval_id: aid })) throw new Error('저장이 거부되었습니다 (권한 확인)');
-    if(!DB.set('approvals', aid, { id: aid, title: t, report_id: rid, scope: fresh.scope, period: fresh.period, sections, drafter: { id: SESSION.userId, name: SESSION.user || '' }, line, step: 0, status: 'run', memo: String(memo || '').trim(), ts: now, hist: [{ act: '상신', by: SESSION.user || '', ts: now }] })) throw new Error('저장이 거부되었습니다 (권한 확인)');
-  }, { label: '결재 올리기' });
-  if(g && g.server) await g.server;
-  return aid;
-}
 async function approvalAct(aid, act, comment){
+  apAssertEnabled();   // ★ v0.40.26
   const a = DB.get('approvals', aid); if(!a) throw new Error('결재 문서 없음');
   const now = Date.now(), c = String(comment || '').trim();
   let patch;
@@ -28165,38 +28174,286 @@ async function approvalAct(aid, act, comment){
   if(g && g.server) await g.server;
   return DB.get('approvals', aid);
 }
-function openApprovalSubmit(st){
-  if(!stockCountSupported()){ toast('전자결재는 지금 운영 방식(기존 로그인)에서만 됩니다', 'warn'); return; }
-  if(!SESSION.userId){ toast('로그인한 직원만 결재를 올릴 수 있습니다 (개발자 세션 불가)', 'warn'); return; }
-  const us = apUsers(); const fresh = reportWithExtras(buildReportData(st.scope, st.anchor)); const secs = reportSectionsFor(fresh);
-  const opt = sel => `<option value="">— 없음 —</option>${us.map(u => `<option value="${_esc(u.id)}"${u.id === sel ? ' selected' : ''}>${_esc(u.name || u.id)}${u.role === 'manager' ? ' · 관리책임자' : ''}</option>`).join('')}`;
-  openModal(`<h2>결재 올리기 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
-    <div><label>제목</label><input id="ap-title" value="${_esc(`${_REPORT_TITLES[fresh.scope] || '보고서'} ${fresh.period.label}`)}"></div>
-    <div><label>올릴 세부 항목 <span style="color:var(--dim);font-weight:400">— 바꾸려면 닫고 [☆ 구성 바꾸기]</span></label><div class="rep-mine-secs">${secs.map(id => `<span class="pill ${id === 'kpi' ? 'cyan' : ''}">${_esc((REPORT_SECTIONS.find(x => x.id === id) || {}).title || id)}</span>`).join('')}</div></div>
-    <div class="grid g3">${[0, 1, 2].map(i => `<div><label>결재 ${i + 1}${i === 0 ? ' (필수)' : ''}</label><select id="ap-u${i}">${opt(i === 0 ? (us.find(u => u.role === 'manager') || {}).id : '')}</select></div>`).join('')}</div>
-    <div><label>의견 (선택)</label><input id="ap-memo" placeholder="결재자에게 남길 말"></div>
-    <div class="ap-note">결재선 순서대로 결재합니다 · 올린 순간의 보고서 수치가 그대로 저장됩니다(재계산 없음) · 지금 운영 방식은 서버 개인 인증 전이라 결재 기록은 <b>업무 확인용</b>입니다 (전자서명 효력 아님)</div>
-    <div id="ap-st" class="sc-st"></div>
-    <div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="ap-ok">${ico('check')}결재 올리기</button></div></div>`);
-  document.getElementById('ap-ok').onclick = async () => { const b = document.getElementById('ap-ok'), stl = document.getElementById('ap-st'); b.disabled = true; stl.textContent = '저장 확인 중…'; stl.className = 'sc-st busy';
-    try { const id = await approvalSubmit({ title: document.getElementById('ap-title').value, approvers: [0, 1, 2].map(i => document.getElementById('ap-u' + i).value), memo: document.getElementById('ap-memo').value }, st);
-      closeModal(); toast(`결재 올림 — ${id} · ${(DB.get('approvals', id).line[0] || {}).name || ''} 님 차례`, 'ok', 4000); window._reportState.tab = 'box'; router(); }
-    catch(e){ stl.textContent = e.message || String(e); stl.className = 'sc-st err'; b.disabled = false; } };
+/* ★ v0.40.27 (사용자 요청 2026-11-08) — 전자결재 = 결재 문서 작성 1벌 ([보고서 작성]·[보고서 만들기] 중복 정리 · 자동 보고서 내용 제거)
+   문서 = 제목 + 내용(글) + 첨부 블록 — ① 엑셀 올리기(표 · 병합·열 너비 유지) ② 이미지·캡처(붙여넣기 Ctrl+V · 파일 · 끌어 놓기)
+   ③ 시스템 항목(세부 숫자 체크 → 그 순간 값 저장) ④ 메뉴 화면 캡처(고른 메뉴를 그대로 찍어 넣음)
+   저장: approvals/{AP-…} { kind:'doc', title, body, blocks[], drafter, line[], step, status, ts, hist[] } · 한 문서 = 서버 1MB 한도 → 900KB 까지
+   잠금: 결재 올리기·승인·반려·회수 = v0.40.26 Gate 그대로 (실데이터 = 실행 함수 거부) · 작성·미리보기·인쇄 = 됨 */
+const AP_DOC_MAX = 900 * 1024, AP_IMG_MAX = 380 * 1024, AP_X_ROWS = 300, AP_X_COLS = 40;
+const AP_BLOCK_KIND = { xlsx: '엑셀 표', img: '이미지', cap: '메뉴 화면', sys: '시스템 항목' };
+function _apBytes(o){ const s = JSON.stringify(o); try { return new TextEncoder().encode(s).length; } catch(e){ return s.length * 3; } }
+function _apDraftKey(){ return 'vela_ap_draft_' + (SESSION.userId || 'dev'); }
+function apNewDraft(){ const m = apUsers().find(u => u.role === 'manager'); return { title: '', body: '', blocks: [], line: [m ? m.id : '', '', ''] }; }
+function apDraft(){
+  const st = window._reportState, who = SESSION.userId || 'dev';
+  if(!st.apDraft || st.apDraftUser !== who){
+    let d = null; try { d = JSON.parse(localStorage.getItem(_apDraftKey()) || 'null'); } catch(e){}
+    st.apDraft = (d && typeof d === 'object' && Array.isArray(d.blocks)) ? d : apNewDraft(); st.apDraftUser = who;
+    if(!Array.isArray(st.apDraft.line)) st.apDraft.line = ['', '', ''];
+  }
+  return st.apDraft;
 }
+function apDraftSave(){ try { localStorage.setItem(_apDraftKey(), JSON.stringify(window._reportState.apDraft)); return true; } catch(e){ return false; } }   // 용량 초과 = 이 화면에서만 유지
+function apDraftClear(){ try { localStorage.removeItem(_apDraftKey()); } catch(e){} window._reportState.apDraft = apNewDraft(); }
+/* 안전 표시 — 다른 사람이 올린 문서도 그리므로 저장된 값은 글자로만 (HTML 저장 안 함) · 이미지는 우리가 만든 data:image 만 */
+function _apSafeImg(src){ return typeof src === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(src) ? src : ''; }
+const _AP_NUM = /^\s*[-+]?[₩$]?\s*[\d,]+(\.\d+)?\s*(%|원|ea|kg|개|건)?\s*$/;
+function apXlsxHtml(b){
+  const rows = (b.rows || []).map(r => (r && r.c) || []), nc = rows.reduce((m, r) => Math.max(m, r.length), 0);
+  const span = {}, cover = new Set();
+  (b.merges || []).forEach(m => { span[m.r + ',' + m.c] = m; for(let r = m.r; r < m.r + m.rs; r++) for(let c = m.c; c < m.c + m.cs; c++) if(r !== m.r || c !== m.c) cover.add(r + ',' + c); });
+  const cols = (b.cols || []).slice(0, nc).map(w => Math.max(28, Math.min(420, +w || 0)));
+  const cg = cols.some(Boolean) ? `<colgroup>${Array.from({ length: nc }, (_, i) => `<col${cols[i] ? ` style="width:${cols[i]}px"` : ''}>`).join('')}</colgroup>` : '';
+  return `<div class="apb-xw"><table class="apb-x">${cg}<tbody>${rows.map((r, ri) => `<tr>${Array.from({ length: nc }, (_, ci) => { const k = ri + ',' + ci; if(cover.has(k)) return ''; const m = span[k], v = String(r[ci] == null ? '' : r[ci]);
+    return `<td${m ? `${m.rs > 1 ? ` rowspan="${m.rs}"` : ''}${m.cs > 1 ? ` colspan="${m.cs}"` : ''}` : ''}${_AP_NUM.test(v) ? ' class="n"' : ''}>${_esc(v)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>${b.cut ? `<div class="apb-cut">원본 ${b.cut.r}행 × ${b.cut.c}열 중 앞 ${rows.length}행 × ${nc}열만 넣음</div>` : ''}`;
+}
+function apSysHtml(b){
+  return `<table class="apb-s"><thead><tr><th>항목</th><th class="n">값</th><th>참고</th></tr></thead><tbody>${(b.items || []).map(x => `<tr><td><span class="apb-g">${_esc(x.group || '')}</span>${_esc(x.title || '')}</td><td class="n"><b>${_esc(x.v || '')}</b>${x.unit ? ` ${_esc(x.unit)}` : ''}${x.v2 ? `<br><small>${_esc(x.v2)}</small>` : ''}</td><td class="apb-sub">${_esc(x.sub || '')}</td></tr>`).join('')}</tbody></table><div class="apb-cut">${fmtDate(b.ts)} ${fmtTime(b.ts)} 기준 값 (올린 뒤 다시 계산하지 않음)</div>`;
+}
+function apBlockBody(b){
+  if(b.t === 'xlsx') return apXlsxHtml(b);
+  if(b.t === 'sys') return apSysHtml(b);
+  if(b.t === 'img' || b.t === 'cap'){ const s = _apSafeImg(b.src); return s ? `<img class="apb-img" src="${s}" alt="${_esc(b.name || '')}">` : '<div class="apb-cut">이미지를 표시할 수 없음</div>'; }
+  return '';
+}
+function apBlockLabel(b){ return `${AP_BLOCK_KIND[b.t] || '첨부'}${b.t === 'xlsx' ? ` · ${_esc(b.name || '')}${b.sheet ? ` › ${_esc(b.sheet)}` : ''}` : b.name ? ` · ${_esc(b.name)}` : ''}`; }
+function apBlocksView(blocks){ return (blocks || []).map(b => `<div class="apb apb-ro">${b.cap ? `<div class="apb-capv">${_esc(b.cap)}</div>` : ''}${apBlockBody(b)}</div>`).join(''); }
+function apBodyHtml(t){ return t ? `<div class="apd-body">${_esc(t).replace(/\n/g, '<br>')}</div>` : ''; }
+
+/* ① 엑셀 → 표 블록 (시트마다 1개 · 값은 엑셀에 보이는 글자 그대로 · 색·글꼴·테두리는 무료 읽기 도구가 못 읽음 → 모양 그대로 = 캡처 붙여넣기) */
+function apSheetBlock(wb, name, fileName){
+  const ws = wb.Sheets[name]; if(!ws || !ws['!ref']) return null;
+  const rg = XLSX.utils.decode_range(ws['!ref']);
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '', blankrows: true });
+  let R = aoa.length; while(R > 0 && !(aoa[R - 1] || []).some(v => String(v).trim())) R--;
+  let C = 0; aoa.slice(0, R).forEach(r => { for(let c = r.length; c > C; c--) if(String(r[c - 1]).trim()){ C = c; break; } });
+  (ws['!merges'] || []).forEach(m => { if(m.s.r - rg.s.r < R) C = Math.max(C, Math.min(m.e.c - rg.s.c + 1, AP_X_COLS)); });
+  if(!R || !C) return null;
+  const R0 = R, C0 = C; R = Math.min(R, AP_X_ROWS); C = Math.min(C, AP_X_COLS);
+  const rows = aoa.slice(0, R).map(r => ({ c: Array.from({ length: C }, (_, c) => String((r || [])[c] == null ? '' : r[c]).slice(0, 400)) }));
+  const merges = (ws['!merges'] || []).map(m => ({ r: m.s.r - rg.s.r, c: m.s.c - rg.s.c, rs: m.e.r - m.s.r + 1, cs: m.e.c - m.s.c + 1 }))
+    .filter(m => m.r >= 0 && m.c >= 0 && m.r < R && m.c < C).map(m => ({ ...m, rs: Math.min(m.rs, R - m.r), cs: Math.min(m.cs, C - m.c) })).filter(m => m.rs * m.cs > 1);
+  const cols = Array.from({ length: C }, (_, i) => { const x = (ws['!cols'] || [])[rg.s.c + i]; return x ? Math.round(x.wpx || (x.wch ? x.wch * 7 + 5 : 0) || 0) : 0; });
+  return { t: 'xlsx', name: String(fileName || '').slice(0, 120), sheet: String(name).slice(0, 60), rows, merges, cols, cut: (R0 > R || C0 > C) ? { r: R0, c: C0 } : null };
+}
+async function apReadXlsx(file){
+  if(typeof XLSX === 'undefined') throw new Error('엑셀 읽기 도구를 불러오지 못했습니다 — 인터넷 연결 확인');
+  if(file.size > 8 * 1024 * 1024) throw new Error('엑셀 파일이 너무 큽니다 (8MB 까지)');
+  return XLSX.read(await file.arrayBuffer(), { type: 'array', cellStyles: true, cellDates: true });
+}
+/* 붙여넣은 엑셀 칸(탭 구분 글자) → 표 블록 */
+function apTsvBlock(text){
+  const lines = String(text || '').replace(/\r/g, '').split('\n'); while(lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  if(!lines.length) return null; const aoa = lines.map(l => l.split('\t')); const C0 = aoa.reduce((m, r) => Math.max(m, r.length), 0);
+  const R = Math.min(aoa.length, AP_X_ROWS), C = Math.min(C0, AP_X_COLS);
+  return { t: 'xlsx', name: '붙여넣은 표', sheet: '', rows: aoa.slice(0, R).map(r => ({ c: Array.from({ length: C }, (_, c) => String(r[c] == null ? '' : r[c]).slice(0, 400)) })), merges: [], cols: [], cut: (aoa.length > R || C0 > C) ? { r: aoa.length, c: C0 } : null };
+}
+/* ② 이미지 → 줄인 JPEG (긴 변·용량 상한) */
+function _apLoadImg(blob){ return new Promise((res, rej) => { const u = URL.createObjectURL(blob), im = new Image(); im.onload = () => { URL.revokeObjectURL(u); res(im); }; im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('이미지를 읽지 못했습니다')); }; im.src = u; }); }
+function apImgBlock(src, name, t, o){
+  o = o || {}; const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height; if(!W || !H) throw new Error('빈 이미지');
+  let k = Math.min(1, (o.maxW || 1600) / W, (o.maxH || 2400) / H), out = '', w = 0, h = 0;
+  for(let tries = 0; tries < 4; tries++){
+    w = Math.max(1, Math.round(W * k)); h = Math.max(1, Math.round(H * k));
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.drawImage(src, 0, 0, w, h);
+    for(let q = 0.85; q >= 0.5; q -= 0.12){ out = cv.toDataURL('image/jpeg', q); if(out.length <= AP_IMG_MAX) break; }
+    if(out.length <= AP_IMG_MAX) break; k *= 0.75;
+  }
+  if(!_apSafeImg(out)) throw new Error('이미지 변환 실패');
+  if(out.length > AP_IMG_MAX) throw new Error('이미지가 너무 큽니다 — 잘라서 다시 넣어 주세요');
+  return { t: t || 'img', src: out, w, h, name: String(name || '').slice(0, 120) };
+}
+async function apFileBlock(file){ return apImgBlock(await _apLoadImg(file), file.name || '붙여넣은 이미지'); }
+/* ③ 시스템 항목 = 대시보드 세부 숫자 (보이는 것만 · 금액 권한 존중) → 그 순간 값 */
+function apSysCatalog(){ const f = getFlags(); return DASH_METRICS.filter(m => m.id !== 'm_appr' && dashCardVisible(m, f)); }
+function _apText(h){ const d = document.createElement('div'); d.innerHTML = String(h == null ? '' : h); return (d.textContent || '').replace(/\s+/g, ' ').trim(); }
+function apSysBlock(ids){
+  const cat = apSysCatalog(), items = (ids || []).map(id => cat.find(m => m.id === id)).filter(Boolean).map(m => { let r; try { r = m.calc() || {}; } catch(e){ r = { v: '—', sub: '계산 오류' }; }
+    return { id: m.id, group: m.group, title: canSeePrice() ? m.title : m.title.replace(/ · 금액$/, ''), v: _apText(r.v), unit: _apText(r.unit), v2: _apText(r.v2), sub: _apText(r.sub) }; });
+  if(!items.length) throw new Error('넣을 항목을 1개 이상 고르세요');
+  return { t: 'sys', ts: Date.now(), items };
+}
+/* ④ 메뉴 화면 캡처 — 고른 메뉴를 잠깐 열어 그대로 찍고 돌아옴 (html2canvas · PDF 저장과 같은 도구) */
+function apCapPages(){
+  const f = getFlags(), mgr = SESSION.role === 'manager' || SESSION.role === 'vendor';
+  return PAGES.filter(p => f[p.flag] && !['report', 'set', 'audit'].includes(p.id) && VIEWS[p.id] && (mgr || ((!MANAGER_ONLY.includes(p.id)) && getUserPerm(SESSION.userId, p.id) !== 'none' && !(PRICE_PAGES.includes(p.id) && !canSeePrice()))));
+}
+async function apCaptureMenu(pid){
+  const p = apCapPages().find(x => x.id === pid); if(!p) throw new Error('캡처할 수 없는 메뉴');
+  try { await _loadPdfLibs(); } catch(e){ throw new Error('화면 캡처 도구를 불러오지 못했습니다 — 인터넷 연결 확인'); }
+  if(typeof html2canvas !== 'function') throw new Error('화면 캡처 도구 없음');
+  let cv;
+  try {
+    location.hash = '#' + pid; router(); await new Promise(r => setTimeout(r, 450));
+    const el = document.getElementById('view'), bg = getComputedStyle(document.body).backgroundColor || '#ffffff';
+    cv = await html2canvas(el, { backgroundColor: bg, scale: 1, logging: false, useCORS: true, scrollX: 0, scrollY: -window.scrollY, height: Math.min(el.scrollHeight, 3200), windowWidth: document.documentElement.clientWidth });
+  } finally { location.hash = '#report'; router(); }
+  return apImgBlock(cv, p.title + ' 화면', 'cap', { maxW: 1400, maxH: 3200 });
+}
+
+/* 결재 올리기 — 결재 문서 1개 (스냅샷 없음 · 본문·블록이 곧 기록) */
+async function approvalSubmit({ title, body, blocks, approvers }){
+  apAssertEnabled();   // ★ v0.40.26 Gate 그대로
+  if(!SESSION.userId) throw new Error('로그인한 직원만 결재를 올릴 수 있습니다');
+  const t = String(title || '').trim(); if(!t) throw new Error('제목을 적어 주세요');
+  const bd = String(body || '').trim(), bl = (blocks || []).filter(b => b && AP_BLOCK_KIND[b.t]);
+  if(!bd && !bl.length) throw new Error('내용을 쓰거나 엑셀·이미지·시스템 항목을 1개 이상 넣으세요');
+  const ids = (approvers || []).filter(Boolean); if(!ids.length) throw new Error('결재자를 1명 이상 고르세요');
+  if(new Set(ids).size !== ids.length) throw new Error('같은 결재자를 두 번 넣을 수 없습니다'); if(ids.length > 3) throw new Error('결재자는 3명까지');
+  if(ids.includes(SESSION.userId)) throw new Error('본인은 결재자가 될 수 없습니다');
+  const line = ids.map(id => { const u = DB.get('users', id); if(!u) throw new Error(`결재자 없음 — ${id}`); return { id, name: u.name || id, status: '대기', ts: null, comment: '' }; });
+  const aid = nextDocNo('AP'); if(DB.get('approvals', aid)) throw new Error('문서 번호 중복 — 다시 시도');
+  const now = Date.now();
+  const doc = { id: aid, kind: 'doc', title: t.slice(0, 120), body: bd.slice(0, 20000), blocks: bl, drafter: { id: SESSION.userId, name: SESSION.user || '' }, line, step: 0, status: 'run', ts: now, hist: [{ act: '상신', by: SESSION.user || '', ts: now }] };
+  const sz = _apBytes(doc); if(sz > AP_DOC_MAX) throw new Error(`문서가 너무 큽니다 (${Math.round(sz / 1024)}KB · ${Math.round(AP_DOC_MAX / 1024)}KB 까지) — 이미지를 줄이거나 나눠서 올리세요`);
+  const g = DB.group(() => { if(!DB.set('approvals', aid, doc)) throw new Error('저장이 거부되었습니다 (권한 확인)'); }, { label: '결재 올리기' });
+  if(g && g.server) await g.server;
+  return aid;
+}
+/* 인쇄·PDF — 결재란 + 내용 + 첨부 (작성 중 미리보기 = 결재자 이름만) */
+function apPrint(a){
+  const line = a.line || [], dr = a.drafter || { name: SESSION.user || '' };
+  const sign = `<table class="ps"><tr><th>기안</th>${line.map((l, i) => `<th>결재 ${i + 1}</th>`).join('')}</tr><tr><td><b>${_esc(dr.name || '')}</b>${a.ts ? `<br><small>${fmtDate(a.ts)}</small>` : ''}</td>${line.map(l => `<td><b>${_esc(l.name || '')}</b><br><small>${_esc(l.status && l.status !== '대기' ? l.status : '')}${l.ts ? ' ' + fmtDate(l.ts) : ''}</small></td>`).join('')}</tr></table>`;
+  const body = `<div class="ph"><h1>${_esc(a.title || '(제목 없음)')}</h1>${sign}</div><div class="pm">${a.id ? `${_esc(a.id)} · ` : '작성 중 미리보기 · '}${a.ts ? `기안 ${fmtDate(a.ts)} ${fmtTime(a.ts)} · ` : ''}${_esc(dr.name || '')}${a.status ? ` · ${_esc(AP_STATUS[a.status] || '')}` : ''}</div>${apBodyHtml(a.body)}${apBlocksView(a.blocks)}`;
+  const css = `.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:6px}.ph h1{font-size:20px;margin:6px 0}.ps{border-collapse:collapse;font-size:11px}.ps th,.ps td{border:1px solid #444;padding:3px 10px;text-align:center;min-width:64px}.ps td{height:42px}.ps th{background:#f1f3f5}
+    .pm{font-size:11px;color:#555;border-bottom:2px solid #222;padding-bottom:6px;margin-bottom:12px}.apd-body{font-size:13px;line-height:1.7;margin-bottom:14px;white-space:normal}.apb{margin:0 0 14px;page-break-inside:avoid}.apb-capv{font-weight:700;font-size:12px;margin-bottom:4px}
+    .apb-x,.apb-s{border-collapse:collapse;font-size:10.5px;width:auto;max-width:100%}.apb-x td,.apb-s td,.apb-s th{border:1px solid #999;padding:2px 6px;vertical-align:top}.apb-x td.n,.apb-s .n{text-align:right}.apb-s th{background:#f1f3f5}.apb-g{color:#777;font-size:9.5px;margin-right:6px}.apb-sub{color:#555}
+    .apb-img{max-width:100%;border:1px solid #ccc}.apb-cut{font-size:10px;color:#777;margin-top:3px}`;
+  _openPrint(a.title || '전자결재', body, css, { formKey: 'appr' });
+}
+/* 작성 화면 (전자결재 › 결재 작성) */
+VIEWS._apCompose = () => {
+  const st = window._reportState, d = apDraft(), en = apEnabled(), us = apUsers();
+  const sz = _apBytes({ title: d.title, body: d.body, blocks: d.blocks }), pct = Math.min(100, sz / AP_DOC_MAX * 100);
+  const opt = sel => `<option value="">— 없음 —</option>${us.map(u => `<option value="${_esc(u.id)}"${u.id === sel ? ' selected' : ''}>${_esc(u.name || u.id)}${u.role === 'manager' ? ' · 관리책임자' : ''}</option>`).join('')}`;
+  const blk = (b, i) => `<div class="apb" data-apb="${i}"><div class="apb-h"><span class="apb-k k-${b.t}">${apBlockLabel(b)}</span><input class="apb-cap" data-apb-cap="${i}" value="${_esc(b.cap || '')}" placeholder="설명 (선택)">
+      <button class="btn ghost apb-b" data-apb-up="${i}" title="위로"${i ? '' : ' disabled'}>↑</button><button class="btn ghost apb-b" data-apb-dn="${i}" title="아래로"${i < d.blocks.length - 1 ? '' : ' disabled'}>↓</button><button class="btn ghost apb-b" data-apb-del="${i}" title="빼기" style="color:var(--red)">✕</button></div>${apBlockBody(b)}</div>`;
+  document.getElementById('view').innerHTML = `
+    <div class="pghead"><div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('report')}</svg>전자결재 <span class="pill cyan">결재 작성</span></div>
+      <div class="pgtools">${apTabsHtml('write')}</div></div>
+    ${stockCountSupported() ? '' : `<div class="m-ban amber" style="margin-bottom:12px">전자결재는 지금 운영 방식(기존 로그인)에서만 됩니다 — 직원 계정 모드는 서버 규칙 추가 뒤</div>`}
+    <div class="card apc" id="ap-compose">
+      <div class="apc-row" data-noscroll><label class="apc-l" for="apc-title">제목</label><input id="apc-title" value="${_esc(d.title)}" maxlength="120" placeholder="예: 11월 2주 생산 실적 보고"></div>
+      <div class="apc-row" data-noscroll><label class="apc-l">결재선</label><div class="apc-line">${[0, 1, 2].map(i => `${i ? '<span class="ap-arr">→</span>' : ''}<label class="apc-u"><small>결재 ${i + 1}${i === 0 ? ' · 필수' : ''}</small><select id="apc-u${i}">${opt(d.line[i] || '')}</select></label>`).join('')}</div></div>
+      <div class="apc-row top" data-noscroll><label class="apc-l" for="apc-body">내용</label><textarea id="apc-body" rows="5" placeholder="결재 내용을 적으세요 — 아래 [첨부]로 엑셀·캡처·시스템 숫자·메뉴 화면을 붙일 수 있습니다">${_esc(d.body)}</textarea></div>
+      <div class="apc-row top" data-noscroll><label class="apc-l">첨부</label><div class="apc-att">
+        <div class="apc-tools">
+          <button class="btn" id="apc-xlsx" title="엑셀 파일의 표를 그대로 넣음 (병합·열 너비 유지)">${ico('excel')}엑셀 올리기</button>
+          <button class="btn" id="apc-img" title="캡처·사진 파일 (여러 장)">${ico('image')}이미지·캡처 올리기</button>
+          <button class="btn" id="apc-sys" title="대시보드 세부 숫자를 골라 지금 값을 넣음">${ico('grid')}시스템 항목 넣기</button>
+          <button class="btn" id="apc-cap" title="고른 메뉴 화면을 그대로 찍어 넣음">${ico('scan')}메뉴 화면 캡처</button>
+          <input type="file" id="apc-xf" accept=".xlsx,.xls,.csv" hidden><input type="file" id="apc-if" accept="image/*" multiple hidden>
+        </div>
+        <div id="apc-blocks">${d.blocks.map(blk).join('')}</div>
+        <div class="apc-drop" id="apc-drop">캡처(<b>Win+Shift+S</b>) 뒤 이 화면에서 <b>Ctrl+V</b> = 이미지 · 엑셀 칸 복사 뒤 Ctrl+V = 표 · 파일을 여기로 끌어 놓기</div>
+        <div class="apc-size"><div class="apc-bar"><span style="width:${pct.toFixed(1)}%;${pct > 90 ? 'background:var(--red)' : ''}"></span></div><small>용량 ${Math.round(sz / 1024)}KB / ${Math.round(AP_DOC_MAX / 1024)}KB</small></div>
+      </div></div>
+      <div id="ap-st" class="sc-st" data-noscroll></div>
+      <div class="apc-foot" data-noscroll>
+        <span class="ap-note">${en ? `<b>${AP_TEST_NOTE}</b> — 데모 시험용` : `<b>결재 올리기 잠김</b> — ${AP_TEST_NOTE}라 운영에서는 막았습니다 · 작성·미리보기·인쇄는 됨`}</span>
+        <button class="btn ghost" id="apc-clear">새로 쓰기</button>
+        <button class="btn" id="apc-print">${ico('print')}미리보기·인쇄</button>
+        ${en ? `<button class="btn primary" id="btn-ap-new">${ico('check')}결재 올리기</button>` : ''}
+      </div>
+    </div>`;
+  apBindTabs();
+  const $ = id => document.getElementById(id), stl = $('ap-st');
+  const msg = (t, k) => { stl.textContent = t || ''; stl.className = 'sc-st' + (k ? ' ' + k : ''); };
+  const sync = () => { d.title = $('apc-title').value; d.body = $('apc-body').value; d.line = [0, 1, 2].map(i => $('apc-u' + i).value); document.querySelectorAll('[data-apb-cap]').forEach(x => { const b = d.blocks[+x.dataset.apbCap]; if(b) b.cap = x.value.slice(0, 200); }); apDraftSave(); };
+  window._apSync = sync;
+  ['apc-title', 'apc-body'].forEach(id => $(id).oninput = sync); [0, 1, 2].forEach(i => $('apc-u' + i).onchange = sync);
+  document.querySelectorAll('[data-apb-cap]').forEach(x => x.oninput = sync);
+  const add = (bs, note) => { sync(); const list = (Array.isArray(bs) ? bs : [bs]).filter(Boolean); if(!list.length) return;
+    const next = d.blocks.concat(list), sz2 = _apBytes({ title: d.title, body: d.body, blocks: next });
+    if(sz2 > AP_DOC_MAX){ msg(`넣으면 ${Math.round(sz2 / 1024)}KB — 한 문서 ${Math.round(AP_DOC_MAX / 1024)}KB 까지 · 이미지를 줄이거나 문서를 나누세요`, 'err'); return; }
+    d.blocks = next; const saved = apDraftSave(); router(); toast(`${note || '첨부'} 넣음${saved ? '' : ' · 용량이 커서 이 화면을 닫으면 작성 중 내용이 사라집니다'}`, saved ? 'ok' : 'warn', saved ? 2000 : 4500); };
+  window._apAdd = add;
+  const move = (i, k) => { sync(); const j = i + k; if(j < 0 || j >= d.blocks.length) return; const t = d.blocks[i]; d.blocks[i] = d.blocks[j]; d.blocks[j] = t; apDraftSave(); router(); };
+  document.querySelectorAll('[data-apb-up]').forEach(b => b.onclick = () => move(+b.dataset.apbUp, -1));
+  document.querySelectorAll('[data-apb-dn]').forEach(b => b.onclick = () => move(+b.dataset.apbDn, 1));
+  document.querySelectorAll('[data-apb-del]').forEach(b => b.onclick = () => { sync(); d.blocks.splice(+b.dataset.apbDel, 1); apDraftSave(); router(); });
+  const files = async list => { const out = []; for(const f of list){ try {
+      if(/\.(xlsx|xls|csv)$/i.test(f.name || '')) { const wb = await apReadXlsx(f); const names = wb.SheetNames.filter(n => apSheetBlock(wb, n, f.name)); if(names.length > 1){ apPickSheets(wb, f.name, names); continue; } out.push(apSheetBlock(wb, names[0] || wb.SheetNames[0], f.name)); }
+      else if(/^image\//.test(f.type || '')) out.push(await apFileBlock(f));
+      else msg(`넣을 수 없는 파일 — ${f.name} (엑셀·이미지만)`, 'err');
+    } catch(e){ msg(e.message || String(e), 'err'); } }
+    if(out.filter(Boolean).length) add(out, out.length > 1 ? `${out.length}개` : (AP_BLOCK_KIND[out[0].t] || '첨부')); };
+  window._apFiles = files;
+  $('apc-xlsx').onclick = () => $('apc-xf').click(); $('apc-img').onclick = () => $('apc-if').click();
+  $('apc-xf').onchange = e => { files([...e.target.files]); e.target.value = ''; };
+  $('apc-if').onchange = e => { files([...e.target.files]); e.target.value = ''; };
+  const dz = $('apc-drop');
+  dz.ondragover = e => { e.preventDefault(); dz.classList.add('on'); }; dz.ondragleave = () => dz.classList.remove('on');
+  dz.ondrop = e => { e.preventDefault(); dz.classList.remove('on'); files([...((e.dataTransfer && e.dataTransfer.files) || [])]); };
+  $('apc-sys').onclick = () => { sync(); apPickSys(); };
+  $('apc-cap').onclick = () => { sync(); apPickMenu(); };
+  $('apc-clear').onclick = () => { const b = $('apc-clear'); if(b.dataset.arm !== '1'){ b.dataset.arm = '1'; b.textContent = '한 번 더 누르면 비움'; b.style.color = 'var(--red)'; return; } apDraftClear(); router(); };
+  $('apc-print').onclick = () => { sync(); const line = d.line.filter(Boolean).map(id => ({ id, name: (DB.get('users', id) || {}).name || id, status: '대기' })); apPrint({ title: d.title, body: d.body, blocks: d.blocks, line }); };
+  const sub = $('btn-ap-new');
+  if(sub) sub.onclick = async () => { sync(); sub.disabled = true; msg('저장 확인 중…', 'busy');
+    try { const id = await approvalSubmit({ title: d.title, body: d.body, blocks: d.blocks, approvers: d.line });
+      apDraftClear(); toast(`결재 올림 — ${id} · ${(DB.get('approvals', id).line[0] || {}).name || ''} 님 차례`, 'ok', 4000); st.tab = 'box'; st.apFilter = 'mine'; router(); }
+    catch(e){ msg(e.message || String(e), 'err'); sub.disabled = false; } };
+};
+/* 붙여넣기 (Ctrl+V) — 작성 화면이 열려 있을 때만 · 글자 칸 안의 글자 붙여넣기는 그대로 */
+function apOnPaste(e){
+  if(!document.getElementById('ap-compose') || !window._apFiles) return;
+  const cd = e.clipboardData; if(!cd) return;
+  const imgs = [...(cd.files || [])].filter(f => /^image\//.test(f.type || ''));
+  if(!imgs.length) [...(cd.items || [])].forEach(it => { if(it.kind === 'file' && /^image\//.test(it.type || '')){ const f = it.getAsFile(); if(f) imgs.push(f); } });
+  if(imgs.length){ e.preventDefault(); window._apFiles(imgs.map((f, i) => { try { return new File([f], f.name && f.name !== 'image.png' ? f.name : `붙여넣은 이미지${imgs.length > 1 ? ' ' + (i + 1) : ''}.png`, { type: f.type }); } catch(x){ return f; } })); return; }
+  const tag = (e.target && e.target.tagName) || '';
+  if(tag === 'TEXTAREA' || tag === 'INPUT') return;
+  const txt = cd.getData && cd.getData('text/plain');
+  if(txt && /\t/.test(txt)){ e.preventDefault(); window._apAdd(apTsvBlock(txt), '붙여넣은 표'); }
+}
+if(typeof document !== 'undefined' && !window._apPasteBound){ window._apPasteBound = true; document.addEventListener('paste', apOnPaste); }
+function apPickSheets(wb, fileName, names){
+  openModal(`<h2>넣을 시트 고르기 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+    <div class="muted" style="font-size:12px;margin-bottom:8px">${_esc(fileName)} — 시트마다 표 1개로 들어갑니다</div>
+    <div class="ap-pick">${names.map((n, i) => `<label class="pk-row${i ? '' : ' on'}"><input type="checkbox" data-ap-sheet="${_esc(n)}"${i ? '' : ' checked'}> ${_esc(n)}</label>`).join('')}</div>
+    <div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="ap-sheet-ok">${ico('check')}넣기</button></div></div>`);
+  document.getElementById('ap-sheet-ok').onclick = () => { const pick = [...document.querySelectorAll('[data-ap-sheet]:checked')].map(x => x.dataset.apSheet); if(!pick.length){ toast('시트를 1개 이상 고르세요', 'warn'); return; } closeModal(); window._apAdd(pick.map(n => apSheetBlock(wb, n, fileName)), `엑셀 표 ${pick.length}개`); };
+}
+function apPickSys(){
+  const cat = apSysCatalog(), groups = [...new Set(cat.map(m => m.group))];
+  openModal(`<h2>시스템 항목 넣기 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+    <div class="muted" style="font-size:12px;margin-bottom:8px">고른 항목의 <b>지금 값</b>이 표로 들어갑니다 (올린 뒤 다시 계산하지 않음)</div>
+    ${groups.map(g => `<div class="ap-pick-g"><div class="ap-pick-gl">${_esc(g)} <button class="btn ghost" data-ap-gall="${_esc(g)}" style="padding:1px 8px;font-size:11px">전체</button></div><div class="ap-pick">${cat.filter(m => m.group === g).map(m => `<label class="pk-row"><input type="checkbox" data-ap-sys="${m.id}" data-g="${_esc(g)}"> ${_esc(canSeePrice() ? m.title : m.title.replace(/ · 금액$/, ''))}</label>`).join('')}</div></div>`).join('')}
+    <div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="ap-sys-ok">${ico('check')}넣기</button></div></div>`, { width: '640px' });
+  document.querySelectorAll('[data-ap-gall]').forEach(b => b.onclick = () => { const xs = [...document.querySelectorAll('[data-ap-sys]')].filter(x => x.dataset.g === b.dataset.apGall); const on = !xs.every(x => x.checked); xs.forEach(x => x.checked = on); });
+  document.getElementById('ap-sys-ok').onclick = () => { try { const blk = apSysBlock([...document.querySelectorAll('[data-ap-sys]:checked')].map(x => x.dataset.apSys)); closeModal(); window._apAdd(blk, `시스템 항목 ${blk.items.length}개`); } catch(e){ toast(e.message, 'warn'); } };
+}
+function apPickMenu(){
+  const ps = apCapPages(), dep = NAV_DEPTS.map(g => ({ label: g.label, ps: ps.filter(p => g.ids.includes(p.id)) })).filter(g => g.ps.length);
+  const rest = ps.filter(p => !NAV_DEPTS.some(g => g.ids.includes(p.id))); if(rest.length) dep.push({ label: '기타', ps: rest });
+  openModal(`<h2>메뉴 화면 캡처 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+    <div class="muted" style="font-size:12px;margin-bottom:8px">고른 메뉴를 잠깐 열어 <b>보이는 화면 그대로</b> 찍어 넣습니다 · 일부만 넣으려면 그 메뉴에서 Win+Shift+S 로 잘라 Ctrl+V</div>
+    ${dep.map(g => `<div class="ap-pick-g"><div class="ap-pick-gl">${_esc(g.label)}</div><div class="ap-menu">${g.ps.map(p => `<button class="btn" data-ap-menu="${p.id}">${_esc(p.title)}</button>`).join('')}</div></div>`).join('')}
+    <div id="ap-cap-st" class="sc-st"></div></div>`, { width: '640px' });
+  document.querySelectorAll('[data-ap-menu]').forEach(b => b.onclick = async () => { const s = document.getElementById('ap-cap-st'); s.textContent = '화면 찍는 중…'; s.className = 'sc-st busy'; document.querySelectorAll('[data-ap-menu]').forEach(x => x.disabled = true);
+    const pid = b.dataset.apMenu; closeModal();
+    try { const blk = await apCaptureMenu(pid); window._apAdd(blk, '메뉴 화면'); } catch(e){ toast(e.message || String(e), 'err', 4500); } });
+}
+
 function openApproval(aid){
   const a = DB.get('approvals', aid); if(!a) return;
-  const mine = apMyTurn(a), canBack = a.drafter?.id === SESSION.userId && a.status === 'run' && !(a.line || []).some(l => l.status === '승인');
+  const en = apEnabled(), mine = en && apMyTurn(a), canBack = en && a.drafter?.id === SESSION.userId && a.status === 'run' && !(a.line || []).some(l => l.status === '승인');   // ★ v0.40.26 — 잠김 = 보기만
   openModal(`<h2>${_esc(a.title)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
     <div class="ap-head"><span class="pill ${a.status === 'done' ? 'green' : a.status === 'rej' ? 'red' : a.status === 'back' ? '' : 'amber'}">${AP_STATUS[a.status] || a.status}</span><span class="mono">${_esc(a.id)}</span><span>기안 ${_esc(a.drafter?.name || '')} · ${fmtDate(a.ts)} ${fmtTime(a.ts)}</span></div>
     <div class="ap-lines">${apLineHtml(a)}</div>
     ${a.memo ? `<div class="ap-memo">기안 의견 — ${_esc(a.memo)}</div>` : ''}
-    <div><label>올린 세부 항목</label><div class="rep-mine-secs">${(a.sections || []).map(id => `<span class="pill">${_esc((REPORT_SECTIONS.find(x => x.id === id) || {}).title || id)}</span>`).join('')}</div></div>
-    <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>시각</th><th>내용</th><th>사람</th><th>의견</th></tr></thead><tbody>${(a.hist || []).map(h => `<tr><td class="mono">${fmtDate(h.ts)} ${fmtTime(h.ts)}</td><td>${_esc(h.act)}</td><td>${_esc(h.by || '')}</td><td>${_esc(h.comment || '')}</td></tr>`).join('')}</tbody></table></div>
+    ${a.kind === 'doc' ? `<div class="apd">${apBodyHtml(a.body)}${apBlocksView(a.blocks)}${!a.body && !(a.blocks || []).length ? '<div class="muted">내용 없음</div>' : ''}</div>`
+      : `<div><label>올린 세부 항목 <span style="color:var(--dim);font-weight:400">— v0.40.26 이전 자동 보고서 결재</span></label><div class="rep-mine-secs">${(a.sections || []).map(id => `<span class="pill">${_esc((REPORT_SECTIONS.find(x => x.id === id) || {}).title || id)}</span>`).join('')}</div></div>`}
+    <details class="ap-hist"><summary>결재 기록 ${(a.hist || []).length}건</summary>
+    <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>시각</th><th>내용</th><th>사람</th><th>의견</th></tr></thead><tbody>${(a.hist || []).map(h => `<tr><td class="mono">${fmtDate(h.ts)} ${fmtTime(h.ts)}</td><td>${_esc(h.act)}</td><td>${_esc(h.by || '')}</td><td>${_esc(h.comment || '')}</td></tr>`).join('')}</tbody></table></div></details>
     ${mine ? `<div><label>결재 의견 <span style="color:var(--dim);font-weight:400">— 반려는 사유 필수</span></label><input id="ap-cm" placeholder="의견"></div>` : ''}
     <div id="ap-st2" class="sc-st"></div>
-    <div class="actions"><button class="btn" id="ap-view">${ico('eye')}보고서 보기</button>${canBack ? `<button class="btn" id="ap-back" style="color:var(--red)">회수</button>` : ''}${mine ? `<button class="btn" id="ap-rej" style="color:var(--red);border-color:var(--red)">반려</button><button class="btn primary" id="ap-ok2">${ico('check')}승인</button>` : ''}</div></div>`, { width: '760px' });
+    <div class="actions">${a.report_id ? `<button class="btn" id="ap-view">${ico('eye')}보고서 보기</button>` : ''}<button class="btn" id="ap-print">${ico('print')}인쇄·PDF</button>${canBack ? `<button class="btn" id="ap-back" style="color:var(--red)">회수</button>` : ''}${mine ? `<button class="btn" id="ap-rej" style="color:var(--red);border-color:var(--red)">반려</button><button class="btn primary" id="ap-ok2">${ico('check')}승인</button>` : ''}</div></div>`, { width: '880px' });
   const $ = id => document.getElementById(id), stl = $('ap-st2');
-  $('ap-view').onclick = () => { closeModal(); const st = window._reportState; st.tab = 'write'; st.viewSnapshotId = a.report_id; st.scope = a.scope || st.scope; location.hash = '#report'; router(); };
+  $('ap-print').onclick = () => { closeModal(); apPrint(a); };
+  if($('ap-view')) $('ap-view').onclick = () => { closeModal(); const st = window._reportState; st.tab = 'write'; st.viewSnapshotId = a.report_id; st.scope = a.scope || st.scope; location.hash = '#report'; router(); };
   const act = async k => { stl.textContent = '저장 확인 중…'; stl.className = 'sc-st busy'; try { const r = await approvalAct(aid, k, ($('ap-cm') || {}).value || ''); closeModal(); toast(`${k === 'ok' ? '승인' : k === 'rej' ? '반려' : '회수'} — ${AP_STATUS[r.status]}`, 'ok'); router(); } catch(e){ stl.textContent = e.message || String(e); stl.className = 'sc-st err'; } };
   if($('ap-ok2')) $('ap-ok2').onclick = () => act('ok');
   if($('ap-rej')) $('ap-rej').onclick = () => act('rej');
@@ -28214,19 +28471,27 @@ VIEWS._approvalBox = () => {
     <div class="card">
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
         ${[['todo', '내가 결재할 문서'], ['mine', '내가 올린 문서']].concat(stockCanManage() ? [['all', '전체']] : []).map(([k, l]) => `<button class="btn ${f === k ? 'primary' : 'ghost'}" data-ap-f="${k}" style="border-radius:99px;padding:6px 14px;font-size:12px">${l} <b>${lists[k].length}</b></button>`).join('')}
-        <span class="muted" style="margin-left:auto;font-size:11.5px;align-self:center">결재 올리기 = [보고서 작성]에서 세부 항목을 고른 뒤 [결재 올리기]</span>
+        <span class="muted" style="margin-left:auto;font-size:11.5px;align-self:center">결재 올리기 = [결재 작성]에서 내용·첨부를 넣고 [결재 올리기]</span>
       </div>
       <div class="tbl-wrap"><table style="font-size:12.5px"><thead><tr><th>올린 날</th><th>제목</th><th>기안</th><th>결재선</th><th>상태</th><th></th></tr></thead><tbody>
         ${rows.length ? rows.map(a => `<tr data-ap-open="${_esc(a.id)}" style="cursor:pointer"><td class="mono">${fmtDate(a.ts)}</td><td><b>${_esc(a.title)}</b> <span class="muted mono" style="font-size:10.5px">${_esc(a.id)}</span></td><td>${_esc(a.drafter?.name || '')}</td><td class="ap-lines sm">${apLineHtml(a)}</td><td><span class="pill ${a.status === 'done' ? 'green' : a.status === 'rej' ? 'red' : a.status === 'back' ? '' : 'amber'}">${AP_STATUS[a.status] || a.status}</span>${apMyTurn(a) ? ' <span class="pill cyan">내 차례</span>' : ''}</td><td style="text-align:right"><button class="btn ghost" data-ap-open="${_esc(a.id)}">열기 →</button></td></tr>`).join('')
           : `<tr><td colspan="6" class="empty">${f === 'todo' ? '내가 결재할 문서 없음' : f === 'mine' ? '올린 문서 없음' : '결재 문서 없음'}</td></tr>`}
       </tbody></table></div>
-      <div class="ap-note" style="margin-top:10px">지금 운영 방식은 서버 개인 인증 전 — 결재 기록은 업무 확인용입니다 (전자서명·법적 효력 아님 · 직원 계정 전환 때 서버에서 결재자 본인 확인 추가)</div>
+      <div class="ap-note" style="margin-top:10px">${apEnabled() ? `<b>${AP_TEST_NOTE}</b> — 데모 시험용` : `<b>결재 기능 잠김</b> — ${AP_TEST_NOTE}라 운영에서는 결재 올리기·승인·반려·회수를 막았습니다 · 실제 결재는 기존 방식으로 · 결재 작성·미리보기·인쇄는 됨`}</div>
     </div>`;
   apBindTabs();
   document.querySelectorAll('[data-ap-f]').forEach(b => b.onclick = () => { st.apFilter = b.dataset.apF; router(); });
   document.querySelectorAll('[data-ap-open]').forEach(el => el.onclick = e => { e.stopPropagation(); openApproval(el.dataset.apOpen); });
 };
+/* ★ v0.40.27 — 전자결재 화면 = [결재 작성 | 결재함] · v0.40.26 이전 자동 보고서 = 옛 결재 문서의 [보고서 보기](스냅샷)에서만 */
 VIEWS.report = () => {
+  if(!getFlags().report){ document.getElementById('view').innerHTML = `<div class="card">전자결재 모듈 OFF — 설정에서 켜세요.</div>`; return; }
+  const st = window._reportState;
+  if(st.tab === 'box'){ VIEWS._approvalBox(); return; }
+  if(st.viewSnapshotId || st.tab === 'legacy'){ VIEWS._reportLegacy(); return; }
+  VIEWS._apCompose();
+};
+VIEWS._reportLegacy = () => {
   if(!getFlags().report){
     document.getElementById('view').innerHTML = `<div class="card">보고서 모듈 OFF — 설정에서 켜세요.</div>`;
     return;
@@ -28389,8 +28654,8 @@ VIEWS.report = () => {
         <button class="btn" id="btn-rep-ppt">${ico('ppt')}PPT</button>
         <button class="btn" id="btn-rep-print">${ico('print')}인쇄</button>
         ${snap
-          ? `<button class="btn primary" id="btn-rep-back">${ico('refresh')}라이브로 돌아가기</button>`
-          : `<button class="btn" id="btn-rep-make" title="내 구성으로 계산 → 스냅샷 저장 → 자동 브리핑 → 기본 형식 출력 (한 번에)">${ico('save')}보고서 만들기</button><button class="btn primary" id="btn-ap-new" title="고른 세부 항목(구성)으로 보고서를 만들어 결재선에 올립니다">${ico('check')}결재 올리기</button>`}
+          ? `<button class="btn primary" id="btn-rep-back">${ico('refresh')}전자결재로 돌아가기</button>`
+          : `<button class="btn" id="btn-rep-make" title="내 구성으로 계산 → 스냅샷 저장 → 자동 브리핑 → 기본 형식 출력 (한 번에)">${ico('save')}보고서 만들기</button>`}
       </div>
     </div>
 
@@ -28478,7 +28743,6 @@ VIEWS.report = () => {
   if(backBtn) backBtn.onclick = () => { st.viewSnapshotId = null; router(); };
   // ★ v0.38.0 — [보고서 만들기] 원클릭 (열 때 자동 생성 없음 · 오직 버튼)
   apBindTabs();
-  const apNew = document.getElementById('btn-ap-new'); if(apNew) apNew.onclick = () => openApprovalSubmit(st);   // ★ v0.40.25
   const makeBtn = document.getElementById('btn-rep-make');
   if(makeBtn) makeBtn.onclick = async () => { makeBtn.disabled = true; try { await makeReportOneClick(st); } finally { router(); } };
   const pickBtn = document.getElementById('btn-rep-pick');
