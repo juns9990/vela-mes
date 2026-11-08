@@ -442,6 +442,18 @@ tr.mst-off td{opacity:.45}
 .sc-alloc{border:1px solid color-mix(in srgb,var(--amber) 40%,transparent);border-radius:12px;padding:10px 12px;margin-bottom:10px}
 .sc-al{padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}.sc-al:first-of-type{border-top:0}.sc-al.ok{opacity:.75}
 .sc-al-in{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.sc-al-in label{display:flex;flex-direction:column;font-size:11.5px;gap:2px}.sc-al-in label span{color:var(--sub)}.sc-al-in input{width:110px;padding:5px 8px}
+.sc-cf>span{font-weight:400;color:var(--sub)}
+/* ★ v0.40.25 — 전자결재 */
+.ap-badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:10.5px;font-weight:800;line-height:18px;text-align:center;margin-left:4px}
+.ap-lines{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0}.ap-lines.sm{margin:0;gap:4px}
+.ap-ln{font-size:12px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--sub);white-space:nowrap}.ap-ln small{color:var(--dim);font-size:10px}
+.ap-ln.ok{color:var(--green);border-color:color-mix(in srgb,var(--green) 40%,var(--line))}.ap-ln.rej{color:var(--red);border-color:color-mix(in srgb,var(--red) 40%,var(--line))}.ap-ln.cur{color:var(--ink);border-color:var(--cyan);font-weight:700}
+.ap-arr{color:var(--dim);font-size:11px}.ap-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--sub)}
+.ap-memo{font-size:12.5px;background:var(--bg2);border-radius:8px;padding:8px 10px}
+.ap-note{font-size:11.5px;color:var(--sub);line-height:1.6;border-left:2px solid var(--amber);padding:4px 10px}
+/* ★ v0.40.25 — 재고 상단 금액 줄 */
+.kpi-mini .val2{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;color:var(--ink);margin-top:2px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.kpi-mini .val2 .nop{font-family:inherit;font-size:10.5px;font-weight:600;color:var(--amber)}
 .sc-st{font-size:12.5px;min-height:18px;color:var(--sub)}.sc-st.err{color:var(--red)}.sc-st.busy{color:var(--amber)}
 .sug button.lnk{background:none;border:0;padding:0 0 0 6px;color:var(--cyan);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 
@@ -579,6 +591,7 @@ html[data-theme="light"]{ --c1:#0f766e;--c2:#0369a1;--c3:#4338ca;--c4:#a21caf;--
 /* ★ v0.35.7 — 대시보드 v3 (A안): 기억할 숫자 3 + 오늘 이상 신호등 · 숫자 크게 · 카드 2장 */
 .hero.dash3 .dkpi{padding:20px 22px 18px}
 .hero.dash3 .dkpi .val{font-size:34px;letter-spacing:-1.2px}
+.hero.dash3 .dkpi .v2{font-size:15px;font-weight:700;margin-left:10px;color:var(--ink);letter-spacing:-.2px}   /* ★ v0.40.25 세부 카드 금액 */
 .hero.dash3 .dkpi .unit{font-size:15px;color:var(--sub);margin-left:4px;letter-spacing:0;font-weight:700}
 .hero.dash3 .dkpi .sub{margin-top:10px;font-size:11.5px}
 .hero.dash3 .dkpi.issue{border-color:color-mix(in srgb,var(--amber) 45%,var(--line));background:color-mix(in srgb,var(--amber) 7%,var(--panel))}
@@ -1229,6 +1242,8 @@ html[data-theme="light"] .btn.primary{background:#0b0f14;border-color:#0b0f14}
 .mstrip .mk{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 14px;box-shadow:var(--sh)}
 .mstrip .mk .l{font-size:10.5px;color:var(--sub);font-weight:700}
 .mstrip .mk .v{font-size:18px;font-weight:800;font-family:'JetBrains Mono',monospace;margin-top:3px;letter-spacing:-.3px}
+.mstrip .mk .v .v2{font-size:13px;font-weight:700;margin-left:6px;opacity:.85}   /* ★ v0.40.25 — 지연 건수 옆 금액 */
+.mstrip .mk.clk{cursor:pointer}.mstrip .mk.clk:hover{border-color:var(--cyan)}
 .mstrip .mk .s{font-size:10.5px;color:var(--dim);margin-top:2px}
 @media(max-width:900px){.mstrip{grid-template-columns:repeat(2,1fr)}}
 .msrch{display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 13px;margin-bottom:10px;box-shadow:var(--sh)}
@@ -1251,14 +1266,23 @@ html[data-theme="light"] .btn.primary{background:#0b0f14;border-color:#0b0f14}
 .mmore-menu button:hover{background:var(--panel2);color:var(--ink)}
 /* ★ v0.35.0 — 생산계획 설비 레인 · 교대 밴드 (시안 v6+v7) */
 .pln-lane{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
-.pln-head{display:flex;align-items:center;gap:10px;padding:10px 15px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:13px}
-.pln-shift{display:flex;align-items:center;gap:9px;padding:6px 15px;border-bottom:1px solid var(--line);font-size:11.5px;font-weight:800}
+.pln-head{display:flex;align-items:center;gap:10px;padding:11px 15px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:14px}
+.pln-shift{display:flex;align-items:center;gap:9px;padding:7px 15px;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:800}
 .pln-shift .rng{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--sub);font-size:10.5px}
 .pln-shift .ldw{margin-left:auto;display:flex;align-items:center;gap:7px}
 .pln-shift .ldb{width:100px;height:7px;background:var(--line);border-radius:4px;overflow:hidden}
 .pln-shift .ldb i{display:block;height:100%;border-radius:4px}
 .pln-shift .ldt{font-size:10.5px;font-weight:800;font-family:'JetBrains Mono',monospace;min-width:36px;text-align:right}
 .pln-row{display:flex;align-items:center;gap:12px;padding:8px 15px;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap}
+/* ★ v0.40.25 (사용자 요청 — 시인성) — 계획판 행 = 열 제목과 같은 격자 · 글자 키움 */
+.pln-row.pln-g{display:grid;grid-template-columns:28px minmax(150px,1.5fr) minmax(96px,1fr) 104px 84px 84px minmax(150px,1.2fr) 64px 34px;gap:12px;font-size:13px;padding:10px 15px}
+.pln-row.pln-g>span{min-width:0!important;font-size:13px!important}
+.pln-row.pln-colh>span{font-size:11.5px!important}
+.pln-row.pln-g .muted{font-size:11.5px!important}
+.pln-colh{background:var(--panel);font-size:11.5px!important;font-weight:700;color:var(--sub);padding:7px 15px!important;line-height:1.3;cursor:default}
+.pln-colh small{font-weight:400;color:var(--dim);font-size:10.5px}
+.pln-k{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:.2px}
+@media(max-width:900px){.pln-row.pln-g{grid-template-columns:28px 1fr 1fr;row-gap:4px}.pln-colh{display:none!important}}
 .pln-row.late{background:color-mix(in srgb,var(--red) 6%,transparent)}
 .pln-row .num{text-align:right}
 :root{--shift1:rgba(251,191,36,.10);--shift2:rgba(129,140,248,.10);--shift3:rgba(167,139,250,.10);--seq1:#3a4252}
@@ -1754,7 +1778,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.24';
+const APP_VERSION = 'v0.40.25';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2024,7 +2048,7 @@ const _FS_COLLECTIONS = [
 ];
 /* ★ v0.40.24 — 재고 실사 회차 · 실사 조정 (SPEC 재고실사 v0.3) · 기존 방식(운영 규칙 v4)만 구독
    직원 계정 규칙(r16·r17)에는 이 컬렉션 규칙이 아직 없음 → 직원 계정 모드 = 구독·계산·화면 모두 끔 (규칙 추가는 r17 전환 작업 때) */
-const STOCK_COLLECTIONS = ['stock_counts', 'stock_adj'];
+const STOCK_COLLECTIONS = ['stock_counts', 'stock_adj', 'approvals'];   // ★ v0.40.25 — 전자결재(approvals)도 기존 방식만 (직원 계정 규칙 미작성)
 function stockCountSupported(){ try { return !isStaffMode(); } catch(e){ return true; } }
 /* ★ v0.21.2 — config 해석: 로컬 오버라이드 우선 → 없으면 내장 DEFAULT_FIREBASE_CONFIG.
    반환 { cfg, source } — source 는 pill/설정 표시용. cfg 없음(둘 다 없음) 시 null. */
@@ -2260,9 +2284,6 @@ const DB = (() => {
     try { _ACTIVE_ADAPTER.write(col, id, doc, meta); }
     catch(e){ console.warn('[VELA] backend write failed', col, id, e); }
   };
-  let _asof = null;   // ★ v0.40.24 — DB.asOf 기준 시각 (평소 null = 무변)
-  const _ASOF_F = { records:'ts', shipments:'ts', os_dispatches:'ts', os_receipts:'ts', material_receipts:'ts', production_lots:'created', stock_adj:'ts' };
-  const _asofHide = (col, x) => { const f = _ASOF_F[col]; if(!f) return false; const t = +x[f]; if(!t) return false; return col === 'stock_adj' ? t >= _asof : t > _asof; };
   let _rev = 0;   // ★ v0.36.0 — 원장 변경 카운터 (동기 쓰기마다 +1 · 인정/보류 파생 메모의 키 — 값 자체는 저장 안 함)
   return {
     _backend: _ACTIVE_ADAPTER.name,   // 'local' | (STEP 2) 'firestore'
@@ -2271,7 +2292,7 @@ const DB = (() => {
     _firebaseConfig: null,
     _adapter: _ACTIVE_ADAPTER,
     // ★ v0.16.0 — all/query 기본 void 제외 (집계 지점 개별 필터 금지 · 이중 필터 금지)
-    all(col){ ensure(col); const v = Object.values(state[col]).filter(x=>!x.void); return _asof == null ? v : v.filter(x => !_asofHide(col, x)); },
+    all(col){ ensure(col); return Object.values(state[col]).filter(x=>!x.void); },
     // DB.get(단건)은 void 포함 유지 — 직접 참조·이름 조회·복원용 (변경 금지)
     get(col,id){ ensure(col); return state[col][id]||null; },
     set(col,id,doc){
@@ -2345,11 +2366,7 @@ const DB = (() => {
       } catch(e){ console.warn('[VELA] backend remove failed', col, id, e); }
       return true;
     },
-    query(col,fn){ ensure(col); const v = Object.values(state[col]).filter(x=>!x.void); return (_asof == null ? v : v.filter(x => !_asofHide(col, x))).filter(fn); },
-    /* ★ v0.40.24 (재고실사 · SPEC §3) — 「그 시각의 장부」: fn 안에서만 all/query 가 기준 시각 뒤의 이동 기록을 숨김 → 지금과 같은 계산 함수 1벌로 계산
-       · 실적·출하·외주 반출/입고·원소재 입고 = ts > 기준 · LOT = created > 기준 · 실사 조정 = ts ≥ 기준(이전 회차만) · 쓰기 금지(읽기 전용 계산만) */
-    asOf(ts, fn){ const prev = _asof; _asof = +ts; _rev++; try { return fn(); } finally { _asof = prev; _rev++; } },
-    get _asOf(){ return _asof; },
+    query(col,fn){ ensure(col); return Object.values(state[col]).filter(x=>!x.void).filter(fn); },
     // ★ v0.40.9 — 묶음 저장 (위 설명) · 반환 { value, n, server: Promise|null, rollbackLocal() }
     //   server = 서버 모드에서 묶음 커밋 결과(성공 resolve · 거부 reject) · 이 기기 저장 모드 = null(이미 저장)
     group(fn, opts){
@@ -4126,6 +4143,7 @@ const _PREFIX_TO_COL = {
   PP: 'production_plans',
   PL: 'production_lots',
   RP: 'reports',   // ★ v0.24.0 — AI 보고서 스냅샷
+  AP: 'approvals', // ★ v0.40.25 — 전자결재 문서
   NC: 'nc_records',// ★ v0.25.0 — 부적합 (Nonconformance)
   MT: 'materials', // ★ v0.31.0 — 소재·구매품 마스터 (사 오는 물건 관점 — 품번 마스터와 분리)
 };
@@ -4448,7 +4466,8 @@ const MODULE_DEFS = [
       ['so',     '수주(SO)',       true, false],
       ['ship',   '출하',           true, false],
       ['ship_qty_fix', '출하 수량 정정 (시험 — 서버 동시성 검증 전 · 기본 끔)', false, false],
-      ['pr_qty_fix', '구매 입고 수량 정정 (시험 — 서버 동시성 검증 전 · 기본 끔)', false, false],   // ★ v0.38.25 SPEC v0.4 · GPT D11~D14   // ★ v0.38.21 SPEC 등록 후 수정 v0.3 · GPT D5 조건부 승인 · 실운영 활성화는 서버 Gate 후
+      ['pr_qty_fix', '구매 입고 수량 정정 (시험 — 서버 동시성 검증 전 · 기본 끔)', false, false],
+      ['stock_count', '재고 실사 (시험 — GPT 판정 전 · 실데이터 확정 막힘 · 기본 끔)', false, false],   // ★ v0.40.25 (GPT v0.40.24 판정) — 보완 전 정식 사용 금지   // ★ v0.38.25 SPEC v0.4 · GPT D11~D14   // ★ v0.38.21 SPEC 등록 후 수정 v0.3 · GPT D5 조건부 승인 · 실운영 활성화는 서버 Gate 후
       ['cust',   '거래처 마스터',  true, false],
       ['quote',  '견적(RFQ)',     false, false],  // v1.5
     ]},
@@ -4550,6 +4569,7 @@ const FEATURE_DEPS = {
   ship:       { needs:[], breaks:['so'] },
   ship_qty_fix:{ needs:['ship'], breaks:[] },
   pr_qty_fix:  { needs:['purchase'], breaks:[] },
+  stock_count: { needs:['inv'], breaks:[] },
   so:         { needs:[], breaks:['ship','quote'] },
   quote:      { needs:['so'], breaks:[] },                   // v0.7 — cost 권장(필수 아님)
   cost:       { needs:['pl_bom'], breaks:[] },               // v0.7 — 원가는 BOM 필수
@@ -4560,10 +4580,10 @@ const FEATURE_DEPS = {
   q_inspect:  { needs:[], breaks:['q_capa'] },
 };
 /* ★ v0.38.21 — 시험 기능(실운영 활성화 전 Gate 남음): 기본 끔 · 풀옵션 프리셋 제외 · 데모(풀옵션 시연)에서는 켜짐 */
-const EXPERIMENTAL_FLAGS = ['ship_qty_fix', 'pr_qty_fix'];
+const EXPERIMENTAL_FLAGS = ['ship_qty_fix', 'pr_qty_fix', 'stock_count'];
 /* ★ v0.38.22 (GPT v0.38.21 판정 ①) — 서버 Gate: 서버 권한·동시성·원자성 검증 전에는 실데이터에서 플래그를 켜도 저장 차단 (데모만 시험)
    Gate 통과 시 이 값을 true 로 바꾸는 것은 별도 SPEC·GPT 판정·사용자 승인 후 */
-const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false };
+const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false, stock_count: false };   // ★ v0.40.25 stock_count = 실데이터 실사 확정 Gate (GPT 판정·사용자 승인 뒤 true)
 function experimentalEnabled(k){ return !!getFlags()[k] && (isDemoMode() || SERVER_GATES[k] === true); }
 function shipQtyFixEnabled(){ return experimentalEnabled('ship_qty_fix'); }
 function prQtyFixEnabled(){ return experimentalEnabled('pr_qty_fix'); }
@@ -4786,7 +4806,7 @@ const PAGES = [
   // ★ v0.27.0 — 회계 (마감 뒤 · 특급)
   { id:'acct',  flag:'acct',  title:'회계',  icon:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 14h4M7 17h2"/><circle cx="17" cy="15.5" r="2.2"/>' },
   // ★ v0.24.0 — AI 보고서 (마감 뒤)
-  { id:'report',  flag:'report',  title:'보고서', icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>' },
+  { id:'report',  flag:'report',  title:'전자결재', icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>' },
   // ★ '그 외 기존' — 원가 · 자동계획 · 설비현황 · 금형 (파렛트와 문서출력 사이 위치 유지)
   { id:'cost',  flag:'cost',  title:'원가',       icon:'<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' },
   { id:'autoplan', flag:'pl_auto', title:'자동계획', icon:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v16M14 14l2 2 4-4"/>' },
@@ -8966,10 +8986,10 @@ const NAV_PRIMARY_DEFAULT = ['dash','so','plan','scan','perf','lot','qc','ship']
 //   ★ v0.40.0 (GPT UI SPEC 1.1 §6) — 구매 / 자재 분리 (표시 묶음만 · 데이터·권한 나눔 0) · 부서 아이콘 · 메뉴 찾기(NAV_GROUPS)도 이 정의에서 생성
 const NAV_DEPTS = [
   { key:'sales',   label:'영업',      ids:['so','quote'] },
-  { key:'prod',    label:'생산',      ids:['wo','plan','autoplan','perf','scan','lot','eqstatus'] },
+  { key:'prod',    label:'생산',      ids:['wo','plan','autoplan','perf','scan','lot','eqstatus','mold'] },   // ★ v0.40.25 (사용자 요청) — 금형·지그 = 생산 (품질에서 옮김 · 권한·데이터 무변)
   { key:'buy',     label:'구매',      ids:['po','os'] },
   { key:'mat',     label:'자재',      ids:['matin','inv'] },
-  { key:'qual',    label:'품질',      ids:['qc','mold','draw'] },
+  { key:'qual',    label:'품질',      ids:['qc','draw'] },
   { key:'ship',    label:'출하',      ids:['ship','pallet'] },
   { key:'admin',   label:'관리',      ids:['dash','closing','acct','cost','report','docs','audit'] },
   { key:'master',  label:'기준정보',  ids:['masters','proc'] },
@@ -9115,7 +9135,7 @@ function renderNav(){
   const primary = getPrimaryMenu();
   const prim = ordered.filter(p => primary.includes(p.id));
   // ★ v0.39.0 (PC 개편 U-01·U-04 · GPT 승인) — 사이드바 = 「내 업무」(★ 고른 메뉴) + 부서 묶음(접기 · '부' 없음) · 게이팅 = menuCanSee 1벌 그대로 (위치 이동 = 권한 확대 0)
-  let out = `<a class="nav-brand" href="#${landingPage()}" title="VELA MES SYSTEM"><b>VELA</b><i></i><span>MES</span><em class="nav-ver">${_esc(APP_VERSION)}</em></a><div class="nav-sec">${navIco('home')}내 업무</div>` + (prim.length ? prim.map(p => `<button data-page="${p.id}">${_esc(navTitle(p))}</button>`).join('') : `<div class="nav-empty" style="font-size:11.5px;color:var(--sub);padding:6px 12px;line-height:1.5">☆ 메뉴 찾기에서 별표로 추가</div>`);
+  let out = `<a class="nav-brand" href="#${landingPage()}" title="VELA MES SYSTEM"><b>VELA</b><i></i><span>MES</span></a><div class="nav-sec">${navIco('home')}내 업무</div>` + (prim.length ? prim.map(p => `<button data-page="${p.id}">${_esc(navTitle(p))}</button>`).join('') : `<div class="nav-empty" style="font-size:11.5px;color:var(--sub);padding:6px 12px;line-height:1.5">☆ 메뉴 찾기에서 별표로 추가</div>`);
   const openSet = _navOpenGet(); const cur = (location.hash || '#dash').replace('#', '').split('/')[0];
   const used = new Set();
   let depts = '';
@@ -10645,9 +10665,74 @@ const DASH_CARDS = [
         <div class="grid g4">${['day','week','month','year'].map(k => { const p = c.prog4[k]; return `<div class="kpi-mini"><div class="lab">${_esc(c.progLabels[k])}</div><div class="val">${p.pct.toFixed(0)}<span style="font-size:11px;color:var(--sub)">%</span></div><div class="sub">${p.good.toLocaleString()} / ${p.target.toLocaleString()}ea · ${p.count}건</div></div>`; }).join('')}</div>
       </div>` },
 ];
+
+/* ★ v0.40.25 — 그 공정까지(포함) 누적 표준원가 /ea (소재 + 공정·외주 요율 + 간접비) · 원가 화면 computeCost 와 같은 요율 · 없으면 null */
+function stageCostThru(code, proc){
+  const c = computeCost(code); if(!c) return null;
+  const rates = DB.get('settings','cost_rates') || defaultCostRates();
+  let v = c.material;
+  for(const x of getRoute(code)){ if(x.proc === 'SHIP') break; v += x.mode === 'out' ? (+(rates.outsource_rates||{})[x.proc]||0) : (+(rates.process_rates||{})[x.proc]||0); if(x.proc === proc) break; }
+  v *= 1 + (+rates.overhead_pct||0);
+  return v > 0 ? v : null;
+}
+/* ★ v0.40.25 — 전체 재고 합계 (수량 + 금액) · 재고 화면 상단과 같은 계산(필터 없는 전체) · 대시보드 세부 카드용 */
+function invTotals(){
+  const rates = DB.get('settings','cost_rates') || defaultCostRates();
+  const o = { rawKg:0, raw:0, rawNo:0, wipQ:0, wip:0, wipNo:0, finQ:0, fin:0, finNo:0, defQ:0, def:0, defNo:0, heats:0 };
+  Object.values(calcHeatLedger().ledger).forEach(h => { const kg = Math.max(0, h.remain); o.heats++; if(!kg) return; o.rawKg += kg; const r = +(rates.material_rates||{})[h.mat] || 0; if(r > 0) o.raw += kg * r; else o.rawNo++; });
+  getItems().forEach(i => { const f = calcItemFlow(i.code);
+    Object.entries(f.wip || {}).forEach(([pc, v]) => { if(!(v > 0)) return; o.wipQ += v; const u = stageCostThru(i.code, pc); if(u) o.wip += v * u; else o.wipNo++; });
+    if(f.finished > 0){ o.finQ += f.finished; const c = computeCost(i.code); const u = c && c.total > 0 ? c.total : (+i.price || 0); if(u > 0) o.fin += f.finished * u; else o.finNo++; } });
+  DB.query('records', x => (+x.defect||0) > 0).forEach(x => { const l = DB.get('production_lots', x.plot_no); if(!l) return; o.defQ += +x.defect; const u = stageCostThru(l.itemCode, x.proc); if(u) o.def += (+x.defect) * u; else o.defNo++; });
+  return o;
+}
+/* =================================================================================================
+   ★ v0.40.25 (사용자 요청) — 대시보드 세부 카드: 대분류 카드뿐 아니라 각 메뉴의 숫자를 하나씩 골라 넣음 (카드 고르기 · 사람마다 저장)
+   · 각 화면에서 지운 요약 숫자(수주·LOT·실적현황·견적·재고·생산계획)도 여기서 골라 볼 수 있음 · 계산 = 그 화면과 같은 함수 · 금액 카드 = 단가 권한자만
+   ================================================================================================= */
+const _dkWon = v => '₩' + Math.round(+v || 0).toLocaleString();
+const _dkMemo = {}; function _dkOnce(k, fn){ const rev = DB._rev; const m = _dkMemo[k]; if(m && m.rev === rev) return m.v; const v = fn(); _dkMemo[k] = { rev, v }; return v; }
+function _dkSum(a, b){ const recs = DB.all('records'); return recs.filter(r => r.ts >= a && r.ts < b); }
+function dashMetric(id, title, group, page, fn, opt){
+  opt = opt || {};
+  return { id, kind:'kpi', title, group, page, flag: opt.flag, price: !!opt.price, desc: opt.desc, render: c => {
+    let r; try { r = fn(c) || {}; } catch(e){ r = { v:'—', sub:'계산 오류' }; }
+    return `<div class="dkpi clk" onclick="location.hash='#${page}'"><span class="goarrow">${_esc((PAGES.find(p => p.id === page) || {}).title || '')} ↗</span>
+      <div class="lab">${_esc(canSeePrice() ? title : title.replace(/ · 금액$/, ''))}</div>
+      <div class="val"${r.tone ? ` style="color:var(--${r.tone})"` : ''}>${r.v}${r.unit ? `<span class="unit">${_esc(r.unit)}</span>` : ''}${r.v2 ? `<span class="v2">${r.v2}</span>` : ''}</div>
+      <div class="sub">${r.sub || ''}</div></div>`; } };
+}
+const DASH_METRICS = [
+  // 영업
+  dashMetric('m_so_ship', '출하 금액 (수주 기준)', '영업 숫자', 'so', () => { const s = calcSoFulfillment(); return { v: _dkWon(s.done), sub: s.total > 0 ? `총 수주의 ${(s.done / s.total * 100).toFixed(1)}%` : '수주 없음' }; }, { price:true }),
+  dashMetric('m_so_remain', '남은 수주 (미출하)', '영업 숫자', 'so', () => { const rows = calcSoRows(DB.all('orders')).filter(r => r.remain > 0); return { v: rows.length.toLocaleString(), unit:'건', sub: `${rows.reduce((t, r) => t + r.remain, 0).toLocaleString()} ea${canSeePrice() ? ' · ' + _dkWon(rows.reduce((t, r) => t + r.remain * (+r.o.price || 0), 0)) : ''}` }; }),
+  dashMetric('m_so_late', '지연 수주 (건수 · 금액)', '영업 숫자', 'so', () => { const rows = calcSoRows(DB.all('orders')).filter(r => r.status.label === '지연'); return { v: rows.length.toLocaleString(), unit:'건', v2: canSeePrice() ? _dkWon(rows.reduce((t, r) => t + r.remain * (+r.o.price || 0), 0)) : '', tone: rows.length ? 'red' : '', sub: `잔량 ${rows.reduce((t, r) => t + r.remain, 0).toLocaleString()} ea` }; }),
+  dashMetric('m_so_soon', '납기 7일 내 수주', '영업 숫자', 'so', () => { const rows = calcSoRows(DB.all('orders')).filter(r => r.status.label === '납기임박'); return { v: rows.length.toLocaleString(), unit:'건', tone: rows.length ? 'amber' : '', sub: `잔량 ${rows.reduce((t, r) => t + r.remain, 0).toLocaleString()} ea` }; }),
+  dashMetric('m_otd', '납기준수율 (올해)', '영업 숫자', 'ship', () => { const t = calcOnTime({ from: _kstDate(Date.now()).slice(0,4) + '-01-01' }).total || {}; return { v: t.lines ? t.rateLines.toFixed(1) : '—', unit: t.lines ? '%' : '', sub: t.lines ? `준수 ${t.okLines} / ${t.lines}건 (출하일 기준)` : '납기 지난 수주 없음' }; }),
+  dashMetric('m_so_new', '이번 달 신규 수주', '영업 숫자', 'so', () => { const m = fmtDate(Date.now()).slice(0,7); const os = DB.all('orders').filter(o => fmtDate(o.created || 0).slice(0,7) === m); return { v: os.length.toLocaleString(), unit:'건', sub: canSeePrice() ? _dkWon(os.reduce((t, o) => t + (+o.qty||0) * (+o.price||0), 0)) : `${os.reduce((t, o) => t + (+o.qty||0), 0).toLocaleString()} ea` }; }),
+  dashMetric('m_quote_open', '진행 중 견적', '영업 숫자', 'quote', () => { const q = DB.all('quotes').filter(x => x.status === 'draft' || x.status === 'sent'); return { v: q.length.toLocaleString(), unit:'건', sub: `작성 ${q.filter(x => x.status === 'draft').length} · 발송 ${q.filter(x => x.status === 'sent').length}${canSeePrice() ? ' · ' + _dkWon(q.reduce((t, x) => t + (+x.total_amount||0), 0)) : ''}` }; }, { flag:'quote' }),
+  dashMetric('m_quote_win', '견적 수주 전환율', '영업 숫자', 'quote', () => { const q = DB.all('quotes'); const w = q.filter(x => x.status === 'won').length, l = q.filter(x => x.status === 'lost').length; return { v: (w + l) ? (w / (w + l) * 100).toFixed(1) : '—', unit: (w + l) ? '%' : '', sub: `수주전환 ${w} · 실주 ${l}` }; }, { flag:'quote' }),
+  // 생산
+  ...[['week', '주 생산량'], ['month', '월 생산량'], ['year', '연 생산량']].map(([k, t]) => dashMetric('m_prod_' + k, t, '생산 숫자', 'perf', () => { const rg = periodRange(k); const g = _dkSum(rg.start, rg.end).reduce((s, r) => s + (+r.good||0), 0); return { v: g.toLocaleString(), unit:'ea', sub: rg.label }; })),
+  dashMetric('m_def_today', '오늘 불량', '생산 숫자', 'perf', () => { const rg = periodRange('day'); const rs = _dkSum(rg.start, rg.end); const d = rs.reduce((s, r) => s + (+r.defect||0), 0), g = rs.reduce((s, r) => s + (+r.good||0), 0); return { v: d.toLocaleString(), unit:'ea', tone: d ? 'red' : '', sub: `불량률 ${(g + d) ? (d / (g + d) * 100).toFixed(1) : '0.0'}%` }; }),
+  dashMetric('m_stop_today', '오늘 중단', '생산 숫자', 'perf', () => { const rg = periodRange('day'); const n = _dkSum(rg.start, rg.end).filter(r => r.stopped).length; return { v: n.toLocaleString(), unit:'건', tone: n ? 'amber' : '', sub: '설비·공정 중단 등록' }; }),
+  dashMetric('m_plan_today', '오늘 계획 달성률', '생산 숫자', 'plan', () => { const t = fmtDate(Date.now()); const ps = DB.all('production_plans').filter(p => p.date === t); const q = ps.reduce((s, p) => s + (+p.qty||0), 0), a = ps.reduce((s, p) => s + calcPlanProgress(p).actual, 0); return { v: q ? Math.min(100, a / q * 100).toFixed(0) : '—', unit: q ? '%' : '', sub: `계획 ${q.toLocaleString()} · 실적 ${a.toLocaleString()} ea · ${ps.length}건` }; }, { flag:'plan' }),
+  dashMetric('m_lot_active', '진행 LOT', '생산 숫자', 'lot', () => { const act = DB.all('production_lots').filter(l => LOT.nextProcess(l.plot_no)); const w = act.reduce((s, l) => { const n = LOT.nextProcess(l.plot_no); return s + Math.max(0, n ? LOT.balance(l.plot_no, n.code) : 0); }, 0); return { v: act.length.toLocaleString(), unit:'건', sub: `재공 ${w.toLocaleString()} ea` }; }),
+  dashMetric('m_lot_hold', '품질 HOLD · 동시성 사고 LOT', '생산 숫자', 'lot', () => { const h = heldPlotSet().size, k = lockedPlotSet().size; return { v: (h + k).toLocaleString(), unit:'건', tone: h + k ? 'red' : '', sub: `HOLD ${h} · 사고 ${k}` }; }),
+  // 자재 · 재고
+  dashMetric('m_inv_raw', '원소재 재고 · 금액', '자재 · 재고 숫자', 'inv', () => { const o = _dkOnce('inv', invTotals); return { v: Math.round(o.rawKg).toLocaleString(), unit:'kg', v2: canSeePrice() ? _dkWon(o.raw) : '', sub: `Heat ${o.heats}개${canSeePrice() && o.rawNo ? ` · 단가 없음 ${o.rawNo}` : ''}` }; }),
+  dashMetric('m_inv_wip', '총 재공 수량 · 금액', '자재 · 재고 숫자', 'inv', () => { const o = _dkOnce('inv', invTotals); return { v: o.wipQ.toLocaleString(), unit:'ea', v2: canSeePrice() ? _dkWon(o.wip) : '', sub: `공정 중 합 · 반출 중 포함${canSeePrice() && o.wipNo ? ` · 단가 없음 ${o.wipNo}` : ''}` }; }),
+  dashMetric('m_inv_fin', '완성품 재고 · 금액', '자재 · 재고 숫자', 'inv', () => { const o = _dkOnce('inv', invTotals); return { v: o.finQ.toLocaleString(), unit:'ea', v2: canSeePrice() ? _dkWon(o.fin) : '', sub: `출하 대기${canSeePrice() && o.finNo ? ` · 단가 없음 ${o.finNo}` : ''}` }; }),
+  dashMetric('m_inv_def', '불량 누계 · 금액', '자재 · 재고 숫자', 'inv', () => { const o = _dkOnce('inv', invTotals); return { v: o.defQ.toLocaleString(), unit:'ea', v2: canSeePrice() ? _dkWon(o.def) : '', tone: o.defQ ? 'red' : '', sub: '전 공정 합 · 그 공정까지 표준원가' }; }),
+  // 구매 · 외주 · 품질 · 관리
+  dashMetric('m_os_open', '외주 미입고', '구매 · 외주 숫자', 'os', () => { const w = DB.all('os_dispatches').filter(d => osDispRemain(d) > 0); const old = w.filter(d => Date.now() - (+d.ts||0) > 7 * 86400000).length; return { v: w.length.toLocaleString(), unit:'건', tone: old ? 'amber' : '', sub: `${w.reduce((t, d) => t + osDispRemain(d), 0).toLocaleString()} ea${old ? ` · 7일 넘음 ${old}` : ''}` }; }),
+  dashMetric('m_nc_pending', '품질 판정 대기', '품질 숫자', 'qc', () => { const n = DB.query('nc_records', x => ncIsPending(x)).length; return { v: n.toLocaleString(), unit:'건', tone: n ? 'amber' : '', sub: `HOLD LOT ${heldPlotSet().size}` }; }, { flag:'qc' }),
+  dashMetric('m_appr', '내 결재 대기', '관리 숫자', 'report', () => { const n = apMyPending().length; return { v: n.toLocaleString(), unit:'건', tone: n ? 'amber' : '', sub: '전자결재 · 내 차례' }; }),
+];
+DASH_CARDS.push(...DASH_METRICS);   // ★ v0.40.25 — 카드 고르기 목록에 세부 숫자 카드 추가 (기존 12종 ID·회사 기본 6종 무변)
 function dashCardVisible(card, flags){
   flags = flags || getFlags();
-  if(['k_backlog', 'k_sales', 'c_cust'].includes(card.id) && !canSeePrice()) return false;   // ★ v0.38.29 — 금액 카드
+  if((['k_backlog', 'k_sales', 'c_cust'].includes(card.id) || card.price) && !canSeePrice()) return false;   // ★ v0.38.29 — 금액 카드 · ★ v0.40.25 세부 카드 price
   if(card.flag && !flags[card.flag]) return false;
   const pg = PAGES.find(p => p.id === card.page);
   return !pg || pg.id === 'dash' || menuCanSee(pg, flags);
@@ -10704,6 +10789,7 @@ function dashTodayItems(){
     const pend = DB.query('nc_records', n => ncIsPending(n)).length, hold = heldPlotSet().size;
     out.push({ k: 'qc', label: '품질 판정 대기', n: pend, unit: '건', desc: pend || hold ? `HOLD LOT ${hold}` : '없음', go: '#qc', tone: pend ? 'amber' : '' });
   }
+  if(can('report')){ const n = apMyPending().length; if(n) out.push({ k: 'appr', label: '결재 대기', n, unit: '건', desc: '내 결재 차례', go: '#report', tone: 'amber' }); }   // ★ v0.40.25 전자결재
   if(can('inv')){ const c = stockCountOpen(); if(c) out.push({ k: 'count', label: '재고 실사', n: 1, unit: '', desc: `${c.id} ${c.status === 'confirming' ? '확정 중 — 다시 시도' : '작성 중'}`, go: '#inv', tone: c.status === 'confirming' ? 'amber' : '' }); }
   return out;
 }
@@ -10892,7 +10978,7 @@ VIEWS.dash = () => {
   const kpis = picked.filter(c => c.kind === 'kpi'), cards = picked.filter(c => c.kind === 'card');
   document.getElementById('view').innerHTML = `
     <div class="dash-tools"><button class="btn ghost" id="dash-pick" title="카드 넣기/빼기 · 순서 — 내 계정에만 저장">☆ 카드 고르기</button></div>
-    <div class="hero hero4 dash3"${kpis.length && kpis.length !== 4 ? ` style="grid-template-columns:repeat(${kpis.length},1fr)"` : ''}>
+    <div class="hero hero4 dash3"${kpis.length > 4 ? ` style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))"` : kpis.length && kpis.length !== 4 ? ` style="grid-template-columns:repeat(${kpis.length},1fr)"` : ''}>
       ${kpis.map(c => c.render(ctx)).join('')}
     </div>
     ${cards.length ? `<div class="dgrid2 dash3g">${cards.map(c => c.render(ctx)).join('')}</div>` : ''}
@@ -13293,20 +13379,7 @@ VIEWS.lot = () => {
       </div>
     </div>
 
-    ${(() => {   // ★ v0.35.1 — 핵심 스트립 (공통 규격 · 전부 기존 헬퍼 1벌)
-      const act = lots.filter(l => !l.void && LOT.nextProcess(l.plot_no));
-      const wip = act.reduce((s,l) => { const n = LOT.nextProcess(l.plot_no); return s + Math.max(0, n ? LOT.balance(l.plot_no, n.code) : 0); }, 0);
-      const holdN = lots.filter(l => _heldSet.has(l.plot_no)).length;
-      const lockN = lots.filter(l => _lockedSet.has(l.plot_no)).length;
-      let osN = 0, osQty = 0;
-      lots.forEach(l => getRoute(l.itemCode).filter(r => r.mode === 'out').forEach(r => { const f = osInFlight(l.plot_no, r.proc); if(f > 0){ osN++; osQty += f; } }));
-      return `<div class="mstrip">
-        <div class="mk"><div class="l">진행 LOT</div><div class="v">${act.length}건</div><div class="s">재공 ${wip.toLocaleString()}ea</div></div>
-        <div class="mk"><div class="l" style="color:var(--red)">품질 HOLD · 사고</div><div class="v" style="color:${holdN+lockN?'var(--red)':'var(--ink)'}">${holdN+lockN}건</div><div class="s">${holdN?`HOLD ${holdN}`:''}${holdN&&lockN?' · ':''}${lockN?`사고 ${lockN}`:''}${!holdN&&!lockN?'없음':''}</div></div>
-        <div class="mk"><div class="l" style="color:var(--blue)">외주 반출 중</div><div class="v">${osN}건</div><div class="s">${osQty.toLocaleString()}ea 체류</div></div>
-        <div class="mk"><div class="l">전체 LOT</div><div class="v">${lots.length}건</div><div class="s">완료 ${lots.filter(l=>!l.void&&!LOT.nextProcess(l.plot_no)).length}건</div></div>
-      </div>`;
-    })()}
+    <!-- ★ v0.40.25 (사용자 요청) — LOT 추적 요약 줄(진행 LOT · HOLD · 외주 반출 중 · 전체 LOT) 삭제 -->
 
     <!-- 검색 + 필터 (재고 화면 패턴 복제) -->
     <div class="card" style="padding:14px;margin-bottom:12px">
@@ -15727,11 +15800,13 @@ VIEWS._invItemDetail = (code) => {
   });
 };
 /* =================================================================================================
-   ★ v0.40.24 — 재고 실사 (SPEC 재고실사 v0.2 · 사용자 요청 2026-11-07)
-   흐름: 회차(실사 기준 일시 = 실제로 센 시각) → 실사표 엑셀(전체 · 협력사별) → 적어서 그대로 올리기 → 미리보기(차이·금액)
+   ★ v0.40.24 — 재고 실사 (SPEC 재고실사 v0.4 · 사용자 요청 2026-11-07)
+   흐름: 회차(시작 = 지금 · 그 순간 장부를 회차 문서에 고정 저장) → 실사표 엑셀(전체 · 협력사별) → 적어서 그대로 올리기 → 미리보기(차이·금액·충돌)
         → [확정] = 실제 재고 조정(stock_adj · 회차 stock_counts 「확정」 일 때만 계산에 반영) → [확정 취소]
    원칙: 원장(실적·출하·입고) 무변 · 조정 = 회차+행 열쇠 고정 번호(다시 올려도·다시 확정해도 1번) · 빈칸 = 세지 않음
-        · 기준 장부 = DB.asOf(기준 일시) 안에서 지금과 같은 계산 함수 1벌 · 보류(동시성) 있는 줄 = 실사 입력 불가(먼저 판정)
+   ★ v0.40.25 (GPT v0.40.24 판정 ①②) — 과거 시각 재계산(DB.asOf) 삭제: 기준 장부 = 회차를 만든 순간의 값 고정 · 기준 이전 기록이 그 뒤 정정·취소·소급 입력되면 그 줄 = 충돌
+        · 확정 직전(확정·다시 시도·마지막 스위치) = 최신 거래로 다시 계산 → 음수 재고·이미 출하/투입/입고한 수량과 충돌·동시성 보류 = 확정 막음(줄·이유 표시 · 사용자가 그 줄을 빼야 진행)
+        · 실데이터 확정 = 시험 기능 Gate(stock_count · SERVER_GATES) 뒤에서만 — 데모에서만 확정
    ================================================================================================= */
 const SC_KIND = { mat:'원소재', wip:'재공', os:'협력사', fin:'완성품', fint:'완성품 합계' };
 const SC_SHEETS = [['mat', '① 원소재'], ['wip', '② 재공'], ['os', '③ 협력사 보유'], ['fin', '④ 완성품']];
@@ -15743,44 +15818,66 @@ function _scAdjId(countId, key){ return `${countId}~${String(key).replace(/[\/\s
 function _scProcName(p){ return (DB.get('processes', p) || {}).name || p || ''; }
 function _scVendorName(v){ return (DB.get('vendors', v) || {}).name || v || ''; }
 
-/* 실사표 줄 = 기준 일시의 장부 (지금 화면과 같은 계산 · DB.asOf) */
-function stockCountRows(count){
-  const T = +count.basis_ts;
-  const rows = DB.asOf(T, () => {
-    const out = [];
-    const { ledger } = calcHeatLedger();
-    Object.values(ledger).forEach(h => {
-      const b = Math.round((h.remain || 0) * 10) / 10; if(Math.abs(b) < 0.05) return;
-      out.push({ key: 'M|' + h.heat, kind: 'mat', loc: '사내', code: h.heat, name: [h.mat, h.dia ? 'Ø' + h.dia : ''].filter(Boolean).join(' '), lot: '', proc: '', unit: 'kg', book: b, heat: h.heat, mat: h.mat || '' });
-    });
-    DB.all('production_lots').forEach(l => {
-      const route = getRoute(l.itemCode); if(!route.length) return;
-      const item = DB.get('items', l.itemCode) || {};
-      const lastProd = route.length > 1 ? route[route.length - 2] : route[0];
-      route.forEach((r, idx) => {
-        if(r.proc === 'SHIP') return;
-        if(idx === 0 && l.merge_at_proc !== r.proc) return;   // 첫 공정 투입 전 = 아직 원소재(히트 kg) 로 셈 → 이중 계상 안 함
-        if(LOT._prevAvail(l.plot_no, r.proc).skip) return;
-        const b = qgInHouseBalance(l.plot_no, r.proc), pend = LOT.pendingQty(l.plot_no, r.proc);
-        if(b <= 0 && !pend) return;
-        out.push({ key: `W|${l.plot_no}|${r.proc}`, kind: 'wip', loc: '사내', code: l.itemCode, name: item.name || '', lot: l.plot_no, proc: r.proc, unit: 'ea', book: b, plot_no: l.plot_no, itemCode: l.itemCode, pend });
-      });
-      const shipped = DB.query('shipments', x => x.plot_no === l.plot_no).reduce((a, x) => a + (+x.qty || 0), 0);
-      const fb = lotShipSupply(l.plot_no, lastProd.proc) - shipped, fpend = LOT.pendingQty(l.plot_no, lastProd.proc);
-      if(fb > 0 || fpend) out.push({ key: 'F|' + l.plot_no, kind: 'fin', loc: '사내', code: l.itemCode, name: item.name || '', lot: l.plot_no, proc: '', unit: 'ea', book: Math.max(0, fb), plot_no: l.plot_no, itemCode: l.itemCode, pend: fpend, created: +l.created || 0 });
-    });
-    DB.all('os_dispatches').forEach(d => {
-      const b = osDispRemain(d); if(b <= 0) return;
-      const l = DB.get('production_lots', d.plot_no) || {};
-      out.push({ key: 'O|' + d.id, kind: 'os', loc: _scVendorName(d.vendor), vendor: d.vendor || '', code: l.itemCode || '', name: (DB.get('items', l.itemCode) || {}).name || '', lot: d.plot_no, proc: d.proc, unit: 'ea', book: b, plot_no: d.plot_no, itemCode: l.itemCode || '', dispatch_id: d.id, pend: LOT.pendingQty(d.plot_no, d.proc) });
-    });
-    getItems().forEach(it => {
-      const lots = out.filter(r => r.kind === 'fin' && r.itemCode === it.code);
-      out.push({ key: 'FT|' + it.code, kind: 'fint', loc: '사내', code: it.code, name: it.name || '', lot: '(품번 합계)', proc: '', unit: 'ea', book: lots.reduce((a, r) => a + r.book, 0), itemCode: it.code, nLots: lots.length });
-    });
-    return out;
+/* 지금 장부 = 실사표 줄 (지금 화면과 같은 계산) — 회차를 만들 때 1번 계산해 회차 문서(book)에 고정 저장 */
+function stockCountBuildRows(){
+  const out = [];
+  const { ledger } = calcHeatLedger();
+  Object.values(ledger).forEach(h => {
+    const b = Math.round((h.remain || 0) * 10) / 10; if(Math.abs(b) < 0.05) return;
+    out.push({ key: 'M|' + h.heat, kind: 'mat', loc: '사내', code: h.heat, name: [h.mat, h.dia ? 'Ø' + h.dia : ''].filter(Boolean).join(' '), lot: '', proc: '', unit: 'kg', book: b, heat: h.heat, mat: h.mat || '' });
   });
-  // 기준 뒤 입력 (확인용) — 그 LOT·히트의 실적·출하·반출·입고 중 기준 일시 뒤
+  DB.all('production_lots').forEach(l => {
+    const route = getRoute(l.itemCode); if(!route.length) return;
+    const item = DB.get('items', l.itemCode) || {};
+    const lastProd = route.length > 1 ? route[route.length - 2] : route[0];
+    route.forEach((r, idx) => {
+      if(r.proc === 'SHIP') return;
+      if(idx === 0 && l.merge_at_proc !== r.proc) return;   // 첫 공정 투입 전 = 아직 원소재(히트 kg) 로 셈 → 이중 계상 안 함
+      if(LOT._prevAvail(l.plot_no, r.proc).skip) return;
+      const b = qgInHouseBalance(l.plot_no, r.proc), pend = LOT.pendingQty(l.plot_no, r.proc);
+      if(b <= 0 && !pend) return;
+      out.push({ key: `W|${l.plot_no}|${r.proc}`, kind: 'wip', loc: '사내', code: l.itemCode, name: item.name || '', lot: l.plot_no, proc: r.proc, unit: 'ea', book: b, plot_no: l.plot_no, itemCode: l.itemCode, pend });
+    });
+    const shipped = DB.query('shipments', x => x.plot_no === l.plot_no).reduce((a, x) => a + (+x.qty || 0), 0);
+    const fb = lotShipSupply(l.plot_no, lastProd.proc) - shipped, fpend = LOT.pendingQty(l.plot_no, lastProd.proc);
+    if(fb > 0 || fpend) out.push({ key: 'F|' + l.plot_no, kind: 'fin', loc: '사내', code: l.itemCode, name: item.name || '', lot: l.plot_no, proc: '', unit: 'ea', book: Math.max(0, fb), plot_no: l.plot_no, itemCode: l.itemCode, pend: fpend, created: +l.created || 0 });
+  });
+  DB.all('os_dispatches').forEach(d => {
+    const b = osDispRemain(d); if(b <= 0) return;
+    const l = DB.get('production_lots', d.plot_no) || {};
+    out.push({ key: 'O|' + d.id, kind: 'os', loc: _scVendorName(d.vendor), vendor: d.vendor || '', code: l.itemCode || '', name: (DB.get('items', l.itemCode) || {}).name || '', lot: d.plot_no, proc: d.proc, unit: 'ea', book: b, plot_no: d.plot_no, itemCode: l.itemCode || '', dispatch_id: d.id, pend: LOT.pendingQty(d.plot_no, d.proc) });
+  });
+  getItems().forEach(it => {
+    const lots = out.filter(r => r.kind === 'fin' && r.itemCode === it.code);
+    out.push({ key: 'FT|' + it.code, kind: 'fint', loc: '사내', code: it.code, name: it.name || '', lot: '(품번 합계)', proc: '', unit: 'ea', book: lots.reduce((a, r) => a + r.book, 0), itemCode: it.code, nLots: lots.length });
+  });
+  return JSON.parse(JSON.stringify(out));   // 서버 문서용 (undefined 제거)
+}
+/* 기준 이전 기록 지문 (LOT·히트별) — 회차를 만든 순간의 값을 저장 · 확정 때 다시 계산해 다르면 「기준 이전 기록이 그 뒤 바뀜」(정정·취소·복원·소급 입력)
+   대상 = ts ≤ 기준(LOT 은 created) 인 실적·출하·외주 반출/입고·원소재 입고·LOT · 이전 실사 조정(그 회차 상태 포함) · 취소된 문서도 포함(취소 여부가 지문에 들어감) */
+function _scFingerprints(T){
+  const h = str => { let x = 5381; for(let i = 0; i < str.length; i++) x = ((x << 5) + x + str.charCodeAt(i)) | 0; return (x >>> 0).toString(36); };
+  const old = d => !(+d.ts > T), vd = d => d.void ? 'V' : '';
+  const P = {}, H = {}; const add = (m, k, v) => { (m[k] = m[k] || []).push(v); };
+  DB.queryRaw('production_lots', l => !(+l.created > T)).forEach(l => add(P, l.plot_no, `L:${+l.qty_initial || 0}:${l.merge_at_proc || ''}:${vd(l)}`));
+  DB.queryRaw('records', old).forEach(r => add(P, r.plot_no, `R:${r.id}:${r.proc}:${+r.good||0}:${+r.defect||0}:${+r.rework||0}:${+r.scrap||0}:${+r.transferred||0}:${+r.rework_returned||0}:${+r.ts||0}:${vd(r)}`));
+  DB.queryRaw('shipments', old).forEach(r => add(P, r.plot_no, `S:${r.id}:${+r.qty||0}:${+r.ts||0}:${vd(r)}`));
+  DB.queryRaw('os_dispatches', old).forEach(r => add(P, r.plot_no, `D:${r.id}:${r.proc}:${+r.qty||0}:${+r.ts||0}:${vd(r)}`));
+  DB.queryRaw('os_receipts', old).forEach(r => { const d = DB.get('os_dispatches', r.dispatch_id) || {}; add(P, d.plot_no, `I:${r.id}:${r.dispatch_id}:${+r.qty||0}:${+r.ts||0}:${vd(r)}`); });
+  DB.queryRaw('stock_adj', a => !(+a.ts >= T)).forEach(a => { const c = DB.get('stock_counts', a.count_id) || {}; const v = `A:${a.id}:${+a.delta||0}:${c.status || ''}:${vd(a)}`; if(a.heat) add(H, a.heat, v); else add(P, a.plot_no, v); });
+  DB.queryRaw('material_receipts', old).forEach(r => add(H, r.heat, `M:${r.id}:${+r.kg||0}:${+r.ts||0}:${vd(r)}`));
+  const out = { p: {}, h: {} };
+  Object.keys(P).forEach(k => { out.p[k] = h(P[k].sort().join('|')); });
+  Object.keys(H).forEach(k => { out.h[k] = h(H[k].sort().join('|')); });
+  // 히트 = 그 히트를 쓰는 LOT 의 지문도 함께 (사용 kg = 첫 공정 실적)
+  DB.queryRaw('production_lots', l => !(+l.created > T)).forEach(l => (l.material_lot_ids || []).forEach(ht => { out.h[ht] = h((out.h[ht] || '') + '/' + l.plot_no + ':' + (out.p[l.plot_no] || '')); }));
+  return out;
+}
+/* 실사표 줄 = 회차에 고정 저장한 장부 (다시 계산하지 않음) + 기준 뒤 입력 수(확인용 · 지금 계산) */
+function stockCountRows(count){
+  if(!Array.isArray(count.book)) throw new Error('이 회차에는 고정 장부가 없습니다 (이전 판에서 만든 회차) — 지우고 새로 만들어 주세요');
+  const T = +count.basis_ts;
+  const rows = count.book.map(r => ({ ...r }));
   const after = {};
   const bump = k => { after[k] = (after[k] || 0) + 1; };
   DB.query('records', r => +r.ts > T).forEach(r => bump('P|' + r.plot_no));
@@ -15791,7 +15888,52 @@ function stockCountRows(count){
   rows.forEach(r => { r.after = r.kind === 'mat' ? (after['H|' + r.heat] || 0) : r.plot_no ? (after['P|' + r.plot_no] || 0) : 0; });
   return rows;
 }
-
+/* 확정 직전 충돌 검사 (최신 거래 반영) — lines = [{ key, kind, delta }] (확정할 차이 줄)
+   ① 기준 이전 기록이 회차를 만든 뒤 바뀜 ② 지금 동시성 보류 ③ 조정을 넣으면 음수: 사내 잔량·LOT 잔량(외주 입고 한도)·반출 미입고·완성품(출하 가능)·히트 잔량
+   반환 [{ keys:[행 열쇠…], msg }] — 비면 통과 */
+function _scTarget(key){ const p = String(key).split('|'); const t = { kind: { M: 'mat', W: 'wip', O: 'os', F: 'fin' }[p[0]] };
+  if(t.kind === 'mat') t.heat = p[1]; else if(t.kind === 'wip'){ t.plot = p[1]; t.proc = p[2]; } else if(t.kind === 'fin') t.plot = p[1];
+  else if(t.kind === 'os'){ const d = DB.get('os_dispatches', p[1]) || {}; t.disp = p[1]; t.plot = d.plot_no; t.proc = d.proc; }
+  return t; }
+function stockCountConflicts(c, lines){
+  const out = [], q = n => (+n).toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const L = lines.filter(l => l.delta);
+  // ① 기준 이전 기록 변경
+  if(c.fp){ const now = _scFingerprints(+c.basis_ts);
+    const chP = new Set(Object.keys({ ...now.p, ...(c.fp.p || {}) }).filter(k => (now.p[k] || '') !== ((c.fp.p || {})[k] || '')));
+    const chH = new Set(Object.keys({ ...now.h, ...(c.fp.h || {}) }).filter(k => (now.h[k] || '') !== ((c.fp.h || {})[k] || '')));
+    L.forEach(l => { const t = _scTarget(l.key); if((t.plot && chP.has(t.plot)) || (t.heat && chH.has(t.heat))) out.push({ keys: [l.key], msg: `${t.plot || t.heat} — 실사 시작 전 기록이 그 뒤 정정·취소·소급 입력됨 (고정 장부와 지금 장부가 어긋남)` }); }); }
+  // 조정 묶기
+  const sup = {}, od = {}, fin = {}, heat = {}, own = {};
+  const add = (m, k, d, key) => { m[k] = (m[k] || 0) + d; (own[k] = own[k] || []).push(key); };
+  L.forEach(l => { const t = _scTarget(l.key);
+    if(t.kind === 'wip' || t.kind === 'os') add(sup, t.plot + '|' + t.proc, l.delta, l.key);
+    if(t.kind === 'os') add(od, t.disp, l.delta, l.key);
+    if(t.kind === 'fin') add(fin, t.plot, l.delta, l.key);
+    if(t.kind === 'mat') add(heat, t.heat, l.delta, l.key); });
+  const odAt = {}; Object.keys(od).forEach(id => { const d = DB.get('os_dispatches', id) || {}; const k = d.plot_no + '|' + d.proc; odAt[k] = (odAt[k] || 0) + od[id]; });
+  // ② ③ 재공·협력사 (같은 LOT·공정 공급)
+  Object.keys(sup).forEach(k => { const [plot, proc] = k.split('|');
+    if(LOT.pendingQty(plot, proc) > 0){ out.push({ keys: own[k], msg: `${plot} ${_scProcName(proc)} — 동시성 보류 ${LOT.pendingQty(plot, proc)}ea (판정 뒤 실사)` }); return; }
+    const pa = LOT._prevAvail(plot, proc), input = LOT.totalInput(plot, proc);
+    const bal = pa.avail + sup[k] - input, inHouse = bal - (osInFlight(plot, proc) + (odAt[k] || 0));
+    if(bal < 0) out.push({ keys: own[k], msg: `${plot} ${_scProcName(proc)} — 실사 반영 뒤 LOT 잔량 ${q(bal)}ea (이미 투입·입고한 ${q(input)}ea 보다 적음)` });
+    else if(inHouse < 0) out.push({ keys: own[k], msg: `${plot} ${_scProcName(proc)} — 실사 반영 뒤 사내 잔량 ${q(inHouse)}ea (외주에 나간 수량과 충돌)` }); });
+  Object.keys(od).forEach(id => { const d = DB.get('os_dispatches', id); if(!d) return;
+    const recv = DB.query('os_receipts', r => r.dispatch_id === id).reduce((t, r) => t + (r.qty || 0), 0);
+    const v = (d.qty || 0) - recv + stockAdjOs(id) + od[id];
+    if(v < 0) out.push({ keys: own[id], msg: `${id} (${_scVendorName(d.vendor)}) — 실사 반영 뒤 미입고 ${q(v)}ea (이미 입고한 ${q(recv)}ea 와 충돌)` }); });
+  // 완성품
+  Object.keys(fin).forEach(plot => { const l = DB.get('production_lots', plot); const rt = l ? getRoute(l.itemCode) : []; const lp = rt.length > 1 ? rt[rt.length - 2] : rt[0]; if(!lp) return;
+    if(LOT.pendingQty(plot, lp.proc) > 0){ out.push({ keys: own[plot], msg: `${plot} 완성품 — 동시성 보류 ${LOT.pendingQty(plot, lp.proc)}ea (판정 뒤 실사)` }); return; }
+    const shipped = DB.query('shipments', x => x.plot_no === plot).reduce((t, x) => t + (+x.qty || 0), 0);
+    const v = lotShipSupply(plot, lp.proc) + fin[plot] - shipped;
+    if(v < 0) out.push({ keys: own[plot], msg: `${plot} 완성품 — 실사 반영 뒤 ${q(v)}ea (기준 뒤 출하가 실사 수량보다 많음 · 출하 합 ${q(shipped)}ea)` }); });
+  // 원소재
+  if(Object.keys(heat).length){ const { ledger } = calcHeatLedger();
+    Object.keys(heat).forEach(ht => { const v = ((ledger[ht] || {}).remain || 0) + heat[ht]; if(v < -0.05) out.push({ keys: own[ht], msg: `히트 ${ht} — 실사 반영 뒤 ${q(v)}kg (기준 뒤 투입이 실사 수량보다 많음)` }); }); }
+  return out;
+}
 /* 평가 단가 (원/단위) · 없으면 null(「—」 · 0원 아님) · basis = 'cost' | 'sale' */
 function stockUnitPrice(r){
   const rates = DB.get('settings', 'cost_rates') || defaultCostRates();
@@ -15819,7 +15961,7 @@ function stockCountXlsx(count, vendor){
   const guide = [
     ['VELA 재고 실사표'],
     ['회차', count.id, count.title || ''],
-    ['실사 기준 일시', basis, '이 시각에 실제로 센 수량을 적습니다'],
+    ['실사 시작(장부 고정)', basis, '이 시각의 장부입니다 — 이 뒤 출하·실적은 확정 때 그대로 더해지고, 실사와 충돌하면 확정되지 않습니다'],
     ['내려받은 사람', SESSION.user || '', fmtDate(Date.now())],
     vendor ? ['협력사', _scVendorName(vendor), '③ 협력사 보유 = 이 협력사 줄만'] : ['범위', '전체', ''],
     [],
@@ -15886,9 +16028,9 @@ function stockCountParse(count, wb){
 function stockCountPreview(count, draft){
   const rows = draft.rows || stockCountRows(count), entries = draft.entries || new Map(), alloc = draft.alloc || {};
   const byKey = new Map(rows.map(r => [r.key, r]));
-  const lines = [], problems = [], needAlloc = [];
+  const lines = [], problems = [], needAlloc = [], excluded = [], exSet = draft.excluded instanceof Set ? draft.excluded : new Set(draft.excluded || []);
   const fin = new Map(); rows.filter(r => r.kind === 'fin').forEach(r => { (fin.get(r.itemCode) || fin.set(r.itemCode, []).get(r.itemCode)).push(r); });
-  const push = (r, counted, note, via) => { const delta = r.unit === 'kg' ? Math.round((counted - r.book) * 10) / 10 : counted - r.book; const p = canSeePrice() ? stockUnitPrice(r) : null;
+  const push = (r, counted, note, via) => { if(exSet.has(r.key)){ excluded.push({ key: r.key, lot: r.lot || r.code, kind: r.kind }); return; } const delta = r.unit === 'kg' ? Math.round((counted - r.book) * 10) / 10 : counted - r.book; const p = canSeePrice() ? stockUnitPrice(r) : null;
     lines.push({ key: r.key, kind: r.kind, loc: r.loc, vendor: r.vendor || '', code: r.code, name: r.name, lot: r.lot, proc: r.proc, unit: r.unit, book: r.book, counted, delta, note: note || '', after: r.after || 0, price: p ? p.v : null, basis: p ? p.basis : null, amt: p ? Math.round(delta * p.v) : null, via: via || '', ref: r }); };
   entries.forEach((e, key) => {
     const r = byKey.get(key); if(!r) return;
@@ -15914,7 +16056,9 @@ function stockCountPreview(count, draft){
   const sum = { up: 0, down: 0, net: 0, upAmt: 0, downAmt: 0, netAmt: 0, noPrice: 0, n: lines.length, diff: 0 };
   lines.forEach(l => { if(l.delta) sum.diff++; if(l.delta > 0) sum.up += l.delta; else sum.down += l.delta; if(l.amt == null){ if(l.delta) sum.noPrice++; } else if(l.amt > 0) sum.upAmt += l.amt; else sum.downAmt += l.amt; });
   sum.netAmt = sum.upAmt + sum.downAmt;
-  return { lines: lines.sort((a, b) => Math.abs(b.amt == null ? b.delta : b.amt) - Math.abs(a.amt == null ? a.delta : a.amt)), problems, needAlloc, plusNoReason, sum };
+  // ★ v0.40.25 (GPT ②) — 최신 거래 반영 충돌 (음수·이미 출하/투입/입고 · 보류 · 기준 이전 기록 변경) → 확정 막음 · 사용자가 그 줄을 빼야 진행
+  const conflicts = count && Array.isArray(count.book) ? stockCountConflicts(count, lines) : [];
+  return { lines: lines.sort((a, b) => Math.abs(b.amt == null ? b.delta : b.amt) - Math.abs(a.amt == null ? a.delta : a.amt)), problems, needAlloc, plusNoReason, sum, conflicts, excluded };
 }
 
 /* 묶음 저장 + 서버 확인 (서버 모드 = 거부/응답 대기 · 이 기기 모드 = 즉시) */
@@ -15924,31 +16068,38 @@ async function _scGroup(fn, label){
   return g;
 }
 /* [확정] — 회차 = 「확정 중」 → 조정 기록 전부(묶음 400) → 서버 확인 뒤에만 「확정」 · 실패 = 「확정 중」 유지 · 같은 번호로 다시 */
+function _scConflictErr(cf){ return new Error(`충돌 ${cf.length}건 — 확정하지 않았습니다 · ${cf.slice(0, 3).map(x => x.msg).join(' / ')}${cf.length > 3 ? ' …' : ''} (미리보기에서 그 줄을 빼거나 원인을 정리)`); }
 async function stockCountConfirm(countId, prev, commonReason){
   if(!stockCountSupported()) throw new Error('직원 계정 모드에서는 재고 실사를 아직 지원하지 않습니다 (서버 규칙 추가 필요)');
+  if(!experimentalEnabled('stock_count')) throw new Error('재고 실사 확정 = 시험 기능 — 실데이터에서는 GPT 판정·승인 전까지 막혀 있습니다 (데모에서만 확정)');
   const c = DB.get('stock_counts', countId);
   if(!c) throw new Error('회차 없음');
+  if(!Array.isArray(c.book)) throw new Error('고정 장부가 없는 회차(이전 판) — 지우고 새로 만들어 주세요');
   if(!stockCanManage()) throw new Error('확정은 관리 역할만 할 수 있습니다');
   if(qgLive()) throw new Error('수량 보호(r17)가 켜진 서버에서는 실사 확정을 아직 지원하지 않습니다 — 보호 전환 작업 때 함께 반영');
   if(c.status === 'confirmed') throw new Error('이미 확정된 회차');
   if(c.status === 'cancelled') throw new Error('취소된 회차');
   let adj;
-  if(c.status === 'confirming' && Array.isArray(c.lines)){ adj = c.lines.filter(l => l.d).map(l => _scAdjFromLine(c, l)); }   // 다시 시도 = 처음 저장한 줄 그대로 (같은 번호)
+  const recheck = lines => { const cf = stockCountConflicts(DB.get('stock_counts', countId), lines); if(cf.length) throw _scConflictErr(cf); };   // 최신 거래로 다시 (확정 직전마다)
+  if(c.status === 'confirming' && Array.isArray(c.lines)){ recheck(c.lines.map(l => ({ key: l.k, delta: l.d }))); adj = c.lines.filter(l => l.d).map(l => _scAdjFromLine(c, l)); }   // 다시 시도 = 처음 저장한 줄 그대로 (같은 번호) · 충돌이면 막음
   else {
     if(!prev) throw new Error('실사표를 먼저 올려 주세요');
     if(prev.problems.length) throw new Error(`확인할 것 ${prev.problems.length}건 — ${prev.problems[0]}`);
     if(!prev.lines.length) throw new Error('적힌 실사 수량이 없습니다');
+    recheck(prev.lines);
     if(prev.plusNoReason.length && !String(commonReason || '').trim()) throw new Error(`장부보다 많은 줄 ${prev.plusNoReason.length}건 — 사유 필요 (비고 또는 공통 사유)`);
     const summary = { n: prev.lines.length, diff: prev.sum.diff, up: prev.sum.up, down: prev.sum.down, upAmt: prev.sum.upAmt, downAmt: prev.sum.downAmt, netAmt: prev.sum.netAmt, noPrice: prev.sum.noPrice };
     // 줄 = 객체 배열 (서버 문서는 배열 안 배열 불가) · k 행 열쇠 · t 구분 · b 장부 · c 실사 · d 차이 · p 단가 · a 금액 · s 단가 기준 · n 비고/사유
     const lines = prev.lines.map(l => ({ k: l.key, t: l.kind, b: l.book, c: l.counted, d: l.delta, p: l.price, a: l.amt, s: l.basis || null, n: l.note || (l.delta > 0 ? String(commonReason || '').trim() : l.delta < 0 ? '실사 부족' : '') }));
-    await _scGroup(() => { if(!DB.set('stock_counts', countId, { status: 'confirming', lines, summary, confirm_start: Date.now(), confirm_by: SESSION.user || '' })) throw new Error('저장이 거부되었습니다 (권한 확인)'); }, '실사 확정 준비');
+    const excluded = (prev.excluded || []).map(x => x.key);
+    await _scGroup(() => { if(!DB.set('stock_counts', countId, { status: 'confirming', lines, summary, excluded, confirm_start: Date.now(), confirm_by: SESSION.user || '' })) throw new Error('저장이 거부되었습니다 (권한 확인)'); }, '실사 확정 준비');
     adj = lines.filter(l => l.d).map(l => _scAdjFromLine(DB.get('stock_counts', countId), l));
   }
   for(let i = 0; i < adj.length; i += 400){
     const part = adj.slice(i, i + 400);
     await _scGroup(() => { part.forEach(a => { if(!DB.set('stock_adj', a.id, a)) throw new Error('조정 기록 저장이 거부되었습니다 (권한 확인)'); }); }, '실사 조정');
   }
+  recheck(adj.map(a => ({ key: a.key, delta: a.delta })));   // 마지막 스위치 직전 — 조정 기록을 보내는 사이 들어온 거래까지 (충돌이면 「확정 중」 유지 · [확정 중단] 가능)
   await _scGroup(() => { if(!DB.set('stock_counts', countId, { status: 'confirmed', confirmed_at: Date.now(), confirmed_by: SESSION.user || '', n_adj: adj.length })) throw new Error('저장이 거부되었습니다'); }, '실사 확정');
   return { n: adj.length };
 }
@@ -15974,6 +16125,8 @@ function stockCountCancelCheck(countId){
         const v = lotShipSupply(a.plot_no, lp.proc) - DB.query('shipments', x => x.plot_no === a.plot_no).reduce((t, x) => t + (+x.qty || 0), 0); if(v < 0) bad.push(`${a.plot_no} 완성품 ${v.toLocaleString()}ea`); }
       else if(a.kind === 'wip' || a.kind === 'os'){ const pa = LOT._prevAvail(a.plot_no, a.proc); const v = pa.avail - LOT.totalInput(a.plot_no, a.proc) - osInFlight(a.plot_no, a.proc); if(v < 0) bad.push(`${a.plot_no} ${_scProcName(a.proc)} ${v.toLocaleString()}ea`);
         if(a.kind === 'os'){ const d = DB.get('os_dispatches', a.dispatch_id); if(d){ const recv = DB.query('os_receipts', r => r.dispatch_id === d.id).reduce((t, r) => t + (r.qty || 0), 0); const rv = (d.qty || 0) - recv + stockAdjOs(d.id); if(rv < 0) bad.push(`${d.id} 미입고 ${rv.toLocaleString()}ea`); } } }
+      else if(a.kind === 'mat'){ const h = calcHeatLedger().ledger[a.heat]; const v = h ? h.remain : 0; if(v < -0.05) bad.push(`히트 ${a.heat} ${(Math.round(v * 10) / 10).toLocaleString()}kg`); }   // ★ v0.40.25 원소재도 같은 검사
+      if(a.plot_no && a.proc && LOT.pendingQty(a.plot_no, a.proc) > 0) bad.push(`${a.plot_no} ${_scProcName(a.proc)} 동시성 보류 ${LOT.pendingQty(a.plot_no, a.proc)}ea`);
     });
   } finally { _stockAdjSkip = null; DB._bump(); }
   return { adj, bad };
@@ -15990,17 +16143,27 @@ async function stockCountCancel(countId, reason){
   await _scGroup(() => { if(!DB.set('stock_counts', countId, { status: 'cancelled', cancel_reason: String(reason).trim(), cancelled_at: Date.now(), cancelled_by: SESSION.user || '' })) throw new Error('저장이 거부되었습니다'); }, '실사 확정 취소');
   return { n: chk.adj.length };
 }
-function stockCountCreate({ title, basis_ts, note }){
+/* ★ v0.40.25 (GPT ①) — 회차 시작 = 지금만 (과거 시각 입력 없음 · 과거 장부를 정정·취소 전 상태로 되돌리는 기능이 없으므로)
+   만드는 순간 장부(book)와 기준 이전 기록 지문(fp)을 회차 문서에 고정 저장 → 같은 회차의 장부는 다시 계산하지 않음 */
+function stockCountCreate({ title, note } = {}){
   if(!stockCountSupported()) throw new Error('직원 계정 모드에서는 재고 실사를 아직 지원하지 않습니다 (서버 규칙 추가 필요)');
+  if(!getFlags().stock_count) throw new Error('재고 실사는 시험 기능입니다 — 설정 › 기능에서 켜야 합니다');
   if(!stockCanManage() && !_pEdit('inv')) throw new Error('재고 편집 권한이 필요합니다');
   if(stockCountOpen()) throw new Error(`진행 중인 회차가 있습니다 (${stockCountOpen().id}) — 확정하거나 지운 뒤 새로`);
-  const T = +basis_ts; if(!T || !isFinite(T)) throw new Error('실사 기준 일시를 적어 주세요');
-  if(T > Date.now() + 60000) throw new Error('기준 일시는 지금보다 뒤일 수 없습니다 (실제로 센 시각)');
-  const last = stockCountLastConfirmed(); if(last && T <= +last.basis_ts) throw new Error(`기준 일시는 마지막 확정 회차(${last.id} · ${fmtDate(last.basis_ts)}) 뒤여야 합니다`);
+  const T = Date.now();
+  const last = stockCountLastConfirmed(); if(last && T <= +last.basis_ts) throw new Error(`마지막 확정 회차(${last.id}) 보다 뒤여야 합니다`);
+  const book = stockCountBuildRows(), fp = _scFingerprints(T);
   const d = new Date(T), yy = d.getFullYear(), half = d.getMonth() < 6 ? 'H1' : 'H2';
   let id = `SC-${yy}-${half}`, k = 2; while(DB.get('stock_counts', id)) id = `SC-${yy}-${half}-${k++}`;
-  if(!DB.set('stock_counts', id, { id, title: String(title || '').trim() || `${yy} ${half === 'H1' ? '상반기' : '하반기'} 실사`, basis_ts: T, note: String(note || '').trim(), status: 'open', created: Date.now(), by: SESSION.user || '' })) throw new Error('저장이 거부되었습니다 (권한 확인)');
+  if(!DB.set('stock_counts', id, { id, title: String(title || '').trim() || `${yy} ${half === 'H1' ? '상반기' : '하반기'} 실사`, basis_ts: T, book, fp, note: String(note || '').trim(), status: 'open', created: T, by: SESSION.user || '' })) throw new Error('저장이 거부되었습니다 (권한 확인)');
   return id;
+}
+/* 확정 중단 — 「확정 중」 에서 충돌 등으로 더 진행할 수 없을 때 · 확정 스위치 전이라 재고는 원래 그대로 (보낸 조정 기록은 계산에 안 들어감 · 남김) */
+async function stockCountAbort(countId, reason){
+  const c = DB.get('stock_counts', countId);
+  if(!c || c.status !== 'confirming') throw new Error('「확정 중」 회차만 중단할 수 있습니다');
+  if(!stockCanManage()) throw new Error('관리 역할만 할 수 있습니다');
+  await _scGroup(() => { if(!DB.set('stock_counts', countId, { status: 'cancelled', cancel_reason: '확정 중단 — ' + (String(reason || '').trim() || '충돌'), cancelled_at: Date.now(), cancelled_by: SESSION.user || '' })) throw new Error('저장이 거부되었습니다'); }, '실사 확정 중단');
 }
 function stockCountDiscard(countId){
   const c = DB.get('stock_counts', countId); if(!c || c.status !== 'open') throw new Error('작성 중 회차만 지울 수 있습니다');
@@ -16034,34 +16197,36 @@ VIEWS._stockCount = (countId) => {
   if(!open){
     const list = DB.allRaw('stock_counts').filter(c => !c.void).sort((a, b) => (b.basis_ts || 0) - (a.basis_ts || 0));
     const ST = { open: ['작성 중', 'cyan'], confirming: ['확정 중', 'amber'], confirmed: ['확정', 'green'], cancelled: ['취소', ''] };
-    const now = new Date(); const pad = n => String(n).padStart(2, '0');
-    const nowLocal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const now = new Date();
     const cur = stockCountOpen();
     openModal(`
       <h2>재고 실사 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
         <div class="sc-lead">원소재 · 재공 · 협력사 보유 · 완성품을 실사표로 세어 올리면, 확정할 때 전산 재고가 실사 수량으로 맞춰집니다. 실적·출하 기록은 그대로 두고 차이만 「실사 조정」 으로 남습니다.</div>
+        ${experimentalEnabled('stock_count') ? '' : `<div class="m-ban amber" style="margin-bottom:10px">시험 기능 — 실사표 내려받기·올리기·미리보기는 되지만 <b>실데이터 확정은 막혀 있습니다</b> (GPT 판정·승인 뒤 열림 · 데모에서만 확정)</div>`}
         ${cur ? '' : `<div class="sc-new">
           <div class="grid g2">
             <div><label>회차 이름</label><input id="sc-title" placeholder="${now.getFullYear()} ${now.getMonth() < 6 ? '상반기' : '하반기'} 실사"></div>
-            <div><label>실사 기준 일시 <span style="color:var(--dim);font-weight:400">— 실제로 센 시각</span></label><input id="sc-basis" type="datetime-local" value="${nowLocal}" max="${nowLocal}"></div>
+            <div><label>실사 시작 = 지금</label><div class="sc-file" style="padding:9px 0;line-height:1.5">만드는 순간의 장부를 회차에 고정합니다 — <b>실제로 세기 직전에</b> 만드세요. 그 뒤 출하·실적은 그대로 더해지고, 실사와 충돌하면 확정 때 막습니다.</div></div>
           </div>
           <div class="actions" style="margin-top:8px"><button class="btn primary" id="sc-create">${ico('plus')}새 실사 회차</button></div>
         </div>`}
-        <div class="tbl-wrap" style="margin-top:12px"><table style="font-size:12.5px"><thead><tr><th>회차</th><th>이름</th><th>기준 일시</th><th>상태</th><th class="num">차이 줄</th>${canSeePrice() ? '<th class="num">순차이 금액</th>' : ''}<th></th></tr></thead><tbody>
+        <div class="tbl-wrap" style="margin-top:12px"><table style="font-size:12.5px"><thead><tr><th>회차</th><th>이름</th><th>실사 시작</th><th>상태</th><th class="num">차이 줄</th>${canSeePrice() ? '<th class="num">순차이 금액</th>' : ''}<th></th></tr></thead><tbody>
           ${list.length ? list.map(c => { const s = ST[c.status] || [c.status, '']; const sm = c.summary || {};
             return `<tr><td class="mono">${_esc(c.id)}</td><td>${_esc(c.title || '')}</td><td class="mono">${fmtDate(c.basis_ts)} ${new Date(c.basis_ts).toTimeString().slice(0, 5)}</td><td><span class="pill ${s[1]}">${s[0]}</span></td><td class="num">${sm.diff != null ? sm.diff.toLocaleString() : '—'}</td>${canSeePrice() ? `<td class="num">${sm.netAmt != null ? '₩' + Math.round(sm.netAmt).toLocaleString() : '—'}</td>` : ''}<td><button class="btn sm" data-sc-open="${_esc(c.id)}">열기</button></td></tr>`; }).join('') : `<tr><td colspan="7" class="empty">실사 회차 없음 — 위에서 새 회차를 만드세요</td></tr>`}
         </tbody></table></div>
         <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div>
       </div>`, { width: '860px' });
     const cb = document.getElementById('sc-create');
-    if(cb) cb.onclick = () => { try { const v = document.getElementById('sc-basis').value; const id = stockCountCreate({ title: document.getElementById('sc-title').value, basis_ts: v ? new Date(v).getTime() : 0 }); toast(`실사 회차 ${id} 만듦 — 실사표를 내려받으세요`, 'ok'); VIEWS._stockCount(id); } catch(e){ toast(e.message, 'err'); } };
+    if(cb) cb.onclick = () => { try { const id = stockCountCreate({ title: document.getElementById('sc-title').value }); toast(`실사 회차 ${id} 만듦 — 실사표를 내려받으세요`, 'ok'); VIEWS._stockCount(id); } catch(e){ toast(e.message, 'err'); } };
     document.querySelectorAll('[data-sc-open]').forEach(b => b.onclick = () => VIEWS._stockCount(b.dataset.scOpen));
     return;
   }
   const c = open, dr = window._scDraft[c.id] || null;
   const done = c.status === 'confirmed' || c.status === 'cancelled';
-  const prev = !done && dr ? stockCountPreview(c, dr) : null;
+  const legacy = !Array.isArray(c.book);   // ★ v0.40.25 — 고정 장부 없는 이전 판 회차 = 지우기만
+  const prev = !done && !legacy && dr ? stockCountPreview(c, dr) : null;
+  const gateOk = experimentalEnabled('stock_count');
   const lines = done || (c.status === 'confirming' && !prev) ? _scStoredLines(c) : prev ? prev.lines : [];
   const sm = done || (c.status === 'confirming' && !prev) ? (c.summary || {}) : prev ? prev.sum : null;
   const showAmt = canSeePrice();
@@ -16073,16 +16238,18 @@ VIEWS._stockCount = (countId) => {
   openModal(`
     <h2>재고 실사 · ${_esc(c.id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
-      <div class="sc-head"><div><b>${_esc(c.title || '')}</b><span>실사 기준 ${fmtDate(c.basis_ts)} ${new Date(c.basis_ts).toTimeString().slice(0, 5)}</span></div><span class="pill ${c.status === 'confirmed' ? 'green' : c.status === 'confirming' ? 'amber' : c.status === 'open' ? 'cyan' : ''}">${ST[c.status] || c.status}</span></div>
+      <div class="sc-head"><div><b>${_esc(c.title || '')}</b><span>실사 시작(장부 고정) ${fmtDate(c.basis_ts)} ${new Date(c.basis_ts).toTimeString().slice(0, 5)}</span></div><span class="pill ${c.status === 'confirmed' ? 'green' : c.status === 'confirming' ? 'amber' : c.status === 'open' ? 'cyan' : ''}">${ST[c.status] || c.status}</span></div>
       ${c.status === 'cancelled' ? `<div class="m-ban">취소 사유: ${_esc(c.cancel_reason || '')} · ${_esc(c.cancelled_by || '')} ${fmtDate(c.cancelled_at)}</div>` : ''}
-      ${c.status === 'open' ? `
+      ${legacy && c.status === 'open' ? `<div class="m-ban amber">이전 판(v0.40.24)에서 만든 회차 — 장부가 고정되어 있지 않아 쓸 수 없습니다 · [회차 지우기] 뒤 새로 만들어 주세요</div>` : ''}
+      ${!gateOk && !done ? `<div class="m-ban amber" style="margin-bottom:10px">시험 기능 — <b>실데이터 확정은 막혀 있습니다</b> (GPT 판정·승인 뒤 열림 · 데모에서만 확정)</div>` : ''}
+      ${c.status === 'open' && !legacy ? `
       <ol class="sc-steps">
-        <li><b>실사표 내려받기</b><span>기준 일시의 장부가 적힌 엑셀 · 협력사에는 그 협력사 표만</span>
+        <li><b>실사표 내려받기</b><span>실사 시작 때 고정한 장부가 적힌 엑셀 · 협력사에는 그 협력사 표만</span>
           <div class="sc-act"><button class="btn" id="sc-dl">${ico('excel')}전체 실사표</button>${vendors.length ? `<select id="sc-dl-v"><option value="">협력사별 실사표…</option>${vendors.map(v => `<option value="${_esc(v)}">${_esc(_scVendorName(v))}</option>`).join('')}</select>` : ''}</div></li>
         <li><b>실사 수량을 적어서 그대로 올리기</b><span>여러 파일(협력사별)을 차례로 올리면 합쳐집니다 · 같은 줄은 나중 파일 값</span>
           <div class="sc-act"><input type="file" id="sc-file" accept=".xlsx,.xls" multiple>${dr ? `<span class="sc-file">${_esc((dr.files || []).join(', '))} · 적힌 줄 ${dr.entries.size.toLocaleString()}</span><button class="btn sm" id="sc-clear">다시 올리기</button>` : ''}</div>
           ${dr && dr.errors.length ? `<div class="sc-err"><b>무시한 줄 ${dr.errors.length}건</b>${dr.errors.slice(0, 8).map(e => `<div>${_esc(e.sheet)} ${e.row}행 — ${_esc(e.msg)}</div>`).join('')}${dr.errors.length > 8 ? `<div>… 외 ${dr.errors.length - 8}건</div>` : ''}</div>` : ''}</li>
-        <li><b>미리보기 확인 → 확정</b><span>확정하면 재고·출하 가능·투입 가능·외주 입고 가능 수량이 실사 수량으로 바뀝니다 · 확정하는 동안 출하·실적 입력을 잠시 멈춰 주세요</span></li>
+        <li><b>미리보기 확인 → 확정</b><span>확정하면 재고·출하 가능·투입 가능·외주 입고 가능 수량이 실사 수량으로 바뀝니다 · 실사 시작 뒤 출하·실적은 그대로 더해지고, 실사와 충돌하면 확정되지 않습니다</span></li>
       </ol>` : ''}
       ${prev && prev.needAlloc.length ? `<div class="sc-alloc"><div class="sc-sub">LOT 배분 확인 — 품번 합계만 적힌 품번 (어느 LOT 의 차이인지 정해 주세요)</div>
         ${prev.needAlloc.map(n => `<div class="sc-al ${n.ok ? 'ok' : ''}"><div><b class="mono">${_esc(n.code)}</b> ${_esc(n.name)} · 실사 <b>${n.counted.toLocaleString()}</b> · 장부 ${n.book.toLocaleString()} · 배분 합 <b>${n.sum.toLocaleString()}</b> ${n.ok ? '✓' : ''}</div>
@@ -16099,15 +16266,19 @@ VIEWS._stockCount = (countId) => {
       <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table style="font-size:12px"><thead><tr><th>구분</th><th>품번 · 히트</th><th>LOT · 공정</th><th class="num">장부</th><th class="num">실사</th><th class="num">차이</th>${showAmt ? '<th class="num">금액</th>' : ''}<th>비고</th></tr></thead><tbody>
         ${lines.filter(l => l.delta).slice(0, 200).map(l => `<tr><td>${_esc(l.kind === 'os' ? '협력사 · ' + l.loc : SC_KIND[l.kind])}</td><td><b class="mono">${_esc(l.code)}</b> <span class="muted">${_esc(l.name || '')}</span></td><td class="mono">${_esc(l.lot || '')}${l.proc ? ' · ' + _esc(_scProcName(l.proc)) : ''}${l.after ? ` <span class="pill amber" title="실사 기준 일시 뒤에 입력된 실적·출하·입고 — 조정량은 기준 시각 장부로 계산되어 그대로 맞습니다 (확인용)">기준 뒤 입력 ${l.after}</span>` : ''}</td><td class="num">${qn(l.book, l.unit)}</td><td class="num">${qn(l.counted, l.unit)}</td><td class="num ${l.delta > 0 ? 'up' : 'down'}">${l.delta > 0 ? '+' : ''}${qn(l.delta, l.unit)}</td>${showAmt ? `<td class="num">${won(l.amt)}${l.basis === 'sale' ? ' <span class="muted">판매가</span>' : ''}</td>` : ''}<td>${_esc(l.note || (l.via || ''))}</td></tr>`).join('')}
       </tbody></table></div>` : ''}
+      ${prev && prev.conflicts.length ? `<div class="sc-err sc-cf"><b>충돌 ${prev.conflicts.length}건 — 이대로는 확정되지 않습니다</b> <span>(최신 거래 반영 · 음수 재고 · 이미 출하·투입·입고한 수량 · 동시성 보류 · 실사 시작 전 기록 변경)</span>${prev.conflicts.slice(0, 10).map(x => `<div>${_esc(x.msg)}</div>`).join('')}${prev.conflicts.length > 10 ? `<div>… 외 ${prev.conflicts.length - 10}건</div>` : ''}
+        <div style="margin-top:6px">원인을 정리하거나(출하·실적 정정 등) <button class="btn sm" id="sc-exclude">충돌 줄 ${[...new Set(prev.conflicts.flatMap(x => x.keys))].length}개 빼고 진행</button> <span class="muted">— 뺀 줄은 조정하지 않음 · 다음 회차에서 다시 실사</span></div></div>` : ''}
+      ${prev && prev.excluded.length ? `<div class="sc-file" style="margin-top:6px">뺀 줄 ${prev.excluded.length}개: ${prev.excluded.slice(0, 8).map(x => _esc(x.lot)).join(', ')}${prev.excluded.length > 8 ? ' …' : ''} <button class="btn sm" id="sc-unexclude">되돌리기</button></div>` : ''}
       ${prev && prev.problems.length ? `<div class="sc-err"><b>확정 전에 확인할 것 ${prev.problems.length}건</b>${prev.problems.slice(0, 6).map(p => `<div>${_esc(p)}</div>`).join('')}</div>` : ''}
       ${prev && prev.plusNoReason.length ? `<div><label>장부보다 많은 줄 ${prev.plusNoReason.length}건 — 공통 사유 <span style="color:var(--dim);font-weight:400">(비고가 빈 줄에 적용 · 예: 미등록 실적, 반품)</span></label><input id="sc-reason" value="${_esc(dr.reason || '')}"></div>` : ''}
       <div id="sc-st" class="sc-st"></div>
       <div class="actions">
         <button class="btn" id="sc-back">목록</button>
-        ${c.status === 'open' && !dr ? `<button class="btn" id="sc-discard" style="color:var(--red)">회차 지우기</button>` : ''}
+        ${c.status === 'open' && (!dr || legacy) ? `<button class="btn" id="sc-discard" style="color:var(--red)">회차 지우기</button>` : ''}
+        ${c.status === 'confirming' && stockCanManage() ? `<button class="btn" id="sc-abort" style="color:var(--red)">확정 중단</button>` : ''}
         ${lines.length ? `<button class="btn" id="sc-res">${ico('excel')}결과 엑셀</button>` : ''}
         ${c.status === 'confirmed' && stockCanManage() ? `<button class="btn" id="sc-cancel" style="color:var(--red);border-color:var(--red)">확정 취소</button>` : ''}
-        ${(c.status === 'open' && prev) || c.status === 'confirming' ? `<button class="btn primary" id="sc-ok"${stockCanManage() ? '' : ' disabled title="확정은 관리 역할만"'}>${ico('save')}${c.status === 'confirming' ? '확정 다시 시도' : '확정 — 재고 반영'}</button>` : ''}
+        ${(c.status === 'open' && prev) || c.status === 'confirming' ? `<button class="btn primary" id="sc-ok"${!stockCanManage() ? ' disabled title="확정은 관리 역할만"' : !gateOk ? ' disabled title="실데이터 확정 = GPT 판정·승인 전 막힘"' : prev && prev.conflicts.length ? ' disabled title="충돌을 먼저 정리"' : ''}>${ico('save')}${c.status === 'confirming' ? '확정 다시 시도' : '확정 — 재고 반영'}</button>` : ''}
       </div>
     </div>`, { width: '980px' });
   const $ = id => document.getElementById(id), st = $('sc-st');
@@ -16129,6 +16300,9 @@ VIEWS._stockCount = (countId) => {
   };
   document.querySelectorAll('[data-sc-al]').forEach(inp => inp.onchange = () => { const d = window._scDraft[c.id]; const it = inp.dataset.scAl; d.alloc[it] = d.alloc[it] || {}; d.alloc[it][inp.dataset.lot] = inp.value === '' ? '' : +inp.value; VIEWS._stockCount(c.id); });
   if($('sc-reason')) $('sc-reason').oninput = e => { window._scDraft[c.id].reason = e.target.value; };
+  if($('sc-exclude')) $('sc-exclude').onclick = () => { const d = window._scDraft[c.id]; d.excluded = new Set([...(d.excluded || []), ...prev.conflicts.flatMap(x => x.keys)]); VIEWS._stockCount(c.id); };   // ★ v0.40.25 — 사용자가 눌러야만 뺌
+  if($('sc-unexclude')) $('sc-unexclude').onclick = () => { delete window._scDraft[c.id].excluded; VIEWS._stockCount(c.id); };
+  if($('sc-abort')) $('sc-abort').onclick = async () => { try { await stockCountAbort(c.id, '충돌'); toast('확정 중단 — 재고는 원래 그대로', 'ok'); VIEWS._stockCount(c.id); } catch(e){ toast(e.message, 'err'); } };
   if($('sc-res')) $('sc-res').onclick = () => stockCountResultXlsx(c, lines);
   if($('sc-ok')) $('sc-ok').onclick = async () => {
     const b = $('sc-ok'); b.disabled = true; st.textContent = '저장 확인 중 — 서버 응답을 기다립니다…'; st.className = 'sc-st busy';
@@ -16226,6 +16400,24 @@ VIEWS.inv = () => {
   const totalDone = filtered.reduce((s,r)=>s+r.done, 0);
   const totalDef  = filtered.reduce((s,r)=>s+r.defects, 0);
   const lowCount  = filtered.filter(r=>r.low).length;
+  /* ★ v0.40.25 (사용자 요청) — 상단 4칸 = 수량 + 금액 (원소재 · 총 재공 · 완성품 · 불량 누계) · 수량 계산 무변 · 금액 = 표준원가(원가 화면 요율) 기준 · 단가 권한자만
+     단가: 원소재 = 소재 kg 단가 · 재공 = 그 공정까지 누적 표준원가 · 완성품 = 표준원가 total (없으면 판매가) · 불량 = 그 공정까지 누적 · 단가 없음 = 금액에서 빼고 「단가 없음 N」 표시(0원으로 세지 않음) */
+  const invAmt = (() => {
+    if(!canSeePrice()) return null;
+    const rates = DB.get('settings','cost_rates') || defaultCostRates();
+    const thru = stageCostThru;
+    const o = { raw:0, rawNo:0, wip:0, wipNo:0, done:0, doneNo:0, doneSale:0, def:0, defNo:0 };
+    Object.values(heatLedger).forEach(h => { const kg = Math.max(0, h.remain); if(!kg) return; const r = +(rates.material_rates||{})[h.mat] || 0; if(r > 0) o.raw += kg * r; else o.rawNo++; });
+    filtered.forEach(r => {
+      Object.entries(r.wip).forEach(([pc, v]) => { if(!(v > 0)) return; const u = thru(r.code, pc); if(u) o.wip += v * u; else o.wipNo++; });
+      if(r.done > 0){ const c = computeCost(r.code); const it = DB.get('items', r.code); if(c && c.total > 0) o.done += r.done * c.total; else if(it && +it.price > 0){ o.done += r.done * (+it.price); o.doneSale++; } else o.doneNo++; }
+    });
+    const codes = new Set(filtered.map(r => r.code));
+    DB.query('records', x => (+x.defect||0) > 0).forEach(x => { const l = DB.get('production_lots', x.plot_no); if(!l || !codes.has(l.itemCode)) return; const u = thru(l.itemCode, x.proc); if(u) o.def += (+x.defect) * u; else o.defNo++; });
+    return o;
+  })();
+  const _won = v => '₩' + Math.round(v).toLocaleString();
+  const _amt = (v, no, extra) => invAmt ? `<div class="val2">${_won(v)}${no ? `<span class="nop" title="단가가 없어 금액에서 뺀 항목">단가 없음 ${no}</span>` : ''}${extra || ''}</div>` : '';
   const custOpts  = [...new Set(rows.map(r=>r.cust).filter(Boolean))].sort();
   const matOpts   = [...new Set(rows.map(r=>r.mat).filter(Boolean))].sort();
 
@@ -16265,7 +16457,7 @@ VIEWS.inv = () => {
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${PAGES.find(p=>p.id==='inv').icon}</svg>재고 <span class="pill cyan">${APP_VERSION} · 공정흐름</span></div>
       <div class="pgtools">
         <button class="btn" id="inv-xlsx">${ico('excel')}엑셀</button>
-        <button class="btn primary" id="inv-count">${ico('check')}재고 실사${stockCountOpen() ? ' <span class="pill amber" style="margin-left:4px">진행 중</span>' : ''}</button>
+        ${getFlags().stock_count && stockCountSupported() ? `<button class="btn primary" id="inv-count">${ico('check')}재고 실사${stockCountOpen() ? ' <span class="pill amber" style="margin-left:4px">진행 중</span>' : ''}</button>` : ''}
       </div>
     </div>
 
@@ -16299,10 +16491,10 @@ VIEWS.inv = () => {
 
     <!-- 상단 KPI -->
     <div class="grid g4" style="margin-bottom:14px">
-      <div class="kpi-mini"><div class="lab">${ico('check')}원소재 재고</div><div class="val c">${Math.round(totalRawKg).toLocaleString()}<span style="font-size:12px;color:var(--sub)">kg</span></div><div class="sub">Heat ${heatCount}개 · <a href="#matin" style="color:var(--cyan);text-decoration:none">입고 →</a></div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}총 재공 (WIP)</div><div class="val h">${totalWip.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">공정 중 합 · <span style="color:var(--blue)">반출 중 포함</span></div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}완성품 재고</div><div class="val">${totalDone.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">출하 대기${lowCount?` · 안전재고 미달 ${lowCount}건`:''}</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}불량 누계</div><div class="val r">${totalDef.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">전 공정 합</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}원소재 재고${invAmt ? ' · 금액' : ''}</div><div class="val c">${Math.round(totalRawKg).toLocaleString()}<span style="font-size:12px;color:var(--sub)">kg</span></div>${invAmt ? _amt(invAmt.raw, invAmt.rawNo) : ''}<div class="sub">Heat ${heatCount}개 · <a href="#matin" style="color:var(--cyan);text-decoration:none">입고 →</a></div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}총 재공 수량${invAmt ? ' · 금액' : ''}</div><div class="val h">${totalWip.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div>${invAmt ? _amt(invAmt.wip, invAmt.wipNo) : ''}<div class="sub">공정 중 합 · <span style="color:var(--blue)">반출 중 포함</span></div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}완성품 재고${invAmt ? ' · 금액' : ''}</div><div class="val">${totalDone.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div>${invAmt ? _amt(invAmt.done, invAmt.doneNo, invAmt.doneSale ? `<span class="nop" title="표준원가가 없어 판매가로 계산한 품번">판매가 ${invAmt.doneSale}</span>` : '') : ''}<div class="sub">출하 대기${lowCount?` · 안전재고 미달 ${lowCount}건`:''}</div></div>
+      <div class="kpi-mini"><div class="lab">${ico('check')}불량 누계${invAmt ? ' · 금액' : ''}</div><div class="val r">${totalDef.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div>${invAmt ? _amt(invAmt.def, invAmt.defNo) : ''}<div class="sub">전 공정 합${invAmt ? ' · 그 공정까지 표준원가' : ''}</div></div>
     </div>
 
     <!-- 공정흐름 표 -->
@@ -16371,7 +16563,7 @@ VIEWS.inv = () => {
   });
 
   // 엑셀: 필터 반영 결과
-  document.getElementById('inv-count').onclick = () => VIEWS._stockCount(stockCountOpen() ? stockCountOpen().id : null);   // ★ v0.40.24 — 재고 실사
+  const _invCnt = document.getElementById('inv-count'); if(_invCnt) _invCnt.onclick = () => VIEWS._stockCount(stockCountOpen() ? stockCountOpen().id : null);   // ★ v0.40.24 — 재고 실사
   document.getElementById('inv-xlsx').onclick = ()=>{
     const xrows = filtered.map(r => {
       const out = { 품번:r.code, 품명:r.name, 고객사:r.cust||'', 재질:r.mat||'', '원소재(kg)':Math.round(r.rawKg) };
@@ -16529,6 +16721,11 @@ VIEWS.so = () => {
   const soonR = rows.filter(r => r.status.label === '납기임박');
   const mFirst = today.slice(0,7);
   const monthR = rows.filter(r => fmtDate(r.o.created||0).slice(0,7) === mFirst);
+  /* ★ v0.40.25 (사용자 요청 2026-11-08) — 수주 스트립 = 총 수주 금액 · 출하 금액 · 지연(건수·금액) · 납기준수율
+     총·출하 = 대시보드와 같은 계산 1벌(calcSoFulfillment · 출하 = 수주량 안의 출하 금액) · 준수율 = calcOnTime(올해 · 출하일 기준 · 출하 메뉴 납기 실적과 같은 함수) · 계산 무변 */
+  const soStg = calcSoFulfillment();
+  const lateAmt = lateR.reduce((s,r) => s + r.remain*(+r.o.price||0), 0);
+  const soOtd = (() => { try { return calcOnTime({ from: _kstDate(Date.now()).slice(0,4) + '-01-01' }); } catch(e){ return {}; } })();
   // 필터
   const fRows = rows.filter(r => {
     if(stF.status && r.status.label !== stF.status) return false;
@@ -16552,10 +16749,10 @@ VIEWS.so = () => {
     </div>
 
     <div class="mstrip">
-      <div class="mk"><div class="l">진행 중 수주잔</div><div class="v">₩${Math.round(zanAmt).toLocaleString()}</div><div class="s">${openR.length}건 · ${openR.reduce((s,r)=>s+r.remain,0).toLocaleString()}ea</div></div>
-      <div class="mk"><div class="l" style="color:var(--red)">지연</div><div class="v" style="color:${lateR.length?'var(--red)':'var(--ink)'}">${lateR.length}건</div><div class="s">${lateR.length?`잔량 ${lateR.reduce((s,r)=>s+r.remain,0).toLocaleString()}ea`:'없음'}</div></div>
-      <div class="mk"><div class="l" style="color:var(--amber)">납기 7일 내</div><div class="v" style="color:${soonR.length?'var(--amber)':'var(--ink)'}">${soonR.length}건</div><div class="s">${soonR.length?`잔량 ${soonR.reduce((s,r)=>s+r.remain,0).toLocaleString()}ea`:'없음'}</div></div>
-      <div class="mk"><div class="l">이번 달 신규</div><div class="v">${monthR.length}건</div><div class="s">₩${Math.round(monthR.reduce((s,r)=>s+(+r.o.qty||0)*(+r.o.price||0),0)).toLocaleString()}</div></div>
+      <div class="mk"><div class="l">총 수주 금액</div><div class="v">₩${Math.round(soStg.total).toLocaleString()}</div><div class="s">${sos.filter(o => !soCloseInfo(o)).length}건 · 남은 ₩${Math.round(soStg.prog + soStg.wait).toLocaleString()} (${openR.reduce((s,r)=>s+r.remain,0).toLocaleString()}ea)</div></div>
+      <div class="mk"><div class="l">출하 금액</div><div class="v">₩${Math.round(soStg.done).toLocaleString()}</div><div class="s">${soStg.total > 0 ? `총 수주의 ${(soStg.done / soStg.total * 100).toFixed(1)}%` : '수주 없음'}</div></div>
+      <div class="mk"><div class="l" style="color:var(--red)">지연 (건수 · 금액)</div><div class="v" style="color:${lateR.length?'var(--red)':'var(--ink)'}">${lateR.length}건 <span class="v2">₩${Math.round(lateAmt).toLocaleString()}</span></div><div class="s">${lateR.length?`잔량 ${lateR.reduce((s,r)=>s+r.remain,0).toLocaleString()}ea · 납기 7일 내 ${soonR.length}건`:`없음 · 납기 7일 내 ${soonR.length}건`}</div></div>
+      <div class="mk clk" id="so-otd" title="출하 › 납기 실적에서 자세히"><div class="l">납기준수율 <span style="font-weight:400;color:var(--dim)">· 올해</span></div><div class="v">${soOtd.total && soOtd.total.lines ? soOtd.total.rateLines.toFixed(1) + '%' : '—'}</div><div class="s">${soOtd.total && soOtd.total.lines ? `준수 ${soOtd.total.okLines} / ${soOtd.total.lines}건 (출하일 기준)` : '납기 지난 수주 없음'}</div></div>
     </div>
 
     <div class="msrch">🔍<input id="so-q" placeholder="검색 — 수주번호 · 고객사 · 품번 · 품명" value="${_esc(stF.q)}">
@@ -16668,6 +16865,7 @@ VIEWS.so = () => {
       toast(`수주 수정 — ${o.id}`,'ok'); closeModal(); router();
     };
   });
+  { const _otd = document.getElementById('so-otd'); if(_otd) _otd.onclick = () => { window._shTab = 'otd'; location.hash = '#ship'; }; }   // ★ v0.40.25 — 납기준수율 → 출하 › 납기 실적
   document.getElementById('btn-so-new').onclick = () => {
     // ★ v0.35.8 — 새 수주 심플화 (파일럿 담당자 피드백: 품번 목록이 품번+품명+단가로 길고 단가 칸이 중복 · "품번 하나 고르면 나머지는 자동, 납기만 고르게")
     //   규칙(입력 창 공통 규격): 처음 보이는 칸 = 고객사 · 품번 · 수량 · 납기 4개. 시스템이 아는 값(품명·단가·최근 수주 수량)은 자동 카드로 보여주고 묻지 않는다.
@@ -17526,7 +17724,7 @@ VIEWS.os = () => {
     </div>`}
   `;
   // ★ v0.38.17 — 외주 정산은 마감 › 외주 탭에서 (마감 모듈 ON 일 때 바로 가기)
-  document.getElementById('os-goto-closing')?.addEventListener('click', () => { if(window._closingState) window._closingState.type = 'outsource'; else window._closingState = { type:'outsource', month: fmtDate(Date.now()).slice(0,7), paidDraft:{}, startDraft:{} }; location.hash = '#closing'; });
+  document.getElementById('os-goto-closing')?.addEventListener('click', () => { if(window._closingState){ window._closingState.type = 'outsource'; window._closingState.view = 'work'; } else window._closingState = { type:'outsource', month: fmtDate(Date.now()).slice(0,7), paidDraft:{}, startDraft:{} }; location.hash = '#closing'; });
   // ★ v0.16.5 — 정산 카드 이벤트 (마감 모듈 OFF 일 때만 존재)
   if(document.getElementById('os-settle-month')) document.getElementById('os-settle-month').onchange = e => { settleState.month = e.target.value; router(); };
   if(document.getElementById('os-settle-xlsx')) document.getElementById('os-settle-xlsx').onclick = ()=>{
@@ -18329,21 +18527,7 @@ VIEWS.perf = () => {
       </div>
     </div>
 
-    <!-- KPI -->
-    <div class="grid g4" style="margin-bottom:14px">
-      <div class="kpi-mini"><div class="lab">${ico('check')}오늘 등록 건</div><div class="val c">${todayG.cnt}<span style="font-size:12px;color:var(--sub)">건</span></div><div class="sub">주간 ${todayDay} · 야간 ${todayNight}</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}오늘 양품</div><div class="val g">${todayG.good.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">전 공정 합</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}오늘 불량</div><div class="val r">${todayG.def.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">불량률 ${todayDefPct.toFixed(1)}%</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}중단</div><div class="val h">${stoppedToday}<span style="font-size:12px;color:var(--sub)">건</span></div><div class="sub">${lastStop?.stop_reason||'—'}</div></div>
-    </div>
-
-    <!-- ★ v0.14.3 — 기간 생산량 KPI (대시보드 진도 4칸의 도착지) -->
-    <div class="grid g4" style="margin-bottom:14px">
-      <div class="kpi-mini"><div class="lab">${ico('check')}일 생산량</div><div class="val c">${goodDay>0? goodDay.toLocaleString()+'<span style="font-size:12px;color:var(--sub)">ea</span>' : '<span style="color:var(--dim)">—</span>'}</div><div class="sub">${_esc(rgDay.label)}</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}주 생산량</div><div class="val c">${goodWeek>0? goodWeek.toLocaleString()+'<span style="font-size:12px;color:var(--sub)">ea</span>' : '<span style="color:var(--dim)">—</span>'}</div><div class="sub">${_esc(rgWeek.label)}</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}월 생산량</div><div class="val c">${goodMonth>0? goodMonth.toLocaleString()+'<span style="font-size:12px;color:var(--sub)">ea</span>' : '<span style="color:var(--dim)">—</span>'}</div><div class="sub">${_esc(rgMonth.label)}</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}연 생산량</div><div class="val c">${goodYear>0? goodYear.toLocaleString()+'<span style="font-size:12px;color:var(--sub)">ea</span>' : '<span style="color:var(--dim)">—</span>'}</div><div class="sub">${_esc(rgYear.label)}</div></div>
-    </div>
+    <!-- ★ v0.40.25 (사용자 요청) — 실적현황 요약 숫자 8칸(오늘 등록·양품·불량·중단 · 일/주/월/연 생산량) 삭제 -->
 
     <!-- 실적 표 (일자별 그룹) -->
     <div class="card">
@@ -22636,12 +22820,7 @@ VIEWS.quote = () => {
       </div>
     </div>
 
-    <div class="grid g4">
-      <div class="kpi-mini"><div class="lab">${ico('check')}진행중 견적</div><div class="val c">${draft+sent}<span style="font-size:12px;color:var(--sub)">건</span></div><div class="sub">작성 ${draft} · 발송 ${sent}</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}수주전환</div><div class="val g">${won}<span style="font-size:12px;color:var(--sub)">건</span></div><div class="sub">전환율 ${winRate}%</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}실주</div><div class="val r">${lost}<span style="font-size:12px;color:var(--sub)">건</span></div><div class="sub">실주 사유 분석 대상</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}진행 금액</div><div class="val h">₩${(inflight/1e6).toFixed(1)}<span style="font-size:12px;color:var(--sub)">M</span></div><div class="sub">작성+발송 합계</div></div>
-    </div>
+    <!-- ★ v0.40.25 (사용자 요청) — 견적 요약 4칸(진행중 견적·수주전환·실주·진행 금액) 삭제 -->
 
     <div class="card">
       <h3>견적 내역 <span class="tag">전체 ${quotes.length}건</span></h3>
@@ -24369,10 +24548,6 @@ VIEWS.plan = () => {
   const scoped = allPlans.filter(matchesFilter);
   const scopedInPeriod = scoped.filter(inRange);
 
-  // KPI (기간 기준)
-  const kpiPlan = scopedInPeriod.reduce((s,p)=>s+(+p.qty||0), 0);
-  const kpiActual = scopedInPeriod.reduce((s,p)=>s+calcPlanProgress(p).actual, 0);
-  const kpiPct = kpiPlan>0 ? Math.min(100, kpiActual/kpiPlan*100) : 0;
 
   // 이동 헬퍼
   const shift = (delta) => {
@@ -24405,6 +24580,8 @@ VIEWS.plan = () => {
     const tl = planDayTimeline(state.anchor, dayPlans);
     const shiftBg = i => ['var(--shift1)','var(--shift2)','var(--shift3)'][i] || 'var(--panel2)';   // ★ v0.38.3 — 고정 밝은 배경 → 테마 토큰(다크에서 흰 글자가 안 보이던 문제)
     const seqBg   = i => ['var(--seq1)','#4c5b8f','#6d5b8f'][i] || 'var(--seq1)';
+    /* ★ v0.40.25 (사용자 요청) — 계획판 열 제목 (처음 보는 사람도 각 숫자가 무엇인지) · 열 = .pln-g 격자와 같은 폭 */
+    const PLN_COLHEAD = `<div class="pln-row pln-g pln-colh" aria-hidden="false"><span>순서</span><span>품번 · 품명</span><span>재질 · 지름</span><span class="num" title="개당 소재 중량 / 완성 제품 중량">개당 중량 kg<br><small>소재 / 제품</small></span><span class="num">계획 수량<br><small>ea</small></span><span class="num" title="설비 능력 (금형·타수 기준)">시간당 능력<br><small>ea/h</small></span><span>예상 작업 시간<br><small>시작 → 끝 (교체 포함)</small></span><span>납기</span><span></span></div>`;
     const laneHTML = tl.lanes.map(l => {
       let bands = l.shifts.map((so, siIdx) => {
         if(!so.entries.length) return '';
@@ -24422,7 +24599,7 @@ VIEWS.plan = () => {
           const lateRisk = so2?.due && so2.due <= state.anchor && (en.overflow || en.carryOut || String(en.to).includes('이월'));
           const prodKg = it?.product_weight_g ? (it.product_weight_g/1000).toFixed(2) : '—';
           const matKg  = +it?.weight ? (+it.weight).toFixed(2) : '—';
-          return `<div class="pln-row${lateRisk?' late':''}" draggable="true" data-plan-drag="${_esc(p.id)}" title="${_esc(en.basis||'')}${en.pr && en.pr.actual>0 ? ` · 실적 ${en.pr.actual.toLocaleString()}` : ''}">
+          return `<div class="pln-row pln-g${lateRisk?' late':''}" draggable="true" data-plan-drag="${_esc(p.id)}" title="${_esc(en.basis||'')}${en.pr && en.pr.actual>0 ? ` · 실적 ${en.pr.actual.toLocaleString()}` : ''}">
             <span class="pln-seq" style="background:${lateRisk?'var(--red)':seqBg(siIdx)}">${seq}</span>
             <span style="min-width:150px"><b class="mono">${_esc(p.itemCode)}</b><br><span class="muted" style="font-size:10.5px">${_esc(it?.name||'')}${en.carry?' · 이월분':''}</span></span>
             <span class="mono" style="font-size:11px;min-width:110px">${_esc(it?.mat||'—')}${+it?.dia?`<br><span class="muted" style="font-size:10px">Ø${+it.dia}</span>`:''}</span>
@@ -24434,17 +24611,17 @@ VIEWS.plan = () => {
             <span class="pln-mv"><button class="btn ghost" style="padding:1px 6px;font-size:9px" title="날짜·설비 옮기기 (끌어서 다른 설비로 놓아도 됨)" onclick="VIEWS._planMove('${_esc(p.id)}')">⇄</button><button class="btn ghost" style="padding:1px 6px;font-size:9px" onclick="VIEWS._planSeqMove('${_esc(p.id)}',-1)">▲</button><button class="btn ghost" style="padding:1px 6px;font-size:9px" onclick="VIEWS._planSeqMove('${_esc(p.id)}',1)">▼</button></span>
           </div>`;
         }).join('');
-        return `<div class="pln-shift" style="background:${shiftBg(siIdx)}">${_esc(so.sh.icon||'')} ${_esc(so.sh.name)} <span class="rng">${_esc(so.sh.start)} ~ ${_esc(so.sh.end)}</span>
-          <span class="ldw"><span class="ldb"><i style="width:${Math.min(100,loadPct).toFixed(0)}%;background:${loadPct>100?'var(--red)':'var(--cyan-dim)'}"></i></span><span class="ldt" style="color:${loadClr}">${loadPct.toFixed(0)}%</span></span></div>${rows}`;
+        return `<div class="pln-shift" style="background:${shiftBg(siIdx)}">${_esc(so.sh.icon||'')} ${_esc(so.sh.name)} 근무 <span class="rng">${_esc(so.sh.start)} ~ ${_esc(so.sh.end)}</span>
+          <span class="ldw"><span class="pln-k" title="이 근무시간 안에서 계획이 차지하는 비율 (100% 넘으면 시간 부족)">설비 부하</span><span class="ldb"><i style="width:${Math.min(100,loadPct).toFixed(0)}%;background:${loadPct>100?'var(--red)':'var(--cyan-dim)'}"></i></span><span class="ldt" style="color:${loadClr}">${loadPct.toFixed(0)}%</span></span></div>${rows}`;
       }).join('');
       return `<div class="pln-lane" data-plan-drop-eq="${_esc(l.eqName)}" data-plan-drop-date="${_esc(state.anchor)}">
-        <div class="pln-head"><b>${_esc(l.eqName)}</b><span class="muted" style="font-size:11px">${_esc(DB.get('processes', l.eq?.proc)?.name || l.eq?.proc || '')}</span>${l.stopped?'<span class="pill red" style="font-size:9.5px">금형 확인 필요</span>':''}</div>
-        ${bands || '<div style="padding:10px 15px;color:var(--dim);font-size:11.5px">이 날짜 계획 없음</div>'}
+        <div class="pln-head"><span class="pln-k">설비</span><b>${_esc(l.eqName)}</b><span class="pln-k">공정</span><span style="font-size:12.5px">${_esc(DB.get('processes', l.eq?.proc)?.name || l.eq?.proc || '')}</span>${l.stopped?'<span class="pill red" style="font-size:9.5px">금형 확인 필요</span>':''}</div>
+        ${bands ? PLN_COLHEAD + bands : '<div style="padding:10px 15px;color:var(--dim);font-size:11.5px">이 날짜 계획 없음</div>'}
       </div>`;
     }).join('');
     const unassignedHTML = tl.unassigned.length ? `
       <div class="pln-lane" style="border-style:dashed">
-        <div class="pln-head" style="background:var(--shift1)"><b style="color:var(--amber)">미배정</b><span class="muted" style="font-size:11px">설비 지정 필요 — ${tl.unassigned.length}건 · ${tl.unassigned.reduce((s,p)=>s+(+p.qty||0),0).toLocaleString()}ea</span></div>
+        <div class="pln-head" style="background:var(--shift1)"><b style="color:var(--amber)">미배정</b><span class="muted" style="font-size:12px">설비 지정 필요 — ${tl.unassigned.length}건 · ${tl.unassigned.reduce((s,p)=>s+(+p.qty||0),0).toLocaleString()}ea</span></div>
         ${tl.unassigned.map(p => { const it = DB.get('items', p.itemCode); return `
           <div class="pln-row">
             <span class="pln-seq" style="background:var(--line2);color:var(--sub)">—</span>
@@ -24641,13 +24818,7 @@ VIEWS.plan = () => {
       </div>
     </div>
 
-    <!-- KPI (기간 연동) -->
-    <div class="grid g4" style="margin-bottom:12px">
-      <div class="kpi-mini"><div class="lab">${ico('check')}기간 계획량</div><div class="val c">${kpiPlan.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">${scopedInPeriod.length}건 · ${_esc(period.label)}</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}기간 실적</div><div class="val g">${kpiActual.toLocaleString()}<span style="font-size:12px;color:var(--sub)">ea</span></div><div class="sub">양품 합 (첫 공정)</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}달성률</div><div class="val c">${kpiPct.toFixed(0)}<span style="font-size:12px;color:var(--sub)">%</span></div><div class="sub">계획 건별 최대 100%</div></div>
-      <div class="kpi-mini"><div class="lab">${ico('check')}전체 계획</div><div class="val c">${allPlans.length}<span style="font-size:12px;color:var(--sub)">건</span></div><div class="sub">모든 기간</div></div>
-    </div>
+    <!-- ★ v0.40.25 (사용자 요청) — 기간 계획량·실적·달성률·전체 계획 요약 줄 삭제 (계획판·목록이 곧 정보) -->
 
     ${body}
 
@@ -27203,7 +27374,8 @@ VIEWS.closing = () => {
     state.paidDraft = {};
     state.startDraft = {};
   }
-  const typeLabels = { sales:'매출 (받을 돈)', purchase:'매입 (줄 돈)', outsource:'외주 (줄 돈)' };
+  const typeLabels = { sales:'매출', purchase:'매입', outsource:'외주' };   // ★ v0.40.25 (사용자 요청) — 「(받을 돈)·(줄 돈)」 삭제
+  const clHist = state.view === 'hist';   // ★ v0.40.25 (사용자 요청) — 마감 이력 = 단독 화면 (같은 메뉴 안 [마감 | 마감 이력] 전환 · 계산·데이터 무변)
   const typePartyLabel = state.type==='sales' ? '거래처(고객)' : '거래처(공급처/외주처)';
 
   // 월 옵션 = 과거 데이터 있는 달 + 이번 달 + 마감 이력 있는 달 (내림차순)
@@ -27275,15 +27447,18 @@ VIEWS.closing = () => {
     <div class="pghead">
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('closing')}</svg>마감 <span class="pill cyan">${APP_VERSION} · 매출·매입·외주</span></div>
       <div class="pgtools">
+        <div style="display:inline-flex;gap:2px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:2px"><button class="btn ${clHist ? 'ghost' : 'primary'}" data-cl-view-mode="work" style="padding:5px 12px;font-size:12px;border-radius:6px">마감</button><button class="btn ${clHist ? 'primary' : 'ghost'}" data-cl-view-mode="hist" style="padding:5px 12px;font-size:12px;border-radius:6px">마감 이력</button></div>
+        <span style="display:${clHist ? 'none' : 'contents'}">
         <button class="btn" id="cl-xlsx">${ico('excel')}엑셀</button>
         ${isClosed
           ? `<span class="pill green" style="align-self:center">${state.month} ${typeLabels[state.type].split(' ')[0]} · 마감 완료</span>${state.type==='sales' && getFlags().acct ? `<button class="btn" id="cl-goto-invoice">${ico('print')}세금계산서 발행</button>` : ''}`
           : `<button class="btn primary" id="cl-confirm" ${rows.length===0 && !allowStart ? 'disabled' : ''}>${ico('save')}${state.month} ${typeLabels[state.type].split(' ')[0]} 마감 확정</button>`
         }
+        </span>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="cl-work"${clHist ? ' hidden' : ''}>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
         <div style="display:flex;gap:6px">
           ${['sales','purchase','outsource'].map(t=>`
@@ -27344,9 +27519,9 @@ VIEWS.closing = () => {
       </div>
     </div>
 
-    <!-- 마감 이력 -->
-    <div class="card">
-      <h3>마감 이력 <span class="tag">전체 유형 · 최신 순</span></h3>
+    <!-- 마감 이력 (★ v0.40.25 — 단독 화면) -->
+    <div class="card" id="cl-hist"${clHist ? '' : ' hidden'}>
+      <h3>마감 이력 <span class="tag">전체 유형 · 최신 순 · [보기] = 그 달 마감 화면</span></h3>
       <div class="tbl-wrap"><table>
         <thead><tr><th>월</th><th>유형</th><th class="num">발생</th><th class="num">결제</th><th class="num">이월</th><th>상태</th><th style="text-align:right">관리</th></tr></thead>
         <tbody>${historyRaw.length ? historyRaw.map(c=>{
@@ -27377,6 +27552,7 @@ VIEWS.closing = () => {
     </div>
   `;
 
+  document.querySelectorAll('[data-cl-view-mode]').forEach(b => b.onclick = () => { state.view = b.dataset.clViewMode; router(); });   // ★ v0.40.25
   // 탭 · 월 셀렉트
   document.querySelectorAll('[data-cl-tab]').forEach(b => b.onclick = () => {
     state.type = b.dataset.clTab;
@@ -27397,7 +27573,7 @@ VIEWS.closing = () => {
   // 이력 · 보기 (해당 월/유형으로 점프)
   document.querySelectorAll('[data-cl-view]').forEach(b => b.onclick = () => {
     const [t, m] = b.dataset.clView.split('|');
-    state.type = t; state.month = m; state._key = null; router();
+    state.type = t; state.month = m; state._key = null; state.view = 'work'; router();
   });
   // 마감 취소
   document.querySelectorAll('[data-cl-void]').forEach(b => b.onclick = () => {
@@ -27934,12 +28110,129 @@ async function makeReportOneClick(st){
 }
 window._reportState = window._reportState || { scope:'week', anchor: fmtDate(Date.now()), viewSnapshotId: null };
 
+
+/* =================================================================================================
+   ★ v0.40.25 — 전자결재 (사용자 요청 2026-11-08: 「보고서」 메뉴 → 「전자결재」 · 원하는 세부 항목을 골라 결재로 올림)
+   흐름: [보고서 작성] 에서 세부 항목(구성) 고르기 → [결재 올리기] = 그 시점 보고서 스냅샷(reports) + 결재 문서(approvals) 한 묶음 저장
+        → 결재선(최대 3명) 순서대로 [승인]/[반려] · 기안자 = 첫 결재 전 [회수] · [결재함] = 내가 결재할 문서 · 내가 올린 문서 · 전체(관리)
+   기록: approvals/{AP-…} { title, report_id, scope, period, sections, drafter{id,name}, line[{id,name,status,ts,comment}], step, status, memo, ts, hist[] } · 삭제 없음
+   한계(정직 표기): 지금 운영 = 기존 로그인(익명 기기 + 앱 비밀번호) · 서버가 사람을 확인하지 않음 → 결재 기록은 업무 확인용 (위조 방지·전자서명 효력 아님) · 직원 계정(서버 개인 인증) 전환 때 규칙 추가
+   ================================================================================================= */
+const AP_STATUS = { run: '결재 중', done: '결재 완료', rej: '반려', back: '회수' };
+function apUsers(){ return DB.all('users').filter(u => u.active !== false && u.id && u.id !== SESSION.userId).sort((a, b) => ((b.role === 'manager') - (a.role === 'manager')) || String(a.name || '').localeCompare(String(b.name || ''))); }
+function apMyTurn(a){ return !!a && a.status === 'run' && a.line && a.line[a.step] && a.line[a.step].id === SESSION.userId; }
+function apMyPending(){ if(!stockCountSupported()) return []; return DB.all('approvals').filter(apMyTurn).sort((a, b) => (a.ts || 0) - (b.ts || 0)); }
+function apTabsHtml(cur){ const n = apMyPending().length;
+  return `<div style="display:inline-flex;gap:2px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:2px"><button class="btn ${cur === 'write' ? 'primary' : 'ghost'}" data-ap-tab="write" style="padding:5px 12px;font-size:12px;border-radius:6px">보고서 작성</button><button class="btn ${cur === 'box' ? 'primary' : 'ghost'}" data-ap-tab="box" style="padding:5px 12px;font-size:12px;border-radius:6px">결재함${n ? ` <span class="ap-badge">${n}</span>` : ''}</button></div>`; }
+function apBindTabs(){ document.querySelectorAll('[data-ap-tab]').forEach(b => b.onclick = () => { window._reportState.tab = b.dataset.apTab === 'box' ? 'box' : 'write'; router(); }); }
+function apLineHtml(a){ return (a.line || []).map((l, i) => `<span class="ap-ln ${l.status === '승인' ? 'ok' : l.status === '반려' ? 'rej' : (a.status === 'run' && i === a.step) ? 'cur' : ''}" title="${_esc(l.comment || '')}">${l.status === '승인' ? '✓' : l.status === '반려' ? '✕' : (a.status === 'run' && i === a.step) ? '●' : '○'} ${_esc(l.name || l.id)}${l.ts ? ` <small>${fmtDate(l.ts).slice(5)}</small>` : ''}</span>`).join('<span class="ap-arr">→</span>'); }
+/* 결재 올리기 = 스냅샷 + 결재 문서 한 묶음 (둘 다 저장되거나 둘 다 안 됨) */
+async function approvalSubmit({ title, approvers, memo }, st){
+  if(!stockCountSupported()) throw new Error('직원 계정 모드에서는 전자결재를 아직 지원하지 않습니다 (서버 규칙 추가 필요)');
+  if(!SESSION.userId) throw new Error('로그인한 직원만 결재를 올릴 수 있습니다');
+  const ids = (approvers || []).filter(Boolean); if(!ids.length) throw new Error('결재자를 1명 이상 고르세요');
+  if(new Set(ids).size !== ids.length) throw new Error('같은 결재자를 두 번 넣을 수 없습니다'); if(ids.length > 3) throw new Error('결재자는 3명까지');
+  if(ids.includes(SESSION.userId)) throw new Error('본인은 결재자가 될 수 없습니다');
+  const line = ids.map(id => { const u = DB.get('users', id); if(!u) throw new Error(`결재자 없음 — ${id}`); return { id, name: u.name || id, status: '대기', ts: null, comment: '' }; });
+  const fresh = reportWithExtras(buildReportData(st.scope, st.anchor));
+  const sections = reportSectionsFor(fresh);
+  const rid = nextDocNo('RP'), aid = nextDocNo('AP');
+  if(DB.get('reports', rid) || DB.get('approvals', aid)) throw new Error('문서 번호 중복 — 다시 시도');
+  const now = Date.now(), t = String(title || '').trim() || `${_REPORT_TITLES[fresh.scope] || '보고서'} ${fresh.period.label}`;
+  const g = DB.group(() => {
+    if(!DB.set('reports', rid, { id: rid, scope: fresh.scope, period: fresh.period, data: fresh, sections, ts: now, by: SESSION.user || '', approval_id: aid })) throw new Error('저장이 거부되었습니다 (권한 확인)');
+    if(!DB.set('approvals', aid, { id: aid, title: t, report_id: rid, scope: fresh.scope, period: fresh.period, sections, drafter: { id: SESSION.userId, name: SESSION.user || '' }, line, step: 0, status: 'run', memo: String(memo || '').trim(), ts: now, hist: [{ act: '상신', by: SESSION.user || '', ts: now }] })) throw new Error('저장이 거부되었습니다 (권한 확인)');
+  }, { label: '결재 올리기' });
+  if(g && g.server) await g.server;
+  return aid;
+}
+async function approvalAct(aid, act, comment){
+  const a = DB.get('approvals', aid); if(!a) throw new Error('결재 문서 없음');
+  const now = Date.now(), c = String(comment || '').trim();
+  let patch;
+  if(act === 'back'){
+    if(a.drafter?.id !== SESSION.userId) throw new Error('기안자만 회수할 수 있습니다');
+    if(a.status !== 'run' || (a.line || []).some(l => l.status === '승인')) throw new Error('결재가 시작된 문서는 회수할 수 없습니다');
+    patch = { status: 'back', hist: (a.hist || []).concat([{ act: '회수', by: SESSION.user || '', ts: now, comment: c }]) };
+  } else {
+    if(!apMyTurn(a)) throw new Error('지금 내 결재 차례가 아닙니다');
+    if(act === 'rej' && !c) throw new Error('반려 사유를 적어 주세요');
+    const line = a.line.map((l, i) => i === a.step ? { ...l, status: act === 'ok' ? '승인' : '반려', ts: now, comment: c } : l);
+    const last = a.step + 1 >= line.length;
+    patch = { line, step: act === 'ok' && !last ? a.step + 1 : a.step, status: act === 'rej' ? 'rej' : last ? 'done' : 'run', hist: (a.hist || []).concat([{ act: act === 'ok' ? '승인' : '반려', by: SESSION.user || '', ts: now, comment: c }]) };
+  }
+  const g = DB.group(() => { if(!DB.set('approvals', aid, patch)) throw new Error('저장이 거부되었습니다 (권한 확인)'); }, { label: '결재' });
+  if(g && g.server) await g.server;
+  return DB.get('approvals', aid);
+}
+function openApprovalSubmit(st){
+  if(!stockCountSupported()){ toast('전자결재는 지금 운영 방식(기존 로그인)에서만 됩니다', 'warn'); return; }
+  if(!SESSION.userId){ toast('로그인한 직원만 결재를 올릴 수 있습니다 (개발자 세션 불가)', 'warn'); return; }
+  const us = apUsers(); const fresh = reportWithExtras(buildReportData(st.scope, st.anchor)); const secs = reportSectionsFor(fresh);
+  const opt = sel => `<option value="">— 없음 —</option>${us.map(u => `<option value="${_esc(u.id)}"${u.id === sel ? ' selected' : ''}>${_esc(u.name || u.id)}${u.role === 'manager' ? ' · 관리책임자' : ''}</option>`).join('')}`;
+  openModal(`<h2>결재 올리기 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+    <div><label>제목</label><input id="ap-title" value="${_esc(`${_REPORT_TITLES[fresh.scope] || '보고서'} ${fresh.period.label}`)}"></div>
+    <div><label>올릴 세부 항목 <span style="color:var(--dim);font-weight:400">— 바꾸려면 닫고 [☆ 구성 바꾸기]</span></label><div class="rep-mine-secs">${secs.map(id => `<span class="pill ${id === 'kpi' ? 'cyan' : ''}">${_esc((REPORT_SECTIONS.find(x => x.id === id) || {}).title || id)}</span>`).join('')}</div></div>
+    <div class="grid g3">${[0, 1, 2].map(i => `<div><label>결재 ${i + 1}${i === 0 ? ' (필수)' : ''}</label><select id="ap-u${i}">${opt(i === 0 ? (us.find(u => u.role === 'manager') || {}).id : '')}</select></div>`).join('')}</div>
+    <div><label>의견 (선택)</label><input id="ap-memo" placeholder="결재자에게 남길 말"></div>
+    <div class="ap-note">결재선 순서대로 결재합니다 · 올린 순간의 보고서 수치가 그대로 저장됩니다(재계산 없음) · 지금 운영 방식은 서버 개인 인증 전이라 결재 기록은 <b>업무 확인용</b>입니다 (전자서명 효력 아님)</div>
+    <div id="ap-st" class="sc-st"></div>
+    <div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="ap-ok">${ico('check')}결재 올리기</button></div></div>`);
+  document.getElementById('ap-ok').onclick = async () => { const b = document.getElementById('ap-ok'), stl = document.getElementById('ap-st'); b.disabled = true; stl.textContent = '저장 확인 중…'; stl.className = 'sc-st busy';
+    try { const id = await approvalSubmit({ title: document.getElementById('ap-title').value, approvers: [0, 1, 2].map(i => document.getElementById('ap-u' + i).value), memo: document.getElementById('ap-memo').value }, st);
+      closeModal(); toast(`결재 올림 — ${id} · ${(DB.get('approvals', id).line[0] || {}).name || ''} 님 차례`, 'ok', 4000); window._reportState.tab = 'box'; router(); }
+    catch(e){ stl.textContent = e.message || String(e); stl.className = 'sc-st err'; b.disabled = false; } };
+}
+function openApproval(aid){
+  const a = DB.get('approvals', aid); if(!a) return;
+  const mine = apMyTurn(a), canBack = a.drafter?.id === SESSION.userId && a.status === 'run' && !(a.line || []).some(l => l.status === '승인');
+  openModal(`<h2>${_esc(a.title)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+    <div class="ap-head"><span class="pill ${a.status === 'done' ? 'green' : a.status === 'rej' ? 'red' : a.status === 'back' ? '' : 'amber'}">${AP_STATUS[a.status] || a.status}</span><span class="mono">${_esc(a.id)}</span><span>기안 ${_esc(a.drafter?.name || '')} · ${fmtDate(a.ts)} ${fmtTime(a.ts)}</span></div>
+    <div class="ap-lines">${apLineHtml(a)}</div>
+    ${a.memo ? `<div class="ap-memo">기안 의견 — ${_esc(a.memo)}</div>` : ''}
+    <div><label>올린 세부 항목</label><div class="rep-mine-secs">${(a.sections || []).map(id => `<span class="pill">${_esc((REPORT_SECTIONS.find(x => x.id === id) || {}).title || id)}</span>`).join('')}</div></div>
+    <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>시각</th><th>내용</th><th>사람</th><th>의견</th></tr></thead><tbody>${(a.hist || []).map(h => `<tr><td class="mono">${fmtDate(h.ts)} ${fmtTime(h.ts)}</td><td>${_esc(h.act)}</td><td>${_esc(h.by || '')}</td><td>${_esc(h.comment || '')}</td></tr>`).join('')}</tbody></table></div>
+    ${mine ? `<div><label>결재 의견 <span style="color:var(--dim);font-weight:400">— 반려는 사유 필수</span></label><input id="ap-cm" placeholder="의견"></div>` : ''}
+    <div id="ap-st2" class="sc-st"></div>
+    <div class="actions"><button class="btn" id="ap-view">${ico('eye')}보고서 보기</button>${canBack ? `<button class="btn" id="ap-back" style="color:var(--red)">회수</button>` : ''}${mine ? `<button class="btn" id="ap-rej" style="color:var(--red);border-color:var(--red)">반려</button><button class="btn primary" id="ap-ok2">${ico('check')}승인</button>` : ''}</div></div>`, { width: '760px' });
+  const $ = id => document.getElementById(id), stl = $('ap-st2');
+  $('ap-view').onclick = () => { closeModal(); const st = window._reportState; st.tab = 'write'; st.viewSnapshotId = a.report_id; st.scope = a.scope || st.scope; location.hash = '#report'; router(); };
+  const act = async k => { stl.textContent = '저장 확인 중…'; stl.className = 'sc-st busy'; try { const r = await approvalAct(aid, k, ($('ap-cm') || {}).value || ''); closeModal(); toast(`${k === 'ok' ? '승인' : k === 'rej' ? '반려' : '회수'} — ${AP_STATUS[r.status]}`, 'ok'); router(); } catch(e){ stl.textContent = e.message || String(e); stl.className = 'sc-st err'; } };
+  if($('ap-ok2')) $('ap-ok2').onclick = () => act('ok');
+  if($('ap-rej')) $('ap-rej').onclick = () => act('rej');
+  if($('ap-back')) $('ap-back').onclick = () => act('back');
+}
+VIEWS._approvalBox = () => {
+  const st = window._reportState, f = (st.apFilter = st.apFilter || 'todo');
+  const all = stockCountSupported() ? DB.all('approvals').sort((a, b) => (b.ts || 0) - (a.ts || 0)) : [];
+  const lists = { todo: all.filter(apMyTurn), mine: all.filter(a => a.drafter?.id === SESSION.userId), all: stockCanManage() ? all : [] };
+  const rows = lists[f] || [];
+  document.getElementById('view').innerHTML = `
+    <div class="pghead"><div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('report')}</svg>전자결재 <span class="pill cyan">결재함</span></div>
+      <div class="pgtools">${apTabsHtml('box')}</div></div>
+    ${stockCountSupported() ? '' : `<div class="m-ban amber" style="margin-bottom:12px">전자결재는 지금 운영 방식(기존 로그인)에서만 됩니다 — 직원 계정 모드는 서버 규칙 추가 뒤</div>`}
+    <div class="card">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        ${[['todo', '내가 결재할 문서'], ['mine', '내가 올린 문서']].concat(stockCanManage() ? [['all', '전체']] : []).map(([k, l]) => `<button class="btn ${f === k ? 'primary' : 'ghost'}" data-ap-f="${k}" style="border-radius:99px;padding:6px 14px;font-size:12px">${l} <b>${lists[k].length}</b></button>`).join('')}
+        <span class="muted" style="margin-left:auto;font-size:11.5px;align-self:center">결재 올리기 = [보고서 작성]에서 세부 항목을 고른 뒤 [결재 올리기]</span>
+      </div>
+      <div class="tbl-wrap"><table style="font-size:12.5px"><thead><tr><th>올린 날</th><th>제목</th><th>기안</th><th>결재선</th><th>상태</th><th></th></tr></thead><tbody>
+        ${rows.length ? rows.map(a => `<tr data-ap-open="${_esc(a.id)}" style="cursor:pointer"><td class="mono">${fmtDate(a.ts)}</td><td><b>${_esc(a.title)}</b> <span class="muted mono" style="font-size:10.5px">${_esc(a.id)}</span></td><td>${_esc(a.drafter?.name || '')}</td><td class="ap-lines sm">${apLineHtml(a)}</td><td><span class="pill ${a.status === 'done' ? 'green' : a.status === 'rej' ? 'red' : a.status === 'back' ? '' : 'amber'}">${AP_STATUS[a.status] || a.status}</span>${apMyTurn(a) ? ' <span class="pill cyan">내 차례</span>' : ''}</td><td style="text-align:right"><button class="btn ghost" data-ap-open="${_esc(a.id)}">열기 →</button></td></tr>`).join('')
+          : `<tr><td colspan="6" class="empty">${f === 'todo' ? '내가 결재할 문서 없음' : f === 'mine' ? '올린 문서 없음' : '결재 문서 없음'}</td></tr>`}
+      </tbody></table></div>
+      <div class="ap-note" style="margin-top:10px">지금 운영 방식은 서버 개인 인증 전 — 결재 기록은 업무 확인용입니다 (전자서명·법적 효력 아님 · 직원 계정 전환 때 서버에서 결재자 본인 확인 추가)</div>
+    </div>`;
+  apBindTabs();
+  document.querySelectorAll('[data-ap-f]').forEach(b => b.onclick = () => { st.apFilter = b.dataset.apF; router(); });
+  document.querySelectorAll('[data-ap-open]').forEach(el => el.onclick = e => { e.stopPropagation(); openApproval(el.dataset.apOpen); });
+};
 VIEWS.report = () => {
   if(!getFlags().report){
     document.getElementById('view').innerHTML = `<div class="card">보고서 모듈 OFF — 설정에서 켜세요.</div>`;
     return;
   }
   const st = window._reportState;
+  if(st.tab === 'box'){ VIEWS._approvalBox(); return; }   // ★ v0.40.25 — 전자결재 › 결재함
   // 스냅샷 열람 모드? 저장된 데이터 사용 (재계산 금지) · 아니면 라이브 buildReportData
   const snap = st.viewSnapshotId ? DB.get('reports', st.viewSnapshotId) : null;
   const data = (snap && snap.data) ? snap.data : reportWithExtras(buildReportData(st.scope, st.anchor));
@@ -28089,14 +28382,15 @@ VIEWS.report = () => {
     </div>`;
   document.getElementById('view').innerHTML = `
     <div class="pghead">
-      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('report')}</svg>${_esc(title)} <span class="pill cyan">${APP_VERSION}</span>${snap?` <span class="pill amber" title="이력 스냅샷 열람 중">이력</span>`:''}</div>
+      <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('report')}</svg>전자결재 <span class="pill cyan">${_esc(title)}</span>${snap?` <span class="pill amber" title="이력 스냅샷 열람 중">이력</span>`:''}</div>
       <div class="pgtools">
+        ${apTabsHtml('write')}
         <button class="btn" id="btn-rep-xlsx">${ico('excel')}엑셀</button>
         <button class="btn" id="btn-rep-ppt">${ico('ppt')}PPT</button>
         <button class="btn" id="btn-rep-print">${ico('print')}인쇄</button>
         ${snap
           ? `<button class="btn primary" id="btn-rep-back">${ico('refresh')}라이브로 돌아가기</button>`
-          : `<button class="btn primary" id="btn-rep-make" title="내 구성으로 계산 → 스냅샷 저장 → 자동 브리핑 → 기본 형식 출력 (한 번에)">${ico('save')}보고서 만들기</button>`}
+          : `<button class="btn" id="btn-rep-make" title="내 구성으로 계산 → 스냅샷 저장 → 자동 브리핑 → 기본 형식 출력 (한 번에)">${ico('save')}보고서 만들기</button><button class="btn primary" id="btn-ap-new" title="고른 세부 항목(구성)으로 보고서를 만들어 결재선에 올립니다">${ico('check')}결재 올리기</button>`}
       </div>
     </div>
 
@@ -28183,6 +28477,8 @@ VIEWS.report = () => {
   const backBtn = document.getElementById('btn-rep-back');
   if(backBtn) backBtn.onclick = () => { st.viewSnapshotId = null; router(); };
   // ★ v0.38.0 — [보고서 만들기] 원클릭 (열 때 자동 생성 없음 · 오직 버튼)
+  apBindTabs();
+  const apNew = document.getElementById('btn-ap-new'); if(apNew) apNew.onclick = () => openApprovalSubmit(st);   // ★ v0.40.25
   const makeBtn = document.getElementById('btn-rep-make');
   if(makeBtn) makeBtn.onclick = async () => { makeBtn.disabled = true; try { await makeReportOneClick(st); } finally { router(); } };
   const pickBtn = document.getElementById('btn-rep-pick');
