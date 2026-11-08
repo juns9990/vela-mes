@@ -409,6 +409,41 @@ tr.mst-off td{opacity:.45}
 .fl-strip .fl-arr{color:var(--dim);font-family:'JetBrains Mono',monospace}
 .fl-strip .fl-empty{color:var(--dim);font-style:italic}
 .fl-warn{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--red);background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.28);border-radius:8px;padding:7px 10px;margin-top:6px;font-weight:600}
+/* ★ v0.40.24 — 자동 채움 제안 (제안값 + 근거 · 사람이 확인하고 저장) */
+.sug{font-size:12px;line-height:1.55;color:var(--sub);border-left:2px solid var(--cyan);padding:6px 10px;margin-top:6px;background:color-mix(in srgb,var(--cyan) 6%,transparent);border-radius:0 8px 8px 0}
+.sug b{color:var(--ink);font-weight:600}
+.sug.none{border-left-color:var(--line2);background:transparent}
+.sug .sug-chk{color:var(--amber);margin-top:4px}
+/* ★ v0.40.24 (H6) — 오늘 확인할 것 */
+.dtoday{margin-top:16px}
+.dt-h{font-size:13px;font-weight:700;margin:0 2px 10px;display:flex;align-items:baseline;gap:10px}.dt-h span{font-size:11.5px;font-weight:400;color:var(--dim)}
+.dt-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.dt-i{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:4px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);transition:border-color .15s}
+.dt-i:hover,.dt-i:focus-visible{border-color:var(--cyan)}
+.dt-l{font-size:12px;color:var(--sub)}.dt-i b{font-size:24px;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.5px}.dt-i b small{font-size:12px;color:var(--sub);margin-left:3px;font-weight:600}
+.dt-d{font-size:11.5px;color:var(--sub)}.dt-i.zero b{color:var(--dim)}.dt-i.red b{color:var(--red)}.dt-i.amber b{color:var(--amber)}.dt-i.red{border-color:color-mix(in srgb,var(--red) 35%,var(--line))}
+/* ★ v0.40.24 — 재고 실사 */
+.btn.sm{padding:4px 10px;font-size:12px;min-height:0}
+.sc-lead{font-size:12.5px;color:var(--sub);line-height:1.6;margin-bottom:10px}
+.sc-new{border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.sc-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.sc-head b{font-size:15px;margin-right:10px}.sc-head span:not(.pill){font-size:12px;color:var(--sub);font-family:'JetBrains Mono',monospace}
+.sc-steps{margin:0 0 12px;padding:0;list-style:none;counter-reset:sc;display:flex;flex-direction:column;gap:10px}
+.sc-steps li{counter-increment:sc;position:relative;padding:10px 12px 10px 42px;border:1px solid var(--line);border-radius:12px}
+.sc-steps li::before{content:counter(sc);position:absolute;left:12px;top:10px;width:20px;height:20px;border-radius:50%;background:var(--cyan);color:var(--bg);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.sc-steps li>b{display:block;font-size:13px}.sc-steps li>span{display:block;font-size:11.5px;color:var(--sub);margin-top:2px}
+.sc-act{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}.sc-act select{max-width:220px;padding:6px 8px;font-size:12px}
+.sc-file{font-size:12px;color:var(--sub)}
+.sc-err{font-size:12px;color:var(--amber);border:1px solid color-mix(in srgb,var(--amber) 40%,transparent);border-radius:10px;padding:8px 10px;margin-top:8px;line-height:1.6}
+.sc-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:6px 0 10px}
+.sc-sum>div{border:1px solid var(--line);border-radius:10px;padding:8px 10px}.sc-sum span{display:block;font-size:11px;color:var(--sub)}.sc-sum b{font-size:16px;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.sc-sum .up,td.up{color:var(--cyan)}.sc-sum .down,td.down{color:var(--red)}
+.sc-sub{font-size:12px;color:var(--sub);font-weight:600;margin:10px 0 6px}
+.sc-alloc{border:1px solid color-mix(in srgb,var(--amber) 40%,transparent);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.sc-al{padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}.sc-al:first-of-type{border-top:0}.sc-al.ok{opacity:.75}
+.sc-al-in{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.sc-al-in label{display:flex;flex-direction:column;font-size:11.5px;gap:2px}.sc-al-in label span{color:var(--sub)}.sc-al-in input{width:110px;padding:5px 8px}
+.sc-st{font-size:12.5px;min-height:18px;color:var(--sub)}.sc-st.err{color:var(--red)}.sc-st.busy{color:var(--amber)}
+.sug button.lnk{background:none;border:0;padding:0 0 0 6px;color:var(--cyan);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 
 /* Pill / badge */
 .pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10.5px;font-weight:700;letter-spacing:.4px}
@@ -785,6 +820,9 @@ html[data-theme="light"] .stage3 .s.done{color:#eafffb}
 
 /* 큰 숫자 값 */
 .qval-big{background:var(--bg);border:2px solid var(--cyan);border-radius:13px;padding:14px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:38px;font-weight:800;color:var(--cyan);min-height:64px;line-height:1.1}
+/* ★ v0.40.24 (H4) — 잔량 적용 (자동 입력 아님 · 누를 때만) */
+.m-fill{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:11px 12px;border:1px solid var(--line2);border-radius:11px;background:transparent;color:var(--sub);font-size:14px;font-weight:600}
+.m-fill b{color:var(--cyan);font-family:'JetBrains Mono',monospace}
 .qval-big.def{border-color:var(--amber);color:var(--amber)}
 .qval-big.rew{border-color:var(--blue);color:var(--blue)}
 
@@ -1716,11 +1754,11 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.23';
+const APP_VERSION = 'v0.40.24';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-11-07';
+const APP_DATE    = '2026-11-08';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1984,6 +2022,10 @@ const _FS_COLLECTIONS = [
   'price_agreements',   // ★ v0.28.1 — 단가합의서
   'concurrency_incidents',   // ★ v0.33.2 — 동시성 사고 방어·복구 Gate (Q2-3) — 충돌 Incident 사건 기록
 ];
+/* ★ v0.40.24 — 재고 실사 회차 · 실사 조정 (SPEC 재고실사 v0.3) · 기존 방식(운영 규칙 v4)만 구독
+   직원 계정 규칙(r16·r17)에는 이 컬렉션 규칙이 아직 없음 → 직원 계정 모드 = 구독·계산·화면 모두 끔 (규칙 추가는 r17 전환 작업 때) */
+const STOCK_COLLECTIONS = ['stock_counts', 'stock_adj'];
+function stockCountSupported(){ try { return !isStaffMode(); } catch(e){ return true; } }
 /* ★ v0.21.2 — config 해석: 로컬 오버라이드 우선 → 없으면 내장 DEFAULT_FIREBASE_CONFIG.
    반환 { cfg, source } — source 는 pill/설정 표시용. cfg 없음(둘 다 없음) 시 null. */
 function loadFirestoreConfig(){
@@ -2218,6 +2260,9 @@ const DB = (() => {
     try { _ACTIVE_ADAPTER.write(col, id, doc, meta); }
     catch(e){ console.warn('[VELA] backend write failed', col, id, e); }
   };
+  let _asof = null;   // ★ v0.40.24 — DB.asOf 기준 시각 (평소 null = 무변)
+  const _ASOF_F = { records:'ts', shipments:'ts', os_dispatches:'ts', os_receipts:'ts', material_receipts:'ts', production_lots:'created', stock_adj:'ts' };
+  const _asofHide = (col, x) => { const f = _ASOF_F[col]; if(!f) return false; const t = +x[f]; if(!t) return false; return col === 'stock_adj' ? t >= _asof : t > _asof; };
   let _rev = 0;   // ★ v0.36.0 — 원장 변경 카운터 (동기 쓰기마다 +1 · 인정/보류 파생 메모의 키 — 값 자체는 저장 안 함)
   return {
     _backend: _ACTIVE_ADAPTER.name,   // 'local' | (STEP 2) 'firestore'
@@ -2226,7 +2271,7 @@ const DB = (() => {
     _firebaseConfig: null,
     _adapter: _ACTIVE_ADAPTER,
     // ★ v0.16.0 — all/query 기본 void 제외 (집계 지점 개별 필터 금지 · 이중 필터 금지)
-    all(col){ ensure(col); return Object.values(state[col]).filter(x=>!x.void); },
+    all(col){ ensure(col); const v = Object.values(state[col]).filter(x=>!x.void); return _asof == null ? v : v.filter(x => !_asofHide(col, x)); },
     // DB.get(단건)은 void 포함 유지 — 직접 참조·이름 조회·복원용 (변경 금지)
     get(col,id){ ensure(col); return state[col][id]||null; },
     set(col,id,doc){
@@ -2300,7 +2345,11 @@ const DB = (() => {
       } catch(e){ console.warn('[VELA] backend remove failed', col, id, e); }
       return true;
     },
-    query(col,fn){ ensure(col); return Object.values(state[col]).filter(x=>!x.void).filter(fn); },
+    query(col,fn){ ensure(col); const v = Object.values(state[col]).filter(x=>!x.void); return (_asof == null ? v : v.filter(x => !_asofHide(col, x))).filter(fn); },
+    /* ★ v0.40.24 (재고실사 · SPEC §3) — 「그 시각의 장부」: fn 안에서만 all/query 가 기준 시각 뒤의 이동 기록을 숨김 → 지금과 같은 계산 함수 1벌로 계산
+       · 실적·출하·외주 반출/입고·원소재 입고 = ts > 기준 · LOT = created > 기준 · 실사 조정 = ts ≥ 기준(이전 회차만) · 쓰기 금지(읽기 전용 계산만) */
+    asOf(ts, fn){ const prev = _asof; _asof = +ts; _rev++; try { return fn(); } finally { _asof = prev; _rev++; } },
+    get _asOf(){ return _asof; },
     // ★ v0.40.9 — 묶음 저장 (위 설명) · 반환 { value, n, server: Promise|null, rollbackLocal() }
     //   server = 서버 모드에서 묶음 커밋 결과(성공 resolve · 거부 reject) · 이 기기 저장 모드 = null(이미 저장)
     group(fn, opts){
@@ -3280,7 +3329,7 @@ function _fsStartSync(fs, adapter){
     try { if(w._op === 'delete') _fsSend(fs, w.col, w.id, null, { op: 'delete' }); else _fsSend(fs, w.col, w.id, w.doc, w.meta); }
     catch(e){ console.warn('[VELA] flush write fail', w.col, w.id, e); }
   });
-  const cols = _FS_COLLECTIONS.concat(isStaffMode() && typeof SEC_COLLECTIONS !== 'undefined' ? SEC_COLLECTIONS : []);
+  const cols = _FS_COLLECTIONS.concat(isStaffMode() && typeof SEC_COLLECTIONS !== 'undefined' ? SEC_COLLECTIONS : []).concat(isStaffMode() ? [] : STOCK_COLLECTIONS);   // ★ v0.40.24 재고 실사 = 기존 방식만
   adapter._secSubbed = isStaffMode();
   const expected = cols.length;
   const seen = new Set();
@@ -7047,6 +7096,35 @@ function _accCache(){
   if(!_accMemoArmed){ _accMemoArmed = true; Promise.resolve().then(() => { _accMemoArmed = false; _accInvalidate(); }); }
   return _accMemo;
 }
+/* ★ v0.40.24 — 재고 실사 조정 (SPEC 재고실사 v0.2 · GPT 검토 대상 = 계산 변경)
+   · 조정 기록 stock_adj 는 회차 stock_counts 가 「확정」 일 때만 계산에 들어감 (확정 중·취소 = 0) → 회차 문서 1건이 전부/0 의 스위치
+   · 재공·협력사 = 그 LOT·공정의 공급(_prevAvail) += 조정 · 협력사는 그 반출의 미입고 잔량도 += 조정(사내 잔량은 그대로)
+   · 완성품 = 출하 공급(인정양품) += 조정 · 원소재 = 히트 잔량 += 조정 kg · 조정이 하나도 없으면 모든 값 = 0 → 기존 계산 그대로 */
+let _stockAdjSkip = null;   // 확정 취소 점검용 — 이 회차를 뺀 계산 (stockCountCancelCheck 만 씀)
+function _stockAdjIndex(){
+  const cache = _accCache(); const hit = cache.get('ADJIX|' + (_stockAdjSkip || '')); if(hit) return hit;
+  const ix = { sup:{}, os:{}, fin:{}, finItem:{}, heat:{}, n:0 }, ok = {};
+  if(!stockCountSupported()){ cache.set('ADJIX|' + (_stockAdjSkip || ''), ix); return ix; }   // 직원 계정 모드 = 실사 미지원 (컬렉션을 만들지도 읽지도 않음)
+  const add = (m, k, d) => { m[k] = (m[k] || 0) + d; };
+  DB.all('stock_adj').forEach(a => {
+    if(!(a.count_id in ok)){ const c = DB.get('stock_counts', a.count_id); ok[a.count_id] = !!(c && c.status === 'confirmed' && !c.void && a.count_id !== _stockAdjSkip); }
+    if(!ok[a.count_id]) return;
+    const d = +a.delta || 0; if(!d) return;
+    ix.n++;
+    if(a.kind === 'wip' || a.kind === 'os') add(ix.sup, a.plot_no + '|' + a.proc, d);
+    if(a.kind === 'os') add(ix.os, a.dispatch_id, d);
+    if(a.kind === 'fin'){ add(ix.fin, a.plot_no, d); add(ix.finItem, a.itemCode, d); }
+    if(a.kind === 'mat') add(ix.heat, a.heat, d);
+  });
+  cache.set('ADJIX|' + (_stockAdjSkip || ''), ix); return ix;
+}
+function stockAdjSupply(plot, proc){ return _stockAdjIndex().sup[plot + '|' + proc] || 0; }
+function stockAdjOs(dispId){ return _stockAdjIndex().os[dispId] || 0; }
+function stockAdjFin(plot){ return _stockAdjIndex().fin[plot] || 0; }
+function stockAdjFinItem(code){ return _stockAdjIndex().finItem[code] || 0; }
+function stockAdjHeat(heat){ return _stockAdjIndex().heat[heat] || 0; }
+/* 출하 공급 = 마지막 생산 공정 인정양품 + 완성품 실사 조정 (출하 판정·저장·정정·정합성 공용 1벌) */
+function lotShipSupply(plot, lastProc){ return LOT.acceptedGood(plot, lastProc) + stockAdjFin(plot); }
 const LOT = {
   // 생산LOT 신규 (수동 plot_no)
   create({plot_no, itemCode, materialLots, qty_initial, type='normal', sourceLots=[], merge_at_proc=null}){
@@ -7083,8 +7161,8 @@ const LOT = {
       const mIdx = route.findIndex(r=>r.proc===lot.merge_at_proc);
       if(mIdx>=0 && idx<mIdx) return { skip:true, avail:0 };
     }
-    if(idx===0 || (lot.merge_at_proc && proc===lot.merge_at_proc)) return { avail: +lot.qty_initial || 0 };   // 첫 공정·병합 시작 → qty_initial
-    return { avail: LOT.acceptedGood(plot_no, route[idx-1].proc) };   // 직전 공정의 「인정양품」 (보고양품 totalGood 아님)
+    if(idx===0 || (lot.merge_at_proc && proc===lot.merge_at_proc)) return { avail: (+lot.qty_initial || 0) + stockAdjSupply(plot_no, proc) };   // 첫 공정·병합 시작 → qty_initial · ★ v0.40.24 + 실사 조정(조정 없으면 0)
+    return { avail: LOT.acceptedGood(plot_no, route[idx-1].proc) + stockAdjSupply(plot_no, proc) };   // 직전 공정의 「인정양품」 (보고양품 totalGood 아님) · ★ v0.40.24 + 실사 조정
   },
   /* 실적별 인정/보류 분해 — 인정 순서 ts ASC → id ASC · accepted_i = clamp(avail − 누적, 0, reported_i) ⇒ 0 ≤ accepted_i ≤ reported_i ∧ Σ accepted_i ≤ avail */
   acceptedSplit(plot_no, proc){
@@ -7745,9 +7823,11 @@ function osInFlight(plot, proc){
   return DB.query('os_dispatches', d => d.plot_no===plot && d.proc===proc)
     .reduce((sum, d) => {
       const recv = DB.query('os_receipts', r => r.dispatch_id === d.id).reduce((s,r) => s+(r.qty||0), 0);
-      return sum + Math.max(0, (d.qty||0) - recv);
+      return sum + Math.max(0, (d.qty||0) - recv + stockAdjOs(d.id));   // ★ v0.40.24 + 협력사 실사 조정 (없으면 0)
     }, 0);
 }
+/* ★ v0.40.24 — 반출 1건의 미입고 잔량 (실사 조정 포함) · 표시·목록 공용 1벌 */
+function osDispRemain(d){ if(!d) return 0; const recv = DB.query('os_receipts', r => r.dispatch_id === d.id).reduce((s,r) => s+(r.qty||0), 0); return Math.max(0, (d.qty||0) - recv + stockAdjOs(d.id)); }
 function osAvailable(plot, proc){
   if(!plot || !proc) return { A:0, B:0, C:0, avail:0 };
   const lot = DB.get('production_lots', plot);
@@ -7766,6 +7846,7 @@ function osAvailable(plot, proc){
   } else {
     A = LOT.acceptedGood(plot, route[idx-1].proc);   // ★ v0.36.0
   }
+  A += stockAdjSupply(plot, proc);   // ★ v0.40.24 — 실사 조정 (_prevAvail 과 같은 값 · 조정 없으면 0)
   const B = LOT.totalInput(plot, proc);
   const C = osInFlight(plot, proc);   // ★ v0.16.15 소함수 공용
   return { A, B, C, avail: Math.max(0, A - B - C) };
@@ -10177,7 +10258,7 @@ function calcSoFulfillment(){
 function itemLastProdProc(code){ const r = getRoute(code).filter(x => x.proc !== 'SHIP'); return r.length ? r[r.length-1].proc : null; }
 function itemMadeQty(code){ const lp = itemLastProdProc(code); if(!lp) return 0; return DB.query('production_lots', l => l.itemCode === code).reduce((s,l) => s + LOT.acceptedGood(l.plot_no, lp), 0); }
 function itemShippedQty(code){ return DB.query('shipments', x => x.itemCode === code).reduce((s,r) => s + (r.qty||0), 0); }
-function itemFinishedStock(code){ return Math.max(0, itemMadeQty(code) - itemShippedQty(code)); }
+function itemFinishedStock(code){ return Math.max(0, itemMadeQty(code) + stockAdjFinItem(code) - itemShippedQty(code)); }   // ★ v0.40.24 + 완성품 실사 조정
 function calcItemFlow(itemCode){
   const route = getRoute(itemCode);
   const routeProcs = route.filter(r => r.proc !== 'SHIP');
@@ -10199,7 +10280,7 @@ function calcItemFlow(itemCode){
   const lastProd = routeProcs[lastProdIdx];
   const madeSum = itemMadeQty(itemCode);           // ★ v0.36.0 — 1벌 (인정양품)
   const shippedSum = itemShippedQty(itemCode);
-  const finished = Math.max(0, madeSum - shippedSum);
+  const finished = Math.max(0, madeSum + stockAdjFinItem(itemCode) - shippedSum);   // ★ v0.40.24 + 완성품 실사 조정 (없으면 0)
   // ★ v0.16.15 — 반출 중(외주처 체류 · 입고 전) 공정별 합 (표시 전용 · 기존 wip/goodByProc 불변)
   //             osInFlight 소함수 재사용(osAvailable 과 공용) — 계산 중복 금지.
   const outAtVendor = {};
@@ -10256,7 +10337,8 @@ function calcHeatLedger(){
   });
   let totalRemain = 0;
   Object.values(ledger).forEach(h => {
-    h.remain = h.in_kg - h.used_kg;
+    h.adj_kg = stockAdjHeat(h.heat);   // ★ v0.40.24 — 원소재 실사 조정 (없으면 0)
+    h.remain = h.in_kg - h.used_kg + h.adj_kg;
     h.vendors = [...h.vendors];
     totalRemain += Math.max(0, h.remain);
   });
@@ -10475,11 +10557,11 @@ function openPickerModal(opt){
    k_alert(오늘 이상) = 고정(fixed) — 개인 설정으로 안전 신호를 숨길 수 없다. page/flag = 권한·플래그 게이팅(menuCanSee 1벌). */
 const DASH_DEFAULT = ['k_backlog','k_sales','k_today','k_alert','c_fulfil','c_trend'];
 const DASH_CARDS = [
-  { id:'k_backlog', kind:'kpi',  title:'총 수주잔',            group:'핵심 숫자', page:'so',   render: c => `
+  { id:'k_backlog', kind:'kpi',  title:'총 수주 금액',          group:'핵심 숫자', page:'so',   render: c => `
       <div class="dkpi clk" onclick="location.hash='#so'"><span class="goarrow">수주 ↗</span>
-        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M4 6h16v4H4zM4 14h16v4H4z"/></svg>총 수주잔</div>
+        <div class="lab"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><path d="M4 6h16v4H4zM4 14h16v4H4z"/></svg>총 수주 금액</div>
         <div class="val c">${c.stages.hasData ? '₩'+Math.round(c.stages.total).toLocaleString() : '<span style="color:var(--dim);font-size:15px">수주 없음</span>'}</div>
-        <div class="sub">${c.stages.hasData ? `생산중 ₩${Math.round(c.stages.prog).toLocaleString()} · 미착수 ₩${Math.round(c.stages.wait).toLocaleString()}` : '<span class="nodata">수주가 등록되면 표시</span>'}</div>
+        <div class="sub">${c.stages.hasData ? `출하완료 ₩${Math.round(c.stages.done).toLocaleString()} · 남은 ₩${Math.round(c.stages.prog + c.stages.wait).toLocaleString()}` : '<span class="nodata">수주가 등록되면 표시</span>'}</div>
       </div>` },
   { id:'k_sales',   kind:'kpi',  title:'당월 매출',            group:'핵심 숫자', page:'ship', render: c => `
       <div class="dkpi clk" onclick="location.hash='#ship'"><span class="goarrow">출하 ↗</span>
@@ -10595,6 +10677,41 @@ function openDashPicker(){
     onSave: ids => { if(!setPrefs(SESSION.userId, { dash_cards: dashPinAlert(ids) })) return false; toast(`내 대시보드 저장 — 카드 ${ids.length}개`, 'ok'); router(); },
     onReset: () => { if(!setPrefs(SESSION.userId, { dash_cards: [] })) return false; toast('회사 기본 대시보드로 복원', 'ok'); router(); },
   });
+}
+/* ★ v0.40.24 (H6 · GPT 계획 검토 — 「오늘 확인할 것」 대시보드에 추가) — 자동 계산 · 읽기만 · 숫자를 누르면 그 화면
+   항목: 원장 확인(출하 초과 LOT · 동시성 사고) · 납기 임박(3일 안·지연) · 미출하 수주 · 미입고 외주(7일 넘음) · 품질 판정 대기 · 재고 실사 진행 중
+   · 권한 없는 메뉴 항목은 숨김(menuCanSee) · 카드 고르기(DASH_CARDS)와 별개 — 회사 기본 카드 구성 무변 */
+function dashTodayItems(){
+  const out = [], flags = getFlags(), can = id => { try { const p = PAGES.find(x => x.id === id); return !!p && menuCanSee(p, flags); } catch(e){ return false; } };
+  const today0 = fmtDate(Date.now()), d3 = fmtDate(Date.now() + 3 * 86400000);
+  if(can('ship') || can('lot')){
+    const over = DB.all('production_lots').filter(l => (lotShipOverage(l.plot_no) || {}).over > 0).length;
+    const inc = DB.query('concurrency_incidents', c => c.status === 'open').length;
+    out.push({ k: 'ledger', label: '원장 확인', n: over + inc, unit: '건', desc: over + inc ? `출하 초과 LOT ${over} · 동시성 보류 ${inc}` : '이상 없음', go: '#lot', tone: over + inc ? 'red' : '' });
+  }
+  if(can('so')){
+    const open = DB.all('orders').filter(o => soOpenQty(o) > 0);
+    const late = open.filter(o => o.due && o.due < today0).length, soon = open.filter(o => o.due && o.due >= today0 && o.due <= d3).length;
+    out.push({ k: 'due', label: '납기 임박·지연', n: late + soon, unit: '건', desc: late + soon ? `지연 ${late} · 3일 안 ${soon}` : '이상 없음', go: '#so', tone: late ? 'red' : soon ? 'amber' : '' });
+    const q = open.reduce((t, o) => t + soOpenQty(o), 0);
+    out.push({ k: 'unship', label: '미출하 수주', n: open.length, unit: '건', desc: open.length ? `남은 ${q.toLocaleString()} ea` : '없음', go: '#ship', tone: '' });
+  }
+  if(can('os')){
+    const w = DB.all('os_dispatches').filter(d => osDispRemain(d) > 0), old = w.filter(d => (Date.now() - (+d.ts || 0)) > 7 * 86400000).length;
+    out.push({ k: 'os', label: '미입고 외주', n: w.length, unit: '건', desc: w.length ? `남은 ${w.reduce((t, d) => t + osDispRemain(d), 0).toLocaleString()} ea${old ? ` · 7일 넘음 ${old}` : ''}` : '없음', go: '#os', tone: old ? 'amber' : '' });
+  }
+  if(can('qc')){
+    const pend = DB.query('nc_records', n => ncIsPending(n)).length, hold = heldPlotSet().size;
+    out.push({ k: 'qc', label: '품질 판정 대기', n: pend, unit: '건', desc: pend || hold ? `HOLD LOT ${hold}` : '없음', go: '#qc', tone: pend ? 'amber' : '' });
+  }
+  if(can('inv')){ const c = stockCountOpen(); if(c) out.push({ k: 'count', label: '재고 실사', n: 1, unit: '', desc: `${c.id} ${c.status === 'confirming' ? '확정 중 — 다시 시도' : '작성 중'}`, go: '#inv', tone: c.status === 'confirming' ? 'amber' : '' }); }
+  return out;
+}
+function dashTodayHtml(){
+  let items = []; try { items = dashTodayItems(); } catch(e){ console.warn('[VELA] 오늘 확인할 것', e); return ''; }
+  if(!items.length) return '';
+  return `<section class="dtoday" aria-label="오늘 확인할 것"><div class="dt-h">오늘 확인할 것 <span>자동 계산 · 누르면 해당 화면</span></div>
+    <div class="dt-row">${items.map(i => `<button type="button" class="dt-i ${i.tone} ${i.n ? '' : 'zero'}" data-dt-go="${i.go}" data-dt="${i.k}"><span class="dt-l">${_esc(i.label)}</span><b>${i.unit ? i.n.toLocaleString() : '●'}<small>${i.unit}</small></b><span class="dt-d">${_esc(i.desc)}</span></button>`).join('')}</div></section>`;
 }
 VIEWS.dash = () => {
   const flags = getFlags();
@@ -10748,7 +10865,7 @@ VIEWS.dash = () => {
   const progLabels = { day:'일간 · 오늘', week:'주간 · 이번주', month:`월간 · ${now.getMonth()+1}월`, year:`년간 · ${now.getFullYear()}` };
 
   // === HTML 렌더 — ★ v0.35.7 대시보드 v3 (사용자 판정 A안 · 2026-09-07 · QV-1b D′7 FAIL 1/3 "너무 혼잡" 수정)
-  //   구성 = 메뉴 공통 규격: 핵심 스트립 4(총 수주잔 · 당월 매출 · 오늘 생산 · 오늘 이상 신호등) + 카드 2(수주 대비 띠 · 생산 추세).
+  //   구성 = 메뉴 공통 규격: 핵심 스트립 4(총 수주 금액 · 당월 매출 · 오늘 생산 · 오늘 이상 신호등) + 카드 2(수주 대비 띠 · 생산 추세).
   //   이동(삭제 아님): 연 누적·월별 매출·고객사 5년 → 출하/AI 보고서 · 생산 진도 4칸 → 작업지시 · 공정 흐름 → 설비현황 · 품질 KPI → 품질.
   //   계산은 전부 기존 헬퍼 1벌(calcSales·calcSoFulfillment·computeTrend·lockedPlotSet·heldPlotSet·calcSoRows) — 신규 계산식 0.
   const _sf = todaySafetySignals(flags);   // ★ v0.39.9 — 안전 신호 1벌 (보고서 「안전 신호」 줄과 같은 함수)
@@ -10779,7 +10896,9 @@ VIEWS.dash = () => {
       ${kpis.map(c => c.render(ctx)).join('')}
     </div>
     ${cards.length ? `<div class="dgrid2 dash3g">${cards.map(c => c.render(ctx)).join('')}</div>` : ''}
+    ${dashTodayHtml()}
   `;
+  document.querySelectorAll('[data-dt-go]').forEach(b => b.onclick = () => { location.hash = b.dataset.dtGo; });   // ★ v0.40.24 (H6)
   const pickBtn = document.getElementById('dash-pick'); if(pickBtn) pickBtn.onclick = openDashPicker;
 
   // 추세 토글 (주/월/년) — 카드 onclick 막기 (chartbox에 stopPropagation 적용 + seg 영역도 별도 처리)
@@ -12117,6 +12236,7 @@ VIEWS.m_run = (session, [plot_no, proc]) => {
       <div class="qtype-row">${[['good','양품'],['def','불량'],['rew','재작업']].map(([k,l]) => `<button class="qt-btn ${k} ${draft.qtype===k?'on':''}" data-qt="${k}">${l}</button>`).join('')}</div>
       ${draft.qtype==='def' ? `<input class="reason-input" id="m-reason" placeholder="불량 사유 (선택)" value="${_esc(draft.qreason||'')}">` : ''}
       <div class="qval-big ${draft.qtype==='def'?'def':draft.qtype==='rew'?'rew':''}">${draft.qval||'0'}</div>
+      ${draft.qtype==='good' && !held && bal > 0 && v !== bal && String(bal).length <= 6 ? `<button class="m-fill" id="m-fill" type="button">잔량 <b>${bal.toLocaleString()}</b> EA 적용</button>` : ''}
       <div class="keypad">${[1,2,3,4,5,6,7,8,9].map(n=>`<div class="key" data-key="${n}">${n}</div>`).join('')}<div class="key act" data-key="C">C</div><div class="key" data-key="0">0</div><div class="key act" data-key="back">⌫</div></div>
       <button class="submit-big ${v>0 && !held ? 'next':''}" id="m-done" ${v>0 && !held ? '' : 'disabled'}>${held ? 'HOLD — 판정 전 등록 불가' : '등록'}</button>
       ${nextJob && bal > 0 ? `<a class="m-link center" id="m-skip" href="#m/run/${encodeURIComponent(nextJob.plot_no)}/${encodeURIComponent(nextJob.proc)}">다음 작업으로 → ${_esc(nextJob.procName)} · ${_esc(nextJob.plot_no)} <span class="dim">(이 작업은 미완료로 남음)</span></a>` : ''}
@@ -12124,6 +12244,7 @@ VIEWS.m_run = (session, [plot_no, proc]) => {
     document.querySelectorAll('[data-qt]').forEach(b => b.onclick = () => { draft.qtype = b.dataset.qt; saveDraft(); render(); });
     document.querySelectorAll('[data-key]').forEach(k => k.onclick = () => { const key = k.dataset.key; if(key==='C') draft.qval=''; else if(key==='back') draft.qval = draft.qval.slice(0,-1); else if(draft.qval.length < 6) draft.qval += key; saveDraft(); render(); });
     const rs = document.getElementById('m-reason'); if(rs) rs.oninput = () => { draft.qreason = rs.value; saveDraft(); };
+    const fill = document.getElementById('m-fill'); if(fill) fill.onclick = () => { draft.qval = String(bal); saveDraft(); render(); };   // ★ v0.40.24 (H4) — 누를 때만 · 저장 검사(registerRecord) 무변
     const skip = document.getElementById('m-skip'); if(skip) skip.onclick = () => { try { sessionStorage.removeItem(M_DRAFT_KEY); } catch(e){} };   // 건너뛰기 = 화면 이동만 (실적 0)
     document.getElementById('m-done').onclick = () => {
       const qty = +draft.qval || 0; if(qty <= 0) return;
@@ -12812,6 +12933,29 @@ function assertQuarantine(plot_no, qty, action, availQty){
     throw new Error(`판정 대기 격리 — ${plot_no} 부적합 신고 ${info.quarantine.toLocaleString()}ea 격리 (${info.pending.map(n => n.id).join(', ')}) · ${action || '진행'} 가능 ${allowed.toLocaleString()}ea (요청 ${(+qty||0).toLocaleString()}) · 품질 관리에서 판정 후 전량 가능`);
   }
   return { allowed, quarantine: info.quarantine, pending: info.pending };
+}
+/* ★ v0.40.24 (H1 · GPT 자동 채움 기준) — 출하 LOT 제안 = 저장 때와 같은 검사(HOLD · 인정양품 잔량 · 판정 대기 격리 · 동시성 보류 · 수주 남은 수량)를 통과한 LOT 만
+   · 순서 = 표시 없는 LOT 먼저 → 먼저 만든 LOT 먼저 · 반환값은 제안일 뿐 — 저장 직전 검사(assertSoShipQty·assertWithinAccepted·assertQuarantine)는 그대로 다시 실행 */
+function shipLotOptions(so){
+  if(!so || soCloseInfo(so)) return [];
+  const remain = soUnshippedQty(so); if(remain <= 0) return [];
+  const route = getRoute(so.itemCode); if(!route.length) return [];
+  const lastProd = route.length > 1 ? route[route.length-2] : route[0];
+  const locked = lockedPlotSet();
+  return DB.query('production_lots', l => l.itemCode === so.itemCode).map(l => {
+    const plot = l.plot_no; if(!plot) return null;
+    if(lotHoldInfo(plot).held) return null;
+    const avail = lotShipSupply(plot, lastProd.proc) - DB.query('shipments', x => x.plot_no === plot).reduce((a, r) => a + (r.qty || 0), 0);
+    if(avail <= 0) return null;
+    const pd = lotPendingInfo(plot, avail);
+    const cap = Math.max(0, avail - pd.quarantine);
+    const q = Math.min(cap, remain); if(q <= 0) return null;
+    try { assertWithinAccepted(plot, q, '출하', avail); assertQuarantine(plot, q, '출하', avail); } catch(e){ return null; }
+    const notes = [];
+    if(pd.pending.length) notes.push(`판정 대기 격리 ${pd.quarantine.toLocaleString()}ea 제외`);
+    if(locked.has(plot)) notes.push('동시성 보류 — 인정분만');
+    return { plot, avail, cap, q, created: +l.created || 0, notes };
+  }).filter(Boolean).sort((a, b) => (a.notes.length > 0) - (b.notes.length > 0) || (a.created - b.created) || String(a.plot).localeCompare(String(b.plot)));
 }
 /* 판정 대기 중 출하·반출 사실 기록 — NC 문서(비원장) pending_out + _logs 가 권위 (shipments/os_dispatches 원장 무변) */
 function ncRecordPendingOut(pending, kind, ref_id, qty){
@@ -14403,7 +14547,7 @@ function shipQtyFixCheck(id, newQty){
   if(soOthers + q > (+o.qty||0) && delta < 0) warn.push(`정정 후에도 수주 출하 합 ${(soOthers+q).toLocaleString()} > 수주량 ${(+o.qty||0).toLocaleString()} — 확인 필요`);
   else if(soOthers + q > (+o.qty||0)) throw new Error(`수주 수량 초과 — ${o.id} 수주 ${(+o.qty||0).toLocaleString()}ea · 다른 출하 ${soOthers.toLocaleString()}ea · 정정 가능 최대 ${Math.max(0,(+o.qty||0)-soOthers).toLocaleString()}ea`);
   const route = getRoute(lot.itemCode); const lastProd = route.length > 1 ? route[route.length-2] : route[0];
-  const bal = LOT.acceptedGood(d.plot_no, lastProd.proc);
+  const bal = lotShipSupply(d.plot_no, lastProd.proc);   // ★ v0.40.24 — 인정양품 + 완성품 실사 조정
   const lotOthers = DB.query('shipments', x => x.plot_no === d.plot_no && x.id !== id).reduce((a,x) => a + (+x.qty||0), 0);
   if(lotOthers + q > bal && delta < 0) warn.push(`정정 후에도 LOT ${d.plot_no} 출하 합 ${(lotOthers+q).toLocaleString()} > 인정양품 ${bal.toLocaleString()} — 확인 필요`);
   else if(lotOthers + q > bal) throw new Error(`LOT 남은 양품 초과 — ${d.plot_no} 인정양품 ${bal.toLocaleString()}ea · 다른 출하 ${lotOthers.toLocaleString()}ea · 정정 가능 최대 ${Math.max(0,bal-lotOthers).toLocaleString()}ea`);
@@ -14510,7 +14654,7 @@ function lotShipOverage(plot){
   const lot = DB.get('production_lots', plot); if(!lot) return null;
   const r = getRoute(lot.itemCode); if(!r.length) return null;
   const lp = r.length > 1 ? r[r.length-2] : r[0];
-  const good = LOT.acceptedGood(plot, lp.proc);
+  const good = lotShipSupply(plot, lp.proc);   // ★ v0.40.24 — + 완성품 실사 조정
   const shipped = DB.query('shipments', x => x.plot_no === plot).reduce((a,x) => a + (+x.qty||0), 0);
   return { plot, proc: lp.proc, good, shipped, over: Math.max(0, shipped - good) };
 }
@@ -15471,10 +15615,7 @@ VIEWS._matinBuy = () => {
    ================================================================================================= */
 VIEWS._matinOs = () => {
   const disp = DB.all('os_dispatches').slice().sort((a,b)=>b.ts-a.ts);
-  const waiting = disp.filter(d => {
-    const recv = DB.query('os_receipts', r=>r.dispatch_id===d.id).reduce((s,r)=>s+(r.qty||0),0);
-    return recv < (d.qty||0);
-  });
+  const waiting = disp.filter(d => osDispRemain(d) > 0);   // ★ v0.40.24 — 미입고 잔량 1벌 (실사 조정 포함)
   const recentRecvs = DB.all('os_receipts').slice().sort((a,b)=>b.ts-a.ts).slice(0,10);
 
   document.getElementById('view').innerHTML = `
@@ -15496,7 +15637,7 @@ VIEWS._matinOs = () => {
         </tr></thead>
         <tbody>${waiting.length? waiting.map(d=>{
           const recv = DB.query('os_receipts', r=>r.dispatch_id===d.id).reduce((s,r)=>s+(r.qty||0),0);
-          const remain = Math.max(0, (d.qty||0) - recv);
+          const remain = osDispRemain(d);   // ★ v0.40.24 — 실사 조정 포함
           const lot = DB.get('production_lots', d.plot_no);
           const item= lot && DB.get('items', lot.itemCode);
           const v   = DB.get('vendors', d.vendor);
@@ -15543,7 +15684,7 @@ VIEWS._matinOs = () => {
     openModal(`<h2>외주 입고 — 반출 고르기 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body"><div class="tbl-wrap"><table><thead><tr><th>반출전표</th><th>외주처·공정</th><th>품번·LOT</th><th class="num">잔량</th><th></th></tr></thead><tbody>${waiting.map(d => {
         const recv = DB.query('os_receipts', r => r.dispatch_id === d.id).reduce((t, r) => t + (r.qty || 0), 0); const lot = DB.get('production_lots', d.plot_no);
-        return `<tr><td><b>${_esc(d.id)}</b><div class="muted" style="font-size:10px">${fmtDate(d.ts)}</div></td><td>${_esc((DB.get('vendors', d.vendor) || {}).name || d.vendor)} · ${_esc((DB.get('processes', d.proc) || {}).name || d.proc)}</td><td><b>${_esc(lot?.itemCode || '')}</b><div class="muted" style="font-size:10px">${_esc(d.plot_no)}</div></td><td class="num" style="color:var(--amber);font-weight:700">${Math.max(0, (d.qty || 0) - recv).toLocaleString()}</td><td><button class="btn primary" data-mi-pick="${_esc(d.id)}">입고</button></td></tr>`; }).join('')}</tbody></table></div>
+        return `<tr><td><b>${_esc(d.id)}</b><div class="muted" style="font-size:10px">${fmtDate(d.ts)}</div></td><td>${_esc((DB.get('vendors', d.vendor) || {}).name || d.vendor)} · ${_esc((DB.get('processes', d.proc) || {}).name || d.proc)}</td><td><b>${_esc(lot?.itemCode || '')}</b><div class="muted" style="font-size:10px">${_esc(d.plot_no)}</div></td><td class="num" style="color:var(--amber);font-weight:700">${osDispRemain(d).toLocaleString()}</td><td><button class="btn primary" data-mi-pick="${_esc(d.id)}">입고</button></td></tr>`; }).join('')}</tbody></table></div>
       <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div></div>`);
     document.querySelectorAll('[data-mi-pick]').forEach(b => b.onclick = () => VIEWS._osRecv(b.dataset.miPick));
   };
@@ -15585,6 +15726,425 @@ VIEWS._invItemDetail = (code) => {
     const r = document.createElement('tr'); r.className = 'inv-lot-steps'; r.innerHTML = `<td colspan="5" style="padding:0;background:var(--bg2)">${lotStepPanelHTML(plot)}</td>`; tr.after(r);
   });
 };
+/* =================================================================================================
+   ★ v0.40.24 — 재고 실사 (SPEC 재고실사 v0.2 · 사용자 요청 2026-11-07)
+   흐름: 회차(실사 기준 일시 = 실제로 센 시각) → 실사표 엑셀(전체 · 협력사별) → 적어서 그대로 올리기 → 미리보기(차이·금액)
+        → [확정] = 실제 재고 조정(stock_adj · 회차 stock_counts 「확정」 일 때만 계산에 반영) → [확정 취소]
+   원칙: 원장(실적·출하·입고) 무변 · 조정 = 회차+행 열쇠 고정 번호(다시 올려도·다시 확정해도 1번) · 빈칸 = 세지 않음
+        · 기준 장부 = DB.asOf(기준 일시) 안에서 지금과 같은 계산 함수 1벌 · 보류(동시성) 있는 줄 = 실사 입력 불가(먼저 판정)
+   ================================================================================================= */
+const SC_KIND = { mat:'원소재', wip:'재공', os:'협력사', fin:'완성품', fint:'완성품 합계' };
+const SC_SHEETS = [['mat', '① 원소재'], ['wip', '② 재공'], ['os', '③ 협력사 보유'], ['fin', '④ 완성품']];
+const SC_HEAD = ['구분', '위치', '품번 · 히트', '품명 · 소재', 'LOT', '공정', '단위', '기준 장부', '실사 수량', '비고', '행 열쇠', '회차'];
+function stockCanManage(){ return SESSION.role === 'manager' || SESSION.role === 'vendor'; }
+function stockCountOpen(){ if(!stockCountSupported()) return null; return DB.all('stock_counts').filter(c => c.status === 'open' || c.status === 'confirming').sort((a, b) => (b.created || 0) - (a.created || 0))[0] || null; }
+function stockCountLastConfirmed(){ if(!stockCountSupported()) return null; return DB.all('stock_counts').filter(c => c.status === 'confirmed').sort((a, b) => (b.basis_ts || 0) - (a.basis_ts || 0))[0] || null; }
+function _scAdjId(countId, key){ return `${countId}~${String(key).replace(/[\/\s]/g, '_')}`; }
+function _scProcName(p){ return (DB.get('processes', p) || {}).name || p || ''; }
+function _scVendorName(v){ return (DB.get('vendors', v) || {}).name || v || ''; }
+
+/* 실사표 줄 = 기준 일시의 장부 (지금 화면과 같은 계산 · DB.asOf) */
+function stockCountRows(count){
+  const T = +count.basis_ts;
+  const rows = DB.asOf(T, () => {
+    const out = [];
+    const { ledger } = calcHeatLedger();
+    Object.values(ledger).forEach(h => {
+      const b = Math.round((h.remain || 0) * 10) / 10; if(Math.abs(b) < 0.05) return;
+      out.push({ key: 'M|' + h.heat, kind: 'mat', loc: '사내', code: h.heat, name: [h.mat, h.dia ? 'Ø' + h.dia : ''].filter(Boolean).join(' '), lot: '', proc: '', unit: 'kg', book: b, heat: h.heat, mat: h.mat || '' });
+    });
+    DB.all('production_lots').forEach(l => {
+      const route = getRoute(l.itemCode); if(!route.length) return;
+      const item = DB.get('items', l.itemCode) || {};
+      const lastProd = route.length > 1 ? route[route.length - 2] : route[0];
+      route.forEach((r, idx) => {
+        if(r.proc === 'SHIP') return;
+        if(idx === 0 && l.merge_at_proc !== r.proc) return;   // 첫 공정 투입 전 = 아직 원소재(히트 kg) 로 셈 → 이중 계상 안 함
+        if(LOT._prevAvail(l.plot_no, r.proc).skip) return;
+        const b = qgInHouseBalance(l.plot_no, r.proc), pend = LOT.pendingQty(l.plot_no, r.proc);
+        if(b <= 0 && !pend) return;
+        out.push({ key: `W|${l.plot_no}|${r.proc}`, kind: 'wip', loc: '사내', code: l.itemCode, name: item.name || '', lot: l.plot_no, proc: r.proc, unit: 'ea', book: b, plot_no: l.plot_no, itemCode: l.itemCode, pend });
+      });
+      const shipped = DB.query('shipments', x => x.plot_no === l.plot_no).reduce((a, x) => a + (+x.qty || 0), 0);
+      const fb = lotShipSupply(l.plot_no, lastProd.proc) - shipped, fpend = LOT.pendingQty(l.plot_no, lastProd.proc);
+      if(fb > 0 || fpend) out.push({ key: 'F|' + l.plot_no, kind: 'fin', loc: '사내', code: l.itemCode, name: item.name || '', lot: l.plot_no, proc: '', unit: 'ea', book: Math.max(0, fb), plot_no: l.plot_no, itemCode: l.itemCode, pend: fpend, created: +l.created || 0 });
+    });
+    DB.all('os_dispatches').forEach(d => {
+      const b = osDispRemain(d); if(b <= 0) return;
+      const l = DB.get('production_lots', d.plot_no) || {};
+      out.push({ key: 'O|' + d.id, kind: 'os', loc: _scVendorName(d.vendor), vendor: d.vendor || '', code: l.itemCode || '', name: (DB.get('items', l.itemCode) || {}).name || '', lot: d.plot_no, proc: d.proc, unit: 'ea', book: b, plot_no: d.plot_no, itemCode: l.itemCode || '', dispatch_id: d.id, pend: LOT.pendingQty(d.plot_no, d.proc) });
+    });
+    getItems().forEach(it => {
+      const lots = out.filter(r => r.kind === 'fin' && r.itemCode === it.code);
+      out.push({ key: 'FT|' + it.code, kind: 'fint', loc: '사내', code: it.code, name: it.name || '', lot: '(품번 합계)', proc: '', unit: 'ea', book: lots.reduce((a, r) => a + r.book, 0), itemCode: it.code, nLots: lots.length });
+    });
+    return out;
+  });
+  // 기준 뒤 입력 (확인용) — 그 LOT·히트의 실적·출하·반출·입고 중 기준 일시 뒤
+  const after = {};
+  const bump = k => { after[k] = (after[k] || 0) + 1; };
+  DB.query('records', r => +r.ts > T).forEach(r => bump('P|' + r.plot_no));
+  DB.query('shipments', r => +r.ts > T).forEach(r => bump('P|' + r.plot_no));
+  DB.query('os_dispatches', r => +r.ts > T).forEach(r => bump('P|' + r.plot_no));
+  DB.query('os_receipts', r => +r.ts > T).forEach(r => { const d = DB.get('os_dispatches', r.dispatch_id); if(d) bump('P|' + d.plot_no); });
+  DB.query('material_receipts', r => +r.ts > T).forEach(r => bump('H|' + r.heat));
+  rows.forEach(r => { r.after = r.kind === 'mat' ? (after['H|' + r.heat] || 0) : r.plot_no ? (after['P|' + r.plot_no] || 0) : 0; });
+  return rows;
+}
+
+/* 평가 단가 (원/단위) · 없으면 null(「—」 · 0원 아님) · basis = 'cost' | 'sale' */
+function stockUnitPrice(r){
+  const rates = DB.get('settings', 'cost_rates') || defaultCostRates();
+  if(r.kind === 'mat'){ const v = +(rates.material_rates || {})[r.mat] || 0; return v > 0 ? { v, basis: 'cost' } : null; }
+  const code = r.itemCode; if(!code) return null;
+  const c = computeCost(code);
+  if(r.kind === 'wip' || r.kind === 'os'){
+    if(!c) return null;
+    let sum = c.material;
+    for(const x of getRoute(code)){ if(x.proc === r.proc || x.proc === 'SHIP') break; sum += x.mode === 'out' ? (+(rates.outsource_rates || {})[x.proc] || 0) : (+(rates.process_rates || {})[x.proc] || 0); }
+    sum *= 1 + (+rates.overhead_pct || 0);
+    return sum > 0 ? { v: sum, basis: 'cost' } : null;
+  }
+  if(c && c.total > 0) return { v: c.total, basis: 'cost' };
+  const it = DB.get('items', code); if(it && +it.price > 0) return { v: +it.price, basis: 'sale' };
+  return null;
+}
+
+/* 엑셀 실사표 — 안내 + 구분 4장 · 숨은 열 = 행 열쇠 · 회차 · vendor 지정 = 그 협력사 줄만(③) */
+function stockCountXlsx(count, vendor){
+  if(typeof XLSX === 'undefined'){ toast('엑셀 모듈을 불러오는 중입니다 — 잠시 뒤 다시', 'warn'); return null; }
+  const rows = stockCountRows(count);
+  const wb = XLSX.utils.book_new();
+  const basis = `${fmtDate(count.basis_ts)} ${new Date(count.basis_ts).toTimeString().slice(0, 5)}`;
+  const guide = [
+    ['VELA 재고 실사표'],
+    ['회차', count.id, count.title || ''],
+    ['실사 기준 일시', basis, '이 시각에 실제로 센 수량을 적습니다'],
+    ['내려받은 사람', SESSION.user || '', fmtDate(Date.now())],
+    vendor ? ['협력사', _scVendorName(vendor), '③ 협력사 보유 = 이 협력사 줄만'] : ['범위', '전체', ''],
+    [],
+    ['작성 방법'],
+    ['1', '「실사 수량」 칸에만 센 수량을 적습니다 (원소재 = kg · 나머지 = ea)'],
+    ['2', '세지 않은 줄은 비워 둡니다 — 빈칸 = 조정 없음 · 0 = 실제로 0개'],
+    ['3', '완성품은 LOT 줄에 적는 것이 정확합니다 · 품번 합계 줄만 적으면 LOT 가 여럿일 때 올린 뒤 LOT 배분을 확인합니다 (같은 품번에 둘 다 적지 마세요)'],
+    ['4', '장부보다 많이 센 줄은 「비고」 에 사유를 적어 주세요 (예: 미등록 실적 · 반품)'],
+    ['5', '줄·열을 추가하거나 「행 열쇠」 「회차」 열을 지우지 마세요 — 그 파일 그대로 올립니다'],
+    [],
+    ['협력사 보관 원소재(사급)', '이번 판 미지원 — 사내 보유 원소재만 실사합니다'],
+  ];
+  const gs = XLSX.utils.aoa_to_sheet(guide); gs['!cols'] = [{ wch: 22 }, { wch: 60 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, gs, '안내');
+  SC_SHEETS.forEach(([k, nm]) => {
+    let list = rows.filter(r => r.kind === k || (k === 'fin' && r.kind === 'fint'));
+    if(k === 'os' && vendor) list = list.filter(r => r.vendor === vendor);
+    if(vendor && k !== 'os') list = [];
+    if(k === 'fin') list = list.sort((a, b) => String(a.itemCode).localeCompare(String(b.itemCode)) || (a.kind === 'fint' ? -1 : b.kind === 'fint' ? 1 : (a.created || 0) - (b.created || 0)));
+    else list = list.sort((a, b) => String(a.loc).localeCompare(String(b.loc)) || String(a.code).localeCompare(String(b.code)) || String(a.lot).localeCompare(String(b.lot)));
+    const aoa = [[`${nm} — 회차 ${count.id} · 기준 ${basis}`], SC_HEAD];
+    list.forEach(r => aoa.push([SC_KIND[r.kind], r.loc, r.code, r.name, r.lot, r.proc ? _scProcName(r.proc) : '', r.unit, r.pend ? `${r.book} (보류 ${r.pend})` : r.book, '', r.pend ? '보류 — 판정 후 실사' : '', r.key, count.id]));
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 10 }, { wch: 6 }, { wch: 11 }, { wch: 11 }, { wch: 24 }, { hidden: true, wch: 4 }, { hidden: true, wch: 4 }];
+    XLSX.utils.book_append_sheet(wb, ws, nm);
+  });
+  const fn = `재고실사표_${count.id}${vendor ? '_' + _scVendorName(vendor) : ''}.xlsx`;
+  XLSX.writeFile(wb, fn);
+  return { file: fn, rows: rows.length };
+}
+
+/* 올린 실사표 읽기 — 행 열쇠로 같은 줄 찾기 · 빈칸 = 세지 않음 */
+function stockCountParse(count, wb){
+  const rows = stockCountRows(count), byKey = new Map(rows.map(r => [r.key, r]));
+  const entries = new Map(), errors = [];
+  (wb.SheetNames || []).forEach(sn => {
+    const ws = wb.Sheets[sn]; if(!ws) return;
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+    const hi = aoa.findIndex(r => Array.isArray(r) && r.includes('행 열쇠') && r.includes('실사 수량'));
+    if(hi < 0) return;
+    const h = aoa[hi], ci = { key: h.indexOf('행 열쇠'), cnt: h.indexOf('실사 수량'), cid: h.indexOf('회차'), note: h.indexOf('비고') };
+    aoa.slice(hi + 1).forEach((r, i) => {
+      const rowNo = hi + i + 2;
+      const raw = r[ci.cnt], key = String(r[ci.key] || '').trim(), cid = String(r[ci.cid] || '').trim();
+      const blank = raw === '' || raw == null || String(raw).trim() === '';
+      if(blank) return;
+      if(!key){ errors.push({ sheet: sn, row: rowNo, msg: '행 열쇠 없음 (줄 추가 금지) — 이 줄 무시' }); return; }
+      if(cid && cid !== count.id){ errors.push({ sheet: sn, row: rowNo, msg: `다른 회차의 실사표 (${cid})` }); return; }
+      const ref = byKey.get(key);
+      if(!ref){ errors.push({ sheet: sn, row: rowNo, msg: `이 회차에 없는 줄 (${key})` }); return; }
+      const v = typeof raw === 'number' ? raw : +String(raw).replace(/,/g, '').trim();
+      if(!isFinite(v)){ errors.push({ sheet: sn, row: rowNo, msg: `숫자가 아님 (${raw})` }); return; }
+      if(v < 0){ errors.push({ sheet: sn, row: rowNo, msg: '음수' }); return; }
+      if(ref.unit === 'ea' && !Number.isInteger(v)){ errors.push({ sheet: sn, row: rowNo, msg: `ea 는 정수 (${v})` }); return; }
+      if(ref.pend){ errors.push({ sheet: sn, row: rowNo, msg: `동시성 보류 ${ref.pend}ea 가 있는 줄 — 품질·판정 처리 뒤 다시 실사` }); return; }
+      if(entries.has(key)){ errors.push({ sheet: sn, row: rowNo, msg: '같은 줄이 두 번 있음' }); return; }
+      entries.set(key, { counted: ref.unit === 'kg' ? Math.round(v * 10) / 10 : v, note: ci.note >= 0 ? String(r[ci.note] || '').trim() : '' });
+    });
+  });
+  return { entries, errors, rows };
+}
+
+/* 미리보기 — 줄별 차이·금액 · 품번 합계 줄의 LOT 배분 · 확정 가능 여부 */
+function stockCountPreview(count, draft){
+  const rows = draft.rows || stockCountRows(count), entries = draft.entries || new Map(), alloc = draft.alloc || {};
+  const byKey = new Map(rows.map(r => [r.key, r]));
+  const lines = [], problems = [], needAlloc = [];
+  const fin = new Map(); rows.filter(r => r.kind === 'fin').forEach(r => { (fin.get(r.itemCode) || fin.set(r.itemCode, []).get(r.itemCode)).push(r); });
+  const push = (r, counted, note, via) => { const delta = r.unit === 'kg' ? Math.round((counted - r.book) * 10) / 10 : counted - r.book; const p = canSeePrice() ? stockUnitPrice(r) : null;
+    lines.push({ key: r.key, kind: r.kind, loc: r.loc, vendor: r.vendor || '', code: r.code, name: r.name, lot: r.lot, proc: r.proc, unit: r.unit, book: r.book, counted, delta, note: note || '', after: r.after || 0, price: p ? p.v : null, basis: p ? p.basis : null, amt: p ? Math.round(delta * p.v) : null, via: via || '', ref: r }); };
+  entries.forEach((e, key) => {
+    const r = byKey.get(key); if(!r) return;
+    if(r.kind !== 'fint'){ push(r, e.counted, e.note); return; }
+    const lots = fin.get(r.itemCode) || [];
+    const lotFilled = lots.filter(x => entries.has(x.key));
+    if(lotFilled.length){ problems.push(`${r.code} — 품번 합계 줄과 LOT 줄(${lotFilled.map(x => x.lot).join(', ')})을 함께 적음 · 한쪽만 적어 주세요`); return; }
+    if(lots.length === 1){ push(lots[0], e.counted, e.note, '품번 합계 → 하나뿐인 LOT'); return; }
+    const bookSum = lots.reduce((a, x) => a + x.book, 0);
+    if(e.counted === bookSum && lots.length > 1){ lots.forEach(x => push(x, x.book, e.note, '품번 합계 = 장부 합계 (차이 없음)')); return; }
+    // 배분 필요 — LOT 여럿, 또는 장부 LOT 없음(그 품번의 최근 LOT 중에서 고름)
+    const cand = lots.length ? lots : DB.query('production_lots', l => l.itemCode === r.itemCode).sort((a, b) => (b.created || 0) - (a.created || 0)).slice(0, 5)
+      .map(l => ({ key: 'F|' + l.plot_no, kind: 'fin', loc: '사내', code: r.code, name: r.name, lot: l.plot_no, proc: '', unit: 'ea', book: 0, plot_no: l.plot_no, itemCode: r.itemCode, after: 0 }));
+    if(!cand.length){ if(e.counted > 0) problems.push(`${r.code} — 이 품번의 LOT 이 없어 완성품을 올릴 수 없습니다 (LOT 을 먼저 등록)`); return; }
+    const a = alloc[r.itemCode] || {};
+    const sum = cand.reduce((t, x) => t + (+a[x.lot] || 0), 0);
+    const filled = cand.every(x => a[x.lot] !== undefined && a[x.lot] !== '' && Number.isInteger(+a[x.lot]) && +a[x.lot] >= 0);
+    needAlloc.push({ itemCode: r.itemCode, code: r.code, name: r.name, counted: e.counted, book: bookSum, cand, alloc: a, sum, ok: filled && sum === e.counted });
+    if(filled && sum === e.counted) cand.forEach(x => push(x, +a[x.lot], e.note, 'LOT 배분 확인'));
+  });
+  needAlloc.filter(n => !n.ok).forEach(n => problems.push(`${n.code} — LOT 배분 확인 필요 (실사 ${n.counted.toLocaleString()} · 배분 합 ${n.sum.toLocaleString()})`));
+  const plusNoReason = lines.filter(l => l.delta > 0 && !l.note);
+  const sum = { up: 0, down: 0, net: 0, upAmt: 0, downAmt: 0, netAmt: 0, noPrice: 0, n: lines.length, diff: 0 };
+  lines.forEach(l => { if(l.delta) sum.diff++; if(l.delta > 0) sum.up += l.delta; else sum.down += l.delta; if(l.amt == null){ if(l.delta) sum.noPrice++; } else if(l.amt > 0) sum.upAmt += l.amt; else sum.downAmt += l.amt; });
+  sum.netAmt = sum.upAmt + sum.downAmt;
+  return { lines: lines.sort((a, b) => Math.abs(b.amt == null ? b.delta : b.amt) - Math.abs(a.amt == null ? a.delta : a.amt)), problems, needAlloc, plusNoReason, sum };
+}
+
+/* 묶음 저장 + 서버 확인 (서버 모드 = 거부/응답 대기 · 이 기기 모드 = 즉시) */
+async function _scGroup(fn, label){
+  const g = DB.group(fn, { label });
+  if(g && g.server) await g.server;
+  return g;
+}
+/* [확정] — 회차 = 「확정 중」 → 조정 기록 전부(묶음 400) → 서버 확인 뒤에만 「확정」 · 실패 = 「확정 중」 유지 · 같은 번호로 다시 */
+async function stockCountConfirm(countId, prev, commonReason){
+  if(!stockCountSupported()) throw new Error('직원 계정 모드에서는 재고 실사를 아직 지원하지 않습니다 (서버 규칙 추가 필요)');
+  const c = DB.get('stock_counts', countId);
+  if(!c) throw new Error('회차 없음');
+  if(!stockCanManage()) throw new Error('확정은 관리 역할만 할 수 있습니다');
+  if(qgLive()) throw new Error('수량 보호(r17)가 켜진 서버에서는 실사 확정을 아직 지원하지 않습니다 — 보호 전환 작업 때 함께 반영');
+  if(c.status === 'confirmed') throw new Error('이미 확정된 회차');
+  if(c.status === 'cancelled') throw new Error('취소된 회차');
+  let adj;
+  if(c.status === 'confirming' && Array.isArray(c.lines)){ adj = c.lines.filter(l => l.d).map(l => _scAdjFromLine(c, l)); }   // 다시 시도 = 처음 저장한 줄 그대로 (같은 번호)
+  else {
+    if(!prev) throw new Error('실사표를 먼저 올려 주세요');
+    if(prev.problems.length) throw new Error(`확인할 것 ${prev.problems.length}건 — ${prev.problems[0]}`);
+    if(!prev.lines.length) throw new Error('적힌 실사 수량이 없습니다');
+    if(prev.plusNoReason.length && !String(commonReason || '').trim()) throw new Error(`장부보다 많은 줄 ${prev.plusNoReason.length}건 — 사유 필요 (비고 또는 공통 사유)`);
+    const summary = { n: prev.lines.length, diff: prev.sum.diff, up: prev.sum.up, down: prev.sum.down, upAmt: prev.sum.upAmt, downAmt: prev.sum.downAmt, netAmt: prev.sum.netAmt, noPrice: prev.sum.noPrice };
+    // 줄 = 객체 배열 (서버 문서는 배열 안 배열 불가) · k 행 열쇠 · t 구분 · b 장부 · c 실사 · d 차이 · p 단가 · a 금액 · s 단가 기준 · n 비고/사유
+    const lines = prev.lines.map(l => ({ k: l.key, t: l.kind, b: l.book, c: l.counted, d: l.delta, p: l.price, a: l.amt, s: l.basis || null, n: l.note || (l.delta > 0 ? String(commonReason || '').trim() : l.delta < 0 ? '실사 부족' : '') }));
+    await _scGroup(() => { if(!DB.set('stock_counts', countId, { status: 'confirming', lines, summary, confirm_start: Date.now(), confirm_by: SESSION.user || '' })) throw new Error('저장이 거부되었습니다 (권한 확인)'); }, '실사 확정 준비');
+    adj = lines.filter(l => l.d).map(l => _scAdjFromLine(DB.get('stock_counts', countId), l));
+  }
+  for(let i = 0; i < adj.length; i += 400){
+    const part = adj.slice(i, i + 400);
+    await _scGroup(() => { part.forEach(a => { if(!DB.set('stock_adj', a.id, a)) throw new Error('조정 기록 저장이 거부되었습니다 (권한 확인)'); }); }, '실사 조정');
+  }
+  await _scGroup(() => { if(!DB.set('stock_counts', countId, { status: 'confirmed', confirmed_at: Date.now(), confirmed_by: SESSION.user || '', n_adj: adj.length })) throw new Error('저장이 거부되었습니다'); }, '실사 확정');
+  return { n: adj.length };
+}
+/* 저장된 줄 1개 → 조정 기록 (행 열쇠로 LOT·공정·반출·히트를 찾음 · 번호 = 회차 + 행 열쇠 고정) */
+function _scAdjFromLine(c, l){
+  const p = String(l.k).split('|'); const a = { id: _scAdjId(c.id, l.k), count_id: c.id, key: l.k, kind: l.t, plot_no: null, proc: null, dispatch_id: null, vendor: null, heat: null, itemCode: null, book: l.b, counted: l.c, delta: l.d, unit: l.t === 'mat' ? 'kg' : 'ea', reason: l.n || '', ts: +c.basis_ts, by: SESSION.user || '' };
+  if(l.t === 'mat') a.heat = p[1];
+  else if(l.t === 'wip'){ a.plot_no = p[1]; a.proc = p[2]; }
+  else if(l.t === 'fin') a.plot_no = p[1];
+  else if(l.t === 'os'){ const d = DB.get('os_dispatches', p[1]) || {}; a.dispatch_id = p[1]; a.plot_no = d.plot_no || null; a.proc = d.proc || null; a.vendor = d.vendor || null; }
+  if(a.plot_no) a.itemCode = (DB.get('production_lots', a.plot_no) || {}).itemCode || null;
+  if(!(a.heat || (a.plot_no && (a.kind === 'fin' || a.proc)))) throw new Error(`조정 대상을 찾을 수 없음 (${l.k})`);
+  return a;
+}
+/* 확정 취소 점검 — 이 회차를 빼고 계산했을 때 음수가 되는 곳(그 사이 출하·투입) */
+function stockCountCancelCheck(countId){
+  const adj = DB.query('stock_adj', a => a.count_id === countId);
+  const bad = [];
+  _stockAdjSkip = countId; DB._bump();
+  try {
+    adj.forEach(a => {
+      if(a.kind === 'fin'){ const l = DB.get('production_lots', a.plot_no); const rt = l ? getRoute(l.itemCode) : []; const lp = rt.length > 1 ? rt[rt.length - 2] : rt[0]; if(!lp) return;
+        const v = lotShipSupply(a.plot_no, lp.proc) - DB.query('shipments', x => x.plot_no === a.plot_no).reduce((t, x) => t + (+x.qty || 0), 0); if(v < 0) bad.push(`${a.plot_no} 완성품 ${v.toLocaleString()}ea`); }
+      else if(a.kind === 'wip' || a.kind === 'os'){ const pa = LOT._prevAvail(a.plot_no, a.proc); const v = pa.avail - LOT.totalInput(a.plot_no, a.proc) - osInFlight(a.plot_no, a.proc); if(v < 0) bad.push(`${a.plot_no} ${_scProcName(a.proc)} ${v.toLocaleString()}ea`);
+        if(a.kind === 'os'){ const d = DB.get('os_dispatches', a.dispatch_id); if(d){ const recv = DB.query('os_receipts', r => r.dispatch_id === d.id).reduce((t, r) => t + (r.qty || 0), 0); const rv = (d.qty || 0) - recv + stockAdjOs(d.id); if(rv < 0) bad.push(`${d.id} 미입고 ${rv.toLocaleString()}ea`); } } }
+    });
+  } finally { _stockAdjSkip = null; DB._bump(); }
+  return { adj, bad };
+}
+async function stockCountCancel(countId, reason){
+  const c = DB.get('stock_counts', countId);
+  if(!c || c.status !== 'confirmed') throw new Error('확정된 회차만 취소할 수 있습니다');
+  if(!stockCanManage()) throw new Error('확정 취소는 관리 역할만 할 수 있습니다');
+  if(!String(reason || '').trim()) throw new Error('취소 사유를 적어 주세요');
+  const later = DB.all('stock_counts').filter(x => x.status === 'confirmed' && x.id !== countId && (+x.basis_ts || 0) > (+c.basis_ts || 0));
+  if(later.length) throw new Error(`뒤에 확정된 회차(${later.map(x => x.id).join(', ')})를 먼저 취소해야 합니다`);
+  const chk = stockCountCancelCheck(countId);
+  if(chk.bad.length) throw new Error(`취소하면 음수가 되는 곳 ${chk.bad.length}건 (그 사이 출하·투입) — ${chk.bad.slice(0, 4).join(' · ')}`);
+  await _scGroup(() => { if(!DB.set('stock_counts', countId, { status: 'cancelled', cancel_reason: String(reason).trim(), cancelled_at: Date.now(), cancelled_by: SESSION.user || '' })) throw new Error('저장이 거부되었습니다'); }, '실사 확정 취소');
+  return { n: chk.adj.length };
+}
+function stockCountCreate({ title, basis_ts, note }){
+  if(!stockCountSupported()) throw new Error('직원 계정 모드에서는 재고 실사를 아직 지원하지 않습니다 (서버 규칙 추가 필요)');
+  if(!stockCanManage() && !_pEdit('inv')) throw new Error('재고 편집 권한이 필요합니다');
+  if(stockCountOpen()) throw new Error(`진행 중인 회차가 있습니다 (${stockCountOpen().id}) — 확정하거나 지운 뒤 새로`);
+  const T = +basis_ts; if(!T || !isFinite(T)) throw new Error('실사 기준 일시를 적어 주세요');
+  if(T > Date.now() + 60000) throw new Error('기준 일시는 지금보다 뒤일 수 없습니다 (실제로 센 시각)');
+  const last = stockCountLastConfirmed(); if(last && T <= +last.basis_ts) throw new Error(`기준 일시는 마지막 확정 회차(${last.id} · ${fmtDate(last.basis_ts)}) 뒤여야 합니다`);
+  const d = new Date(T), yy = d.getFullYear(), half = d.getMonth() < 6 ? 'H1' : 'H2';
+  let id = `SC-${yy}-${half}`, k = 2; while(DB.get('stock_counts', id)) id = `SC-${yy}-${half}-${k++}`;
+  if(!DB.set('stock_counts', id, { id, title: String(title || '').trim() || `${yy} ${half === 'H1' ? '상반기' : '하반기'} 실사`, basis_ts: T, note: String(note || '').trim(), status: 'open', created: Date.now(), by: SESSION.user || '' })) throw new Error('저장이 거부되었습니다 (권한 확인)');
+  return id;
+}
+function stockCountDiscard(countId){
+  const c = DB.get('stock_counts', countId); if(!c || c.status !== 'open') throw new Error('작성 중 회차만 지울 수 있습니다');
+  voidDoc('stock_counts', countId, '작성 중 회차 지움');
+}
+/* 결과 엑셀 (확정·미리보기 공용) */
+function stockCountResultXlsx(count, lines){
+  if(typeof XLSX === 'undefined'){ toast('엑셀 모듈을 불러오는 중입니다', 'warn'); return; }
+  const showAmt = canSeePrice();
+  const head = ['구분', '위치', '품번 · 히트', '품명', 'LOT', '공정', '단위', '기준 장부', '실사', '차이'].concat(showAmt ? ['평가 단가', '차이 금액', '단가 기준'] : []).concat(['비고']);
+  const aoa = [[`재고 실사 결과 — ${count.id} ${count.title || ''} · 기준 ${fmtDate(count.basis_ts)}`], head];
+  lines.forEach(l => aoa.push([SC_KIND[l.kind] || l.kind, l.loc || '', l.code || '', l.name || '', l.lot || '', l.proc ? _scProcName(l.proc) : '', l.unit || '', l.book, l.counted, l.delta].concat(showAmt ? [l.price == null ? '—' : Math.round(l.price), l.amt == null ? '—' : l.amt, l.basis === 'sale' ? '판매가 기준' : l.basis === 'cost' ? '표준원가' : '단가 없음'] : []).concat([l.note || ''])));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '실사 결과');
+  XLSX.writeFile(wb, `재고실사결과_${count.id}.xlsx`);
+}
+/* 확정 회차의 저장된 줄 → 표시용 */
+function _scStoredLines(c){
+  return (c.lines || []).map(({ k: key, t: kind, b: book, c: counted, d: delta, p: price, a: amt, n: note, s: basis }) => {
+    const p = String(key).split('|'); const isLot = kind !== 'mat';
+    const lot = kind === 'os' ? (DB.get('os_dispatches', p[1]) || {}).plot_no || '' : isLot ? p[1] : '';
+    const l = DB.get('production_lots', lot) || {}; const d = kind === 'os' ? DB.get('os_dispatches', p[1]) || {} : {};
+    return { key, kind, book, counted, delta, price, amt, note, basis, lot, unit: kind === 'mat' ? 'kg' : 'ea', code: kind === 'mat' ? p[1] : l.itemCode || '', name: kind === 'mat' ? '' : (DB.get('items', l.itemCode) || {}).name || '', proc: kind === 'wip' ? p[2] : kind === 'os' ? d.proc : '', loc: kind === 'os' ? _scVendorName(d.vendor) : '사내', vendor: d.vendor || '' };
+  });
+}
+
+/* ── 화면: 재고 › [재고 실사] ───────────────────────────────────────────── */
+window._scDraft = window._scDraft || {};
+VIEWS._stockCount = (countId) => {
+  if(!stockCountSupported()){ toast('재고 실사는 지금 운영 방식(기존 로그인)에서만 됩니다 — 직원 계정 모드는 서버 규칙 추가 뒤', 'warn', 5000); return; }
+  const open = countId ? DB.get('stock_counts', countId) : null;
+  if(!open){
+    const list = DB.allRaw('stock_counts').filter(c => !c.void).sort((a, b) => (b.basis_ts || 0) - (a.basis_ts || 0));
+    const ST = { open: ['작성 중', 'cyan'], confirming: ['확정 중', 'amber'], confirmed: ['확정', 'green'], cancelled: ['취소', ''] };
+    const now = new Date(); const pad = n => String(n).padStart(2, '0');
+    const nowLocal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const cur = stockCountOpen();
+    openModal(`
+      <h2>재고 실사 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+      <div class="body">
+        <div class="sc-lead">원소재 · 재공 · 협력사 보유 · 완성품을 실사표로 세어 올리면, 확정할 때 전산 재고가 실사 수량으로 맞춰집니다. 실적·출하 기록은 그대로 두고 차이만 「실사 조정」 으로 남습니다.</div>
+        ${cur ? '' : `<div class="sc-new">
+          <div class="grid g2">
+            <div><label>회차 이름</label><input id="sc-title" placeholder="${now.getFullYear()} ${now.getMonth() < 6 ? '상반기' : '하반기'} 실사"></div>
+            <div><label>실사 기준 일시 <span style="color:var(--dim);font-weight:400">— 실제로 센 시각</span></label><input id="sc-basis" type="datetime-local" value="${nowLocal}" max="${nowLocal}"></div>
+          </div>
+          <div class="actions" style="margin-top:8px"><button class="btn primary" id="sc-create">${ico('plus')}새 실사 회차</button></div>
+        </div>`}
+        <div class="tbl-wrap" style="margin-top:12px"><table style="font-size:12.5px"><thead><tr><th>회차</th><th>이름</th><th>기준 일시</th><th>상태</th><th class="num">차이 줄</th>${canSeePrice() ? '<th class="num">순차이 금액</th>' : ''}<th></th></tr></thead><tbody>
+          ${list.length ? list.map(c => { const s = ST[c.status] || [c.status, '']; const sm = c.summary || {};
+            return `<tr><td class="mono">${_esc(c.id)}</td><td>${_esc(c.title || '')}</td><td class="mono">${fmtDate(c.basis_ts)} ${new Date(c.basis_ts).toTimeString().slice(0, 5)}</td><td><span class="pill ${s[1]}">${s[0]}</span></td><td class="num">${sm.diff != null ? sm.diff.toLocaleString() : '—'}</td>${canSeePrice() ? `<td class="num">${sm.netAmt != null ? '₩' + Math.round(sm.netAmt).toLocaleString() : '—'}</td>` : ''}<td><button class="btn sm" data-sc-open="${_esc(c.id)}">열기</button></td></tr>`; }).join('') : `<tr><td colspan="7" class="empty">실사 회차 없음 — 위에서 새 회차를 만드세요</td></tr>`}
+        </tbody></table></div>
+        <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div>
+      </div>`, { width: '860px' });
+    const cb = document.getElementById('sc-create');
+    if(cb) cb.onclick = () => { try { const v = document.getElementById('sc-basis').value; const id = stockCountCreate({ title: document.getElementById('sc-title').value, basis_ts: v ? new Date(v).getTime() : 0 }); toast(`실사 회차 ${id} 만듦 — 실사표를 내려받으세요`, 'ok'); VIEWS._stockCount(id); } catch(e){ toast(e.message, 'err'); } };
+    document.querySelectorAll('[data-sc-open]').forEach(b => b.onclick = () => VIEWS._stockCount(b.dataset.scOpen));
+    return;
+  }
+  const c = open, dr = window._scDraft[c.id] || null;
+  const done = c.status === 'confirmed' || c.status === 'cancelled';
+  const prev = !done && dr ? stockCountPreview(c, dr) : null;
+  const lines = done || (c.status === 'confirming' && !prev) ? _scStoredLines(c) : prev ? prev.lines : [];
+  const sm = done || (c.status === 'confirming' && !prev) ? (c.summary || {}) : prev ? prev.sum : null;
+  const showAmt = canSeePrice();
+  const vendors = [...new Set(DB.all('os_dispatches').filter(d => osDispRemain(d) > 0).map(d => d.vendor).filter(Boolean))];
+  const won = v => v == null ? '—' : (v < 0 ? '−₩' : '₩') + Math.abs(Math.round(v)).toLocaleString();
+  const qn = (v, u) => (u === 'kg' ? (+v).toLocaleString(undefined, { maximumFractionDigits: 1 }) : (+v).toLocaleString());
+  const byGroup = {}; lines.forEach(l => { const g = l.kind === 'os' ? `협력사 · ${l.loc}` : SC_KIND[l.kind]; const x = byGroup[g] = byGroup[g] || { n: 0, diff: 0, up: 0, down: 0, amt: 0, unit: l.unit, noP: 0 }; x.n++; if(l.delta) x.diff++; if(l.delta > 0) x.up += l.delta; else x.down += l.delta; if(l.amt == null){ if(l.delta) x.noP++; } else x.amt += l.amt; });
+  const ST = { open: '작성 중', confirming: '확정 중 — 서버 확인 전 (다시 시도)', confirmed: '확정 — 재고 반영됨', cancelled: '취소 — 재고 원래대로' };
+  openModal(`
+    <h2>재고 실사 · ${_esc(c.id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
+    <div class="body">
+      <div class="sc-head"><div><b>${_esc(c.title || '')}</b><span>실사 기준 ${fmtDate(c.basis_ts)} ${new Date(c.basis_ts).toTimeString().slice(0, 5)}</span></div><span class="pill ${c.status === 'confirmed' ? 'green' : c.status === 'confirming' ? 'amber' : c.status === 'open' ? 'cyan' : ''}">${ST[c.status] || c.status}</span></div>
+      ${c.status === 'cancelled' ? `<div class="m-ban">취소 사유: ${_esc(c.cancel_reason || '')} · ${_esc(c.cancelled_by || '')} ${fmtDate(c.cancelled_at)}</div>` : ''}
+      ${c.status === 'open' ? `
+      <ol class="sc-steps">
+        <li><b>실사표 내려받기</b><span>기준 일시의 장부가 적힌 엑셀 · 협력사에는 그 협력사 표만</span>
+          <div class="sc-act"><button class="btn" id="sc-dl">${ico('excel')}전체 실사표</button>${vendors.length ? `<select id="sc-dl-v"><option value="">협력사별 실사표…</option>${vendors.map(v => `<option value="${_esc(v)}">${_esc(_scVendorName(v))}</option>`).join('')}</select>` : ''}</div></li>
+        <li><b>실사 수량을 적어서 그대로 올리기</b><span>여러 파일(협력사별)을 차례로 올리면 합쳐집니다 · 같은 줄은 나중 파일 값</span>
+          <div class="sc-act"><input type="file" id="sc-file" accept=".xlsx,.xls" multiple>${dr ? `<span class="sc-file">${_esc((dr.files || []).join(', '))} · 적힌 줄 ${dr.entries.size.toLocaleString()}</span><button class="btn sm" id="sc-clear">다시 올리기</button>` : ''}</div>
+          ${dr && dr.errors.length ? `<div class="sc-err"><b>무시한 줄 ${dr.errors.length}건</b>${dr.errors.slice(0, 8).map(e => `<div>${_esc(e.sheet)} ${e.row}행 — ${_esc(e.msg)}</div>`).join('')}${dr.errors.length > 8 ? `<div>… 외 ${dr.errors.length - 8}건</div>` : ''}</div>` : ''}</li>
+        <li><b>미리보기 확인 → 확정</b><span>확정하면 재고·출하 가능·투입 가능·외주 입고 가능 수량이 실사 수량으로 바뀝니다 · 확정하는 동안 출하·실적 입력을 잠시 멈춰 주세요</span></li>
+      </ol>` : ''}
+      ${prev && prev.needAlloc.length ? `<div class="sc-alloc"><div class="sc-sub">LOT 배분 확인 — 품번 합계만 적힌 품번 (어느 LOT 의 차이인지 정해 주세요)</div>
+        ${prev.needAlloc.map(n => `<div class="sc-al ${n.ok ? 'ok' : ''}"><div><b class="mono">${_esc(n.code)}</b> ${_esc(n.name)} · 실사 <b>${n.counted.toLocaleString()}</b> · 장부 ${n.book.toLocaleString()} · 배분 합 <b>${n.sum.toLocaleString()}</b> ${n.ok ? '✓' : ''}</div>
+          <div class="sc-al-in">${n.cand.map(x => `<label>${_esc(x.lot)} <span>장부 ${x.book.toLocaleString()}</span><input type="number" min="0" step="1" data-sc-al="${_esc(n.itemCode)}" data-lot="${_esc(x.lot)}" value="${n.alloc[x.lot] != null ? _esc(String(n.alloc[x.lot])) : ''}"></label>`).join('')}</div></div>`).join('')}</div>` : ''}
+      ${sm ? `<div class="sc-sum">
+        <div><span>센 줄</span><b>${(sm.n || 0).toLocaleString()}</b></div><div><span>차이 있는 줄</span><b>${(sm.diff || 0).toLocaleString()}</b></div>
+        ${showAmt ? `<div><span>늘어남</span><b class="up">${won(sm.upAmt)}</b></div><div><span>줄어듦</span><b class="down">${won(sm.downAmt)}</b></div><div><span>순차이</span><b>${won(sm.netAmt)}</b></div>` : ''}
+        ${showAmt && sm.noPrice ? `<div><span>단가 없음</span><b>${sm.noPrice}줄</b></div>` : ''}
+      </div>
+      <div class="tbl-wrap"><table class="sc-grp"><thead><tr><th>구분</th><th class="num">센 줄</th><th class="num">차이 줄</th><th class="num">늘어남</th><th class="num">줄어듦</th>${showAmt ? '<th class="num">차이 금액</th>' : ''}</tr></thead><tbody>
+        ${Object.entries(byGroup).map(([g, x]) => `<tr><td>${_esc(g)}</td><td class="num">${x.n}</td><td class="num">${x.diff}</td><td class="num">${qn(x.up, x.unit)}</td><td class="num">${qn(x.down, x.unit)}</td>${showAmt ? `<td class="num">${won(x.amt)}${x.noP ? ` <span class="muted">· 단가 없음 ${x.noP}</span>` : ''}</td>` : ''}</tr>`).join('')}
+      </tbody></table></div>
+      <div class="sc-sub">차이 큰 순 ${lines.filter(l => l.delta).length ? '' : '— 차이 없음'}</div>
+      <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table style="font-size:12px"><thead><tr><th>구분</th><th>품번 · 히트</th><th>LOT · 공정</th><th class="num">장부</th><th class="num">실사</th><th class="num">차이</th>${showAmt ? '<th class="num">금액</th>' : ''}<th>비고</th></tr></thead><tbody>
+        ${lines.filter(l => l.delta).slice(0, 200).map(l => `<tr><td>${_esc(l.kind === 'os' ? '협력사 · ' + l.loc : SC_KIND[l.kind])}</td><td><b class="mono">${_esc(l.code)}</b> <span class="muted">${_esc(l.name || '')}</span></td><td class="mono">${_esc(l.lot || '')}${l.proc ? ' · ' + _esc(_scProcName(l.proc)) : ''}${l.after ? ` <span class="pill amber" title="실사 기준 일시 뒤에 입력된 실적·출하·입고 — 조정량은 기준 시각 장부로 계산되어 그대로 맞습니다 (확인용)">기준 뒤 입력 ${l.after}</span>` : ''}</td><td class="num">${qn(l.book, l.unit)}</td><td class="num">${qn(l.counted, l.unit)}</td><td class="num ${l.delta > 0 ? 'up' : 'down'}">${l.delta > 0 ? '+' : ''}${qn(l.delta, l.unit)}</td>${showAmt ? `<td class="num">${won(l.amt)}${l.basis === 'sale' ? ' <span class="muted">판매가</span>' : ''}</td>` : ''}<td>${_esc(l.note || (l.via || ''))}</td></tr>`).join('')}
+      </tbody></table></div>` : ''}
+      ${prev && prev.problems.length ? `<div class="sc-err"><b>확정 전에 확인할 것 ${prev.problems.length}건</b>${prev.problems.slice(0, 6).map(p => `<div>${_esc(p)}</div>`).join('')}</div>` : ''}
+      ${prev && prev.plusNoReason.length ? `<div><label>장부보다 많은 줄 ${prev.plusNoReason.length}건 — 공통 사유 <span style="color:var(--dim);font-weight:400">(비고가 빈 줄에 적용 · 예: 미등록 실적, 반품)</span></label><input id="sc-reason" value="${_esc(dr.reason || '')}"></div>` : ''}
+      <div id="sc-st" class="sc-st"></div>
+      <div class="actions">
+        <button class="btn" id="sc-back">목록</button>
+        ${c.status === 'open' && !dr ? `<button class="btn" id="sc-discard" style="color:var(--red)">회차 지우기</button>` : ''}
+        ${lines.length ? `<button class="btn" id="sc-res">${ico('excel')}결과 엑셀</button>` : ''}
+        ${c.status === 'confirmed' && stockCanManage() ? `<button class="btn" id="sc-cancel" style="color:var(--red);border-color:var(--red)">확정 취소</button>` : ''}
+        ${(c.status === 'open' && prev) || c.status === 'confirming' ? `<button class="btn primary" id="sc-ok"${stockCanManage() ? '' : ' disabled title="확정은 관리 역할만"'}>${ico('save')}${c.status === 'confirming' ? '확정 다시 시도' : '확정 — 재고 반영'}</button>` : ''}
+      </div>
+    </div>`, { width: '980px' });
+  const $ = id => document.getElementById(id), st = $('sc-st');
+  $('sc-back').onclick = () => VIEWS._stockCount();
+  if($('sc-dl')) $('sc-dl').onclick = () => { const r = stockCountXlsx(c); if(r) toast(`실사표 내려받음 — ${r.rows.toLocaleString()}줄`, 'ok'); };
+  if($('sc-dl-v')) $('sc-dl-v').onchange = e => { if(e.target.value){ const r = stockCountXlsx(c, e.target.value); if(r) toast(`${_scVendorName(e.target.value)} 실사표 내려받음`, 'ok'); e.target.value = ''; } };
+  if($('sc-clear')) $('sc-clear').onclick = () => { delete window._scDraft[c.id]; VIEWS._stockCount(c.id); };
+  if($('sc-discard')) $('sc-discard').onclick = () => { try { stockCountDiscard(c.id); toast('작성 중 회차를 지웠습니다 (기록 보존)', 'ok'); VIEWS._stockCount(); } catch(e){ toast(e.message, 'err'); } };
+  if($('sc-file')) $('sc-file').onchange = async e => {
+    const files = [...(e.target.files || [])]; if(!files.length) return;
+    if(typeof XLSX === 'undefined'){ toast('엑셀 모듈을 불러오는 중입니다 — 잠시 뒤 다시', 'warn'); return; }
+    const d = window._scDraft[c.id] || { entries: new Map(), errors: [], files: [], alloc: {}, reason: '' };
+    for(const f of files){
+      try { const buf = await f.arrayBuffer(); const wb = XLSX.read(buf, { type: 'array' }); const r = stockCountParse(c, wb);
+        r.entries.forEach((v, k) => d.entries.set(k, v)); d.errors = d.errors.concat(r.errors.map(x => ({ ...x, sheet: `${f.name} › ${x.sheet}` }))); d.files.push(f.name); d.rows = r.rows;
+      } catch(err){ d.errors.push({ sheet: f.name, row: 0, msg: '파일을 읽을 수 없음 — ' + (err.message || err) }); }
+    }
+    window._scDraft[c.id] = d; VIEWS._stockCount(c.id);
+  };
+  document.querySelectorAll('[data-sc-al]').forEach(inp => inp.onchange = () => { const d = window._scDraft[c.id]; const it = inp.dataset.scAl; d.alloc[it] = d.alloc[it] || {}; d.alloc[it][inp.dataset.lot] = inp.value === '' ? '' : +inp.value; VIEWS._stockCount(c.id); });
+  if($('sc-reason')) $('sc-reason').oninput = e => { window._scDraft[c.id].reason = e.target.value; };
+  if($('sc-res')) $('sc-res').onclick = () => stockCountResultXlsx(c, lines);
+  if($('sc-ok')) $('sc-ok').onclick = async () => {
+    const b = $('sc-ok'); b.disabled = true; st.textContent = '저장 확인 중 — 서버 응답을 기다립니다…'; st.className = 'sc-st busy';
+    try { const r = await stockCountConfirm(c.id, prev, dr && dr.reason); delete window._scDraft[c.id]; toast(`실사 확정 — 조정 ${r.n.toLocaleString()}줄 반영 (재고 = 실사 수량)`, 'ok', 5000); VIEWS._stockCount(c.id); try { router(); } catch(_){} }
+    catch(e){ st.textContent = (DB.get('stock_counts', c.id) || {}).status === 'confirming' ? `확정 중 — 서버 확인 전입니다 · [확정 다시 시도] (같은 번호라 두 번 반영되지 않음) · ${e.message || e}` : `저장 안 됨 — ${e.message || e}`; st.className = 'sc-st err'; b.disabled = false; if((DB.get('stock_counts', c.id) || {}).status === 'confirming' && !/confirming/.test(b.textContent)) VIEWS._stockCount(c.id); }
+  };
+  if($('sc-cancel')) $('sc-cancel').onclick = () => {
+    openModal(`<h2>실사 확정 취소 — ${_esc(c.id)} <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+      <div style="font-size:12.5px;color:var(--sub)">조정 기록 ${(c.n_adj || 0).toLocaleString()}줄을 계산에서 뺍니다 (기록은 남음). 그 사이 출하·투입으로 음수가 되는 곳이 있으면 취소되지 않습니다.</div>
+      <div><label>취소 사유</label><input id="sc-cx-r" placeholder="예: 실사 수량 오기입"></div><div id="sc-cx-st" class="sc-st"></div>
+      <div class="actions"><button class="btn" id="sc-cx-no">닫기</button><button class="btn primary" id="sc-cx-ok" style="background:var(--red);border-color:var(--red)">확정 취소</button></div></div>`);
+    $('sc-cx-no').onclick = () => VIEWS._stockCount(c.id);
+    $('sc-cx-ok').onclick = async () => { const s2 = $('sc-cx-st'); s2.textContent = '저장 확인 중…'; try { await stockCountCancel(c.id, $('sc-cx-r').value); toast('실사 확정 취소 — 재고 원래대로', 'ok'); VIEWS._stockCount(c.id); try { router(); } catch(_){} } catch(e){ s2.textContent = e.message || String(e); s2.className = 'sc-st err'; } };
+  };
+};
+
 VIEWS.inv = () => {
   const items   = getItems();
   const procsAll= getProcesses();
@@ -15705,6 +16265,7 @@ VIEWS.inv = () => {
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${PAGES.find(p=>p.id==='inv').icon}</svg>재고 <span class="pill cyan">${APP_VERSION} · 공정흐름</span></div>
       <div class="pgtools">
         <button class="btn" id="inv-xlsx">${ico('excel')}엑셀</button>
+        <button class="btn primary" id="inv-count">${ico('check')}재고 실사${stockCountOpen() ? ' <span class="pill amber" style="margin-left:4px">진행 중</span>' : ''}</button>
       </div>
     </div>
 
@@ -15810,6 +16371,7 @@ VIEWS.inv = () => {
   });
 
   // 엑셀: 필터 반영 결과
+  document.getElementById('inv-count').onclick = () => VIEWS._stockCount(stockCountOpen() ? stockCountOpen().id : null);   // ★ v0.40.24 — 재고 실사
   document.getElementById('inv-xlsx').onclick = ()=>{
     const xrows = filtered.map(r => {
       const out = { 품번:r.code, 품명:r.name, 고객사:r.cust||'', 재질:r.mat||'', '원소재(kg)':Math.round(r.rawKg) };
@@ -16459,6 +17021,7 @@ VIEWS.ship = () => {
         </div>
         <div><label>생산LOT (출하 직전공정 양품 보유)</label>
           <select id="sh-lot">${(()=>{ const _hs = heldPlotSet(); const _ls = lockedPlotSet(); const _ps = pendingPlotSet(); return lots.map(l=>`<option value="${l.plot_no}">${l.plot_no} (${l.itemCode})${_hs.has(l.plot_no)?' — 품질 HOLD (출하 불가)':''}${_ls.has(l.plot_no)?' — ⚠ 동시성 사고 (인정분만 출하 가능)':''}${!_hs.has(l.plot_no)&&_ps.has(l.plot_no)?' — ⚠ 판정 대기 (격리분 제외 가능)':''}</option>`).join(''); })()}</select></div>
+          <div id="sh-sug" class="sug none" hidden></div>
         <div class="grid g2">
           <div>
             <label>수량 (ea)</label>
@@ -16472,7 +17035,8 @@ VIEWS.ship = () => {
             <input id="sh-pack" type="number" min="1" step="1" placeholder="—">
           </div>
         </div>
-        <div><label>파렛트 수량 (개) <span style="color:var(--dim);font-weight:400">— 고객사 출고(편도)</span></label><input id="sh-plt" type="number" min="0" placeholder="0"></div>
+        <div><label>파렛트 수량 (개) <span style="color:var(--dim);font-weight:400">— 고객사 출고(편도)</span></label><input id="sh-plt" type="number" min="0" placeholder="0">
+          <div id="sh-plt-sug" class="sug none" hidden></div></div>
         <div class="m-ban amber" id="rq-ban" hidden style="margin-bottom:6px"></div>
         <div id="rq-st" style="font-size:12.5px;min-height:18px;color:var(--sub)"></div>
         <div class="actions">
@@ -16554,7 +17118,7 @@ VIEWS.ship = () => {
         if(h.held){ warnEl.innerHTML = `<div class="fl-warn" style="color:var(--red);border-color:var(--red)">⛔ 품질 HOLD — ${_esc(plotSel)} 출하 불가 (${h.ncs.map(n=>_esc(n.id)).join(', ')}) · 품질 관리에서 처리(특채/폐기/반품) 후 출하</div>`; return; }
         // ★ v0.35.9-B — 판정 대기: 신고 수량 격리 · 나머지 출하 가능 (표시값 — 저장 직전 재검증은 assertQuarantine)
         const _lo = DB.get('production_lots', plotSel); const _rt = _lo ? getRoute(_lo.itemCode) : []; const _lp = _rt.length>1 ? _rt[_rt.length-2] : _rt[0];
-        const _av = _lp ? LOT.acceptedGood(plotSel, _lp.proc) - DB.query('shipments', x=>x.plot_no===plotSel).reduce((a,r)=>a+(r.qty||0),0) : 0;   // ★ v0.36.0 — 인정양품
+        const _av = _lp ? lotShipSupply(plotSel, _lp.proc) - DB.query('shipments', x=>x.plot_no===plotSel).reduce((a,r)=>a+(r.qty||0),0) : 0;   // ★ v0.36.0 — 인정양품
         const pd = lotPendingInfo(plotSel, _av);
         if(pd.pending.length){ warnEl.innerHTML = head + `<div class="fl-warn" style="color:var(--amber);border-color:var(--amber)">⚠ 판정 대기 NC ${pd.pending.length}건 (${pd.pending.map(n=>_esc(n.id)).join(', ')}) · 격리 ${pd.quarantine.toLocaleString()}ea — <b>출하 가능 ${Math.max(0,_av-pd.quarantine).toLocaleString()}ea</b> · 품질팀 판정 전 출하는 NC 에 기록됩니다</div>`; return; }
       }
@@ -16596,9 +17160,43 @@ VIEWS.ship = () => {
       }
     };
     packEl.oninput = () => { packEl.dataset.touched = '1'; drawPack(); };
-    soSel.addEventListener('change', () => { syncLotToItem(); drawStrip(); drawWarn(); drawPack(); });   // ★ v0.35.9 — 수주 → 같은 품번 LOT
-    lotSel?.addEventListener('change', () => { drawStrip(); drawWarn(); });   // ★ v0.35.6 — LOT 변경 시 잠금/HOLD 안내 갱신
-    qtyEl.addEventListener('input', () => { drawWarn(); drawPack(); });
+    /* ★ v0.40.24 (H1) — 수주를 고르면 출하 가능 판정을 통과한 LOT(표시 없는 것 → 먼저 만든 것)·수량을 제안 + 근거
+       · 사용자가 고친 수량은 덮어쓰지 않음 (수주·LOT 가 바뀌면 「확인」 안내 + [제안 적용]) · 파렛트 = 지난 출하 값을 제안만 ([적용]) · 저장 검사 무변 */
+    const sugEl = document.getElementById('sh-sug'), pltEl = document.getElementById('sh-plt'), pltSugEl = document.getElementById('sh-plt-sug');
+    const applySuggest = (src) => {
+      const so = DB.get('orders', soSel.value);
+      if(!so){ sugEl.hidden = true; return; }
+      const opts = shipLotOptions(so), remain = soUnshippedQty(so), touched = !!qtyEl.dataset.touched;
+      if(src === 'so' && opts.length && [...lotSel.options].some(o => o.value === opts[0].plot)) lotSel.value = opts[0].plot;
+      const idx = opts.findIndex(o => o.plot === lotSel.value), cur = idx >= 0 ? opts[idx] : null;
+      if(!touched) qtyEl.value = cur ? cur.q : '';
+      let h = '';
+      if(soCloseInfo(so)) h = '종결된 수주 — 출하 제안 없음';
+      else if(!opts.length) h = '출하 가능한 LOT 없음 — 품질 HOLD · 남은 양품 0 · 판정 대기 격리분은 제안에서 빠집니다';
+      else if(!cur) h = `선택한 LOT <b>${_esc(lotSel.value)}</b> 은 출하 제안 대상이 아닙니다 (HOLD·남은 양품 0 등) — 제안 LOT: ${opts.slice(0,3).map(o => `${_esc(o.plot)} ${o.cap.toLocaleString()}ea`).join(' · ')}`;
+      else {
+        h = `제안 · <b>${_esc(cur.plot)}</b> ${idx === 0 ? '(먼저 만든 LOT)' : '(선택한 LOT)'} — 출하 가능 <b>${cur.cap.toLocaleString()}</b>ea · 수주 남은 <b>${remain.toLocaleString()}</b>ea → <b>${cur.q.toLocaleString()}</b>ea`;
+        if(cur.notes.length) h += ` <span style="color:var(--amber)">· ${cur.notes.map(_esc).join(' · ')}</span>`;
+        const rest = remain - cur.q, nx = opts.find(o => o.plot !== cur.plot);
+        if(rest > 0 && nx) h += `<br>나머지 ${rest.toLocaleString()}ea 는 다음 LOT <b>${_esc(nx.plot)}</b>(가능 ${nx.cap.toLocaleString()}ea) 로 한 번 더 출하`;
+        else if(opts.length > 1) h += `<br>다른 후보 ${opts.length - 1}개: ${opts.filter(o => o.plot !== cur.plot).slice(0,3).map(o => `${_esc(o.plot)} ${o.cap.toLocaleString()}ea`).join(' · ')}`;
+        if(touched && src && +qtyEl.value !== cur.q) h += `<div class="sug-chk">⚠ ${src === 'so' ? '수주' : 'LOT'} 가 바뀌었습니다 — 입력한 수량 ${(+qtyEl.value||0).toLocaleString()}ea 를 확인하세요<button type="button" class="lnk" id="sh-sug-apply">제안 ${cur.q.toLocaleString()}ea 적용</button></div>`;
+      }
+      sugEl.innerHTML = h; sugEl.hidden = false; sugEl.classList.toggle('none', !cur);
+      const ap = document.getElementById('sh-sug-apply');
+      if(ap) ap.onclick = () => { delete qtyEl.dataset.touched; qtyEl.value = cur.q; applySuggest(null); drawWarn(); drawPack(); };
+      // 파렛트 — 같은 고객사·품번의 지난 출하 (값 제안만 · 실제 이동 수량으로 단정하지 않음)
+      const last = DB.query('shipments', x => x.itemCode === so.itemCode && (+x.pallets || 0) > 0 && (DB.get('orders', x.so_id)?.cust || '') === (so.cust || '')).sort((a, b) => (b.ts || 0) - (a.ts || 0))[0];
+      if(last && !pltEl.dataset.touched){
+        pltSugEl.innerHTML = `지난 출하 ${fmtDate(last.ts)} · ${(+last.qty||0).toLocaleString()}ea 에 파렛트 <b>${(+last.pallets).toLocaleString()}</b>개<button type="button" class="lnk" id="sh-plt-apply">적용</button>`;
+        pltSugEl.hidden = false;
+        document.getElementById('sh-plt-apply').onclick = () => { pltEl.value = +last.pallets; pltEl.dataset.touched = '1'; pltSugEl.hidden = true; };
+      } else pltSugEl.hidden = true;
+    };
+    pltEl.addEventListener('input', () => { pltEl.dataset.touched = '1'; pltSugEl.hidden = true; });
+    soSel.addEventListener('change', () => { syncLotToItem(); applySuggest('so'); drawStrip(); drawWarn(); drawPack(); });   // ★ v0.35.9 — 수주 → 같은 품번 LOT · ★ v0.40.24 제안
+    lotSel?.addEventListener('change', () => { applySuggest('lot'); drawStrip(); drawWarn(); });   // ★ v0.35.6 — LOT 변경 시 잠금/HOLD 안내 갱신 · ★ v0.40.24 제안
+    qtyEl.addEventListener('input', () => { qtyEl.dataset.touched = '1'; drawWarn(); drawPack(); });
     syncLotToItem();   // ★ v0.35.9
     drawStrip();
     drawWarn();   // ★ v0.35.6 — 초기 선택 LOT 의 잠금/HOLD 안내
@@ -16651,7 +17249,7 @@ VIEWS.ship = () => {
         assertLotNotHeld(plot, '출하');   // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 출하 차단
         const route = getRoute(lotObj.itemCode);
         const lastProd = route.length>1 ? route[route.length-2] : route[0];
-        const bal = LOT.acceptedGood(plot, lastProd.proc);   // ★ v0.36.0 — 출하 write path = 인정양품 (보류분 출하 불가)
+        const bal = lotShipSupply(plot, lastProd.proc);   // ★ v0.36.0 — 출하 write path = 인정양품 (보류분 출하 불가) · ★ v0.40.24 + 완성품 실사 조정
         const shippedFromLot = DB.query('shipments', x=>x.plot_no===plot).reduce((s,r)=>s+(r.qty||0),0);
         const ciw = assertWithinAccepted(plot, qty, '출하', bal - shippedFromLot);   // ★ v0.36.0 (Q6-0) — 저장 직전 재검증 (동시성 잠금 assert 승계 · 사고 open 은 차단 아님)
         // ★ v0.35.9-B — 최종 write path 재검증: 현재 원장 기준 잔량·격리·HOLD/Lock(위 assert)·요청수량 (UI 표시값 불신 · GPT 조건 ②)
@@ -16787,14 +17385,8 @@ VIEWS.os = () => {
   const settleHasMissing = settleRows.some(r=>r.rate==null && r.good>0);
 
   // KPI
-  const inProgress = disp.filter(d => {
-    const recv = DB.query('os_receipts', r=>r.dispatch_id===d.id).reduce((s,r)=>s+(r.qty||0),0);
-    return recv < (d.qty||0);
-  }).length;
-  const totalDispQty = disp.reduce((s,d)=>{
-    const recv = DB.query('os_receipts', r=>r.dispatch_id===d.id).reduce((s,r)=>s+(r.qty||0),0);
-    return s + Math.max(0, (d.qty||0) - recv);
-  }, 0);
+  const inProgress = disp.filter(d => osDispRemain(d) > 0).length;   // ★ v0.40.24 — 실사 조정 포함 1벌
+  const totalDispQty = disp.reduce((s,d) => s + osDispRemain(d), 0);
   // 파렛트 출고: pallet_moves where ref.kind='os'
   const palOut = DB.query('pallet_moves', m=>m.type==='out' && m.ref?.kind==='os').reduce((s,m)=>s+(m.qty||0),0);
   const palIn  = DB.query('pallet_moves', m=>m.type==='in'  && m.ref?.kind==='os').reduce((s,m)=>s+(m.qty||0),0);
@@ -17100,16 +17692,27 @@ VIEWS.os = () => {
       }
     };
     pltRef.oninput = () => { pltRef.dataset.touched = '1'; };
-    document.getElementById('od-l').onchange = updAvail;
-    document.getElementById('od-p').onchange = updAvail;
+    /* ★ v0.40.24 (H3) — LOT 을 고르면 반출 가능한 외주 공정 · 그 공정에 지난번 쓴 외주처를 기본값으로 (사용자가 고른 값은 덮어쓰지 않음 · 목록에 없는 외주처 = 건너뜀) */
+    const odP = document.getElementById('od-p'), odV = document.getElementById('od-v');
+    const odVendorFor = proc => { const last = DB.query('os_dispatches', d => d.proc === proc && d.vendor).sort((x, y) => (y.ts || 0) - (x.ts || 0))[0]; if(last && [...odV.options].some(o => o.value === last.vendor) && !odV.dataset.touched) odV.value = last.vendor; };
+    const odDefaults = () => {
+      const plot = document.getElementById('od-l').value, lot = DB.get('production_lots', plot); if(!lot) return;
+      if(!odP.dataset.touched){ const r = getRoute(lot.itemCode).find(x => x.mode === 'out' && [...odP.options].some(o => o.value === x.proc) && osAvailable(plot, x.proc).avail > 0); if(r) odP.value = r.proc; }
+      odVendorFor(odP.value);
+    };
+    document.getElementById('od-l').onchange = () => { odDefaults(); updAvail(); };
+    odP.onchange = () => { odP.dataset.touched = '1'; odVendorFor(odP.value); updAvail(); };
+    odV.addEventListener('change', () => { odV.dataset.touched = '1'; });
     document.getElementById('od-q').oninput  = (e) => { e.target.dataset.touched = '1'; };
     setMode('ea');
+    odDefaults();
     updAvail();
     // ★ v0.28.5 — 반출 대상 실적 행 클릭 → LOT·공정·수량 자동 채움 (수량은 수정 가능 = 부분 반출)
     document.querySelectorAll('[data-odt]').forEach(tr => tr.onclick = () => {
       const [plot, proc, avail] = tr.dataset.odt.split('|');
       document.getElementById('od-l').value = plot;
       document.getElementById('od-p').value = proc;
+      odVendorFor(proc);   // ★ v0.40.24 (H3)
       const qEl = document.getElementById('od-q');
       delete qEl.dataset.touched;
       setMode('ea');
@@ -17268,10 +17871,10 @@ VIEWS._osRecv = (dispId, keep) => {
   const lot      = DB.get('production_lots', d.plot_no);
   const itemCode = lot?.itemCode || null;
   const recvOf = id => DB.query('os_receipts', r => r.dispatch_id === id).reduce((t, r) => t + (r.qty || 0), 0);
-  const waiting = DB.all('os_dispatches').filter(x => recvOf(x.id) < (x.qty || 0) || x.id === dispId).sort((x, y) => (y.ts || 0) - (x.ts || 0));
-  const remain = Math.max(0, (d.qty || 0) - recvOf(dispId));
+  const waiting = DB.all('os_dispatches').filter(x => osDispRemain(x) > 0 || x.id === dispId).sort((x, y) => (y.ts || 0) - (x.ts || 0));   // ★ v0.40.24 — 실사 조정 포함
+  const remain = osDispRemain(d);
   const kv = keep || {};
-  const optLabel = x => { const lt = DB.get('production_lots', x.plot_no); return `${x.id} · ${(DB.get('vendors', x.vendor) || {}).name || x.vendor || ''} · ${(DB.get('processes', x.proc) || {}).name || x.proc || ''} · ${lt?.itemCode || ''} ${x.plot_no || ''} · 잔량 ${Math.max(0, (x.qty || 0) - recvOf(x.id)).toLocaleString()}ea`; };
+  const optLabel = x => { const lt = DB.get('production_lots', x.plot_no); return `${x.id} · ${(DB.get('vendors', x.vendor) || {}).name || x.vendor || ''} · ${(DB.get('processes', x.proc) || {}).name || x.proc || ''} · ${lt?.itemCode || ''} ${x.plot_no || ''} · 잔량 ${osDispRemain(x).toLocaleString()}ea`; };
   openModal(`
     <h2>외주 입고 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
     <div class="body">
@@ -17289,7 +17892,7 @@ VIEWS._osRecv = (dispId, keep) => {
           <input id="or-prc" type="number" min="0" max="${pMiss}" value="${kv.prc != null ? _esc(String(kv.prc)) : (pOutTotal > 0 ? pMiss : 0)}"${pOutTotal > 0 ? '' : ' disabled'}></div>
       </div>
       <div class="grid g2">
-        <div><label>양품 수량 <span class="or-u" style="color:var(--dim);font-weight:400">(ea)</span></label><input id="or-g" type="number" min="0" step="any" placeholder="0" value="${_esc(String(kv.g ?? ''))}"><div id="or-g-hint" style="font-size:11.5px;color:var(--cyan);margin-top:4px"></div></div>
+        <div><label>양품 수량 <span class="or-u" style="color:var(--dim);font-weight:400">(ea)</span></label><input id="or-g" type="number" min="0" step="any" placeholder="0" value="${_esc(String(kv.g ?? ''))}"><div id="or-g-hint" style="font-size:11.5px;color:var(--cyan);margin-top:4px"></div><div id="or-g-sug" class="sug" hidden></div></div>
         <div><label>불량 수량 <span class="or-u" style="color:var(--dim);font-weight:400">(ea)</span></label><input id="or-d" type="number" min="0" step="any" placeholder="0" value="${_esc(String(kv.d ?? ''))}"><div id="or-d-hint" style="font-size:11.5px;color:var(--cyan);margin-top:4px"></div></div>
       </div>
       <div id="or-st" style="font-size:12.5px;min-height:18px;color:var(--sub)"></div>
@@ -17310,7 +17913,24 @@ VIEWS._osRecv = (dispId, keep) => {
   const conv = raw => { if(unit() !== 'kg') return { ea: (raw === '' ? 0 : +raw || 0), hint: '' }; if(raw === '' || !(+raw > 0)) return { ea: 0, hint: '' }; const c = osInputConvert('kg', raw, itemCode); return c.ea == null ? { ea: null, hint: '⚠ 단중(kg/ea)이 없어 환산할 수 없습니다 — 기준정보 › 품번에 단중 입력 또는 ea 로 입력' } : { ea: c.ea, hint: c.hint }; };
   const upd = () => { document.querySelectorAll('#modal .or-u').forEach(x => { x.textContent = unit() === 'kg' ? '(kg)' : '(ea)'; }); $('or-g-hint').innerHTML = conv($('or-g').value).hint; $('or-d-hint').innerHTML = conv($('or-d').value).hint; };
   ['or-g', 'or-d'].forEach(id => $(id).addEventListener('input', upd)); $('or-unit').onchange = upd; upd();
-  $('or-disp').onchange = () => { const nv = $('or-disp').value; if(nv && nv !== dispId) VIEWS._osRecv(nv, { id: $('or-id').value, unit: unit(), g: $('or-g').value, d: $('or-d').value }); };
+  /* ★ v0.40.24 (H2 · GPT 자동 채움 기준) — 「전량 입고 제안」: 남은(미입고) 수량을 양품 칸에 제안 · 불량을 적으면 양품 = 남은 − 불량 으로 따라감
+     · 양품 칸을 직접 고치면 제안 끝(덮어쓰지 않음) · kg 단위 = 제안 안 함(계근값) · 저장 검사(LOT.registerRecord 초과 차단) 무변 */
+  const gEl = $('or-g'), gSug = $('or-g-sug');
+  const sugOn = () => !!gEl.dataset.sug && gEl.value === gEl.dataset.sugVal;   // 제안값 그대로일 때만 제안 상태 (코드·사용자가 값을 바꾸면 끝)
+  const sugSet = v => { gEl.value = String(v); gEl.dataset.sug = '1'; gEl.dataset.sugVal = gEl.value; };
+  const sugShow = () => {
+    if(!sugOn()){ delete gEl.dataset.sug; gSug.hidden = true; return; }
+    const dq = +$('or-d').value || 0;
+    gSug.innerHTML = dq > 0 ? `전량 입고 제안 — 남은 <b>${remain.toLocaleString()}</b>ea − 불량 ${dq.toLocaleString()} = 양품 <b>${Math.max(0, remain - dq).toLocaleString()}</b>ea · 부분 입고면 양품 칸을 고치세요`
+                            : `전량 입고 제안 — 남은 <b>${remain.toLocaleString()}</b>ea · 부분 입고면 양품 칸을 고치세요`;
+    gSug.hidden = false;
+  };
+  if(kv.g == null && remain > 0 && unit() === 'ea' && !_osReqPendingOf(dispId)) sugSet(Math.max(0, remain - (+kv.d || 0)));
+  gEl.addEventListener('input', () => { delete gEl.dataset.sug; sugShow(); });
+  $('or-d').addEventListener('input', () => { if(sugOn()){ sugSet(Math.max(0, remain - (+$('or-d').value || 0))); upd(); } sugShow(); });
+  $('or-unit').addEventListener('change', () => { if(sugOn() && unit() !== 'ea'){ gEl.value = ''; delete gEl.dataset.sug; upd(); } sugShow(); });
+  sugShow();
+  $('or-disp').onchange = () => { const nv = $('or-disp').value; if(nv && nv !== dispId) VIEWS._osRecv(nv, { id: $('or-id').value, unit: unit(), g: sugOn() ? undefined : gEl.value, d: $('or-d').value }); };
   /* ★ v0.40.10 (GPT v0.40.9 판정 ②) — 새로고침 뒤에도 남는 요청(이 기기 저장 vela_os_req): 창을 열면 서버에서 결과를 직접 확인
      · 반영됨 = 요청 지움 · 새 입고만 가능 / 없음 = [같은 요청 다시 보내기](같은 입고·실적·파렛트 번호 → 먼저 보낸 것이 늦게 도착해도 1건) / 확인 불가 = 잠김 유지 · [서버 결과 확인] */
   const pend0 = _osReqPendingOf(dispId);
@@ -17326,7 +17946,7 @@ VIEWS._osRecv = (dispId, keep) => {
     else if(r === 'local'){ pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> = 이 기기에서 서버로 보내는 중 — 연결되면 자동 반영 · 잠시 뒤 [서버 결과 확인]`, 'amber', [['or-pend-chk', '서버 결과 확인', runCheck]]); }
     else { pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> — 서버에 연결할 수 없어 결과를 확인하지 못했습니다 · 연결 후 [서버 결과 확인] (그 전에는 이 반출을 다시 입고할 수 없습니다)`, 'amber', [['or-pend-chk', '서버 결과 확인', runCheck]]); }
   };
-  const doResend = (p) => { if(!mine()) return; resendReq = p; $('or-id').value = p.rid; $('or-unit').value = p.unit || 'ea'; upd(); $('or-g').value = p.rawG == null ? '' : String(p.rawG); $('or-d').value = p.rawD == null ? '' : String(p.rawD); if(!$('or-prc').disabled) $('or-prc').value = String(p.prc || 0); upd(); $('or-ok').disabled = false; $('or-ok').click(); };
+  const doResend = (p) => { if(!mine()) return; resendReq = p; delete gEl.dataset.sug; gSug.hidden = true; $('or-id').value = p.rid; $('or-unit').value = p.unit || 'ea'; upd(); $('or-g').value = p.rawG == null ? '' : String(p.rawG); $('or-d').value = p.rawD == null ? '' : String(p.rawD); if(!$('or-prc').disabled) $('or-prc').value = String(p.prc || 0); upd(); $('or-ok').disabled = false; $('or-ok').click(); };
   if(pend0 && !pend0.live) setTimeout(runCheck, 0);
   $('or-ok').onclick = () => {
     /* ★ v0.40.8 (GPT v0.40.7 판정 재현 2건) — ① 환산 전에 원래 입력값 검사(음수·숫자 아님·ea 소수 · kg 음수가 0 으로 바뀌어 통과하던 것)
