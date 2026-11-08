@@ -455,7 +455,11 @@ tr.mst-off td{opacity:.45}
 /* ★ v0.40.27 — 전자결재 작성 */
 .apc{display:flex;flex-direction:column;gap:12px}.apc-row{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center}.apc-row.top{align-items:start}.apc-row.top .apc-l{padding-top:8px}
 .apc-l{font-size:12.5px;font-weight:700;color:var(--sub);margin:0}.apc-row textarea{min-height:96px;resize:vertical;line-height:1.6}
-.apc-line{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px}.apc-u{display:flex;flex-direction:column;gap:3px;margin:0;min-width:150px;flex:1 1 150px;max-width:240px}.apc-u small{font-size:10.5px;color:var(--dim);font-weight:600}.apc-line .ap-arr{padding-bottom:9px}
+.apc-lw{display:flex;flex-direction:column;gap:8px;min-width:0}.apc-lt{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.apc-lt select{max-width:300px}.apc-tsv{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px;border:1px dashed var(--line2);border-radius:10px}.apc-tsv input[type=text],.apc-tsv #apc-tpl-name{flex:1 1 220px;max-width:320px}.apc-chk{display:inline-flex;align-items:center;gap:6px;font-size:12px;margin:0;white-space:nowrap}.apc-chk input{width:auto;margin:0}
+.apc-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.apc-line .ap-arr{font-size:13px}
+.apc-step{display:flex;flex-direction:column;gap:5px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);width:190px;max-width:100%}.apc-sh{display:flex;align-items:center;gap:6px}.apc-sh b{flex:none;width:20px;height:20px;border-radius:99px;background:var(--mint-bg,var(--bg2));color:var(--mint-ink,var(--ink));font-size:11px;display:grid;place-items:center}
+.apc-sh input{flex:1;min-width:0;padding:4px 8px;font-size:12px;font-weight:700}.apc-sx{flex:none;border:0;background:none;color:var(--dim);cursor:pointer;font-size:12px;padding:2px 4px}.apc-sx:hover{color:var(--red)}.apc-step select{font-size:12.5px}
+.apc-add{border:1.5px dashed var(--line2);background:none;color:var(--sub);border-radius:10px;padding:0 16px;height:74px;cursor:pointer;font-size:12.5px;font-weight:700}.apc-add:hover{border-color:var(--mint,var(--cyan));color:var(--ink)}.ap-lbl{color:var(--dim);font-size:10.5px;font-weight:700}
 .apc-att{display:flex;flex-direction:column;gap:10px;min-width:0}.apc-tools{display:flex;flex-wrap:wrap;gap:6px}
 .apc-drop{border:1.5px dashed var(--line2);border-radius:10px;padding:14px;text-align:center;font-size:12px;color:var(--dim);line-height:1.6}.apc-drop.on{border-color:var(--cyan);color:var(--cyan);background:color-mix(in srgb,var(--cyan) 6%,transparent)}
 .apc-size{display:flex;align-items:center;gap:10px}.apc-size small{font-size:10.5px;color:var(--dim);white-space:nowrap;font-family:'JetBrains Mono',monospace}.apc-bar{flex:1;height:4px;border-radius:99px;background:var(--bg2);overflow:hidden;max-width:260px}.apc-bar span{display:block;height:100%;background:var(--cyan)}
@@ -469,7 +473,7 @@ tr.mst-off td{opacity:.45}
 .apd{border:1px solid var(--line);border-radius:10px;padding:14px;max-height:44vh;overflow:auto;background:var(--panel)}.apd-body{font-size:13px;line-height:1.75;margin-bottom:12px;color:var(--ink)}
 .ap-hist summary{cursor:pointer;font-size:12px;color:var(--sub);padding:4px 0}.ap-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px}.ap-pick .pk-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;margin:0}.ap-pick .pk-row input{width:auto;margin:0}
 .ap-pick-g{margin-bottom:10px}.ap-pick-gl{font-size:11.5px;font-weight:700;color:var(--sub);margin-bottom:5px;display:flex;align-items:center;gap:8px}.ap-menu{display:flex;flex-wrap:wrap;gap:6px}.ap-menu .btn{font-size:12px;padding:6px 12px}
-@media (max-width:640px){.apc-row{grid-template-columns:1fr;gap:4px}.apc-row.top .apc-l{padding-top:0}.apc-u{max-width:none}.apc-line .ap-arr{display:none}}
+@media (max-width:640px){.apc-row{grid-template-columns:1fr;gap:4px}.apc-row.top .apc-l{padding-top:0}.apc-step{width:100%}.apc-add{width:100%;height:40px}.apc-line .ap-arr{display:none}}
 /* ★ v0.40.25 — 재고 상단 금액 줄 */
 .kpi-mini .val2{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;color:var(--ink);margin-top:2px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .kpi-mini .val2 .nop{font-family:inherit;font-size:10.5px;font-weight:600;color:var(--amber)}
@@ -1477,6 +1481,7 @@ html[data-theme="light"] input:focus,html[data-theme="light"] select:focus,html[
   .tabnav .nav-dept-h{gap:12px;justify-content:flex-start!important;font-size:14px!important;padding:11px 14px!important;border-radius:8px}
   .tabnav .nav-dept-h:hover{background:var(--panel2)}
   .tabnav .nav-dept.cur .nav-dept-h{background:var(--mint-bg);color:var(--mint-ink)!important}
+  .tabnav .nav-solo .nav-dept-h::after{display:none}.tabnav .nav-solo .nav-dept-h .ap-badge{margin-left:auto}
   .tabnav .nav-dept-b{margin:2px 0 6px 23px;padding:0 0 0 12px!important;border-left:2px solid var(--line)}
   .tabnav .nav-dept.cur .nav-dept-b{border-left-color:var(--mint)}
   .tabnav .nav-dept-b button{font-size:13px!important;padding:8px 12px!important}
@@ -1797,7 +1802,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.27';
+const APP_VERSION = 'v0.40.28';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -9014,7 +9019,8 @@ const NAV_DEPTS = [
   { key:'mat',     label:'자재',      ids:['matin','inv'] },
   { key:'qual',    label:'품질',      ids:['qc','draw'] },
   { key:'ship',    label:'출하',      ids:['ship','pallet'] },
-  { key:'admin',   label:'관리',      ids:['dash','closing','acct','cost','report','docs','audit'] },
+  { key:'appr',    label:'전자결재',  ids:['report'], solo:true },   // ★ v0.40.28 (사용자 요청) — 전자결재 = 대분류 단독 메뉴 (관리에서 뺌 · 권한·데이터 무변)
+  { key:'admin',   label:'관리',      ids:['dash','closing','acct','cost','docs','audit'] },
   { key:'master',  label:'기준정보',  ids:['masters','proc'] },
   { key:'setting', label:'설정',      ids:['set'] },
 ];
@@ -9029,6 +9035,7 @@ const NAV_ICONS = {
   qual:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
   ship:'<rect x="2" y="7" width="13" height="10" rx="1"/><path d="M15 10h4l3 3v4h-7"/><circle cx="6.5" cy="19" r="1.6"/><circle cx="18" cy="19" r="1.6"/>',
   admin:'<path d="M4 20V11M10 20V5M16 20v-6M2 20h20"/>',
+  appr:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8.5 14.5l2.2 2.2 4.3-4.3"/>',
   master:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   setting:'<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
   etc:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
@@ -9165,6 +9172,7 @@ function renderNav(){
   NAV_DEPTS.forEach(g => {
     const ps = g.ids.map(id => ordered.find(p => p.id === id)).filter(Boolean); if(!ps.length) return;   // 묶음 안 순서 = 업무 순서 (작업지시 → 생산계획 → 실적)
     ps.forEach(p => used.add(p.id));
+    if(g.solo){ const p = ps[0], n = p.id === 'report' ? apMyPending().length : 0; depts += `<div class="nav-dept nav-solo" data-dept="${g.key}"><button type="button" class="nav-dept-h" data-solo="${p.id}">${navIco(g.key)}${_esc(g.label)}${n ? `<span class="ap-badge">${n}</span>` : ''}</button></div>`; return; }   // ★ v0.40.28 단독 메뉴
     const open = openSet.has(g.key) || (ps.some(p => p.id === cur) && !prim.some(p => p.id === cur));   // ★ v0.40.4 — 「내 업무」 에 있는 메뉴로 들어오면 부서 묶음은 저절로 펼치지 않음
     depts += `<div class="nav-dept${open ? ' open' : ''}" data-dept="${g.key}"><button type="button" class="nav-dept-h" data-dept-h="${g.key}" aria-expanded="${open}">${navIco(g.key)}${_esc(g.label)}<span class="nav-dept-n">${ps.length}</span></button><div class="nav-dept-b">${ps.map(p => `<button data-page="${p.id}">${_esc(navTitle(p))}</button>`).join('')}</div></div>`;
   });
@@ -9174,6 +9182,7 @@ function renderNav(){
   out += `<button class="nav-all-btn" data-allmenu title="메뉴 찾기 · ★ 로 내 업무 고르기">☰ 메뉴 찾기 · ★</button>`;
   nav.innerHTML = out;
   nav.querySelectorAll('button[data-page]').forEach(b=>b.onclick=()=>location.hash='#'+b.dataset.page);
+  nav.querySelectorAll('[data-solo]').forEach(b => b.onclick = () => { location.hash = '#' + b.dataset.solo; });   // ★ v0.40.28 단독 메뉴 (부서처럼 아이콘 · 메뉴 버튼 아이콘 0 규칙 유지)
   nav.querySelectorAll('[data-dept-h]').forEach(b => b.onclick = () => { const d = b.closest('.nav-dept'); const on = !d.classList.contains('open'); d.classList.toggle('open', on); b.setAttribute('aria-expanded', on); _navOpenSet(b.dataset.deptH, on); });
   nav.querySelector('[data-allmenu]').onclick = openAllMenuModal;
   renderUserPill();
@@ -9182,13 +9191,14 @@ function setActive(id){
   const inPrim = !!document.querySelector('#nav > button[data-page="' + String(id).replace(/"/g, '') + '"]');   // ★ v0.40.4 — 「내 업무」 메뉴면 거기만 강조 · 아래 부서 묶음은 펼치지 않음(사용자 요청)
   document.querySelectorAll('#nav button[data-page]').forEach(b=>b.classList.toggle('on', b.dataset.page===id && !(inPrim && b.closest('.nav-dept'))));
   document.querySelectorAll('#nav .nav-dept').forEach(d => { const cur = !!d.querySelector('button.on'); d.classList.toggle('cur', cur); if(cur){ d.classList.add('open'); const h = d.querySelector('[data-dept-h]'); if(h) h.setAttribute('aria-expanded', 'true'); } });
+  document.querySelectorAll('#nav .nav-solo').forEach(d => { const b = d.querySelector('[data-solo]'); const on = !!b && b.dataset.solo === id && !inPrim; d.classList.toggle('cur', on); if(b) b.classList.toggle('on', on); });   // ★ v0.40.28
   // ★ v0.40.0 — 위쪽 현재 위치 (부서 › 화면) · 표시만
-  try { const cr = document.getElementById('crumb'); if(cr){ const pg = PAGES.find(x => x.id === id); const dp = navDeptOf(id); cr.innerHTML = pg ? `${dp ? `<span>${_esc(dp.label)}</span><span class="sep">›</span>` : ''}<b>${_esc(navTitle(pg))}</b>` : ''; } } catch(e){}   // ★ v0.39.0 — 현재 화면의 묶음 펼침
+  try { const cr = document.getElementById('crumb'); if(cr){ const pg = PAGES.find(x => x.id === id); const dp = navDeptOf(id); cr.innerHTML = pg ? `${dp && !dp.solo ? `<span>${_esc(dp.label)}</span><span class="sep">›</span>` : ''}<b>${_esc(navTitle(pg))}</b>` : ''; } } catch(e){}   // ★ v0.39.0 — 현재 화면의 묶음 펼침
   // ★ v0.37.7 — 현재 화면이 내 메뉴에 없으면(전체 메뉴에서 이동) 「전체 메뉴」 버튼에 활성 표시 + 화면 이름(위치 힌트)
   const nav = document.getElementById('nav'); const all = nav && nav.querySelector('[data-allmenu]');
   if(!all) return;
   const p = PAGES.find(x => x.id === id);
-  const outside = !!p && !nav.querySelector(`button[data-page="${id}"]`);
+  const outside = !!p && !nav.querySelector(`button[data-page="${id}"]`) && !nav.querySelector(`button[data-solo="${id}"]`);   // ★ v0.40.28 단독 메뉴 = 사이드바 안
   all.classList.toggle('on', outside);
   const old = all.querySelector('.nav-cur'); if(old) old.remove();
   if(outside) all.insertAdjacentHTML('beforeend', `<span class="nav-cur">· ${_esc(p.title)}</span>`);
@@ -28153,7 +28163,7 @@ function apMyPending(){ if(!apEnabled()) return []; return DB.all('approvals').f
 function apTabsHtml(cur){ const n = apMyPending().length;
   return `<div style="display:inline-flex;gap:2px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:2px"><button class="btn ${cur === 'write' ? 'primary' : 'ghost'}" data-ap-tab="write" style="padding:5px 12px;font-size:12px;border-radius:6px">결재 작성</button><button class="btn ${cur === 'box' ? 'primary' : 'ghost'}" data-ap-tab="box" style="padding:5px 12px;font-size:12px;border-radius:6px">결재함${n ? ` <span class="ap-badge">${n}</span>` : ''}</button></div>`; }
 function apBindTabs(){ document.querySelectorAll('[data-ap-tab]').forEach(b => b.onclick = () => { const st = window._reportState; if(window._apSync && document.getElementById('ap-compose')) window._apSync(); st.tab = b.dataset.apTab === 'box' ? 'box' : 'write'; st.viewSnapshotId = null; router(); }); }
-function apLineHtml(a){ return (a.line || []).map((l, i) => `<span class="ap-ln ${l.status === '승인' ? 'ok' : l.status === '반려' ? 'rej' : (a.status === 'run' && i === a.step) ? 'cur' : ''}" title="${_esc(l.comment || '')}">${l.status === '승인' ? '✓' : l.status === '반려' ? '✕' : (a.status === 'run' && i === a.step) ? '●' : '○'} ${_esc(l.name || l.id)}${l.ts ? ` <small>${fmtDate(l.ts).slice(5)}</small>` : ''}</span>`).join('<span class="ap-arr">→</span>'); }
+function apLineHtml(a){ return (a.line || []).map((l, i) => `<span class="ap-ln ${l.status === '승인' ? 'ok' : l.status === '반려' ? 'rej' : (a.status === 'run' && i === a.step) ? 'cur' : ''}" title="${_esc(l.comment || '')}">${l.status === '승인' ? '✓' : l.status === '반려' ? '✕' : (a.status === 'run' && i === a.step) ? '●' : '○'} ${l.label ? `<small class="ap-lbl">${_esc(l.label)}</small> ` : ''}${_esc(l.name || l.id)}${l.ts ? ` <small>${fmtDate(l.ts).slice(5)}</small>` : ''}</span>`).join('<span class="ap-arr">→</span>'); }
 async function approvalAct(aid, act, comment){
   apAssertEnabled();   // ★ v0.40.26
   const a = DB.get('approvals', aid); if(!a) throw new Error('결재 문서 없음');
@@ -28183,13 +28193,29 @@ const AP_DOC_MAX = 900 * 1024, AP_IMG_MAX = 380 * 1024, AP_X_ROWS = 300, AP_X_CO
 const AP_BLOCK_KIND = { xlsx: '엑셀 표', img: '이미지', cap: '메뉴 화면', sys: '시스템 항목' };
 function _apBytes(o){ const s = JSON.stringify(o); try { return new TextEncoder().encode(s).length; } catch(e){ return s.length * 3; } }
 function _apDraftKey(){ return 'vela_ap_draft_' + (SESSION.userId || 'dev'); }
-function apNewDraft(){ const m = apUsers().find(u => u.role === 'manager'); return { title: '', body: '', blocks: [], line: [m ? m.id : '', '', ''] }; }
+/* ★ v0.40.28 (사용자 요청) — 결재선 = 단계를 직접 만들기(단계 이름 + 사람 · 최대 5) + 저장한 결재선(settings/eapproval · 관리책임자가 저장 · 「기본」 = 새 문서에 자동) */
+const AP_MAX_STEPS = 5, AP_STEP_NAMES = ['담당', '검토', '확인', '합의', '승인', '전결'];
+function apLineCfg(){ const c = DB.get('settings', 'eapproval') || {}; return { lines: Array.isArray(c.lines) ? c.lines.filter(l => l && l.name && Array.isArray(l.steps)) : [], def: c.def || '' }; }
+function apCleanSteps(steps){ const ok = new Set(apUsers().map(u => u.id)); return (steps || []).map(x => typeof x === 'string' ? { label: '', id: x } : { label: String((x && x.label) || '').trim().slice(0, 12), id: (x && x.id) || '' }).map(x => ({ ...x, id: ok.has(x.id) ? x.id : '' })).slice(0, AP_MAX_STEPS); }
+function apDefaultLine(){ const c = apLineCfg(), t = c.lines.find(l => l.name === c.def); if(t){ const st = apCleanSteps(t.steps); if(st.length) return st; } const m = apUsers().find(u => u.role === 'manager'); return [{ label: '', id: m ? m.id : '' }]; }
+function apSaveLine(name, steps, isDef){
+  if(!stockCanManage()) throw new Error('결재선 저장은 관리책임자만 할 수 있습니다');
+  const n = String(name || '').trim().slice(0, 20); if(!n) throw new Error('결재선 이름을 적어 주세요');
+  const st = apCleanSteps(steps).filter(x => x.id); if(!st.length) throw new Error('결재자를 1명 이상 고른 뒤 저장하세요');
+  if(new Set(st.map(x => x.id)).size !== st.length) throw new Error('같은 결재자를 두 번 넣을 수 없습니다');
+  const c = apLineCfg(), lines = c.lines.filter(l => l.name !== n).concat([{ name: n, steps: st }]);
+  if(!DB.set('settings', 'eapproval', { lines, def: isDef ? n : (c.def === n || lines.some(l => l.name === c.def) ? c.def : '') })) throw new Error('저장이 거부되었습니다 (권한 확인)');
+  return n;
+}
+function apDelLine(name){ if(!stockCanManage()) throw new Error('결재선 삭제는 관리책임자만 할 수 있습니다'); const c = apLineCfg(); DB.set('settings', 'eapproval', { lines: c.lines.filter(l => l.name !== name), def: c.def === name ? '' : c.def }); }
+function apNewDraft(){ return { title: '', body: '', blocks: [], line: apDefaultLine() }; }
 function apDraft(){
   const st = window._reportState, who = SESSION.userId || 'dev';
   if(!st.apDraft || st.apDraftUser !== who){
     let d = null; try { d = JSON.parse(localStorage.getItem(_apDraftKey()) || 'null'); } catch(e){}
     st.apDraft = (d && typeof d === 'object' && Array.isArray(d.blocks)) ? d : apNewDraft(); st.apDraftUser = who;
-    if(!Array.isArray(st.apDraft.line)) st.apDraft.line = ['', '', ''];
+    st.apDraft.line = Array.isArray(st.apDraft.line) && st.apDraft.line.length ? apCleanSteps(st.apDraft.line) : apDefaultLine();   // ★ v0.40.28 옛 [id,id,id] 작성분도 단계로
+    if(!st.apDraft.line.length) st.apDraft.line = apDefaultLine();
   }
   return st.apDraft;
 }
@@ -28226,11 +28252,13 @@ function apSheetBlock(wb, name, fileName){
   const rg = XLSX.utils.decode_range(ws['!ref']);
   const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '', blankrows: true });
   let R = aoa.length; while(R > 0 && !(aoa[R - 1] || []).some(v => String(v).trim())) R--;
+  // ★ v0.40.28 (GPT v0.40.27 재현 ②) — 마지막 빈 행을 지워도 병합 영역에 든 행은 남김 (A1:B3 병합 → 3행 유지) · 병합이 이어지면 다시 확인
+  for(let again = true; again;){ again = false; (ws['!merges'] || []).forEach(m => { const e = m.e.r - rg.s.r + 1; if(m.s.r - rg.s.r < R && e > R){ R = e; again = true; } }); }
   let C = 0; aoa.slice(0, R).forEach(r => { for(let c = r.length; c > C; c--) if(String(r[c - 1]).trim()){ C = c; break; } });
-  (ws['!merges'] || []).forEach(m => { if(m.s.r - rg.s.r < R) C = Math.max(C, Math.min(m.e.c - rg.s.c + 1, AP_X_COLS)); });
+  (ws['!merges'] || []).forEach(m => { if(m.s.r - rg.s.r < R && m.s.c - rg.s.c < Math.max(C, 1)) C = Math.max(C, m.e.c - rg.s.c + 1); });
   if(!R || !C) return null;
   const R0 = R, C0 = C; R = Math.min(R, AP_X_ROWS); C = Math.min(C, AP_X_COLS);
-  const rows = aoa.slice(0, R).map(r => ({ c: Array.from({ length: C }, (_, c) => String((r || [])[c] == null ? '' : r[c]).slice(0, 400)) }));
+  const rows = Array.from({ length: R }, (_, i) => ({ c: Array.from({ length: C }, (_, c) => String(((aoa[i] || [])[c]) == null ? '' : aoa[i][c])) }));   // ★ v0.40.28 (GPT 재현 ①) — 칸 글자 = 원문 그대로 (400자 자르기 삭제 · 크기는 문서 900KB 검사)
   const merges = (ws['!merges'] || []).map(m => ({ r: m.s.r - rg.s.r, c: m.s.c - rg.s.c, rs: m.e.r - m.s.r + 1, cs: m.e.c - m.s.c + 1 }))
     .filter(m => m.r >= 0 && m.c >= 0 && m.r < R && m.c < C).map(m => ({ ...m, rs: Math.min(m.rs, R - m.r), cs: Math.min(m.cs, C - m.c) })).filter(m => m.rs * m.cs > 1);
   const cols = Array.from({ length: C }, (_, i) => { const x = (ws['!cols'] || [])[rg.s.c + i]; return x ? Math.round(x.wpx || (x.wch ? x.wch * 7 + 5 : 0) || 0) : 0; });
@@ -28246,7 +28274,7 @@ function apTsvBlock(text){
   const lines = String(text || '').replace(/\r/g, '').split('\n'); while(lines.length && !lines[lines.length - 1].trim()) lines.pop();
   if(!lines.length) return null; const aoa = lines.map(l => l.split('\t')); const C0 = aoa.reduce((m, r) => Math.max(m, r.length), 0);
   const R = Math.min(aoa.length, AP_X_ROWS), C = Math.min(C0, AP_X_COLS);
-  return { t: 'xlsx', name: '붙여넣은 표', sheet: '', rows: aoa.slice(0, R).map(r => ({ c: Array.from({ length: C }, (_, c) => String(r[c] == null ? '' : r[c]).slice(0, 400)) })), merges: [], cols: [], cut: (aoa.length > R || C0 > C) ? { r: aoa.length, c: C0 } : null };
+  return { t: 'xlsx', name: '붙여넣은 표', sheet: '', rows: aoa.slice(0, R).map(r => ({ c: Array.from({ length: C }, (_, c) => String(r[c] == null ? '' : r[c])) })), merges: [], cols: [], cut: (aoa.length > R || C0 > C) ? { r: aoa.length, c: C0 } : null };
 }
 /* ② 이미지 → 줄인 JPEG (긴 변·용량 상한) */
 function _apLoadImg(blob){ return new Promise((res, rej) => { const u = URL.createObjectURL(blob), im = new Image(); im.onload = () => { URL.revokeObjectURL(u); res(im); }; im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('이미지를 읽지 못했습니다')); }; im.src = u; }); }
@@ -28299,10 +28327,11 @@ async function approvalSubmit({ title, body, blocks, approvers }){
   const t = String(title || '').trim(); if(!t) throw new Error('제목을 적어 주세요');
   const bd = String(body || '').trim(), bl = (blocks || []).filter(b => b && AP_BLOCK_KIND[b.t]);
   if(!bd && !bl.length) throw new Error('내용을 쓰거나 엑셀·이미지·시스템 항목을 1개 이상 넣으세요');
-  const ids = (approvers || []).filter(Boolean); if(!ids.length) throw new Error('결재자를 1명 이상 고르세요');
-  if(new Set(ids).size !== ids.length) throw new Error('같은 결재자를 두 번 넣을 수 없습니다'); if(ids.length > 3) throw new Error('결재자는 3명까지');
+  const steps = (approvers || []).map(x => typeof x === 'string' ? { id: x, label: '' } : (x || {})).filter(x => x.id);   // ★ v0.40.28 — id 또는 { id, label }
+  const ids = steps.map(x => x.id); if(!ids.length) throw new Error('결재자를 1명 이상 고르세요');
+  if(new Set(ids).size !== ids.length) throw new Error('같은 결재자를 두 번 넣을 수 없습니다'); if(ids.length > AP_MAX_STEPS) throw new Error(`결재 단계는 ${AP_MAX_STEPS}단계까지`);
   if(ids.includes(SESSION.userId)) throw new Error('본인은 결재자가 될 수 없습니다');
-  const line = ids.map(id => { const u = DB.get('users', id); if(!u) throw new Error(`결재자 없음 — ${id}`); return { id, name: u.name || id, status: '대기', ts: null, comment: '' }; });
+  const line = steps.map(x => { const u = DB.get('users', x.id); if(!u) throw new Error(`결재자 없음 — ${x.id}`); return { id: x.id, name: u.name || x.id, label: String(x.label || '').trim().slice(0, 12), status: '대기', ts: null, comment: '' }; });
   const aid = nextDocNo('AP'); if(DB.get('approvals', aid)) throw new Error('문서 번호 중복 — 다시 시도');
   const now = Date.now();
   const doc = { id: aid, kind: 'doc', title: t.slice(0, 120), body: bd.slice(0, 20000), blocks: bl, drafter: { id: SESSION.userId, name: SESSION.user || '' }, line, step: 0, status: 'run', ts: now, hist: [{ act: '상신', by: SESSION.user || '', ts: now }] };
@@ -28314,7 +28343,7 @@ async function approvalSubmit({ title, body, blocks, approvers }){
 /* 인쇄·PDF — 결재란 + 내용 + 첨부 (작성 중 미리보기 = 결재자 이름만) */
 function apPrint(a){
   const line = a.line || [], dr = a.drafter || { name: SESSION.user || '' };
-  const sign = `<table class="ps"><tr><th>기안</th>${line.map((l, i) => `<th>결재 ${i + 1}</th>`).join('')}</tr><tr><td><b>${_esc(dr.name || '')}</b>${a.ts ? `<br><small>${fmtDate(a.ts)}</small>` : ''}</td>${line.map(l => `<td><b>${_esc(l.name || '')}</b><br><small>${_esc(l.status && l.status !== '대기' ? l.status : '')}${l.ts ? ' ' + fmtDate(l.ts) : ''}</small></td>`).join('')}</tr></table>`;
+  const sign = `<table class="ps"><tr><th>기안</th>${line.map((l, i) => `<th>${_esc(l.label || `결재 ${i + 1}`)}</th>`).join('')}</tr><tr><td><b>${_esc(dr.name || '')}</b>${a.ts ? `<br><small>${fmtDate(a.ts)}</small>` : ''}</td>${line.map(l => `<td><b>${_esc(l.name || '')}</b><br><small>${_esc(l.status && l.status !== '대기' ? l.status : '')}${l.ts ? ' ' + fmtDate(l.ts) : ''}</small></td>`).join('')}</tr></table>`;
   const body = `<div class="ph"><h1>${_esc(a.title || '(제목 없음)')}</h1>${sign}</div><div class="pm">${a.id ? `${_esc(a.id)} · ` : '작성 중 미리보기 · '}${a.ts ? `기안 ${fmtDate(a.ts)} ${fmtTime(a.ts)} · ` : ''}${_esc(dr.name || '')}${a.status ? ` · ${_esc(AP_STATUS[a.status] || '')}` : ''}</div>${apBodyHtml(a.body)}${apBlocksView(a.blocks)}`;
   const css = `.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:6px}.ph h1{font-size:20px;margin:6px 0}.ps{border-collapse:collapse;font-size:11px}.ps th,.ps td{border:1px solid #444;padding:3px 10px;text-align:center;min-width:64px}.ps td{height:42px}.ps th{background:#f1f3f5}
     .pm{font-size:11px;color:#555;border-bottom:2px solid #222;padding-bottom:6px;margin-bottom:12px}.apd-body{font-size:13px;line-height:1.7;margin-bottom:14px;white-space:normal}.apb{margin:0 0 14px;page-break-inside:avoid}.apb-capv{font-weight:700;font-size:12px;margin-bottom:4px}
@@ -28324,7 +28353,7 @@ function apPrint(a){
 }
 /* 작성 화면 (전자결재 › 결재 작성) */
 VIEWS._apCompose = () => {
-  const st = window._reportState, d = apDraft(), en = apEnabled(), us = apUsers();
+  const st = window._reportState, d = apDraft(), en = apEnabled(), us = apUsers(), cfg = apLineCfg(), mgr = stockCanManage();
   const sz = _apBytes({ title: d.title, body: d.body, blocks: d.blocks }), pct = Math.min(100, sz / AP_DOC_MAX * 100);
   const opt = sel => `<option value="">— 없음 —</option>${us.map(u => `<option value="${_esc(u.id)}"${u.id === sel ? ' selected' : ''}>${_esc(u.name || u.id)}${u.role === 'manager' ? ' · 관리책임자' : ''}</option>`).join('')}`;
   const blk = (b, i) => `<div class="apb" data-apb="${i}"><div class="apb-h"><span class="apb-k k-${b.t}">${apBlockLabel(b)}</span><input class="apb-cap" data-apb-cap="${i}" value="${_esc(b.cap || '')}" placeholder="설명 (선택)">
@@ -28335,7 +28364,13 @@ VIEWS._apCompose = () => {
     ${stockCountSupported() ? '' : `<div class="m-ban amber" style="margin-bottom:12px">전자결재는 지금 운영 방식(기존 로그인)에서만 됩니다 — 직원 계정 모드는 서버 규칙 추가 뒤</div>`}
     <div class="card apc" id="ap-compose">
       <div class="apc-row" data-noscroll><label class="apc-l" for="apc-title">제목</label><input id="apc-title" value="${_esc(d.title)}" maxlength="120" placeholder="예: 11월 2주 생산 실적 보고"></div>
-      <div class="apc-row" data-noscroll><label class="apc-l">결재선</label><div class="apc-line">${[0, 1, 2].map(i => `${i ? '<span class="ap-arr">→</span>' : ''}<label class="apc-u"><small>결재 ${i + 1}${i === 0 ? ' · 필수' : ''}</small><select id="apc-u${i}">${opt(d.line[i] || '')}</select></label>`).join('')}</div></div>
+      <div class="apc-row top" data-noscroll><label class="apc-l">결재선</label><div class="apc-lw">
+        <div class="apc-lt">${cfg.lines.length ? `<select id="apc-tpl" title="저장한 결재선 불러오기"><option value="">저장한 결재선 불러오기…</option>${cfg.lines.map(l => `<option value="${_esc(l.name)}">${_esc(l.name)}${l.name === cfg.def ? ' · 기본' : ''} (${l.steps.length}단계)</option>`).join('')}</select>` : `<span class="muted" style="font-size:11.5px">저장한 결재선 없음${mgr ? ' — 단계를 만든 뒤 [결재선 저장]' : ' — 관리책임자가 저장하면 여기서 고름'}</span>`}
+          ${mgr ? `<button class="btn ghost" id="apc-tpl-save" type="button">${ico('save')}결재선 저장</button>` : ''}</div>
+        <div class="apc-tsv" id="apc-tsv" hidden><input id="apc-tpl-name" maxlength="20" placeholder="결재선 이름 (예: 일반 결재 · 구매 결재)"><label class="apc-chk"><input type="checkbox" id="apc-tpl-def"> 새 문서에 기본으로</label><button class="btn primary" id="apc-tpl-ok" type="button">저장</button>${cfg.lines.length ? `<button class="btn ghost" id="apc-tpl-del" type="button" style="color:var(--red)">고른 결재선 삭제</button>` : ''}</div>
+        <div class="apc-line">${d.line.map((x, i) => `${i ? '<span class="ap-arr">→</span>' : ''}<div class="apc-step" data-apl="${i}"><div class="apc-sh"><b>${i + 1}</b><input id="apc-l${i}" list="apc-ln" maxlength="12" value="${_esc(x.label || '')}" placeholder="단계 이름">${d.line.length > 1 ? `<button class="apc-sx" data-apl-del="${i}" type="button" title="이 단계 빼기">✕</button>` : ''}</div><select id="apc-u${i}">${opt(x.id || '')}</select></div>`).join('')}
+          ${d.line.length < AP_MAX_STEPS ? `<button class="apc-add" id="apc-add" type="button" title="결재 단계 추가 (최대 ${AP_MAX_STEPS})">＋ 단계</button>` : ''}</div>
+        <datalist id="apc-ln">${AP_STEP_NAMES.map(n => `<option value="${n}">`).join('')}</datalist></div></div>
       <div class="apc-row top" data-noscroll><label class="apc-l" for="apc-body">내용</label><textarea id="apc-body" rows="5" placeholder="결재 내용을 적으세요 — 아래 [첨부]로 엑셀·캡처·시스템 숫자·메뉴 화면을 붙일 수 있습니다">${_esc(d.body)}</textarea></div>
       <div class="apc-row top" data-noscroll><label class="apc-l">첨부</label><div class="apc-att">
         <div class="apc-tools">
@@ -28360,9 +28395,16 @@ VIEWS._apCompose = () => {
   apBindTabs();
   const $ = id => document.getElementById(id), stl = $('ap-st');
   const msg = (t, k) => { stl.textContent = t || ''; stl.className = 'sc-st' + (k ? ' ' + k : ''); };
-  const sync = () => { d.title = $('apc-title').value; d.body = $('apc-body').value; d.line = [0, 1, 2].map(i => $('apc-u' + i).value); document.querySelectorAll('[data-apb-cap]').forEach(x => { const b = d.blocks[+x.dataset.apbCap]; if(b) b.cap = x.value.slice(0, 200); }); apDraftSave(); };
+  const sync = () => { d.title = $('apc-title').value; d.body = $('apc-body').value; d.line = [...document.querySelectorAll('[data-apl]')].map((el, i) => ({ label: ($('apc-l' + i) || {}).value || '', id: ($('apc-u' + i) || {}).value || '' })); document.querySelectorAll('[data-apb-cap]').forEach(x => { const b = d.blocks[+x.dataset.apbCap]; if(b) b.cap = x.value.slice(0, 200); }); apDraftSave(); };
   window._apSync = sync;
-  ['apc-title', 'apc-body'].forEach(id => $(id).oninput = sync); [0, 1, 2].forEach(i => $('apc-u' + i).onchange = sync);
+  ['apc-title', 'apc-body'].forEach(id => $(id).oninput = sync); d.line.forEach((x, i) => { $('apc-u' + i).onchange = sync; $('apc-l' + i).oninput = sync; });
+  if($('apc-add')) $('apc-add').onclick = () => { sync(); if(d.line.length >= AP_MAX_STEPS) return; d.line.push({ label: '', id: '' }); apDraftSave(); router(); };
+  document.querySelectorAll('[data-apl-del]').forEach(b => b.onclick = () => { sync(); if(d.line.length > 1) d.line.splice(+b.dataset.aplDel, 1); apDraftSave(); router(); });
+  if($('apc-tpl')) $('apc-tpl').onchange = e => { const t = cfg.lines.find(l => l.name === e.target.value); if(!t) return; sync(); d.line = apCleanSteps(t.steps); if(!d.line.length) d.line = [{ label: '', id: '' }]; d.tpl = t.name; apDraftSave(); router(); toast(`결재선 「${t.name}」 불러옴`, 'ok'); };
+  if($('apc-tpl') && d.tpl) $('apc-tpl').value = cfg.lines.some(l => l.name === d.tpl) ? d.tpl : '';
+  if($('apc-tpl-save')) $('apc-tpl-save').onclick = () => { const b = $('apc-tsv'); b.hidden = !b.hidden; if(!b.hidden){ $('apc-tpl-name').value = d.tpl || ''; $('apc-tpl-def').checked = !!d.tpl && d.tpl === cfg.def; $('apc-tpl-name').focus(); } };
+  if($('apc-tpl-ok')) $('apc-tpl-ok').onclick = () => { sync(); try { const n = apSaveLine($('apc-tpl-name').value, d.line, $('apc-tpl-def').checked); d.tpl = n; apDraftSave(); router(); toast(`결재선 「${n}」 저장${$('apc-tpl-def') && apLineCfg().def === n ? ' · 기본' : ''}`, 'ok'); } catch(e){ msg(e.message, 'err'); } };
+  if($('apc-tpl-del')) $('apc-tpl-del').onclick = () => { const b = $('apc-tpl-del'), n = ($('apc-tpl') || {}).value; if(!n){ msg('지울 결재선을 위에서 먼저 고르세요', 'err'); return; } if(b.dataset.arm !== '1'){ b.dataset.arm = '1'; b.textContent = `「${n}」 한 번 더 누르면 삭제`; return; } apDelLine(n); if(d.tpl === n) d.tpl = ''; apDraftSave(); router(); toast(`결재선 「${n}」 삭제`, 'ok'); };
   document.querySelectorAll('[data-apb-cap]').forEach(x => x.oninput = sync);
   const add = (bs, note) => { sync(); const list = (Array.isArray(bs) ? bs : [bs]).filter(Boolean); if(!list.length) return;
     const next = d.blocks.concat(list), sz2 = _apBytes({ title: d.title, body: d.body, blocks: next });
@@ -28389,10 +28431,10 @@ VIEWS._apCompose = () => {
   $('apc-sys').onclick = () => { sync(); apPickSys(); };
   $('apc-cap').onclick = () => { sync(); apPickMenu(); };
   $('apc-clear').onclick = () => { const b = $('apc-clear'); if(b.dataset.arm !== '1'){ b.dataset.arm = '1'; b.textContent = '한 번 더 누르면 비움'; b.style.color = 'var(--red)'; return; } apDraftClear(); router(); };
-  $('apc-print').onclick = () => { sync(); const line = d.line.filter(Boolean).map(id => ({ id, name: (DB.get('users', id) || {}).name || id, status: '대기' })); apPrint({ title: d.title, body: d.body, blocks: d.blocks, line }); };
+  $('apc-print').onclick = () => { sync(); const line = d.line.filter(x => x.id).map(x => ({ id: x.id, label: x.label, name: (DB.get('users', x.id) || {}).name || x.id, status: '대기' })); apPrint({ title: d.title, body: d.body, blocks: d.blocks, line }); };
   const sub = $('btn-ap-new');
   if(sub) sub.onclick = async () => { sync(); sub.disabled = true; msg('저장 확인 중…', 'busy');
-    try { const id = await approvalSubmit({ title: d.title, body: d.body, blocks: d.blocks, approvers: d.line });
+    try { const id = await approvalSubmit({ title: d.title, body: d.body, blocks: d.blocks, approvers: d.line.filter(x => x.id) });
       apDraftClear(); toast(`결재 올림 — ${id} · ${(DB.get('approvals', id).line[0] || {}).name || ''} 님 차례`, 'ok', 4000); st.tab = 'box'; st.apFilter = 'mine'; router(); }
     catch(e){ msg(e.message || String(e), 'err'); sub.disabled = false; } };
 };
