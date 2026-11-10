@@ -1814,7 +1814,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.31';
+const APP_VERSION = 'v0.40.32';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2121,7 +2121,7 @@ function qgOnReject(pairs, e){
   try { if(/^qg-/.test(code)) toast(`${msg} — 저장 0`, 'err', 8000); else _fsWriteRejected(pairs.map(p => p[0]).join('·'), pairs.map(p => p[1]).join('·'), e); } catch(_){}
   try { const fs = _ACTIVE_ADAPTER._fs; const st = _ACTIVE_ADAPTER._state; if(!fs || !st) return;
     Promise.all(pairs.map(([c, i]) => fs.collection(c).doc(String(i)).get({ source: 'server' }).then(d => { st[c] = st[c] || {};
-      if(d.exists){ const v = { ...(d.data() || {}), id: d.id }; st[c][i] = (typeof _secMergeInto === 'function') ? _secMergeInto(c, d.id, v) : v; } else delete st[c][i]; }).catch(() => {})))
+      if(_snapLive(d)){ const v = { ...(_snapData(d) || {}), id: d.id }; st[c][i] = (typeof _secMergeInto === 'function') ? _secMergeInto(c, d.id, v) : v; } else delete st[c][i]; }).catch(() => {})))
       .then(() => { try { DB._bump(); if(SESSION.loggedIn) router(); } catch(_){} }); } catch(_){}
 }
 const _FIRESTORE_ADAPTER = {
@@ -2190,16 +2190,16 @@ const _FIRESTORE_ADAPTER = {
       let lastPlan = null;   // 거부 이유 설명용 (서버가 규칙으로 거부한 경우 = 그 사이 다른 기기가 같은 누계를 바꿨는지 다시 확인)
       const pr0 = fs.runTransaction(async tx => {
         const snaps = await Promise.all(targets.map(r => tx.get(r)));
-        const ex = snaps.filter(sn => sn.exists);
+        const ex = snaps.filter(sn => _snapLive(sn));
         if(ex.length){ const er = new Error('이미 서버에 있는 문서 — 다시 쓰지 않음'); er.code = 'already-exists'; er.existing = ex.map(sn => ({ col: sn.ref.parent.id, id: sn.id, data: sn.data() })); throw er; }
         const gw = []; const qgPaths = new Set();
         if(useQg){
           // ① 문서 저장 전 값(서버) → 수량이 실제로 바뀌는 문서만
           const bs = await Promise.all(cand.map(w => tx.get(fs.collection(w.col).doc(String(w.id)))));
-          const items = []; cand.forEach((w, i) => { const b = bs[i].exists ? bs[i].data() : null; const a = qgAfterDoc(b, w); if(qgQtyChanged(w.col, b, a)) items.push({ w, b, a }); });
+          const items = []; cand.forEach((w, i) => { const b = _snapData(bs[i]); const a = qgAfterDoc(b, w); if(qgQtyChanged(w.col, b, a)) items.push({ w, b, a }); });
           const plan = qgPlan(items); lastPlan = plan;
           const lotB = await Promise.all(lotsW.map(w => tx.get(fs.collection('production_lots').doc(String(w.id)))));
-          const newLots = lotsW.filter((w, i) => !lotB[i].exists).filter((w, i, a) => a.findIndex(x => String(x.id) === String(w.id)) === i);   // 같은 LOT 를 묶음 안에서 두 번 쓰면(생성 + 속성) 누계 생성은 1번
+          const newLots = lotsW.filter((w, i) => !_snapLive(lotB[i])).filter((w, i, a) => a.findIndex(x => String(x.id) === String(w.id)) === i);   // 같은 LOT 를 묶음 안에서 두 번 쓰면(생성 + 속성) 누계 생성은 1번
           // ② 서버 누계 읽기 (LOT · 수주)
           const gRefs = plan.map(x => fs.collection('qty_guard').doc('L:' + x.plot));
           const gs = await Promise.all(gRefs.map(r => tx.get(r)));
@@ -2211,8 +2211,8 @@ const _FIRESTORE_ADAPTER = {
           // ③ 서버 값으로 변경량·한도 계산 (같은 누계를 다른 기기가 먼저 쓰면 Firestore 가 이 함수를 다시 실행 → 늘어난 값으로 다시 검사)
           plan.forEach((x, i) => {
             if(newLots.some(w => String(w.id) === x.plot)) throw Object.assign(new Error(`새 LOT ${x.plot} 과 그 LOT 의 수량 문서를 한 번에 저장할 수 없습니다`), { code: 'qg-plan' });
-            if(!gs[i].exists) throw Object.assign(new Error(`LOT ${x.plot} 의 서버 수량 누계가 없습니다 — 관리자 전환(누계 생성) 뒤 저장할 수 있습니다`), { code: 'qg-missing' });
-            const o = gs[i].data(); const st = qgStep(o, x.op.w.col, x.op.b, x.op.a);
+            if(!_snapLive(gs[i])) throw Object.assign(new Error(`LOT ${x.plot} 의 서버 수량 누계가 없습니다 — 관리자 전환(누계 생성) 뒤 저장할 수 있습니다`), { code: 'qg-missing' });
+            const o = _snapData(gs[i]); const st = qgStep(o, x.op.w.col, x.op.b, x.op.a);
             if(st.err) throw Object.assign(new Error(`다른 기기에서 먼저 저장되었거나 남은 수량이 부족합니다 — ${st.err}`), { code: 'qg-limit' });
             const up = {}; ({ records: ['inp', 'good', 'rw', 'rr'], os_receipts: ['inp', 'rcv', 'good'], os_dispatches: ['disp'], shipments: ['ship'] })[x.op.w.col].forEach(k => { up[k] = st.n[k]; });
             up.ver = (+o.ver || 0) + 1; up.op = opOf(x); gw.push({ ref: gRefs[i], up, upd: true });
@@ -2222,7 +2222,7 @@ const _FIRESTORE_ADAPTER = {
             if(!so) throw Object.assign(new Error('출하에 수주 번호가 없어 수주 누계를 맞출 수 없습니다'), { code: 'qg-plan' });
             if(xs.length > 1) throw Object.assign(new Error(`같은 수주(${so}) 출하 ${xs.length}건 — 한 번에 1건씩 저장하세요`), { code: 'qg-plan' });
             const x = xs[0]; const sq = d => qgIsLive(d) ? (+d.qty || 0) : 0; const d = sq(x.op.a) - sq(x.op.b);
-            const cur = ss[j].exists ? ss[j].data() : null; const shipped = (cur ? +cur.shipped || 0 : 0) + d;
+            const cur = _snapData(ss[j]); const shipped = (cur ? +cur.shipped || 0 : 0) + d;
             const ord = DB.get('orders', so); if(d > 0 && ord && shipped > (+ord.qty || 0)) throw Object.assign(new Error(`다른 기기에서 먼저 저장되었거나 수주 잔량이 부족합니다 — 수주 ${so} 남은 ${Math.max(0, (+ord.qty || 0) - shipped + d)}ea (서버 기준)`), { code: 'qg-limit' });
             gw.push({ ref: sRefs[j], up: { shipped, ver: cur ? (+cur.ver || 0) + 1 : 1, op: opOf(x) }, upd: !!cur }); });
           newLots.forEach(w => { const r = qgRouteOf(w.doc); gw.push({ ref: fs.collection('qty_guard').doc('L:' + w.id), upd: false,
@@ -2241,10 +2241,10 @@ const _FIRESTORE_ADAPTER = {
         const m = String((e && (e.code || e.message)) || e);
         if(!lastPlan || !lastPlan.length || !/permission|insufficient/i.test(m)) throw e;
         let why = '';
-        try { for(const x of lastPlan){ const g = await fs.collection('qty_guard').doc('L:' + x.plot).get({ source: 'server' }); if(!g.exists) continue;
-            const st = qgStep(g.data(), x.op.w.col, x.op.b, x.op.a); if(st.err){ why = st.err; break; }
+        try { for(const x of lastPlan){ const g = await fs.collection('qty_guard').doc('L:' + x.plot).get({ source: 'server' }); if(!_snapLive(g)) continue;
+            const st = qgStep(_snapData(g), x.op.w.col, x.op.b, x.op.a); if(st.err){ why = st.err; break; }
             if(x.op.w.col === 'shipments'){ const so = x.op.a.so_id; const s = await fs.collection('qty_guard').doc('S:' + so).get({ source: 'server' }); const ord = DB.get('orders', so);
-              const d = (qgIsLive(x.op.a) ? +x.op.a.qty || 0 : 0) - (qgIsLive(x.op.b) ? +x.op.b.qty || 0 : 0); const shipped = (s.exists ? +s.data().shipped || 0 : 0) + d;
+              const d = (qgIsLive(x.op.a) ? +x.op.a.qty || 0 : 0) - (qgIsLive(x.op.b) ? +x.op.b.qty || 0 : 0); const shipped = (_snapLive(s) ? +_snapData(s).shipped || 0 : 0) + d;
               if(d > 0 && ord && shipped > (+ord.qty || 0)){ why = `수주 ${so} 남은 ${Math.max(0, (+ord.qty || 0) - shipped + d)}ea (서버 기준)`; break; } } } } catch(_){}
         if(why) throw Object.assign(new Error(`다른 기기에서 먼저 저장되었습니다 — ${why}`), { code: 'qg-limit' });
         if(lastPlan.length) throw Object.assign(new Error(`다른 기기에서 먼저 저장되었거나 서버 규칙이 거부했습니다 (${m.slice(0, 40)}) — 화면을 새로 고쳐 남은 수량을 확인하세요`), { code: 'qg-conflict' });
@@ -3417,11 +3417,12 @@ function _fsStartSync(fs, adapter){
       if(!isSec && !state[col]) state[col] = {};
       snap.docChanges().forEach(chg => {
         const d = chg.doc;
-        const data = d.data();
-        if(!isSec && chg.type !== 'removed') (_FS_STATE.serverIds[col] = _FS_STATE.serverIds[col] || new Set()).add(String(d.id));
-        if(isSec){ _secOnSnapshot(col, d.id, chg.type === 'removed' ? null : data); return; }
+        const data = _wipeStrip(d.data());   // ★ v0.40.32 — 「초기화됨」 표시 문서(내용 비움) = 없는 문서로 봄
+        const gone = chg.type === 'removed' || data === null;
+        if(!isSec && !gone) (_FS_STATE.serverIds[col] = _FS_STATE.serverIds[col] || new Set()).add(String(d.id));
+        if(isSec){ _secOnSnapshot(col, d.id, gone ? null : data); return; }
         if(col === 'settings' && d.id === 'server_rules' && data && data.sec_migrated === true && !adapter._secSubbed){ adapter._secSubbed = true; setTimeout(() => SEC_COLLECTIONS.forEach(c => subscribe(c, true)), 0); }   // ★ v0.39.8 — 기존 방식(복구 기기) + 이관 완료 = 단가 문서도 구독 (권한 없으면 거부 = 단가 빈칸)
-        if(chg.type === 'removed'){
+        if(gone){
           delete state[col][d.id];
         } else {
           state[col][d.id] = (typeof _secMergeInto === 'function') ? _secMergeInto(col, d.id, { ...(data||{}), id: d.id }) : { ...(data||{}), id: d.id };
@@ -4250,8 +4251,13 @@ function setDeviceCode(dev){
 const WIPE_PROTECT = ['settings', 'company', 'users', 'approvers', 'staff_auth', 'staff_login', 'qg_build', 'qg_build_log', 'rules_probe', 'vela_rules_probe', 'sec_settings'];
 const WIPE_BASIC = ['processes', 'expense_categories', 'defect_types', 'master_fields'];
 const WIPE_EXTRA = ['attachment_events', 'attachment_state', 'drawing_file_chunks', 'plan_move_reqs', 'qty_guard', 'qg_holds'];
-const WIPE_LABEL = { protect: '보존 (삭제 불가)', norestore: '복원 경로 없음 (남김)', basic: '기본 정의 (기본 보존)', data: '예시 업무·기준정보 (삭제)' };
+const WIPE_LABEL = { protect: '보존 (삭제 불가)', norestore: '첨부·단가 (삭제 · 백업 복원 안 됨)', basic: '기본 정의 (체크하면 삭제)', data: '업무·기준정보 (삭제)' };
 /* ★ v0.40.30 (GPT v0.40.29 재현 ③) — 설정 › 백업 복원이 다시 쓰지 않는 컬렉션(RESTORE_SKIP_COLS: 첨부 조각·상태·이력 · 단가 문서)은 지우면 백업으로 못 돌림 → 삭제 목록에서 뺌 (남김) */
+/* ★ v0.40.32 (사용자 요청 「콘솔 작업 없이 juns 로 바로 초기화」) — 서버 규칙(v4)이 업무 기록 삭제를 막으므로, 지울 수 없는 문서는 내용을 비운 「초기화됨」 표시로 덮어씀
+   표시 문서 = { _wiped:true, _wipe_job, _wipe_at } 만 남음 → 앱은 어디서든 없는 문서로 봄 · 같은 번호로 새로 저장하면 그 내용으로 다시 살아남 */
+function _wipeStrip(d){ if(!d || d._wiped !== true) return d; const o = {}; Object.keys(d).forEach(k => { if(k !== '_wiped' && k !== '_wipe_job' && k !== '_wipe_at') o[k] = d[k]; }); return Object.keys(o).length ? o : null; }
+function _snapLive(sn){ return !!(sn && sn.exists && _wipeStrip(sn.data()) !== null); }
+function _snapData(sn){ return _snapLive(sn) ? _wipeStrip(sn.data()) : null; }
 function wipeCollections(){
   const all = [...new Set(_FS_COLLECTIONS.concat(typeof SEC_COLLECTIONS !== 'undefined' ? SEC_COLLECTIONS : [], STOCK_COLLECTIONS, WIPE_EXTRA, WIPE_PROTECT))];
   const nr = c => !WIPE_PROTECT.includes(c) && RESTORE_SKIP_COLS.includes(c);
@@ -4267,10 +4273,8 @@ async function wipeAuthState(){
   if(!_wipeFs() || !_ACTIVE_ADAPTER._ready) return { ok: false, why: '서버 연결 전 — 연결된 뒤 다시' };
   if(SESSION.role !== 'vendor') return { ok: false, why: SESSION.role === 'manager' ? '관리책임자 서버 초기화는 아직 막혀 있습니다 — 지금 로그인(앱 비밀번호)은 서버가 사람을 확인하지 못함 · 직원 계정 방식 전환 뒤 열림 · 지금은 개발자 아이디(juns)로' : '관리책임자·개발자만 할 수 있습니다' };
   let u = null; try { u = window.firebase && window.firebase.auth().currentUser; } catch(e){}
-  if(!u || u.isAnonymous || !u.email) return { ok: false, needConfirm: true, why: '개발자 비밀번호 확인이 필요합니다 — 개발자 아이디(juns) 로그인은 서버가 사람을 확인하지 못해 실행 직전 개발자 메일 계정 비밀번호를 한 번 확인합니다 (로그아웃 없음)' };   // ★ v0.40.30 juns 로그인 = 창 안에서 확인
-  if(!u.emailVerified) return { ok: false, why: '개발자 메일 인증이 아직입니다' };
-  if(!(await isDevEmail(u.email))) return { ok: false, why: '개발자 메일 계정이 아닙니다' };
-  return { ok: true, uid: u.uid };
+  if(!u) return { ok: false, why: '서버 로그인 전 — 잠시 뒤 다시' };
+  return { ok: true, uid: u.uid };   // ★ v0.40.32 — 개발자 아이디(juns) 로그인이면 바로 (개발자 메일·규칙 게시 필요 없음)
 }
 function _wipeJson(v){ if(v == null) return v; if(typeof v.toMillis === 'function') return v.toMillis(); if(Array.isArray(v)) return v.map(_wipeJson); if(typeof v === 'object'){ const o = {}; Object.keys(v).forEach(k => { o[k] = _wipeJson(v[k]); }); return o; } return v; }
 /* 서버 다시 조회 — 컬렉션마다 서버 문서 수 (캐시 아님) · 읽기 거부 = null */
@@ -4278,7 +4282,7 @@ async function wipeScan(withDocs){
   const fs = _wipeFs(); if(!fs) throw new Error('서버 연결 전');
   const g = wipeCollections(), out = { ts: Date.now(), cols: {}, docs: withDocs ? {} : null, users: [] };
   for(const c of g.protect.concat(g.norestore, g.basic, g.data)){
-    try { const s = await fs.collection(c).get({ source: 'server' }); out.cols[c] = s.size; if(withDocs){ out.docs[c] = {}; s.docs.forEach(d => { out.docs[c][d.id] = _wipeJson(d.data()); }); }
+    try { const s0 = await fs.collection(c).get({ source: 'server' }); const s = { docs: s0.docs.filter(d => _wipeStrip(d.data()) !== null) }; s.size = s.docs.length; out.cols[c] = s.size; if(withDocs){ out.docs[c] = {}; s.docs.forEach(d => { out.docs[c][d.id] = _wipeJson(_wipeStrip(d.data())); }); }
       if(c === 'users') out.users = s.docs.map(d => { const x = d.data(); return { id: d.id, name: x.name || '', role: x.role || '', active: x.active !== false }; }); }
     catch(e){ out.cols[c] = null; }
   }
@@ -4308,9 +4312,9 @@ async function serverWipeRun(opts){
   if(Date.now() - (+bk.ts || 0) > WIPE_BACKUP_MAX_MS) throw new Error('백업한 지 30분이 넘었습니다 — 다시 [서버 백업 내려받기] 뒤 실행');
   if(opts.confirm !== '초기화') throw new Error('확인 문구 「초기화」 를 정확히 입력하세요');
   if(opts.othersClosed !== true) throw new Error('다른 기기·탭을 모두 닫았는지 확인 체크가 필요합니다');
-  const g = wipeCollections(), allow = new Set(g.basic.concat(g.data));
+  const g = wipeCollections(), allow = new Set(g.basic.concat(g.data, g.norestore));
   const cols = [...new Set(opts.cols || [])];
-  const bad = cols.filter(c => !allow.has(c)); if(bad.length) throw new Error('보존 대상·복원 경로 없는 컬렉션은 지울 수 없습니다 — ' + bad.join(', '));
+  const bad = cols.filter(c => !allow.has(c)); if(bad.length) throw new Error('보존 대상(사용자·설정·회사·로그인)은 지울 수 없습니다 — ' + bad.join(', '));
   if(!cols.length) throw new Error('지울 컬렉션을 1개 이상 고르세요');
   const nob = cols.filter(c => !bk.fp[c]); if(nob.length) throw new Error('백업에 없는 컬렉션은 지울 수 없습니다 — ' + nob.join(', '));
   const fs = _wipeFs(), wref = fs.collection('settings').doc('wipe'), now = Date.now(), job = 'WP-' + now;
@@ -4320,19 +4324,25 @@ async function serverWipeRun(opts){
   try {
     await wref.set({ epoch: now, job, state: 'running', cols, by: SESSION.user || '', started: now, backup: { sha: window._wipeBackupDone.sha, docs: window._wipeBackupDone.docs, name: window._wipeBackupDone.name } }, { merge: false });
     for(const c of cols){
-      const r = counts[c] = { before: 0, deleted: 0, failed: 0, kept: 0, err: '' };
+      const r = counts[c] = { before: 0, deleted: 0, marked: 0, failed: 0, kept: 0, err: '' };
       let snap; try { snap = await fs.collection(c).get({ source: 'server' }); } catch(e){ r.failed = -1; r.err = (e && e.code) || '읽기 실패'; failed++; prog({ col: c, ...r }); continue; }
-      r.before = snap.size;
-      const refs = []; snap.docs.forEach(d => { const want = bk.fp[c][d.id]; if(want !== undefined && want === _wipeStable(_wipeJson(d.data()))) refs.push(d.ref); else { r.kept++; kept++; } });   // 백업 뒤 새로 생기거나 바뀐 문서 = 남김
+      const live = snap.docs.filter(d => _wipeStrip(d.data()) !== null); r.before = live.length;   // 이미 「초기화됨」 표시인 문서 = 건너뜀
+      const refs = []; live.forEach(d => { const want = bk.fp[c][d.id]; if(want !== undefined && want === _wipeStable(_wipeJson(_wipeStrip(d.data())))) refs.push(d.ref); else { r.kept++; kept++; } });   // 백업 뒤 새로 생기거나 바뀐 문서 = 남김
+      // ★ v0.40.32 — 먼저 삭제 · 서버 규칙이 삭제를 거부하면(v4 = 업무 기록 삭제 금지) 그 컬렉션은 내용을 비운 표시 문서로 덮어씀 (v4 = 고치기 허용)
+      let mark = false; const tomb = { _wiped: true, _wipe_job: job, _wipe_at: now };
       for(let i = 0; i < refs.length; i += 300){
-        const part = refs.slice(i, i + 300), b = fs.batch(); part.forEach(ref => b.delete(ref));
-        try { await b.commit(); r.deleted += part.length; } catch(e){ r.failed += part.length; r.err = (e && e.code) || String(e && e.message || e); failed += part.length; }
+        const part = refs.slice(i, i + 300);
+        const send = async m => { const b = fs.batch(); part.forEach(ref => m ? b.set(ref, tomb) : b.delete(ref)); await b.commit(); };
+        try {
+          if(!mark){ try { await send(false); r.deleted += part.length; } catch(e){ if(!/permission|insufficient/i.test(String((e && e.code) || (e && e.message) || e))) throw e; mark = true; } }
+          if(mark){ await send(true); r.deleted += part.length; r.marked += part.length; }
+        } catch(e){ r.failed += part.length; r.err = (e && e.code) || String(e && e.message || e); failed += part.length; }
         prog({ col: c, ...r });
       }
     }
     // 서버 다시 조회 — 지운 컬렉션 0 · 보존 컬렉션 그대로
     const verify = {}; let left = 0;
-    for(const c of cols){ try { const s = await fs.collection(c).get({ source: 'server' }); verify[c] = s.size; left += s.size; } catch(e){ verify[c] = null; left++; } }
+    for(const c of cols){ try { const s = await fs.collection(c).get({ source: 'server' }); const n = s.docs.filter(d => _wipeStrip(d.data()) !== null).length; verify[c] = n; left += n; } catch(e){ verify[c] = null; left++; } }
     const state = (failed === 0 && kept === 0 && left === 0) ? 'done' : 'partial';
     await wref.set({ state, counts, verify, left, failed, kept, finished: Date.now() }, { merge: true });
     return { job, state, counts, verify, left, failed, kept };
@@ -4388,7 +4398,7 @@ function openServerWipe(){
     if(!au.ok){ el.innerHTML = `<div class="m-ban amber" style="line-height:1.7"><b>${au.locked ? '서버 자료 초기화 잠김' : '서버 초기화를 할 수 없습니다'}</b> — ${_esc(au.why)}</div>
       <div class="ap-note" style="margin-top:10px">이 기기 사본만 지우는 기존 초기화는 서버 자료를 지우지 않습니다 (새로고침하면 서버에서 다시 내려옴) — 서버 모드에서는 쓰지 않습니다.</div>
       <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div>`; return; }
-    el.innerHTML = `<div class="ap-note" style="margin-bottom:10px">지울 것을 확인 → 「다른 기기 닫음」 체크 + 「초기화」 입력 → <b>[백업 받고 초기화]</b> 한 번 = 서버 백업 파일 내려받기 → 백업에 든 그대로인 문서만 삭제 → 서버 다시 조회 0건일 때만 「완료」</div>
+    el.innerHTML = `<div class="ap-note" style="margin-bottom:10px">「다른 기기 닫음」 체크 + 「초기화」 입력 → <b>[백업 받고 초기화]</b> 한 번이면 끝 — 서버 백업 파일을 먼저 내려받고, 업무 자료를 지웁니다 (서버가 삭제를 막는 기록은 내용을 비워 「초기화됨」 표시만 남김 = 앱에서 안 보임) · 사용자·설정·회사·로그인은 그대로</div>
       <div class="actions" style="justify-content:flex-start;margin:0 0 8px"><button class="btn ghost" id="wp-scan">${ico('refresh')}다시 조회</button></div>
       <div id="wp-list" class="muted" style="font-size:12px">서버 조회 중…</div><div id="wp-bkst" class="muted" style="font-size:12px;margin:6px 0;word-break:break-all"></div>
       <div id="wp-go" hidden style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
@@ -4400,11 +4410,11 @@ function openServerWipe(){
     let busy = false;
     const gate = () => { $('wp-run').disabled = busy || !($('wp-closed').checked && $('wp-c2').value === '초기화' && [...document.querySelectorAll('[data-wp-col]:checked')].length); };
     const doScan = async () => { if(busy) return; busy = true; $('wp-run').disabled = true; $('wp-scan').disabled = true; st('서버 조회 중…', 'busy'); try { scan = await wipeScan(false); } catch(e){ st(e.message, 'err'); busy = false; $('wp-scan').disabled = false; return; } busy = false; $('wp-scan').disabled = false; st('');
-      const row = (c, kind) => { const n = scan.cols[c]; return `<tr><td>${kind === 'protect' || kind === 'norestore' ? '' : `<input type="checkbox" data-wp-col="${c}"${kind === 'data' && n ? ' checked' : ''}${n === 0 ? ' disabled' : ''}>`}</td><td class="mono">${c}</td><td class="num">${n == null ? '<span style="color:var(--red)">읽기 거부</span>' : n.toLocaleString()}</td><td class="muted">${WIPE_LABEL[kind]}</td></tr>`; };
+      const row = (c, kind) => { const n = scan.cols[c]; return `<tr><td>${kind === 'protect' ? '' : `<input type="checkbox" data-wp-col="${c}"${(kind === 'data' || kind === 'norestore') && n ? ' checked' : ''}${n === 0 ? ' disabled' : ''}>`}</td><td class="mono">${c}</td><td class="num">${n == null ? '<span style="color:var(--red)">읽기 거부</span>' : n.toLocaleString()}</td><td class="muted">${WIPE_LABEL[kind]}</td></tr>`; };
       const sum = k => g[k].reduce((s, c) => s + (+scan.cols[c] || 0), 0);
       $('wp-list').innerHTML = `<div class="tbl-wrap" style="max-height:300px"><table style="font-size:12px"><thead><tr><th></th><th>컬렉션</th><th class="num">서버 문서</th><th>분류</th></tr></thead><tbody>
         ${g.data.map(c => row(c, 'data')).join('')}${g.basic.map(c => row(c, 'basic')).join('')}${g.norestore.map(c => row(c, 'norestore')).join('')}${g.protect.map(c => row(c, 'protect')).join('')}</tbody></table></div>
-        <div class="ap-note" style="margin-top:8px">삭제 후보 ${sum('data').toLocaleString()}건 · 기본 정의 ${sum('basic').toLocaleString()}건(체크하면 함께 삭제) · 복원 경로 없음 ${sum('norestore').toLocaleString()}건(첨부 조각·상태·이력·단가 문서 = 백업 복원이 다시 쓰지 않으므로 남김) · 보존 ${sum('protect').toLocaleString()}건 · 앱 목록 밖 컬렉션은 여기서 볼 수 없음(Firebase 콘솔 확인)</div>
+        <div class="ap-note" style="margin-top:8px">삭제 후보 ${sum('data').toLocaleString()}건 · 기본 정의 ${sum('basic').toLocaleString()}건(체크하면 함께 삭제) · 첨부·단가 ${sum('norestore').toLocaleString()}건(함께 삭제 · 백업 복원으로 되살아나지 않음) · 보존 ${sum('protect').toLocaleString()}건 · 앱 목록 밖 컬렉션은 여기서 볼 수 없음(Firebase 콘솔 확인)</div>
         <div style="margin-top:8px;font-size:12px"><b>보존 사용자 ${scan.users.length}명</b> — ${scan.users.map(u => `${_esc(u.name)}(${_esc(u.id)} · ${u.role === 'manager' ? '관리책임자' : u.role === 'worker' ? '현장 작업자' : '일반'}${u.active ? '' : ' · 퇴사'})`).join(' · ') || '없음'} <span class="muted">— 사용자·로그인·비밀번호는 지우지 않음</span></div>`;
       $('wp-go').hidden = false; document.querySelectorAll('[data-wp-col]').forEach(x => x.onchange = gate); gate(); };
     $('wp-scan').onclick = doScan; $('wp-closed').onchange = gate; $('wp-c2').oninput = gate;
@@ -4417,7 +4427,7 @@ function openServerWipe(){
       $('wp-res').innerHTML = `<div class="tbl-wrap" style="max-height:280px;margin-top:8px"><table style="font-size:12px"><thead><tr><th>컬렉션</th><th class="num">전</th><th class="num">삭제</th><th class="num" title="백업 뒤 새로 생기거나 바뀐 문서">남김</th><th class="num">실패</th></tr></thead><tbody>${cols.map(tb).join('')}</tbody></table></div>`;
       try { const r = await serverWipeRun({ cols, confirm: $('wp-c2').value, othersClosed: $('wp-closed').checked, onProgress: p => { const q = s => document.querySelector(s); if(q(`[data-b="${p.col}"]`)) q(`[data-b="${p.col}"]`).textContent = p.before; if(q(`[data-d="${p.col}"]`)) q(`[data-d="${p.col}"]`).textContent = p.deleted; if(q(`[data-k="${p.col}"]`)) q(`[data-k="${p.col}"]`).textContent = p.kept || 0; if(q(`[data-f="${p.col}"]`)) q(`[data-f="${p.col}"]`).textContent = p.failed ? `${p.failed} ${p.err}` : 0; } });
         if(r.state === 'done') st(`완료 — 서버 다시 조회 = 지운 컬렉션 0건 · 작업 ${r.job} · [다시 불러오기] 로 화면을 새로 받으세요`, 'ok');
-        else st(`완료 아님 — 실패 ${r.failed}건 · 백업 뒤 새로 생기거나 바뀐 문서 ${r.kept}건(남김) · 남은 문서 ${r.left}건 (${r.failed && /permission/.test(JSON.stringify(r.counts)) ? '서버가 삭제 거부 — 규칙 v4.1 게시 확인' : '네트워크 확인'}) · [다시 조회] → [백업 받고 초기화] 다시 = 남은 것만 지움`, 'err');
+        else st(`완료 아님 — 실패 ${r.failed}건 · 백업 뒤 새로 생기거나 바뀐 문서 ${r.kept}건(남김) · 남은 문서 ${r.left}건 (${r.failed && /permission/.test(JSON.stringify(r.counts)) ? '서버가 쓰기 거부 — 인터넷·로그인 확인' : '네트워크 확인'}) · [다시 조회] → [백업 받고 초기화] 다시 = 남은 것만 지움`, 'err');
         $('wp-res').insertAdjacentHTML('beforeend', `<div class="actions"><button class="btn primary" onclick="location.reload()">${ico('refresh')}다시 불러오기</button></div>`);
       } catch(e){ st(e.message || String(e), 'err'); } busy = false; $('wp-scan').disabled = false; gate(); };
     doScan();
@@ -4858,7 +4868,7 @@ const FEATURE_DEPS = {
 const EXPERIMENTAL_FLAGS = ['ship_qty_fix', 'pr_qty_fix', 'stock_count', 'eapproval'];
 /* ★ v0.38.22 (GPT v0.38.21 판정 ①) — 서버 Gate: 서버 권한·동시성·원자성 검증 전에는 실데이터에서 플래그를 켜도 저장 차단 (데모만 시험)
    Gate 통과 시 이 값을 true 로 바꾸는 것은 별도 SPEC·GPT 판정·사용자 승인 후 */
-const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false, stock_count: false, eapproval: false, server_wipe: true };   // ★ v0.40.31 (사용자 결정 2026-11-10) server_wipe = 서버 자료 초기화 열림 (개발자만 · 개발자 비밀번호 확인 · 서버 규칙 v4.1 필요)   // ★ v0.40.25 stock_count = 실데이터 실사 확정 Gate (GPT 판정·사용자 승인 뒤 true)
+const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false, stock_count: false, eapproval: false, server_wipe: true };   // ★ v0.40.32 server_wipe = 서버 자료 초기화 열림 (개발자 아이디 juns 로 바로 · 콘솔·규칙 게시 필요 없음)   // ★ v0.40.25 stock_count = 실데이터 실사 확정 Gate (GPT 판정·사용자 승인 뒤 true)
 function experimentalEnabled(k){ return !!getFlags()[k] && (isDemoMode() || SERVER_GATES[k] === true); }
 function shipQtyFixEnabled(){ return experimentalEnabled('ship_qty_fix'); }
 function prQtyFixEnabled(){ return experimentalEnabled('pr_qty_fix'); }
@@ -7983,7 +7993,7 @@ async function qgWriteConfirm(){
   if(sr.qg_init !== true || sr.write_freeze !== true) throw Object.assign(new Error('전환 모드(쓰기 중지 + qg_init)에서만 확인할 수 있습니다 — 그 상태에서만 옛 생성을 서버에서 차단할 수 있음 · 미확정 그대로'), { code: 'qg-unsure' });
   const cid = 'QC-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 7).toUpperCase(); const ref = _qgLeaseRef(fs);
   await _qgAck(ref.set(_qgLeaseDoc(cid, 0, true)), '서버 응답이 없어 옛 생성 차단을 확인하지 못했습니다 — 연결 확인 뒤 다시 [저장 결과 확인] (미확정 그대로)');
-  const L = await ref.get({ source: 'server' }); const ld = (L && L.exists && L.data()) || {};
+  const L = await ref.get({ source: 'server' }); const ld = (L && _snapData(L)) || {};
   if(ld.run !== cid || ld.take !== true) throw Object.assign(new Error('서버의 생성 임대가 이 확인 번호가 아닙니다 — 다른 기기·탭에서 생성 중일 수 있음 (미확정 그대로)'), { code: 'qg-unsure' });
   let landed = []; try { const q = await fs.collection('qg_build_log').where('run', '==', p.run).get({ source: 'server' }); landed = q.docs.map(d => (d.data() || {}).seq).filter(x => x != null).sort((a, b) => a - b); } catch(e){ landed = null; }
   _qgLS(_qgPendKey(), null);
@@ -8006,7 +8016,7 @@ async function _qgAuditRun(opts, mark){
   const fs = _ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs; if(!fs) throw new Error('서버 모드에서만 점검할 수 있습니다');
   const led = await qgLedgerSnapshot();
   let sr = {}; try { sr = (await fs.collection('settings').doc('server_rules').get({ source: 'server' })).data() || {}; } catch(e){}
-  const snap = await fs.collection('qty_guard').get({ source: 'server' }); const srv = {}; snap.docs.forEach(d => { srv[d.id] = d.data(); });
+  const snap = await fs.collection('qty_guard').get({ source: 'server' }); const srv = {}; snap.docs.forEach(d => { const x = _wipeStrip(d.data()); if(x) srv[d.id] = x; });
   const out = { at: led.at, lots: 0, orders: 0, missing: [], diff: [], hold: [], over: [], fills: qgReceiptFills().length, ledger: { ok: led.ok, why: led.why, counts: led.counts, mismatch: led.mismatch.slice(0, 30), hash: led.hash }, guards: snap.size, live: sr.qg_live === true, frozen: sr.write_freeze === true };
   if(!led.ok){ out.ok = false; mark({ at: out.at, ok: false, why: led.why, hash: led.hash || null }); return out; }
   const C = m => JSON.stringify(Object.fromEntries(Object.entries(m || {}).filter(([, v]) => v).sort()));
@@ -8082,8 +8092,8 @@ async function qgHoldSet(plot, p, to, reason){
   to = Math.trunc(+to); if(!(to >= 0)) throw new Error('보류 수량 = 0 이상 정수');
   const FV = window.firebase.firestore.FieldValue; const gRef = fs.collection('qty_guard').doc('L:' + plot);
   const id = 'QH-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase(); const hRef = fs.collection('qg_holds').doc(id);
-  await fs.runTransaction(async tx => { const g = await tx.get(gRef); if(!g.exists) throw new Error('서버 누계 없음');
-    const o = g.data(); const from = (o.hold || {})[p] || 0; if(from === to) throw new Error('지금 값과 같습니다');
+  await fs.runTransaction(async tx => { const g = await tx.get(gRef); if(!_snapLive(g)) throw new Error('서버 누계 없음');
+    const o = _snapData(g); const from = (o.hold || {})[p] || 0; if(from === to) throw new Error('지금 값과 같습니다');
     // 늘리기(공급 감소)는 규칙이 이미 쓴 양을 넘지 않는지 확인 (downOk)
     tx.set(hRef, { id, k: 'L:' + plot, p, from, to, reason, by_uid: currentAuthUid() || '', by: SESSION.user || '', at: FV.serverTimestamp(), _qg: FV.serverTimestamp() });
     tx.update(gRef, { hold: { ...(o.hold || {}), [p]: to }, ver: (+o.ver || 0) + 1, op: { col: 'qg_holds', id, at: FV.serverTimestamp(), new: true } }); });
@@ -18574,7 +18584,7 @@ function _reqGetPath(o, path){ return String(path).split('.').reduce((a, k) => a
 function _reqMatchExpect(req, d){ if(!req || !d || !req.expect) return false; return Object.entries(req.expect).every(([p, v]) => { const x = _reqGetPath(d, p); return typeof v === 'number' ? (+x || 0) === v : (x == null ? null : x) === (v == null ? null : v); }); }
 async function _reqCheck2(req){
   const A = _ACTIVE_ADAPTER; const c = req && req.chk; if(!A || A.name !== 'firestore' || !A._fs || !c || !c.id) return 'unknown';
-  try { const sn = await A._fs.collection(c.col).doc(String(c.id)).get({ source: 'server' }); if(sn.exists) return _reqMatchExpect(req, sn.data()) ? 'applied' : 'mismatch'; } catch(e){ return 'unknown'; }
+  try { const sn = await A._fs.collection(c.col).doc(String(c.id)).get({ source: 'server' }); if(_snapLive(sn)) return _reqMatchExpect(req, _snapData(sn)) ? 'applied' : 'mismatch'; } catch(e){ return 'unknown'; }
   return DB.get(c.col, c.id) ? 'local' : 'absent';
 }
 // 창 하나에 붙는 요청 처리기: c = { kind, label, box, lockSel, onDone(msg), resendWrite(p) }
@@ -18654,7 +18664,7 @@ function _osReqPendingOf(dispId){ const live = (window._osReqPending || {})[disp
 // 서버에서 직접 확인 (캐시 아님): 묶음 저장이라 대표 문서 1개(입고 문서 · 파렛트만이면 파렛트 이동)가 있으면 전부 반영 · 'applied' | 'absent' | 'local'(이 기기 대기열에 남음) | 'unknown'(연결 불가)
 async function _osReqCheck(req){
   const A = _ACTIVE_ADAPTER; const c = req && req.chk; if(!A || A.name !== 'firestore' || !A._fs || !c || !c.id) return 'unknown';
-  try { const sn = await A._fs.collection(c.col).doc(String(c.id)).get({ source: 'server' }); if(sn.exists) return _osReqMatch(req, c.col, sn.data()) ? 'applied' : 'mismatch'; }   // ★ v0.40.11 — 문서가 있다는 것만으로 완료 판정하지 않음
+  try { const sn = await A._fs.collection(c.col).doc(String(c.id)).get({ source: 'server' }); if(_snapLive(sn)) return _osReqMatch(req, c.col, _snapData(sn)) ? 'applied' : 'mismatch'; }   // ★ v0.40.11 — 문서가 있다는 것만으로 완료 판정하지 않음
   catch(e){ return 'unknown'; }
   return DB.get(c.col, c.id) ? 'local' : 'absent';
 }
@@ -25390,7 +25400,7 @@ async function planReqCheck(){
   if(rq.settled === 'failed'){ const why = rq.why; _planReqFinish('failed', { why }); return { status: 'failed', why, reqId: rq.reqId }; }
   if(DB._backend !== 'firestore' || !_ACTIVE_ADAPTER._fs) return { status: 'pending', why: '서버 연결 전' };
   const fs = _ACTIVE_ADAPTER._fs;
-  let rec; try { const d = await _planReqRef(fs, rq.reqId).get({ source: 'server' }); rec = d.exists ? d.data() : null; }
+  let rec; try { const d = await _planReqRef(fs, rq.reqId).get({ source: 'server' }); rec = _snapData(d); }
   catch(e){ return { status: 'pending', reqId: rq.reqId, why: '서버 조회 실패(' + String(e.code || e.message).slice(0, 40) + ') — 결과 미확정 유지 · 연결 뒤 다시 [결과 확인]' }; }
   if(!rec && rq.promise && !rq.settled) return { status: 'pending', reqId: rq.reqId, why: '원래 요청이 아직 서버 응답을 기다리는 중 — 잠시 뒤 다시 [결과 확인]' };
   // ★ v0.39.13 — 기록이 없고 원래 요청을 볼 수 없음(새로고침 뒤) → 차단 기록을 만들어 확정 (시간 기준 0)
@@ -25402,7 +25412,7 @@ async function planReqCheck(){
 }
 async function _planReqSyncMem(rq){   // 완료 확인 뒤 이 기기 메모리를 서버 계획 문서로 맞춤 (판정과 무관 · 실패해도 구독이 맞춤)
   try { const col = _ACTIVE_ADAPTER._fs.collection('production_plans'); const st = _ACTIVE_ADAPTER._state;
-    for(const m of rq.moves){ const d = await col.doc(String(m.id)).get({ source: 'server' }); if(d.exists && st && st.production_plans && st.production_plans[m.id]) st.production_plans[m.id] = { ...st.production_plans[m.id], ...d.data(), id: m.id }; } } catch(e){}
+    for(const m of rq.moves){ const d = await col.doc(String(m.id)).get({ source: 'server' }); if(_snapLive(d) && st && st.production_plans && st.production_plans[m.id]) st.production_plans[m.id] = { ...st.production_plans[m.id], ..._snapData(d), id: m.id }; } } catch(e){}
 }
 // ★ v0.39.13 — 차단 트랜잭션: 요청 기록을 읽음 → 있으면 그 상태(done/fenced) 그대로 · 없으면 {state:'fenced'} 만들기 → 서버 커밋 확인 뒤에만 fenced
 //   원래 확정 트랜잭션도 같은 기록을 「없음」 으로 읽고 만들기 때문에, 먼저 커밋된 쪽만 서버가 받음 (다른 쪽 = 조건 실패 → 다시 읽어 상대 상태 확인)
@@ -25411,7 +25421,7 @@ async function _planReqFence(rq, opts){
   const fs = _ACTIVE_ADAPTER._fs; const ref = _planReqRef(fs, rq.reqId);
   const txp = fs.runTransaction(async tx => {
     const d = await tx.get(ref);
-    if(d.exists){ const st = d.data().state; return { status: st === 'done' ? 'done' : st === 'fenced' ? 'fenced' : 'unknown', rec: d.data() }; }
+    if(_snapLive(d)){ const st = _snapData(d).state; return { status: st === 'done' ? 'done' : st === 'fenced' ? 'fenced' : 'unknown', rec: _snapData(d) }; }
     const nr = _planReqRec(rq, 'fenced'); tx.set(ref, nr); return { status: 'fenced', rec: nr };
   });
   const res = await Promise.race([txp.then(v => ({ v }), e => ({ e })), new Promise(r => setTimeout(() => r({ timeout: true }), opts.timeoutMs || PLAN_TX_TIMEOUT_MS))]);
@@ -25443,15 +25453,15 @@ async function planPendCommit(opts){
   const reqRef = _planReqRef(fs, reqId);
   const txp = fs.runTransaction(async tx => {
     const rs = await tx.get(reqRef);   // ★ v0.39.13 — 요청 기록 먼저 읽음 (없음 = 커밋 조건 「아직 없음」 → 차단이 먼저 만들어지면 서버가 이 커밋을 거부)
-    if(rs.exists){ if(rs.data().state === 'fenced') throw Object.assign(new Error('이 요청은 결과 확인에서 차단됨'), { planFenced: true }); throw Object.assign(new Error('이미 처리된 요청 번호'), { planDup: true }); }
+    if(_snapLive(rs)){ if(_snapData(rs).state === 'fenced') throw Object.assign(new Error('이 요청은 결과 확인에서 차단됨'), { planFenced: true }); throw Object.assign(new Error('이미 처리된 요청 번호'), { planDup: true }); }
     const snaps = []; for(const m of moves) snaps.push(await tx.get(col.doc(String(m.id))));   // 읽기 전부 먼저 (Firestore 트랜잭션 규칙)
     const conflict = [];
-    moves.forEach((m, i) => { const d = snaps[i].exists ? snaps[i].data() : null;
+    moves.forEach((m, i) => { const d = _snapData(snaps[i]);
       if(!d || d.void) conflict.push(m.id + ' (없음·취소)');
       else if((d._updated || d.ts || 0) !== m.ver) conflict.push(m.id); });   // ★ v0.39.11 — 목적지가 같아도 버전이 다르면 충돌 (다른 사람이 같은 곳으로 옮긴 것과 구별 불가 → 막음)
     if(conflict.length) throw Object.assign(new Error('서버 최신 버전과 다름: ' + conflict.join(', ')), { planConflict: conflict });
     const now = Date.now();
-    const writes = moves.map((m, i) => ({ m, w: { date: m.date, equipment: m.equipment, seq: m.seq, move_req: reqId, _updated: now, _logs: (snaps[i].data()._logs || []).concat([{ ts: now, op: 'update', by, reason: '모아 옮기기 확정', req: reqId }]).slice(-50) } }));
+    const writes = moves.map((m, i) => ({ m, w: { date: m.date, equipment: m.equipment, seq: m.seq, move_req: reqId, _updated: now, _logs: ((_snapData(snaps[i]) || {})._logs || []).concat([{ ts: now, op: 'update', by, reason: '모아 옮기기 확정', req: reqId }]).slice(-50) } }));
     writes.forEach(x => tx.set(col.doc(String(x.m.id)), x.w, { merge: true }));
     tx.set(reqRef, _planReqRec(rq, 'done'));   // ★ v0.39.13 — 완료 기록 = 계획 저장과 같은 트랜잭션 (규칙 r14: 첫 계획의 move_req = 이 요청 번호일 때만)
     return writes;
