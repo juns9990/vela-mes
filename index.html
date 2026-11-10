@@ -452,6 +452,8 @@ tr.mst-off td{opacity:.45}
 .ap-arr{color:var(--dim);font-size:11px}.ap-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--sub)}
 .ap-memo{font-size:12.5px;background:var(--bg2);border-radius:8px;padding:8px 10px}
 .ap-note{font-size:11.5px;color:var(--sub);line-height:1.6;border-left:2px solid var(--amber);padding:4px 10px}
+/* ★ v0.40.30 — 재고 품번별 표: 고객사·재질·소재 규격 칸 (줄바꿈 없이 · 빈 여백 대신 정보) */
+.inv-c{white-space:nowrap;color:var(--sub)}.inv-c.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
 /* ★ v0.40.29 — 역할 고르기 (GPT 인계서 §6 · 사용자 사진: 라디오가 가운데 · 설명이 오른쪽 끝 → 라디오 바로 옆에 역할명·설명) — 공용 input 스타일(폭 100%)이 라디오에 걸리던 것을 이 영역에서만 풂 */
 .user-role{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:12px 14px}.user-role-h{font-size:13px;font-weight:700;margin-bottom:8px}
 .user-role-options{display:grid;gap:6px}
@@ -1812,7 +1814,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.29';
+const APP_VERSION = 'v0.40.30';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2925,7 +2927,7 @@ function canSeePrice(){
   if(v === undefined) return permBase(u) !== 'none';   // ★ v0.38.32 — 적지 않음 = 기본값 (Rules r10 pOf('price'))
   return v !== 'none';
 }
-const PRICE_PAGES = ['quote', 'cost', 'closing', 'acct', 'report'];   // 문서 전체가 금액 정보인 화면 — 단가 권한 없으면 메뉴 숨김
+const PRICE_PAGES = ['quote', 'cost', 'closing', 'acct'];   // ★ v0.40.30 — 전자결재(report)는 금액 화면이 아님 (자동 보고서 삭제) → 단가 권한과 상관없이 보임 · 옛 자동 보고서 스냅샷 열람만 단가 권한 확인   // 문서 전체가 금액 정보인 화면 — 단가 권한 없으면 메뉴 숨김
 // 기존 원본 문서의 단가를 sec_* 로 옮김 (관리자 1회 · 백업 후 · 원본 단가 필드 제거 — 업무 값 무변)
 function secMigrationReport(){
   const out = [];
@@ -4248,19 +4250,24 @@ function setDeviceCode(dev){
 const WIPE_PROTECT = ['settings', 'company', 'users', 'approvers', 'staff_auth', 'staff_login', 'qg_build', 'qg_build_log', 'rules_probe', 'vela_rules_probe', 'sec_settings'];
 const WIPE_BASIC = ['processes', 'expense_categories', 'defect_types', 'master_fields'];
 const WIPE_EXTRA = ['attachment_events', 'attachment_state', 'drawing_file_chunks', 'plan_move_reqs', 'qty_guard', 'qg_holds'];
-const WIPE_LABEL = { protect: '보존 (삭제 불가)', basic: '기본 정의 (기본 보존)', data: '예시 업무·기준정보 (삭제)' };
+const WIPE_LABEL = { protect: '보존 (삭제 불가)', norestore: '복원 경로 없음 (남김)', basic: '기본 정의 (기본 보존)', data: '예시 업무·기준정보 (삭제)' };
+/* ★ v0.40.30 (GPT v0.40.29 재현 ③) — 설정 › 백업 복원이 다시 쓰지 않는 컬렉션(RESTORE_SKIP_COLS: 첨부 조각·상태·이력 · 단가 문서)은 지우면 백업으로 못 돌림 → 삭제 목록에서 뺌 (남김) */
 function wipeCollections(){
   const all = [...new Set(_FS_COLLECTIONS.concat(typeof SEC_COLLECTIONS !== 'undefined' ? SEC_COLLECTIONS : [], STOCK_COLLECTIONS, WIPE_EXTRA, WIPE_PROTECT))];
-  return { protect: all.filter(c => WIPE_PROTECT.includes(c)), basic: all.filter(c => WIPE_BASIC.includes(c)), data: all.filter(c => !WIPE_PROTECT.includes(c) && !WIPE_BASIC.includes(c)) };
+  const nr = c => !WIPE_PROTECT.includes(c) && RESTORE_SKIP_COLS.includes(c);
+  return { protect: all.filter(c => WIPE_PROTECT.includes(c)), norestore: all.filter(nr), basic: all.filter(c => WIPE_BASIC.includes(c) && !nr(c)), data: all.filter(c => !WIPE_PROTECT.includes(c) && !WIPE_BASIC.includes(c) && !nr(c)) };
 }
+function _wipeStable(v){ if(Array.isArray(v)) return '[' + v.map(_wipeStable).join(',') + ']'; if(v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + _wipeStable(v[k])).join(',') + '}'; return JSON.stringify(v === undefined ? null : v); }
+const WIPE_BACKUP_MAX_MS = 30 * 60000;   // 백업 뒤 30분 안에만 실행 (오래된 백업으로 지우지 않게)
 function _wipeFs(){ return (_ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs) || null; }
 async function wipeAuthState(){
   if(isDemoMode() || DB._backend !== 'firestore') return { ok: false, why: '서버 모드가 아닙니다 (데모·이 기기 저장) — 이 경우는 기존 [이 기기 초기화]' };
+  if(!SERVER_GATES.server_wipe) return { ok: false, locked: true, why: '서버 자료 초기화는 지금 잠겨 있습니다 — 백업·복원 보완을 GPT 가 다시 확인한 뒤 열립니다 · 그 전에는 서버 자료를 지우지 마세요' };   // ★ v0.40.30
   if(isStaffMode()) return { ok: false, why: '직원 계정 방식 서버 초기화는 아직 없습니다 (서버 규칙 추가 필요)' };
   if(!_wipeFs() || !_ACTIVE_ADAPTER._ready) return { ok: false, why: '서버 연결 전 — 연결된 뒤 다시' };
-  if(SESSION.role !== 'vendor') return { ok: false, why: SESSION.role === 'manager' ? '관리책임자 서버 초기화는 아직 막혀 있습니다 — 지금 로그인(앱 비밀번호)은 서버가 사람을 확인하지 못함 · 직원 계정 방식 전환 뒤 열림 · 지금은 개발자 메일 로그인으로' : '관리책임자·개발자만 할 수 있습니다' };
+  if(SESSION.role !== 'vendor') return { ok: false, why: SESSION.role === 'manager' ? '관리책임자 서버 초기화는 아직 막혀 있습니다 — 지금 로그인(앱 비밀번호)은 서버가 사람을 확인하지 못함 · 직원 계정 방식 전환 뒤 열림 · 지금은 개발자 아이디(juns)로' : '관리책임자·개발자만 할 수 있습니다' };
   let u = null; try { u = window.firebase && window.firebase.auth().currentUser; } catch(e){}
-  if(!u || u.isAnonymous || !u.email) return { ok: false, why: '개발자 메일 로그인이 필요합니다 (「juns」 앱 비밀번호 로그인은 서버가 확인 못 함) — 로그아웃 → 이름 칸에 개발자 메일' };
+  if(!u || u.isAnonymous || !u.email) return { ok: false, needConfirm: true, why: '개발자 비밀번호 확인이 필요합니다 — 개발자 아이디(juns) 로그인은 서버가 사람을 확인하지 못해 실행 직전 개발자 메일 계정 비밀번호를 한 번 확인합니다 (로그아웃 없음)' };   // ★ v0.40.30 juns 로그인 = 창 안에서 확인
   if(!u.emailVerified) return { ok: false, why: '개발자 메일 인증이 아직입니다' };
   if(!(await isDevEmail(u.email))) return { ok: false, why: '개발자 메일 계정이 아닙니다' };
   return { ok: true, uid: u.uid };
@@ -4270,7 +4277,7 @@ function _wipeJson(v){ if(v == null) return v; if(typeof v.toMillis === 'functio
 async function wipeScan(withDocs){
   const fs = _wipeFs(); if(!fs) throw new Error('서버 연결 전');
   const g = wipeCollections(), out = { ts: Date.now(), cols: {}, docs: withDocs ? {} : null, users: [] };
-  for(const c of g.protect.concat(g.basic, g.data)){
+  for(const c of g.protect.concat(g.norestore, g.basic, g.data)){
     try { const s = await fs.collection(c).get({ source: 'server' }); out.cols[c] = s.size; if(withDocs){ out.docs[c] = {}; s.docs.forEach(d => { out.docs[c][d.id] = _wipeJson(d.data()); }); }
       if(c === 'users') out.users = s.docs.map(d => { const x = d.data(); return { id: d.id, name: x.name || '', role: x.role || '', active: x.active !== false }; }); }
     catch(e){ out.cols[c] = null; }
@@ -4280,34 +4287,43 @@ async function wipeScan(withDocs){
 async function _wipeSha(text){ try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); } catch(e){ return ''; } }
 /* 서버 백업 = 서버에서 다시 읽은 전 컬렉션 (사용자·설정 포함) · 모양 = 설정 › 백업 복원과 같음 { 컬렉션: { 문서id: 문서 } } */
 async function wipeBackup(){
-  const sc = await wipeScan(true); const text = JSON.stringify(sc.docs, null, 1); const sha = await _wipeSha(text);
+  window._wipeBackupDone = null;
+  const sc = await wipeScan(true);
+  const bad = Object.keys(sc.cols).filter(c => sc.cols[c] == null);   // ★ v0.40.30 (GPT 재현 ①) — 한 컬렉션이라도 서버 조회 실패 = 백업 불완전 → 백업 아님 · 초기화 못 함
+  if(bad.length) throw new Error('서버 조회 실패 컬렉션 ' + bad.join(', ') + ' — 백업이 완전하지 않아 초기화할 수 없습니다 (권한·연결 확인 후 다시)');
+  const text = JSON.stringify(sc.docs, null, 1); const sha = await _wipeSha(text); if(!sha) throw new Error('이 브라우저에서 백업 확인값(SHA-256)을 만들 수 없습니다 — 다른 브라우저로');
   const n = Object.values(sc.docs).reduce((s, c) => s + Object.keys(c).length, 0);
   const name = `vela-mes-서버백업_${(DEFAULT_FIREBASE_CONFIG && DEFAULT_FIREBASE_CONFIG.projectId) || 'server'}_${fmtDate(Date.now())}_${sha.slice(0, 8)}.json`;
   try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); } catch(e){}
-  window._wipeBackupDone = { sha, docs: n, name, ts: Date.now() };
+  const fp = {}; Object.keys(sc.docs).forEach(c => { fp[c] = {}; Object.keys(sc.docs[c]).forEach(id => { fp[c][id] = _wipeStable(sc.docs[c][id]); }); });   // ★ v0.40.30 (GPT 재현 ②) — 지울 수 있는 문서 = 백업에 든 그대로인 문서만
+  window._wipeBackupDone = { sha, docs: n, name, ts: Date.now(), fp };
   return { ...window._wipeBackupDone, scan: sc };
 }
 /* 실행 — 고른 컬렉션만 · 보존 목록 거부 · 서버에서 다시 읽어 지움 · 다시 조회로 0 확인 뒤에만 완료 */
 async function serverWipeRun(opts){
   opts = opts || {};
   const au = await wipeAuthState(); if(!au.ok) throw new Error(au.why);
-  if(!window._wipeBackupDone || !window._wipeBackupDone.sha) throw new Error('먼저 [서버 백업 내려받기] — 백업 없이 지우지 않습니다');
+  const bk = window._wipeBackupDone;
+  if(!bk || !bk.sha || !bk.fp) throw new Error('먼저 [서버 백업 내려받기] — 백업 없이 지우지 않습니다');
+  if(Date.now() - (+bk.ts || 0) > WIPE_BACKUP_MAX_MS) throw new Error('백업한 지 30분이 넘었습니다 — 다시 [서버 백업 내려받기] 뒤 실행');
   if(opts.confirm !== '초기화') throw new Error('확인 문구 「초기화」 를 정확히 입력하세요');
   if(opts.othersClosed !== true) throw new Error('다른 기기·탭을 모두 닫았는지 확인 체크가 필요합니다');
   const g = wipeCollections(), allow = new Set(g.basic.concat(g.data));
   const cols = [...new Set(opts.cols || [])];
-  const bad = cols.filter(c => !allow.has(c)); if(bad.length) throw new Error('보존 대상은 지울 수 없습니다 — ' + bad.join(', '));
+  const bad = cols.filter(c => !allow.has(c)); if(bad.length) throw new Error('보존 대상·복원 경로 없는 컬렉션은 지울 수 없습니다 — ' + bad.join(', '));
   if(!cols.length) throw new Error('지울 컬렉션을 1개 이상 고르세요');
+  const nob = cols.filter(c => !bk.fp[c]); if(nob.length) throw new Error('백업에 없는 컬렉션은 지울 수 없습니다 — ' + nob.join(', '));
   const fs = _wipeFs(), wref = fs.collection('settings').doc('wipe'), now = Date.now(), job = 'WP-' + now;
   const prog = typeof opts.onProgress === 'function' ? opts.onProgress : () => {};
-  window._wipeRunning = true; _wipeBootEpoch = now;   // 이 탭(실행한 탭)은 결과를 보여야 하므로 다시 불러오지 않음
-  const counts = {}; let failed = 0;
+  window._wipeRunning = true; window._wipeFreeze = true; window._wipeAfter = true; _wipeBootEpoch = now;   // 이 탭(실행한 탭)은 결과를 보여야 하므로 다시 불러오지 않음
+  const counts = {}; let failed = 0, kept = 0;
   try {
     await wref.set({ epoch: now, job, state: 'running', cols, by: SESSION.user || '', started: now, backup: { sha: window._wipeBackupDone.sha, docs: window._wipeBackupDone.docs, name: window._wipeBackupDone.name } }, { merge: false });
     for(const c of cols){
-      const r = counts[c] = { before: 0, deleted: 0, failed: 0, err: '' };
+      const r = counts[c] = { before: 0, deleted: 0, failed: 0, kept: 0, err: '' };
       let snap; try { snap = await fs.collection(c).get({ source: 'server' }); } catch(e){ r.failed = -1; r.err = (e && e.code) || '읽기 실패'; failed++; prog({ col: c, ...r }); continue; }
-      r.before = snap.size; const refs = snap.docs.map(d => d.ref);
+      r.before = snap.size;
+      const refs = []; snap.docs.forEach(d => { const want = bk.fp[c][d.id]; if(want !== undefined && want === _wipeStable(_wipeJson(d.data()))) refs.push(d.ref); else { r.kept++; kept++; } });   // 백업 뒤 새로 생기거나 바뀐 문서 = 남김
       for(let i = 0; i < refs.length; i += 300){
         const part = refs.slice(i, i + 300), b = fs.batch(); part.forEach(ref => b.delete(ref));
         try { await b.commit(); r.deleted += part.length; } catch(e){ r.failed += part.length; r.err = (e && e.code) || String(e && e.message || e); failed += part.length; }
@@ -4317,9 +4333,9 @@ async function serverWipeRun(opts){
     // 서버 다시 조회 — 지운 컬렉션 0 · 보존 컬렉션 그대로
     const verify = {}; let left = 0;
     for(const c of cols){ try { const s = await fs.collection(c).get({ source: 'server' }); verify[c] = s.size; left += s.size; } catch(e){ verify[c] = null; left++; } }
-    const state = (failed === 0 && left === 0) ? 'done' : 'partial';
-    await wref.set({ state, counts, verify, left, failed, finished: Date.now() }, { merge: true });
-    return { job, state, counts, verify, left, failed };
+    const state = (failed === 0 && kept === 0 && left === 0) ? 'done' : 'partial';
+    await wref.set({ state, counts, verify, left, failed, kept, finished: Date.now() }, { merge: true });
+    return { job, state, counts, verify, left, failed, kept };
   } catch(e){
     try { await wref.set({ state: 'partial', error: String((e && e.code) || (e && e.message) || e), finished: Date.now(), counts }, { merge: true }); } catch(x){}
     throw e;
@@ -4333,55 +4349,85 @@ function _wipeWatchTick(){
     if(!(_FS_STATE && _FS_STATE.snapshotRoundsDone >= 1)) return;
     const w = DB.get('settings', 'wipe') || {}, ep = +w.epoch || 0;
     if(_wipeBootEpoch === null){ _wipeBootEpoch = ep; }
-    const freeze = w.state === 'running' && Date.now() - (+w.started || 0) < 6 * 3600000;
+    const changed = ep > _wipeBootEpoch && w.state !== 'running';
+    const freeze = window._wipeAfter || changed || (w.state === 'running' && Date.now() - (+w.started || 0) < 6 * 3600000);   // ★ v0.40.30 — 끝난 뒤 다시 불러오기 전까지도 막음 (오래된 메모리 = 지운 자료)
     if(freeze !== !!window._wipeFreeze){ window._wipeFreeze = freeze; const b = document.getElementById('wipe-ban'); if(freeze && !b) document.body.insertAdjacentHTML('afterbegin', `<div id="wipe-ban" class="wipe-ban">서버 자료 초기화 중 — 끝날 때까지 저장이 막힙니다 (다른 기기에서 진행 중)</div>`); if(!freeze && b) b.remove(); }
-    if(ep > _wipeBootEpoch && w.state !== 'running'){ try { (window.__wipeLog = window.__wipeLog || []).push({ ep, boot: _wipeBootEpoch, st: w.state, t: Date.now() }); } catch(e){} _wipeBootEpoch = ep; try { toast('서버 자료가 초기화되었습니다 — 다시 불러옵니다', 'warn', 3000); } catch(e){} setTimeout(() => { try { location.reload(); } catch(e){} }, 1200); }
+    if(changed){ try { (window.__wipeLog = window.__wipeLog || []).push({ ep, boot: _wipeBootEpoch, st: w.state, t: Date.now() }); } catch(e){} _wipeBootEpoch = ep; try { toast('서버 자료가 초기화되었습니다 — 다시 불러옵니다', 'warn', 3000); } catch(e){} setTimeout(() => { try { location.reload(); } catch(e){} }, 1200); }
   } catch(e){}
 }
 if(typeof window !== 'undefined' && !window._wipeWatchOn){ window._wipeWatchOn = true; setInterval(_wipeWatchTick, 2500); }
+/* ★ v0.40.30 (사용자 요청 「juns 개발자 아이디로 초기화 · 어렵지 않게」) — 개발자 아이디(juns) 로그인 그대로 · 실행 직전 개발자 비밀번호 한 번 확인
+   이유(정직 표기): juns 로그인 = 서버에는 「익명 기기」 로만 보임 → 서버가 개발자인지 모름 → 이것만으로 삭제를 열면 앱 주소를 아는 누구나 서버 자료를 지울 수 있음
+   → 창 안에서 개발자 메일 계정 비밀번호를 한 번 확인 (로그아웃·다시 로그인 없음 · 메일은 이 PC 에 기억 → 다음부터 비밀번호만) · 서버는 그 계정만 삭제 허용(규칙 v4.1) */
+function _devMailHint(){ try { return localStorage.getItem('vela_dev_mail') || ''; } catch(e){ return ''; } }
+async function devConfirmForWipe(email, pw){
+  if(SESSION.role !== 'vendor') throw new Error('개발자 아이디로 로그인한 경우만');
+  email = String(email || '').trim().toLowerCase();
+  if(!(await isDevEmail(email))) throw new Error('개발자 계정 메일이 아닙니다');
+  const fb = window.firebase; let cred;
+  try { cred = await fb.auth().signInWithEmailAndPassword(email, pw); } catch(e){ throw new Error(_devErr(e)); }
+  try { await cred.user.reload(); } catch(e){}
+  if(!cred.user.emailVerified){ try { await fb.auth().signInAnonymously(); } catch(e){} throw new Error('개발자 메일 인증이 아직입니다 — 메일함의 인증 링크를 먼저'); }
+  try { localStorage.setItem('vela_dev_mail', email); } catch(e){}
+  return true;
+}
 function openServerWipe(){
   const g = wipeCollections(); let scan = null;
-  const box = body => openModal(`<h2>서버 예시 자료 초기화 <span class="pill amber">개발자</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body" id="wp-body">${body}</div>`, { width: '820px' });
-  box(`<div class="sc-st busy" id="wp-au">로그인 확인 중…</div>`);
-  (async () => {
-    const au = await wipeAuthState(); const el = document.getElementById('wp-body'); if(!el) return;
-    if(!au.ok){ el.innerHTML = `<div class="m-ban amber" style="line-height:1.7"><b>서버 초기화를 할 수 없습니다</b> — ${_esc(au.why)}</div>
+  openModal(`<h2>서버 자료 초기화 <span class="pill amber">개발자</span> <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body" id="wp-body"><div class="sc-st busy">확인 중…</div></div>`, { width: '820px' });
+  const body = () => document.getElementById('wp-body');
+  const draw = async () => {
+    const au = await wipeAuthState(), el = body(); if(!el) return;
+    if(!au.ok && au.needConfirm){   // juns 로그인 = 비밀번호 한 번 확인
+      el.innerHTML = `<div class="ap-note" style="margin-bottom:10px">개발자 아이디로 로그인되어 있습니다 — 서버 자료를 지우기 전에 <b>개발자 비밀번호를 한 번만 확인</b>합니다 (로그아웃 없음 · 메일은 이 PC 가 기억)</div>
+        <div class="grid g2" style="max-width:560px"><div><label>개발자 메일</label><input id="wp-dm" type="email" autocomplete="username" value="${_esc(_devMailHint())}"></div><div><label>개발자 메일 비밀번호</label><input id="wp-dp" type="password" autocomplete="current-password"></div></div>
+        <div id="wp-ast" class="sc-st"></div><div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="wp-dok">${ico('check')}확인</button></div>`;
+      const go = async () => { const s = document.getElementById('wp-ast'); s.textContent = '확인 중…'; s.className = 'sc-st busy'; try { await devConfirmForWipe(document.getElementById('wp-dm').value, document.getElementById('wp-dp').value); draw(); } catch(e){ s.textContent = e.message; s.className = 'sc-st err'; } };
+      document.getElementById('wp-dok').onclick = go; document.getElementById('wp-dp').onkeydown = e => { if(e.key === 'Enter') go(); };
+      setTimeout(() => { try { document.getElementById(_devMailHint() ? 'wp-dp' : 'wp-dm').focus(); } catch(e){} }, 50); return;
+    }
+    if(!au.ok){ el.innerHTML = `<div class="m-ban amber" style="line-height:1.7"><b>${au.locked ? '서버 자료 초기화 잠김' : '서버 초기화를 할 수 없습니다'}</b> — ${_esc(au.why)}</div>
       <div class="ap-note" style="margin-top:10px">이 기기 사본만 지우는 기존 초기화는 서버 자료를 지우지 않습니다 (새로고침하면 서버에서 다시 내려옴) — 서버 모드에서는 쓰지 않습니다.</div>
       <div class="actions"><button class="btn" onclick="closeModal()">닫기</button></div>`; return; }
-    el.innerHTML = `<div class="ap-note" style="margin-bottom:10px">① 서버 다시 조회 → ② 서버 백업 내려받기 → ③ 다른 기기 닫기 + 「초기화」 입력 → 실행 · 끝나면 서버에서 다시 조회해 0 건일 때만 「완료」 · <b>규칙 v4.1 게시 필요</b> (v4 그대로면 서버가 거부 → 실패로 표시)</div>
-      <div class="actions" style="justify-content:flex-start;margin:0 0 10px"><button class="btn" id="wp-scan">${ico('refresh')}① 서버 다시 조회</button><button class="btn" id="wp-bk" disabled>${ico('save')}② 서버 백업 내려받기</button></div><div id="wp-bkst" class="muted" style="font-size:12px;margin:-4px 0 10px;word-break:break-all"></div>
-      <div id="wp-list" class="muted" style="font-size:12px">[① 서버 다시 조회] 를 누르면 컬렉션별 서버 문서 수가 나옵니다</div>
+    el.innerHTML = `<div class="ap-note" style="margin-bottom:10px">지울 것을 확인 → 「다른 기기 닫음」 체크 + 「초기화」 입력 → <b>[백업 받고 초기화]</b> 한 번 = 서버 백업 파일 내려받기 → 백업에 든 그대로인 문서만 삭제 → 서버 다시 조회 0건일 때만 「완료」</div>
+      <div class="actions" style="justify-content:flex-start;margin:0 0 8px"><button class="btn ghost" id="wp-scan">${ico('refresh')}다시 조회</button></div>
+      <div id="wp-list" class="muted" style="font-size:12px">서버 조회 중…</div><div id="wp-bkst" class="muted" style="font-size:12px;margin:6px 0;word-break:break-all"></div>
       <div id="wp-go" hidden style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
         <label class="apc-chk"><input type="checkbox" id="wp-closed"> 다른 기기·브라우저 탭을 모두 닫았습니다 (열려 있으면 지운 자료를 다시 올릴 수 있음)</label>
         <div><label>확인 문구 <span style="color:var(--red)">(정확히 「초기화」)</span></label><input id="wp-c2" autocomplete="off" placeholder="초기화" style="max-width:200px"></div>
-        <div class="actions" style="margin:0"><button class="btn" onclick="closeModal()">취소</button><button class="btn warn" id="wp-run" disabled>${ico('trash')}③ 서버 초기화 실행</button></div></div>
+        <div class="actions" style="margin:0"><button class="btn" onclick="closeModal()">취소</button><button class="btn warn" id="wp-run" disabled>${ico('trash')}백업 받고 초기화</button></div></div>
       <div id="wp-st" class="sc-st"></div><div id="wp-res"></div>`;
     const $ = id => document.getElementById(id), st = (t, k) => { $('wp-st').textContent = t; $('wp-st').className = 'sc-st' + (k ? ' ' + k : ''); };
-    const gate = () => { $('wp-run').disabled = busy || !(window._wipeBackupDone && $('wp-closed').checked && $('wp-c2').value === '초기화' && [...document.querySelectorAll('[data-wp-col]:checked')].length); };
-    let busy = false;   // 조회·실행이 겹치지 않게 (조회 중 실행 · 실행 중 조회 = 막음)
-    $('wp-scan').onclick = async () => { if(busy) return; busy = true; $('wp-run').disabled = true; $('wp-scan').disabled = true; st('서버 조회 중…', 'busy'); try { scan = await wipeScan(false); } catch(e){ st(e.message, 'err'); busy = false; $('wp-scan').disabled = false; return; } busy = false; $('wp-scan').disabled = false; st('');
-      const row = (c, kind) => { const n = scan.cols[c]; return `<tr><td>${kind === 'protect' ? '' : `<input type="checkbox" data-wp-col="${c}"${kind === 'data' && n ? ' checked' : ''}${n === 0 ? ' disabled' : ''}>`}</td><td class="mono">${c}</td><td class="num">${n == null ? '<span style="color:var(--red)">읽기 거부</span>' : n.toLocaleString()}</td><td class="muted">${WIPE_LABEL[kind]}</td></tr>`; };
+    let busy = false;
+    const gate = () => { $('wp-run').disabled = busy || !($('wp-closed').checked && $('wp-c2').value === '초기화' && [...document.querySelectorAll('[data-wp-col]:checked')].length); };
+    const doScan = async () => { if(busy) return; busy = true; $('wp-run').disabled = true; $('wp-scan').disabled = true; st('서버 조회 중…', 'busy'); try { scan = await wipeScan(false); } catch(e){ st(e.message, 'err'); busy = false; $('wp-scan').disabled = false; return; } busy = false; $('wp-scan').disabled = false; st('');
+      const row = (c, kind) => { const n = scan.cols[c]; return `<tr><td>${kind === 'protect' || kind === 'norestore' ? '' : `<input type="checkbox" data-wp-col="${c}"${kind === 'data' && n ? ' checked' : ''}${n === 0 ? ' disabled' : ''}>`}</td><td class="mono">${c}</td><td class="num">${n == null ? '<span style="color:var(--red)">읽기 거부</span>' : n.toLocaleString()}</td><td class="muted">${WIPE_LABEL[kind]}</td></tr>`; };
       const sum = k => g[k].reduce((s, c) => s + (+scan.cols[c] || 0), 0);
       $('wp-list').innerHTML = `<div class="tbl-wrap" style="max-height:300px"><table style="font-size:12px"><thead><tr><th></th><th>컬렉션</th><th class="num">서버 문서</th><th>분류</th></tr></thead><tbody>
-        ${g.data.map(c => row(c, 'data')).join('')}${g.basic.map(c => row(c, 'basic')).join('')}${g.protect.map(c => row(c, 'protect')).join('')}</tbody></table></div>
-        <div class="ap-note" style="margin-top:8px">삭제 후보 ${sum('data').toLocaleString()}건 · 기본 정의 ${sum('basic').toLocaleString()}건(체크하면 함께 삭제) · 보존 ${sum('protect').toLocaleString()}건 · 앱 목록 밖 컬렉션은 여기서 볼 수 없음(Firebase 콘솔 확인)</div>
+        ${g.data.map(c => row(c, 'data')).join('')}${g.basic.map(c => row(c, 'basic')).join('')}${g.norestore.map(c => row(c, 'norestore')).join('')}${g.protect.map(c => row(c, 'protect')).join('')}</tbody></table></div>
+        <div class="ap-note" style="margin-top:8px">삭제 후보 ${sum('data').toLocaleString()}건 · 기본 정의 ${sum('basic').toLocaleString()}건(체크하면 함께 삭제) · 복원 경로 없음 ${sum('norestore').toLocaleString()}건(첨부 조각·상태·이력·단가 문서 = 백업 복원이 다시 쓰지 않으므로 남김) · 보존 ${sum('protect').toLocaleString()}건 · 앱 목록 밖 컬렉션은 여기서 볼 수 없음(Firebase 콘솔 확인)</div>
         <div style="margin-top:8px;font-size:12px"><b>보존 사용자 ${scan.users.length}명</b> — ${scan.users.map(u => `${_esc(u.name)}(${_esc(u.id)} · ${u.role === 'manager' ? '관리책임자' : u.role === 'worker' ? '현장 작업자' : '일반'}${u.active ? '' : ' · 퇴사'})`).join(' · ') || '없음'} <span class="muted">— 사용자·로그인·비밀번호는 지우지 않음</span></div>`;
-      $('wp-bk').disabled = false; $('wp-go').hidden = false; document.querySelectorAll('[data-wp-col]').forEach(x => x.onchange = gate); gate(); };
-    $('wp-bk').onclick = async () => { st('서버 백업 만드는 중…', 'busy'); try { const r = await wipeBackup(); $('wp-bkst').innerHTML = `백업 ${r.docs.toLocaleString()}건 · <span class="mono">${r.sha.slice(0, 12)}</span> · ${_esc(r.name)}`; st('백업 내려받음 — 안전한 곳에 보관 (사용자·비밀번호 해시 포함)', 'ok'); } catch(e){ st('백업 실패 — ' + e.message, 'err'); } gate(); };
-    $('wp-closed').onchange = gate; $('wp-c2').oninput = gate;
-    $('wp-run').onclick = async () => { const cols = [...document.querySelectorAll('[data-wp-col]:checked')].map(x => x.dataset.wpCol); if(busy) return; busy = true; $('wp-run').disabled = true; $('wp-scan').disabled = true; $('wp-bk').disabled = true; st('서버 자료 지우는 중… 창을 닫지 마세요', 'busy');
-      const tb = c => `<tr><td class="mono">${c}</td><td class="num" data-b="${c}">…</td><td class="num" data-d="${c}">0</td><td class="num" data-f="${c}">0</td></tr>`;
-      $('wp-res').innerHTML = `<div class="tbl-wrap" style="max-height:280px;margin-top:8px"><table style="font-size:12px"><thead><tr><th>컬렉션</th><th class="num">전</th><th class="num">삭제</th><th class="num">실패</th></tr></thead><tbody>${cols.map(tb).join('')}</tbody></table></div>`;
-      try { const r = await serverWipeRun({ cols, confirm: $('wp-c2').value, othersClosed: $('wp-closed').checked, onProgress: p => { const q = s => document.querySelector(s); if(q(`[data-b="${p.col}"]`)) q(`[data-b="${p.col}"]`).textContent = p.before; if(q(`[data-d="${p.col}"]`)) q(`[data-d="${p.col}"]`).textContent = p.deleted; if(q(`[data-f="${p.col}"]`)) q(`[data-f="${p.col}"]`).textContent = p.failed ? `${p.failed} ${p.err}` : 0; } });
+      $('wp-go').hidden = false; document.querySelectorAll('[data-wp-col]').forEach(x => x.onchange = gate); gate(); };
+    $('wp-scan').onclick = doScan; $('wp-closed').onchange = gate; $('wp-c2').oninput = gate;
+    $('wp-run').onclick = async () => { if(busy) return; const cols = [...document.querySelectorAll('[data-wp-col]:checked')].map(x => x.dataset.wpCol); busy = true; $('wp-run').disabled = true; $('wp-scan').disabled = true;
+      st('① 서버 백업 만드는 중…', 'busy');
+      try { const b = await wipeBackup(); $('wp-bkst').innerHTML = `백업 ${b.docs.toLocaleString()}건 · <span class="mono">${b.sha.slice(0, 12)}</span> · ${_esc(b.name)} <span style="color:var(--amber)">(안전한 곳에 보관 · 사용자·비밀번호 해시 포함)</span>`; }
+      catch(e){ st('백업 실패 — 지우지 않았습니다 · ' + e.message, 'err'); busy = false; $('wp-scan').disabled = false; gate(); return; }
+      st('② 서버 자료 지우는 중… 창을 닫지 마세요', 'busy');
+      const tb = c => `<tr><td class="mono">${c}</td><td class="num" data-b="${c}">…</td><td class="num" data-d="${c}">0</td><td class="num" data-k="${c}">0</td><td class="num" data-f="${c}">0</td></tr>`;
+      $('wp-res').innerHTML = `<div class="tbl-wrap" style="max-height:280px;margin-top:8px"><table style="font-size:12px"><thead><tr><th>컬렉션</th><th class="num">전</th><th class="num">삭제</th><th class="num" title="백업 뒤 새로 생기거나 바뀐 문서">남김</th><th class="num">실패</th></tr></thead><tbody>${cols.map(tb).join('')}</tbody></table></div>`;
+      try { const r = await serverWipeRun({ cols, confirm: $('wp-c2').value, othersClosed: $('wp-closed').checked, onProgress: p => { const q = s => document.querySelector(s); if(q(`[data-b="${p.col}"]`)) q(`[data-b="${p.col}"]`).textContent = p.before; if(q(`[data-d="${p.col}"]`)) q(`[data-d="${p.col}"]`).textContent = p.deleted; if(q(`[data-k="${p.col}"]`)) q(`[data-k="${p.col}"]`).textContent = p.kept || 0; if(q(`[data-f="${p.col}"]`)) q(`[data-f="${p.col}"]`).textContent = p.failed ? `${p.failed} ${p.err}` : 0; } });
         if(r.state === 'done') st(`완료 — 서버 다시 조회 = 지운 컬렉션 0건 · 작업 ${r.job} · [다시 불러오기] 로 화면을 새로 받으세요`, 'ok');
-        else st(`완료 아님 — 실패 ${r.failed}건 · 남은 문서 ${r.left}건 (${r.failed && /permission/.test(JSON.stringify(r.counts)) ? '서버가 삭제 거부 — 규칙 v4.1 게시 확인' : '네트워크 확인'}) · 다시 [③ 실행] = 남은 것만 지움`, 'err');
+        else st(`완료 아님 — 실패 ${r.failed}건 · 백업 뒤 새로 생기거나 바뀐 문서 ${r.kept}건(남김) · 남은 문서 ${r.left}건 (${r.failed && /permission/.test(JSON.stringify(r.counts)) ? '서버가 삭제 거부 — 규칙 v4.1 게시 확인' : '네트워크 확인'}) · [다시 조회] → [백업 받고 초기화] 다시 = 남은 것만 지움`, 'err');
         $('wp-res').insertAdjacentHTML('beforeend', `<div class="actions"><button class="btn primary" onclick="location.reload()">${ico('refresh')}다시 불러오기</button></div>`);
-      } catch(e){ st(e.message || String(e), 'err'); } busy = false; $('wp-scan').disabled = false; $('wp-bk').disabled = false; gate(); };
-  })();
+      } catch(e){ st(e.message || String(e), 'err'); } busy = false; $('wp-scan').disabled = false; gate(); };
+    doScan();
+  };
+  draw();
 }
 
 /* ★ v0.40.29 (GPT 인계서 §7) — 브라우저 점검 (Edge·Chrome 비교용) · 읽기만 · 비밀번호·토큰 없음
    같은 계정으로 Edge·Chrome 에서 각각 열어 [복사] → 두 결과를 나란히 비교 (실패 동작은 사용자가 따로 알려 줘야 원인 확인 가능) */
+function invSpec(r){ const n = v => (+v).toLocaleString(undefined, { maximumFractionDigits: 3 }); const a = [r.dia ? 'Ø' + n(r.dia) : '', r.len ? n(r.len) + 'mm' : ''].filter(Boolean).join(' × '); return _esc([a, r.unitKg ? n(r.unitKg) + 'kg' : ''].filter(Boolean).join(' · ') || '—'); }   // ★ v0.40.30 재고 소재 규격 표시
 function browserName(){
   try { const b = (navigator.userAgentData && navigator.userAgentData.brands) || []; const f = n => b.find(x => x.brand === n);
     if(f('Microsoft Edge')) return 'Edge ' + f('Microsoft Edge').version; if(f('Google Chrome')) return 'Chrome ' + f('Google Chrome').version; } catch(e){}
@@ -4812,7 +4858,7 @@ const FEATURE_DEPS = {
 const EXPERIMENTAL_FLAGS = ['ship_qty_fix', 'pr_qty_fix', 'stock_count', 'eapproval'];
 /* ★ v0.38.22 (GPT v0.38.21 판정 ①) — 서버 Gate: 서버 권한·동시성·원자성 검증 전에는 실데이터에서 플래그를 켜도 저장 차단 (데모만 시험)
    Gate 통과 시 이 값을 true 로 바꾸는 것은 별도 SPEC·GPT 판정·사용자 승인 후 */
-const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false, stock_count: false, eapproval: false };   // ★ v0.40.25 stock_count = 실데이터 실사 확정 Gate (GPT 판정·사용자 승인 뒤 true)
+const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false, stock_count: false, eapproval: false, server_wipe: false };   // ★ v0.40.30 server_wipe = 서버 자료 초기화 잠금 (GPT v0.40.29 판정: 백업·복원 보완 재검토 전 실행 금지)   // ★ v0.40.25 stock_count = 실데이터 실사 확정 Gate (GPT 판정·사용자 승인 뒤 true)
 function experimentalEnabled(k){ return !!getFlags()[k] && (isDemoMode() || SERVER_GATES[k] === true); }
 function shipQtyFixEnabled(){ return experimentalEnabled('ship_qty_fix'); }
 function prQtyFixEnabled(){ return experimentalEnabled('pr_qty_fix'); }
@@ -9126,6 +9172,7 @@ function getUserPerm(userId, pageId){
   if(!u) return 'edit';
   if(u.role === 'manager') return 'edit';
   if(pageId === 'dash'){ const p = u.perms?.dash; return p === 'view' ? 'view' : 'edit'; }
+  if(pageId === 'report') return 'edit';   // ★ v0.40.30 (사용자 확인 요청) — 전자결재 = 로그인한 사람마다 자기 결재함 (결재자로 지정되면 누구나 열 수 있어야 함) · 메뉴 권한으로 막지 않음
   const p = u.perms?.[pageId];
   return PERM_LEVELS.includes(p) ? p : permBase(u);
 }
@@ -9135,7 +9182,7 @@ function permBase(u){ return u && u.perms && u.perms._base === 'none' ? 'none' :
 /* ★ v0.38.33 (GPT v0.38.32 피드백 ①) — 옛 형식 직원(_base 없음) 권한 전환: 자동 검색 → 전후 비교 → 관리자 확인 → 선택 일괄 전환 → 재검사
    전환 = 지금 실효 권한을 그대로 직접 적고 _base:'none' (권한이 늘거나 줄지 않음 · 앞으로 생길 메뉴만 「없음」) · 중요 권한(등록·단가·회계·마감)은 따로 표시
    제외: manager(역할 = 모든 업무 메뉴 등록 · perms 미사용 — 서버 sMgr 동일) · 개발자(users 문서 아님 · approvers) */
-const PERM_CRITICAL = ['closing', 'acct', 'cost', 'report', 'quote'];
+const PERM_CRITICAL = ['closing', 'acct', 'cost', 'quote'];
 function permIsConverted(u){ return !!(u && u.perms && u.perms._base === 'none'); }
 function permConvertPlan(u){
   const after = { _base: 'none' };
@@ -9193,7 +9240,8 @@ function currentPagePerm(){
 let _permToastTs = 0;
 function _permBlockWrite(col, id){
   try {
-    if(window._wipeFreeze && !window._wipeRunning){ const now = Date.now(); if(now - _permToastTs > 1500){ _permToastTs = now; try { toast('서버 자료 초기화 중 — 저장이 막혀 있습니다', 'warn', 3000); } catch(e){} } return true; }   // ★ v0.40.29
+    /* ★ v0.40.30 — 실행하는 탭도 막음 (지운 자료가 이 탭 메모리에서 다시 올라가지 않게 · 삭제는 저장 경로 밖에서 서버로 직접) */
+    if(window._wipeFreeze){ const now = Date.now(); if(now - _permToastTs > 1500){ _permToastTs = now; try { toast('서버 자료 초기화 중 — 저장이 막혀 있습니다', 'warn', 3000); } catch(e){} } return true; }   // ★ v0.40.29
     if(typeof SESSION === 'undefined' || !SESSION.loggedIn) return false;   // 부팅·시드·마이그레이션
     if(SESSION.role === 'manager' || SESSION.role === 'vendor') return false;
     if(col === 'users') return false;                                        // last_login 등 시스템 기록
@@ -9218,10 +9266,11 @@ const NAV_PRIMARY_DEFAULT = ['dash','so','plan','scan','perf','lot','qc','ship']
 //   ★ v0.40.0 (GPT UI SPEC 1.1 §6) — 구매 / 자재 분리 (표시 묶음만 · 데이터·권한 나눔 0) · 부서 아이콘 · 메뉴 찾기(NAV_GROUPS)도 이 정의에서 생성
 const NAV_DEPTS = [
   { key:'sales',   label:'영업',      ids:['so','quote'] },
-  { key:'prod',    label:'생산',      ids:['wo','plan','autoplan','perf','scan','lot','eqstatus','mold'] },   // ★ v0.40.25 (사용자 요청) — 금형·지그 = 생산 (품질에서 옮김 · 권한·데이터 무변)
+  { key:'prod',    label:'생산',      ids:['wo','plan','autoplan','perf','scan','lot','eqstatus'] },   // ★ v0.40.25 (사용자 요청) — 금형·지그 = 생산 (품질에서 옮김 · 권한·데이터 무변)
   { key:'buy',     label:'구매',      ids:['po','os'] },
   { key:'mat',     label:'자재',      ids:['matin','inv'] },
-  { key:'qual',    label:'품질',      ids:['qc','draw'] },
+  { key:'qual',    label:'품질',      ids:['qc'] },
+  { key:'dev',     label:'개발·R&D',  ids:['draw','mold'] },   // ★ v0.40.30 (사용자 요청) — 도면·금형(지그) = 개발·R&D (품질·생산에서 옮김 · 권한·데이터 무변)
   { key:'ship',    label:'출하',      ids:['ship','pallet'] },
   { key:'appr',    label:'전자결재',  ids:['report'], solo:true },   // ★ v0.40.28 (사용자 요청) — 전자결재 = 대분류 단독 메뉴 (관리에서 뺌 · 권한·데이터 무변)
   { key:'admin',   label:'관리',      ids:['dash','closing','acct','cost','docs','audit'] },
@@ -9237,6 +9286,7 @@ const NAV_ICONS = {
   buy:'<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12h11.2L21 7H6.2"/>',
   mat:'<path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/>',
   qual:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  dev:'<circle cx="12" cy="5" r="2"/><path d="M11 6.8L6 21M13 6.8L18 21M8 15h8"/>',
   ship:'<rect x="2" y="7" width="13" height="10" rx="1"/><path d="M15 10h4l3 3v4h-7"/><circle cx="6.5" cy="19" r="1.6"/><circle cx="18" cy="19" r="1.6"/>',
   admin:'<path d="M4 20V11M10 20V5M16 20v-6M2 20h20"/>',
   appr:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8.5 14.5l2.2 2.2 4.3-4.3"/>',
@@ -16604,6 +16654,7 @@ VIEWS.inv = () => {
     const custName = i.cust ? (DB.get('vendors', i.cust)?.name || i.cust) : '';
     return {
       code: i.code, name: i.name, cust: custName, mat: i.mat||'',
+      dia: +i.dia || 0, len: +i.mat_len_mm || +i.length || 0, unitKg: +i.weight_kg || +i.weight || 0,   // ★ v0.40.30 (사용자 요청) — 소재 규격 표시만 (계산 무변)
       rawKg: rawKgOf(i.code, itemLots),
       wip, done, defects,
       safety: i.safety||0, low: done < (i.safety||0),
@@ -16744,7 +16795,9 @@ VIEWS.inv = () => {
         <thead>
           <tr>
             <th rowspan="2" style="vertical-align:bottom">품번 · 품명</th>
-            <th rowspan="2" style="vertical-align:bottom">고객사 · 재질</th>
+            <th rowspan="2" style="vertical-align:bottom">고객사</th>
+            <th rowspan="2" style="vertical-align:bottom">재질</th>
+            <th rowspan="2" style="vertical-align:bottom" title="소재 지름(Ø) · 소재 길이 · 소재 단중">소재 규격<br><span style="color:var(--dim);font-size:9px">Ø × 길이 · 단중</span></th>
             <th class="num" rowspan="2" style="vertical-align:bottom">원소재<br><span style="color:var(--dim);font-size:9px">(kg)</span></th>
             ${wipProcs.length? `<th class="num" colspan="${wipProcs.length}" style="text-align:center;color:var(--amber);letter-spacing:.5px;font-size:9px">─── 재공재고 ───</th>`:''}
             <th class="num" rowspan="2" style="vertical-align:bottom;color:var(--green)">완성품<br><span style="color:var(--dim);font-size:9px">(ea)</span></th>
@@ -16760,13 +16813,15 @@ VIEWS.inv = () => {
               ${r.lotN? `<span class="pill cyan" style="font-size:9px;margin-left:4px" title="진행 중 생산 LOT">LOT ${r.lotN}</span>`:''}
               ${r.stopBadge? `<span class="pill heat" style="font-size:9px;margin-left:4px">${_esc(r.stopBadge)}</span>`:''}
             </td>
-            <td class="muted" style="font-size:11px">${_esc(r.cust||'—')} · ${_esc(r.mat||'—')}</td>
+            <td class="inv-c" style="font-size:11.5px">${_esc(r.cust||'—')}</td>
+            <td class="inv-c mono" style="font-size:11.5px">${_esc(r.mat||'—')}</td>
+            <td class="inv-c mono" style="font-size:11.5px">${invSpec(r)}</td>
             ${r.rawKg>0? `<td class="num" style="color:var(--blue)">${Math.round(r.rawKg).toLocaleString()}</td>` : `<td class="num muted">—</td>`}
             ${wipProcs.map(p=>flowCell(r, p.code)).join('')}
             ${r.done>0? `<td class="num" style="color:var(--green);font-weight:700">${r.done.toLocaleString()}</td>` : `<td class="num muted">—</td>`}
             ${r.defects>0? `<td class="num" style="color:var(--red)">${r.defects.toLocaleString()}</td>` : `<td class="num muted">—</td>`}
           </tr>
-        `).join('') : `<tr><td colspan="${4+wipProcs.length+1}" class="empty">필터에 맞는 품번이 없습니다</td></tr>`}</tbody>
+        `).join('') : `<tr><td colspan="${6+wipProcs.length+1}" class="empty">필터에 맞는 품번이 없습니다</td></tr>`}</tbody>
       </table></div>
     </div>
 
@@ -28397,7 +28452,7 @@ async function approvalAct(aid, act, comment){
    저장: approvals/{AP-…} { kind:'doc', title, body, blocks[], drafter, line[], step, status, ts, hist[] } · 한 문서 = 서버 1MB 한도 → 900KB 까지
    잠금: 결재 올리기·승인·반려·회수 = v0.40.26 Gate 그대로 (실데이터 = 실행 함수 거부) · 작성·미리보기·인쇄 = 됨 */
 const AP_DOC_MAX = 900 * 1024, AP_IMG_MAX = 380 * 1024, AP_X_ROWS = 300, AP_X_COLS = 40;
-const AP_BLOCK_KIND = { xlsx: '엑셀 표', img: '이미지', cap: '메뉴 화면', sys: '시스템 항목' };
+const AP_BLOCK_KIND = { xlsx: '엑셀 표', img: '이미지', cap: '메뉴 화면', sys: '시스템 항목' };   // ★ v0.40.30 (사용자 요청) — 새로 넣기 = 엑셀·이미지만 · 메뉴 화면·시스템 항목 = v0.40.27~29 에 올린 옛 문서 표시용으로만 남김
 function _apBytes(o){ const s = JSON.stringify(o); try { return new TextEncoder().encode(s).length; } catch(e){ return s.length * 3; } }
 function _apDraftKey(){ return 'vela_ap_draft_' + (SESSION.userId || 'dev'); }
 /* ★ v0.40.28 (사용자 요청) — 결재선 = 단계를 직접 만들기(단계 이름 + 사람 · 최대 5) + 저장한 결재선(settings/eapproval · 관리책임자가 저장 · 「기본」 = 새 문서에 자동) */
@@ -28500,33 +28555,6 @@ function apImgBlock(src, name, t, o){
   return { t: t || 'img', src: out, w, h, name: String(name || '').slice(0, 120) };
 }
 async function apFileBlock(file){ return apImgBlock(await _apLoadImg(file), file.name || '붙여넣은 이미지'); }
-/* ③ 시스템 항목 = 대시보드 세부 숫자 (보이는 것만 · 금액 권한 존중) → 그 순간 값 */
-function apSysCatalog(){ const f = getFlags(); return DASH_METRICS.filter(m => m.id !== 'm_appr' && dashCardVisible(m, f)); }
-function _apText(h){ const d = document.createElement('div'); d.innerHTML = String(h == null ? '' : h); return (d.textContent || '').replace(/\s+/g, ' ').trim(); }
-function apSysBlock(ids){
-  const cat = apSysCatalog(), items = (ids || []).map(id => cat.find(m => m.id === id)).filter(Boolean).map(m => { let r; try { r = m.calc() || {}; } catch(e){ r = { v: '—', sub: '계산 오류' }; }
-    return { id: m.id, group: m.group, title: canSeePrice() ? m.title : m.title.replace(/ · 금액$/, ''), v: _apText(r.v), unit: _apText(r.unit), v2: _apText(r.v2), sub: _apText(r.sub) }; });
-  if(!items.length) throw new Error('넣을 항목을 1개 이상 고르세요');
-  return { t: 'sys', ts: Date.now(), items };
-}
-/* ④ 메뉴 화면 캡처 — 고른 메뉴를 잠깐 열어 그대로 찍고 돌아옴 (html2canvas · PDF 저장과 같은 도구) */
-function apCapPages(){
-  const f = getFlags(), mgr = SESSION.role === 'manager' || SESSION.role === 'vendor';
-  return PAGES.filter(p => f[p.flag] && !['report', 'set', 'audit'].includes(p.id) && VIEWS[p.id] && (mgr || ((!MANAGER_ONLY.includes(p.id)) && getUserPerm(SESSION.userId, p.id) !== 'none' && !(PRICE_PAGES.includes(p.id) && !canSeePrice()))));
-}
-async function apCaptureMenu(pid){
-  const p = apCapPages().find(x => x.id === pid); if(!p) throw new Error('캡처할 수 없는 메뉴');
-  try { await _loadPdfLibs(); } catch(e){ throw new Error('화면 캡처 도구를 불러오지 못했습니다 — 인터넷 연결 확인'); }
-  if(typeof html2canvas !== 'function') throw new Error('화면 캡처 도구 없음');
-  let cv;
-  try {
-    location.hash = '#' + pid; router(); await new Promise(r => setTimeout(r, 450));
-    const el = document.getElementById('view'), bg = getComputedStyle(document.body).backgroundColor || '#ffffff';
-    cv = await html2canvas(el, { backgroundColor: bg, scale: 1, logging: false, useCORS: true, scrollX: 0, scrollY: -window.scrollY, height: Math.min(el.scrollHeight, 3200), windowWidth: document.documentElement.clientWidth });
-  } finally { location.hash = '#report'; router(); }
-  return apImgBlock(cv, p.title + ' 화면', 'cap', { maxW: 1400, maxH: 3200 });
-}
-
 /* 결재 올리기 — 결재 문서 1개 (스냅샷 없음 · 본문·블록이 곧 기록) */
 async function approvalSubmit({ title, body, blocks, approvers }){
   apAssertEnabled();   // ★ v0.40.26 Gate 그대로
@@ -28551,9 +28579,11 @@ async function approvalSubmit({ title, body, blocks, approvers }){
 function apPrint(a){
   const line = a.line || [], dr = a.drafter || { name: SESSION.user || '' };
   const sign = `<table class="ps"><tr><th>기안</th>${line.map((l, i) => `<th>${_esc(l.label || `결재 ${i + 1}`)}</th>`).join('')}</tr><tr><td><b>${_esc(dr.name || '')}</b>${a.ts ? `<br><small>${fmtDate(a.ts)}</small>` : ''}</td>${line.map(l => `<td><b>${_esc(l.name || '')}</b><br><small>${_esc(l.status && l.status !== '대기' ? l.status : '')}${l.ts ? ' ' + fmtDate(l.ts) : ''}</small></td>`).join('')}</tr></table>`;
-  const body = `<div class="ph"><h1>${_esc(a.title || '(제목 없음)')}</h1>${sign}</div><div class="pm">${a.id ? `${_esc(a.id)} · ` : '작성 중 미리보기 · '}${a.ts ? `기안 ${fmtDate(a.ts)} ${fmtTime(a.ts)} · ` : ''}${_esc(dr.name || '')}${a.status ? ` · ${_esc(AP_STATUS[a.status] || '')}` : ''}</div>${apBodyHtml(a.body)}${apBlocksView(a.blocks)}`;
-  const css = `.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:6px}.ph h1{font-size:20px;margin:6px 0}.ps{border-collapse:collapse;font-size:11px}.ps th,.ps td{border:1px solid #444;padding:3px 10px;text-align:center;min-width:64px}.ps td{height:42px}.ps th{background:#f1f3f5}
-    .pm{font-size:11px;color:#555;border-bottom:2px solid #222;padding-bottom:6px;margin-bottom:12px}.apd-body{font-size:13px;line-height:1.7;margin-bottom:14px;white-space:normal}.apb{margin:0 0 14px;page-break-inside:avoid}.apb-capv{font-weight:700;font-size:12px;margin-bottom:4px}
+  const body = `<div class="ph">${sign}</div><h1 class="pt">${_esc(a.title || '(제목 없음)')}</h1><div class="pm">${a.id ? `${_esc(a.id)} · ` : '작성 중 미리보기 · '}${a.ts ? `기안 ${fmtDate(a.ts)} ${fmtTime(a.ts)} · ` : ''}${_esc(dr.name || '')}${a.status ? ` · ${_esc(AP_STATUS[a.status] || '')}` : ''}</div>${apBodyHtml(a.body)}${apBlocksView(a.blocks)}`;
+  const css = `.ph{display:flex;justify-content:flex-end;margin:0 0 4px}.pt{font-size:18px;margin:2px 0 6px;text-align:left}   /* ★ v0.40.30 (사용자 요청) — 결재란 = 맨 위 오른쪽 끝 · 작게 */
+    .ps{border-collapse:collapse;font-size:8.5px;line-height:1.25;width:auto}.ps th,.ps td{border:1px solid #555;padding:1px 4px;text-align:center;width:52px;min-width:0;max-width:64px;overflow:hidden}.ps th{background:#f1f3f5;font-weight:700}.ps td{height:30px;vertical-align:middle}.ps td b{font-size:9px}.ps td small{font-size:7.5px;color:#555}
+    body,.page{text-align:left}
+    .pm{font-size:10.5px;color:#555;border-bottom:2px solid #222;padding-bottom:5px;margin-bottom:12px;text-align:left}.apd-body{font-size:13px;line-height:1.7;margin-bottom:14px;white-space:normal}.apb{margin:0 0 14px;page-break-inside:avoid}.apb-capv{font-weight:700;font-size:12px;margin-bottom:4px}
     .apb-x,.apb-s{border-collapse:collapse;font-size:10.5px;width:auto;max-width:100%}.apb-x td,.apb-s td,.apb-s th{border:1px solid #999;padding:2px 6px;vertical-align:top}.apb-x td.n,.apb-s .n{text-align:right}.apb-s th{background:#f1f3f5}.apb-g{color:#777;font-size:9.5px;margin-right:6px}.apb-sub{color:#555}
     .apb-img{max-width:100%;border:1px solid #ccc}.apb-cut{font-size:10px;color:#777;margin-top:3px}`;
   _openPrint(a.title || '전자결재', body, css, { formKey: 'appr' });
@@ -28578,13 +28608,11 @@ VIEWS._apCompose = () => {
         <div class="apc-line">${d.line.map((x, i) => `${i ? '<span class="ap-arr">→</span>' : ''}<div class="apc-step" data-apl="${i}"><div class="apc-sh"><b>${i + 1}</b><input id="apc-l${i}" list="apc-ln" maxlength="12" value="${_esc(x.label || '')}" placeholder="단계 이름">${d.line.length > 1 ? `<button class="apc-sx" data-apl-del="${i}" type="button" title="이 단계 빼기">✕</button>` : ''}</div><select id="apc-u${i}">${opt(x.id || '')}</select></div>`).join('')}
           ${d.line.length < AP_MAX_STEPS ? `<button class="apc-add" id="apc-add" type="button" title="결재 단계 추가 (최대 ${AP_MAX_STEPS})">＋ 단계</button>` : ''}</div>
         <datalist id="apc-ln">${AP_STEP_NAMES.map(n => `<option value="${n}">`).join('')}</datalist></div></div>
-      <div class="apc-row top" data-noscroll><label class="apc-l" for="apc-body">내용</label><textarea id="apc-body" rows="5" placeholder="결재 내용을 적으세요 — 아래 [첨부]로 엑셀·캡처·시스템 숫자·메뉴 화면을 붙일 수 있습니다">${_esc(d.body)}</textarea></div>
+      <div class="apc-row top" data-noscroll><label class="apc-l" for="apc-body">내용</label><textarea id="apc-body" rows="5" placeholder="결재 내용을 적으세요 — 아래 [첨부]로 엑셀 표·캡처 이미지를 붙일 수 있습니다">${_esc(d.body)}</textarea></div>
       <div class="apc-row top" data-noscroll><label class="apc-l">첨부</label><div class="apc-att">
         <div class="apc-tools">
           <button class="btn" id="apc-xlsx" title="엑셀 파일의 표를 그대로 넣음 (병합·열 너비 유지)">${ico('excel')}엑셀 올리기</button>
           <button class="btn" id="apc-img" title="캡처·사진 파일 (여러 장)">${ico('image')}이미지·캡처 올리기</button>
-          <button class="btn" id="apc-sys" title="대시보드 세부 숫자를 골라 지금 값을 넣음">${ico('grid')}시스템 항목 넣기</button>
-          <button class="btn" id="apc-cap" title="고른 메뉴 화면을 그대로 찍어 넣음">${ico('scan')}메뉴 화면 캡처</button>
           <input type="file" id="apc-xf" accept=".xlsx,.xls,.csv" hidden><input type="file" id="apc-if" accept="image/*" multiple hidden>
         </div>
         <div id="apc-blocks">${d.blocks.map(blk).join('')}</div>
@@ -28635,8 +28663,6 @@ VIEWS._apCompose = () => {
   const dz = $('apc-drop');
   dz.ondragover = e => { e.preventDefault(); dz.classList.add('on'); }; dz.ondragleave = () => dz.classList.remove('on');
   dz.ondrop = e => { e.preventDefault(); dz.classList.remove('on'); files([...((e.dataTransfer && e.dataTransfer.files) || [])]); };
-  $('apc-sys').onclick = () => { sync(); apPickSys(); };
-  $('apc-cap').onclick = () => { sync(); apPickMenu(); };
   $('apc-clear').onclick = () => { const b = $('apc-clear'); if(b.dataset.arm !== '1'){ b.dataset.arm = '1'; b.textContent = '한 번 더 누르면 비움'; b.style.color = 'var(--red)'; return; } apDraftClear(); router(); };
   $('apc-print').onclick = () => { sync(); const line = d.line.filter(x => x.id).map(x => ({ id: x.id, label: x.label, name: (DB.get('users', x.id) || {}).name || x.id, status: '대기' })); apPrint({ title: d.title, body: d.body, blocks: d.blocks, line }); };
   const sub = $('btn-ap-new');
@@ -28664,26 +28690,6 @@ function apPickSheets(wb, fileName, names){
     <div class="ap-pick">${names.map((n, i) => `<label class="pk-row${i ? '' : ' on'}"><input type="checkbox" data-ap-sheet="${_esc(n)}"${i ? '' : ' checked'}> ${_esc(n)}</label>`).join('')}</div>
     <div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="ap-sheet-ok">${ico('check')}넣기</button></div></div>`);
   document.getElementById('ap-sheet-ok').onclick = () => { const pick = [...document.querySelectorAll('[data-ap-sheet]:checked')].map(x => x.dataset.apSheet); if(!pick.length){ toast('시트를 1개 이상 고르세요', 'warn'); return; } closeModal(); window._apAdd(pick.map(n => apSheetBlock(wb, n, fileName)), `엑셀 표 ${pick.length}개`); };
-}
-function apPickSys(){
-  const cat = apSysCatalog(), groups = [...new Set(cat.map(m => m.group))];
-  openModal(`<h2>시스템 항목 넣기 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
-    <div class="muted" style="font-size:12px;margin-bottom:8px">고른 항목의 <b>지금 값</b>이 표로 들어갑니다 (올린 뒤 다시 계산하지 않음)</div>
-    ${groups.map(g => `<div class="ap-pick-g"><div class="ap-pick-gl">${_esc(g)} <button class="btn ghost" data-ap-gall="${_esc(g)}" style="padding:1px 8px;font-size:11px">전체</button></div><div class="ap-pick">${cat.filter(m => m.group === g).map(m => `<label class="pk-row"><input type="checkbox" data-ap-sys="${m.id}" data-g="${_esc(g)}"> ${_esc(canSeePrice() ? m.title : m.title.replace(/ · 금액$/, ''))}</label>`).join('')}</div></div>`).join('')}
-    <div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="ap-sys-ok">${ico('check')}넣기</button></div></div>`, { width: '640px' });
-  document.querySelectorAll('[data-ap-gall]').forEach(b => b.onclick = () => { const xs = [...document.querySelectorAll('[data-ap-sys]')].filter(x => x.dataset.g === b.dataset.apGall); const on = !xs.every(x => x.checked); xs.forEach(x => x.checked = on); });
-  document.getElementById('ap-sys-ok').onclick = () => { try { const blk = apSysBlock([...document.querySelectorAll('[data-ap-sys]:checked')].map(x => x.dataset.apSys)); closeModal(); window._apAdd(blk, `시스템 항목 ${blk.items.length}개`); } catch(e){ toast(e.message, 'warn'); } };
-}
-function apPickMenu(){
-  const ps = apCapPages(), dep = NAV_DEPTS.map(g => ({ label: g.label, ps: ps.filter(p => g.ids.includes(p.id)) })).filter(g => g.ps.length);
-  const rest = ps.filter(p => !NAV_DEPTS.some(g => g.ids.includes(p.id))); if(rest.length) dep.push({ label: '기타', ps: rest });
-  openModal(`<h2>메뉴 화면 캡처 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
-    <div class="muted" style="font-size:12px;margin-bottom:8px">고른 메뉴를 잠깐 열어 <b>보이는 화면 그대로</b> 찍어 넣습니다 · 일부만 넣으려면 그 메뉴에서 Win+Shift+S 로 잘라 Ctrl+V</div>
-    ${dep.map(g => `<div class="ap-pick-g"><div class="ap-pick-gl">${_esc(g.label)}</div><div class="ap-menu">${g.ps.map(p => `<button class="btn" data-ap-menu="${p.id}">${_esc(p.title)}</button>`).join('')}</div></div>`).join('')}
-    <div id="ap-cap-st" class="sc-st"></div></div>`, { width: '640px' });
-  document.querySelectorAll('[data-ap-menu]').forEach(b => b.onclick = async () => { const s = document.getElementById('ap-cap-st'); s.textContent = '화면 찍는 중…'; s.className = 'sc-st busy'; document.querySelectorAll('[data-ap-menu]').forEach(x => x.disabled = true);
-    const pid = b.dataset.apMenu; closeModal();
-    try { const blk = await apCaptureMenu(pid); window._apAdd(blk, '메뉴 화면'); } catch(e){ toast(e.message || String(e), 'err', 4500); } });
 }
 
 function openApproval(aid){
@@ -28737,7 +28743,7 @@ VIEWS.report = () => {
   if(!getFlags().report){ document.getElementById('view').innerHTML = `<div class="card">전자결재 모듈 OFF — 설정에서 켜세요.</div>`; return; }
   const st = window._reportState;
   if(st.tab === 'box'){ VIEWS._approvalBox(); return; }
-  if(st.viewSnapshotId || st.tab === 'legacy'){ VIEWS._reportLegacy(); return; }
+  if(st.viewSnapshotId || st.tab === 'legacy'){ if(!canSeePrice()){ st.viewSnapshotId = null; st.tab = 'write'; toast('옛 자동 보고서(금액 포함)는 단가 권한이 있어야 볼 수 있습니다', 'warn', 3500); } else { VIEWS._reportLegacy(); return; } }
   VIEWS._apCompose();
 };
 VIEWS._reportLegacy = () => {
@@ -31519,7 +31525,7 @@ function bindUserWorkerCards(){
   function openUserPermModal(uid){
     const u = DB.get('users', uid); if(!u) return;
     const flags = getFlags();
-    const pages = PAGES.filter(p => flags[p.flag] && !MANAGER_ONLY.includes(p.id) && p.id !== 'dash');
+    const pages = PAGES.filter(p => flags[p.flag] && !MANAGER_ONLY.includes(p.id) && p.id !== 'dash' && p.id !== 'report');   // ★ v0.40.30 전자결재 = 모두에게 (권한 창에서 뺌)
     const cur = pid => { const v = u.perms?.[pid]; return PERM_LEVELS.includes(v) ? v : permBase(u); };
     const dashCur = u.perms?.dash === 'view' ? 'view' : 'edit';
     const radio = (pid, lv, checked) => `<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:11.5px;margin:0"><input type="radio" name="pm-${pid}" value="${lv}" ${checked?'checked':''} style="width:auto;margin:0"> ${PERM_LABELS[lv]}</label>`;
