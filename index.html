@@ -1814,7 +1814,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.30';
+const APP_VERSION = 'v0.40.31';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -4262,7 +4262,7 @@ const WIPE_BACKUP_MAX_MS = 30 * 60000;   // 백업 뒤 30분 안에만 실행 (�
 function _wipeFs(){ return (_ACTIVE_ADAPTER && _ACTIVE_ADAPTER._fs) || null; }
 async function wipeAuthState(){
   if(isDemoMode() || DB._backend !== 'firestore') return { ok: false, why: '서버 모드가 아닙니다 (데모·이 기기 저장) — 이 경우는 기존 [이 기기 초기화]' };
-  if(!SERVER_GATES.server_wipe) return { ok: false, locked: true, why: '서버 자료 초기화는 지금 잠겨 있습니다 — 백업·복원 보완을 GPT 가 다시 확인한 뒤 열립니다 · 그 전에는 서버 자료를 지우지 마세요' };   // ★ v0.40.30
+  if(!SERVER_GATES.server_wipe) return { ok: false, locked: true, why: '서버 자료 초기화가 꺼져 있습니다 — 개발자에게 문의' };   // ★ v0.40.30
   if(isStaffMode()) return { ok: false, why: '직원 계정 방식 서버 초기화는 아직 없습니다 (서버 규칙 추가 필요)' };
   if(!_wipeFs() || !_ACTIVE_ADAPTER._ready) return { ok: false, why: '서버 연결 전 — 연결된 뒤 다시' };
   if(SESSION.role !== 'vendor') return { ok: false, why: SESSION.role === 'manager' ? '관리책임자 서버 초기화는 아직 막혀 있습니다 — 지금 로그인(앱 비밀번호)은 서버가 사람을 확인하지 못함 · 직원 계정 방식 전환 뒤 열림 · 지금은 개발자 아이디(juns)로' : '관리책임자·개발자만 할 수 있습니다' };
@@ -4740,7 +4740,7 @@ const MODULE_DEFS = [
       ['ship',   '출하',           true, false],
       ['ship_qty_fix', '출하 수량 정정 (시험 — 서버 동시성 검증 전 · 기본 끔)', false, false],
       ['pr_qty_fix', '구매 입고 수량 정정 (시험 — 서버 동시성 검증 전 · 기본 끔)', false, false],
-      ['stock_count', '재고 실사 (시험 — GPT 판정 전 · 실데이터 확정 막힘 · 기본 끔)', false, false],
+      ['stock_count', '재고 실사 (시험 — 실데이터 확정 막힘 · 기본 끔)', false, false],
       ['eapproval', '전자결재 결재 (시험 — 서버 결재자 확인 전 · 실데이터 결재 막힘 · 기본 끔)', false, false],   // ★ v0.40.26 (GPT v0.40.25 판정) — 보고서 작성·조회는 그대로 · 결재 올리기·승인·반려·회수만   // ★ v0.40.25 (GPT v0.40.24 판정) — 보완 전 정식 사용 금지   // ★ v0.38.25 SPEC v0.4 · GPT D11~D14   // ★ v0.38.21 SPEC 등록 후 수정 v0.3 · GPT D5 조건부 승인 · 실운영 활성화는 서버 Gate 후
       ['cust',   '거래처 마스터',  true, false],
       ['quote',  '견적(RFQ)',     false, false],  // v1.5
@@ -4858,7 +4858,7 @@ const FEATURE_DEPS = {
 const EXPERIMENTAL_FLAGS = ['ship_qty_fix', 'pr_qty_fix', 'stock_count', 'eapproval'];
 /* ★ v0.38.22 (GPT v0.38.21 판정 ①) — 서버 Gate: 서버 권한·동시성·원자성 검증 전에는 실데이터에서 플래그를 켜도 저장 차단 (데모만 시험)
    Gate 통과 시 이 값을 true 로 바꾸는 것은 별도 SPEC·GPT 판정·사용자 승인 후 */
-const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false, stock_count: false, eapproval: false, server_wipe: false };   // ★ v0.40.30 server_wipe = 서버 자료 초기화 잠금 (GPT v0.40.29 판정: 백업·복원 보완 재검토 전 실행 금지)   // ★ v0.40.25 stock_count = 실데이터 실사 확정 Gate (GPT 판정·사용자 승인 뒤 true)
+const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false, stock_count: false, eapproval: false, server_wipe: true };   // ★ v0.40.31 (사용자 결정 2026-11-10) server_wipe = 서버 자료 초기화 열림 (개발자만 · 개발자 비밀번호 확인 · 서버 규칙 v4.1 필요)   // ★ v0.40.25 stock_count = 실데이터 실사 확정 Gate (GPT 판정·사용자 승인 뒤 true)
 function experimentalEnabled(k){ return !!getFlags()[k] && (isDemoMode() || SERVER_GATES[k] === true); }
 function shipQtyFixEnabled(){ return experimentalEnabled('ship_qty_fix'); }
 function prQtyFixEnabled(){ return experimentalEnabled('pr_qty_fix'); }
@@ -16361,7 +16361,7 @@ async function _scGroup(fn, label){
 function _scConflictErr(cf){ return new Error(`충돌 ${cf.length}건 — 확정하지 않았습니다 · ${cf.slice(0, 3).map(x => x.msg).join(' / ')}${cf.length > 3 ? ' …' : ''} (미리보기에서 그 줄을 빼거나 원인을 정리)`); }
 async function stockCountConfirm(countId, prev, commonReason){
   if(!stockCountSupported()) throw new Error('직원 계정 모드에서는 재고 실사를 아직 지원하지 않습니다 (서버 규칙 추가 필요)');
-  if(!experimentalEnabled('stock_count')) throw new Error('재고 실사 확정 = 시험 기능 — 실데이터에서는 GPT 판정·승인 전까지 막혀 있습니다 (데모에서만 확정)');
+  if(!experimentalEnabled('stock_count')) throw new Error('재고 실사 확정 = 시험 기능 — 실데이터에서는 아직 막혀 있습니다 (데모에서만 확정)');
   const c = DB.get('stock_counts', countId);
   if(!c) throw new Error('회차 없음');
   if(!Array.isArray(c.book)) throw new Error('고정 장부가 없는 회차(이전 판) — 지우고 새로 만들어 주세요');
@@ -16493,7 +16493,7 @@ VIEWS._stockCount = (countId) => {
       <h2>재고 실사 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
       <div class="body">
         <div class="sc-lead">원소재 · 재공 · 협력사 보유 · 완성품을 실사표로 세어 올리면, 확정할 때 전산 재고가 실사 수량으로 맞춰집니다. 실적·출하 기록은 그대로 두고 차이만 「실사 조정」 으로 남습니다.</div>
-        ${experimentalEnabled('stock_count') ? '' : `<div class="m-ban amber" style="margin-bottom:10px">시험 기능 — 실사표 내려받기·올리기·미리보기는 되지만 <b>실데이터 확정은 막혀 있습니다</b> (GPT 판정·승인 뒤 열림 · 데모에서만 확정)</div>`}
+        ${experimentalEnabled('stock_count') ? '' : `<div class="m-ban amber" style="margin-bottom:10px">시험 기능 — 실사표 내려받기·올리기·미리보기는 되지만 <b>실데이터 확정은 막혀 있습니다</b> (데모에서만 확정)</div>`}
         ${cur ? '' : `<div class="sc-new">
           <div class="grid g2">
             <div><label>회차 이름</label><input id="sc-title" placeholder="${now.getFullYear()} ${now.getMonth() < 6 ? '상반기' : '하반기'} 실사"></div>
@@ -16531,7 +16531,7 @@ VIEWS._stockCount = (countId) => {
       <div class="sc-head"><div><b>${_esc(c.title || '')}</b><span>실사 시작(장부 고정) ${fmtDate(c.basis_ts)} ${new Date(c.basis_ts).toTimeString().slice(0, 5)}</span></div><span class="pill ${c.status === 'confirmed' ? 'green' : c.status === 'confirming' ? 'amber' : c.status === 'open' ? 'cyan' : ''}">${ST[c.status] || c.status}</span></div>
       ${c.status === 'cancelled' ? `<div class="m-ban">취소 사유: ${_esc(c.cancel_reason || '')} · ${_esc(c.cancelled_by || '')} ${fmtDate(c.cancelled_at)}</div>` : ''}
       ${legacy && c.status === 'open' ? `<div class="m-ban amber">이전 판(v0.40.24)에서 만든 회차 — 장부가 고정되어 있지 않아 쓸 수 없습니다 · [회차 지우기] 뒤 새로 만들어 주세요</div>` : ''}
-      ${!gateOk && !done ? `<div class="m-ban amber" style="margin-bottom:10px">시험 기능 — <b>실데이터 확정은 막혀 있습니다</b> (GPT 판정·승인 뒤 열림 · 데모에서만 확정)</div>` : ''}
+      ${!gateOk && !done ? `<div class="m-ban amber" style="margin-bottom:10px">시험 기능 — <b>실데이터 확정은 막혀 있습니다</b> (데모에서만 확정)</div>` : ''}
       ${c.status === 'open' && !legacy ? `
       <ol class="sc-steps">
         <li><b>실사표 내려받기</b><span>실사 시작 때 고정한 장부가 적힌 엑셀 · 협력사에는 그 협력사 표만</span>
@@ -16568,7 +16568,7 @@ VIEWS._stockCount = (countId) => {
         ${c.status === 'confirming' && stockCanManage() ? `<button class="btn" id="sc-abort" style="color:var(--red)">확정 중단</button>` : ''}
         ${lines.length ? `<button class="btn" id="sc-res">${ico('excel')}결과 엑셀</button>` : ''}
         ${c.status === 'confirmed' && stockCanManage() ? `<button class="btn" id="sc-cancel" style="color:var(--red);border-color:var(--red)">확정 취소</button>` : ''}
-        ${(c.status === 'open' && prev) || c.status === 'confirming' ? `<button class="btn primary" id="sc-ok"${!stockCanManage() ? ' disabled title="확정은 관리 역할만"' : !gateOk ? ' disabled title="실데이터 확정 = GPT 판정·승인 전 막힘"' : prev && prev.conflicts.length ? ' disabled title="충돌을 먼저 정리"' : ''}>${ico('save')}${c.status === 'confirming' ? '확정 다시 시도' : '확정 — 재고 반영'}</button>` : ''}
+        ${(c.status === 'open' && prev) || c.status === 'confirming' ? `<button class="btn primary" id="sc-ok"${!stockCanManage() ? ' disabled title="확정은 관리 역할만"' : !gateOk ? ' disabled title="실데이터 확정 = 아직 막힘"' : prev && prev.conflicts.length ? ' disabled title="충돌을 먼저 정리"' : ''}>${ico('save')}${c.status === 'confirming' ? '확정 다시 시도' : '확정 — 재고 반영'}</button>` : ''}
       </div>
     </div>`, { width: '980px' });
   const $ = id => document.getElementById(id), st = $('sc-st');
