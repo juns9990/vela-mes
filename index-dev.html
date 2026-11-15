@@ -1814,11 +1814,11 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.32';
+const APP_VERSION = 'v0.40.34';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-11-10';
+const APP_DATE    = '2026-11-15';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -1902,13 +1902,22 @@ const _BACKEND_CONFIG_KEY = 'vela_backend_config';   // ★ v0.21.0 — firebase
    DB 키: 'vela_mes_demo_v1' (실 vela_mes_db_v1 과 완전 분리 · 읽기/쓰기 절대 교차 없음).
    백엔드: 강제 local (firestore SDK 로드 자체 안 함 — 서버 접속·비용 0).
    단말: 런타임 'D' 고정 (로컬 device 코드 키 미변경 — 데모 종료 후 원래 코드 복원). */
+/* ★ v0.40.34 (사용자 요청 2026-11-15 「체험판은 따로 · 여러 업체가 체험」) — 판(EDITION) 1벌 소스 → 빌드 스크립트(_build-edition.py)가 판별로 파일 생성
+   · 'ops'   = 정식·테스트 (지금 그대로)
+   · 'trial' = 체험판: 서버 연결 정보 없음(빌드에서 지움) · 항상 이 PC 브라우저 저장(데모 격리 경로 재사용 · 별도 저장 키) · 잠긴 기능은 운영과 똑같이 잠김
+     → 업체마다 자기 PC 에 저장되므로 여러 업체가 같은 주소로 체험해도 서로 섞이지 않음 · 서버 비용 0 */
+const VELA_EDITION = 'ops';
+function isTrial(){ return VELA_EDITION === 'trial'; }
 const _DEMO_FLAG_KEY = 'vela_demo';
-const _DEMO_LS_KEY   = 'vela_mes_demo_v1';
+const _DEMO_LS_KEY   = isTrial() ? 'vela_mes_trial_v1' : 'vela_mes_demo_v1';
+const _TRIAL_SETUP_KEY = 'vela_trial_setup';
+function trialSetup(){ try { return JSON.parse(localStorage.getItem(_TRIAL_SETUP_KEY) || 'null'); } catch(e){ return null; } }
 /* ★ v0.38.3 — 데모 진입 플래그를 탭 단위(sessionStorage)로 (사용자 피드백 2026-10-09: 일반 접속인데 DEMO 배지가 떠서 데모판으로 오해).
    원인: 플래그가 localStorage 에 남아, 한 번 [데모 체험]을 누른 브라우저는 이후 정식 주소로 들어와도 게이트 없이 데모로 자동 부팅됐다
    (index.html·index-dev.html 이 같은 출처라 공유). 이제 데모는 [데모 체험]을 누른 그 탭에서만 · 탭/앱을 닫으면 끝 · 새로 접속하면 항상 일반 게이트.
    데모 데이터(vela_mes_demo_v1)·빈 상태 키는 그대로 localStorage — 다시 데모에 들어가면 이어서 보인다. 옛 localStorage 플래그는 부팅 시 제거(_clearLegacyDemoFlag). */
 function isDemoMode(){
+  if(isTrial()) return true;   // ★ v0.40.34 체험판 = 항상 이 PC 저장
   try { return sessionStorage.getItem(_DEMO_FLAG_KEY) === '1'; }
   catch { return false; }
 }
@@ -1917,7 +1926,7 @@ _clearLegacyDemoFlag();
 /* ★ v0.28.7 — 빈 상태 데모(시연·테스트 캔버스) 판정 1벌
    · 데모 격리(별도 키·서버 0) 그대로 재사용 · 차이는 시드뿐: 뼈대(공정 템플릿·계정과목)만, 데이터 0
    · 단말 고유값 원칙 — 플래그는 localStorage (DB 밖) */
-const _DEMO_EMPTY_KEY = 'vela_demo_empty';
+const _DEMO_EMPTY_KEY = isTrial() ? 'vela_trial_empty' : 'vela_demo_empty';
 function isEmptyDemo(){
   try { return isDemoMode() && localStorage.getItem(_DEMO_EMPTY_KEY) === '1'; }
   catch { return false; }
@@ -2084,8 +2093,9 @@ const _FS_COLLECTIONS = [
 ];
 /* ★ v0.40.24 — 재고 실사 회차 · 실사 조정 (SPEC 재고실사 v0.3) · 기존 방식(운영 규칙 v4)만 구독
    직원 계정 규칙(r16·r17)에는 이 컬렉션 규칙이 아직 없음 → 직원 계정 모드 = 구독·계산·화면 모두 끔 (규칙 추가는 r17 전환 작업 때) */
-const STOCK_COLLECTIONS = ['stock_counts', 'stock_adj', 'approvals'];   // ★ v0.40.25 — 전자결재(approvals)도 기존 방식만 (직원 계정 규칙 미작성)
-function stockCountSupported(){ try { return !isStaffMode(); } catch(e){ return true; } }
+const STOCK_COLLECTIONS = ['stock_counts', 'stock_adj', 'approvals'];   // ★ v0.40.25 — 전자결재(approvals)
+// ★ v0.40.33 — 직원 계정 방식도 지원 (규칙 r17 개정 8: 실사 회차 = 재고 등록 권한 · 확정·조정 = 서버도 거부 · 결재 = 읽기만 · 상신·승인 = 서버도 거부 — 앱 잠금과 같음)
+function stockCountSupported(){ return true; }
 /* ★ v0.21.2 — config 해석: 로컬 오버라이드 우선 → 없으면 내장 DEFAULT_FIREBASE_CONFIG.
    반환 { cfg, source } — source 는 pill/설정 표시용. cfg 없음(둘 다 없음) 시 null. */
 function loadFirestoreConfig(){
@@ -3028,7 +3038,7 @@ function secReconcileCore(backup, server, logOk, logTotal){
   return out;
 }
 async function _secSha(s){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(v => v.toString(16).padStart(2, '0')).join(''); }
-async function _secFetchServer(fs, cols){ const server = {}; for(const col of cols){ if(server[col]) continue; server[col] = {}; (await fs.collection(col).get()).docs.forEach(d => { server[col][d.id] = d.data(); }); } return server; }
+async function _secFetchServer(fs, cols){ const server = {}; for(const col of cols){ if(server[col]) continue; server[col] = {}; (await fs.collection(col).get()).docs.forEach(d => { const x = _wipeStrip(d.data()); if(x) server[col][d.id] = x; }); } return server; }
 async function secReconcileCheck(backup){
   if(!isStaffMode()) throw Object.assign(new Error('직원 계정 방식에서만 실행'), { ui: true });
   if(!backup || backup.kind !== 'vela-sec-migration-backup') throw Object.assign(new Error('이관 백업 파일이 아닙니다 (vela-mes-sec-migration-backup_….json — [단가 분리 이관] 때 자동으로 내려받은 파일)'), { ui: true });
@@ -3383,7 +3393,7 @@ function _fsStartSync(fs, adapter){
     try { if(w._op === 'delete') _fsSend(fs, w.col, w.id, null, { op: 'delete' }); else _fsSend(fs, w.col, w.id, w.doc, w.meta); }
     catch(e){ console.warn('[VELA] flush write fail', w.col, w.id, e); }
   });
-  const cols = _FS_COLLECTIONS.concat(isStaffMode() && typeof SEC_COLLECTIONS !== 'undefined' ? SEC_COLLECTIONS : []).concat(isStaffMode() ? [] : STOCK_COLLECTIONS);   // ★ v0.40.24 재고 실사 = 기존 방식만
+  const cols = _FS_COLLECTIONS.concat(isStaffMode() && typeof SEC_COLLECTIONS !== 'undefined' ? SEC_COLLECTIONS : []).concat(STOCK_COLLECTIONS);   // ★ v0.40.33 직원 계정 방식도 (규칙 r17 개정 8)
   adapter._secSubbed = isStaffMode();
   const expected = cols.length;
   const seen = new Set();
@@ -3413,6 +3423,7 @@ function _fsStartSync(fs, adapter){
     const un = fs.collection(col).onSnapshot(snap => {
       const state = adapter._state;
       if(!state) return;
+      if(_FS_STATE.denied && _FS_STATE.denied.has(col)) _FS_STATE.denied.delete(col);   // ★ v0.40.33 — 다시 시도한 구독이 통과
       const isSec = typeof SEC_COLLECTIONS !== 'undefined' && SEC_COLLECTIONS.includes(col);
       if(!isSec && !state[col]) state[col] = {};
       snap.docChanges().forEach(chg => {
@@ -3441,6 +3452,9 @@ function _fsStartSync(fs, adapter){
       console.warn('[VELA] onSnapshot 오류', col, err && err.code);
       _FS_STATE.denied.add(col);
       if(!dyn) arrived(col);
+      // ★ v0.40.33 — 직원 계정 방식: 읽기 거부(예: 단가 이관 전 · 쓰기 중지 중 첫 로그인)로 끊긴 구독은 20초마다 다시 시도 (최대 15분) → 전환이 끝나면 새로고침 없이 자료가 들어옴
+      try { if(isStaffMode() && /permission|insufficient/i.test(String((err && (err.code || err.message)) || ''))){ const gen = adapter._gen || 0; const rt = adapter._retry = adapter._retry || {}; rt[col] = (rt[col] || 0) + 1;
+        if(rt[col] <= 45) setTimeout(() => { if((adapter._gen || 0) !== gen || !adapter._fs) return; subscribe(col, true); }, 20000); } } catch(e){}
       _syncPillMark();
     });
     adapter._unsubs = (adapter._unsubs || []).concat([un]);
@@ -3452,7 +3466,7 @@ function _fsStartSync(fs, adapter){
 }
 function _fsStopSync(adapter){
   (adapter._unsubs || []).forEach(u => { try { u(); } catch(e){} });
-  adapter._unsubs = []; adapter._ready = false; adapter._secSubbed = false;
+  adapter._unsubs = []; adapter._ready = false; adapter._secSubbed = false; adapter._gen = (adapter._gen || 0) + 1; adapter._retry = {};   // ★ v0.40.33 — 다시 시도 예약 무효
   const st = adapter._state; if(st) Object.keys(st).forEach(k => delete st[k]);
   if(typeof _SEC !== 'undefined'){ _SEC.parts = {}; }
 }
@@ -3463,7 +3477,8 @@ function _fsStopSync(adapter){
    · 비밀번호 잊음 = 그 메일로 재설정 링크 (Firebase) · 처음 = [처음 등록] → 인증 메일 → 인증 뒤 로그인
    · 서버 권한: 지금 운영 규칙 v4 = 로그인 계정이면 읽기·쓰기 (단독 사용 가능) · 직원 계정 규칙(r16·r17) = 서버가 approvers 등록 계정만 관리 권한 → 그 업체 서버에 등록 필요 (화면 안내) */
 // ★ v0.40.23 (사용자 지적 「일반 사용자가 쓸 수 있으니 문구 지우기」) — 개발자 계정·시험 서버 연결 링크 = 주소 끝 #dev 로 열었을 때만 (일반 화면에 없음)
-function _gateDevLinks(){ try { return location.hash === '#dev'; } catch(e){ return false; } }
+function _gateDevLinks(){ if(isTrial()) return false;   // ★ v0.40.34 체험판 = 개발자·시험 서버 연결 링크 없음
+ try { return location.hash === '#dev'; } catch(e){ return false; } }
 var DEV_EMAIL_SHA = ['ad99802b19dd7c44ebfb2c512d40203381a578560c931b44c0b1ce80243dda27'];
 async function isDevEmail(email){ if(!email) return false; const h = await hashPassword(String(email).trim().toLowerCase(), 'VELA-DEV'); return DEV_EMAIL_SHA.includes(h.replace(/^sha256:/, '')); }
 const _DEV_AUTH_ERR = { 'auth/operation-not-allowed': 'Firebase 콘솔에서 이메일/비밀번호 로그인을 「사용 설정」 해야 합니다 (Authentication › 로그인 방법)', 'auth/too-many-requests': '시도가 너무 많습니다 — 잠시 후 다시', 'auth/email-already-in-use': '이미 등록된 메일입니다 — 로그인하거나 [비밀번호 재설정 메일]', 'auth/weak-password': '비밀번호가 너무 짧습니다 (8자 이상)', 'auth/network-request-failed': '연결이 끊겼습니다 — 다시' };
@@ -3724,7 +3739,7 @@ function _cmpDoc(d){ const o = Object.assign({}, d || {}); delete o.id; Object.k
 function _secDocCmp(col, id, d){ if(!d || !_secSplitOn() || !(SEC_DOCS[col] || []).includes(id)) return d; const o = {}; ['migrated_to'].forEach(k => { if(k in d) o[k] = d[k]; }); return o; }
 async function _restoreServerCols(cols){
   const fs = _ACTIVE_ADAPTER._fs; const out = {};
-  for(const c of cols){ const snap = await fs.collection(c).get({ source: 'server' }); out[c] = {}; snap.docs.forEach(d => { out[c][d.id] = d.data(); }); }
+  for(const c of cols){ const snap = await fs.collection(c).get({ source: 'server' }); out[c] = {}; snap.docs.forEach(d => { const x = _wipeStrip(d.data()); if(x) out[c][d.id] = x; }); }   // ★ v0.40.33 — 초기화 표시 문서 = 없는 문서
   return out;
 }
 // 잠금: 직원 계정 방식 = 서버 쓰기 중지 켜짐 필수(서버가 다른 직원 저장을 막음) · 기존 방식 = 서버가 못 막음 → 「다른 기기 로그아웃 확인」 체크 필수
@@ -3972,7 +3987,7 @@ async function cutoverStatus(opts){
   let probe = 'unknown'; try { await fs.collection('vela_rules_probe').doc('x').get({ source: 'server' }); probe = 'allow'; } catch(e){ probe = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
   // ★ v0.39.8 (GPT v0.39.7 필수 2) — 설정값(version)이 아니라 실제 게시 규칙 확인 · ★ v0.39.13 = rules_probe/r14 (r14 만 허용 · r13 이하 = 거부 — 요청 판정 기록 plan_move_reqs 필요) · ★ v0.40.9 = rules_probe/r16 (r16 = r15 + 파렛트 이동 pallet_moves · 외주 입고 묶음 저장에 필요 — r15 로는 파렛트 회수가 든 외주 입고가 전부 거부됨)
   let probe13 = 'unknown'; try { await fs.collection('rules_probe').doc('r16').get({ source: 'server' }); probe13 = 'allow'; } catch(e){ probe13 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }
-  let probe17 = 'unknown'; try { await fs.collection('rules_probe').doc('r17').get({ source: 'server' }); probe17 = 'allow'; } catch(e){ probe17 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }   // ★ v0.40.17 — 규칙 r17(동시 저장 보호) 게시 확인
+  let probe17 = 'unknown'; try { await fs.collection('rules_probe').doc('r17-8').get({ source: 'server' }); probe17 = 'allow'; } catch(e){ probe17 = /permission|insufficient/i.test(String(e.code || e.message)) ? 'deny' : 'error'; }   // ★ v0.40.33 — r17 개정 8 (초기화 표시 문서 정리·실사·결재 규칙) 확인   // ★ v0.40.17 — 규칙 r17(동시 저장 보호) 게시 확인
   if(sr && Object.keys(sr).length) _SRV_LAST = sr;
   st.test = isTestProject(); st.sr = sr; st.probe = probe; st.probe13 = probe13; st.probe17 = probe17;
   const logAt = log ? _tsMs(log.at) : 0; const final = sr.sec_migrated === true && sr.write_freeze !== true;
@@ -3988,7 +4003,11 @@ async function cutoverStatus(opts){
   S('server', '서버 확인 — 규칙 r16 · 관리자 계정', probe === 'deny' && probe13 === 'allow' && (+sr.version || 0) >= 16 && isStaffMode() && _STAFF.isApprover && !sr.recovery_uid,
     `${sr.recovery_uid ? '⚠ 복구 모드 중(recovery_uid) — 전환 단계 진행 전 해제 · ' : ''}접속 서버 ${st.project}${st.test ? ' (시험)' : ' (운영)'} · 회차 ${st.run} · 규칙 확인 ${probe === 'allow' ? '허용 = 아직 v4' : probe13 === 'allow' ? '게시된 규칙 = r16 (확인 요청 rules_probe/r16 허용)' : probe13 === 'deny' ? 'r16 아님 (r15 이하 · rules_probe/r16 거부) — r16 게시 필요' : probe13} · version ${sr.version ?? '없음'}${(+sr.version || 0) < 15 ? ' (15 로)' : ''} · 관리자 계정 ${_STAFF.isApprover ? '예' : '아니오'}`,
     { console: '콘솔: settings/server_rules 에 version=16 · write_freeze=true · sec_migrated=false · legacy_device=false · recovery_uid 없음 → Firestore 규칙 r16 게시 (이 순간부터 기존 방식 사용자 업무 중단)' });
-  S('freeze', '쓰기 중지 켜짐 (직원 업무 저장 차단)', sr.write_freeze === true || final, `write_freeze = ${sr.write_freeze === true ? '켜짐' : '꺼짐'}`, { console: '콘솔: settings/server_rules.write_freeze = true' });
+  // ★ v0.40.33 — 쓰기 중지 + 서버 초기화 표시 문서 0건 (직원 계정 규칙에서 같은 번호 저장이 거부되지 않게 · 이관·누계 전에 정리)
+  let tomb = m.tomb || null; if(!final && sr.write_freeze === true && (!tomb || (opts && opts.deep) || tomb.total)){ try { tomb = await wipeTombScan(); m = _cutSave({ tomb: { total: tomb.total, cols: tomb.cols, err: tomb.err, at: tomb.at } }); } catch(e){ st.tombErr = e.message; } }
+  const tombOk = final || (!!tomb && tomb.total === 0 && !(tomb.err || []).length);
+  S('freeze', '쓰기 중지 켜짐 + 초기화 표시 문서 0건', (sr.write_freeze === true && tombOk) || final, `write_freeze = ${sr.write_freeze === true ? '켜짐' : '꺼짐'}${sr.write_freeze === true && tomb ? ` · 초기화 표시 문서 ${tomb.total}건${tomb.total ? ' (' + Object.entries(tomb.cols || {}).slice(0, 4).map(([c, n]) => c + ' ' + n).join(' · ') + ')' : ''}${(tomb.err || []).length ? ' · 조회 실패 ' + tomb.err.join(', ') : ''}` : ''}`,
+    { console: sr.write_freeze === true ? '' : '콘솔: settings/server_rules.write_freeze = true', action: sr.write_freeze === true && tomb && tomb.total ? 'tomb-purge' : null, label: '초기화 표시 문서 정리 (서버에서 삭제)' });
   const b = m.backup; const bOk = !!(b && b.verified) && (!m.migratedHere || b.at < m.migratedHere);   // 이 회차 이관보다 먼저 받은 백업만
   S('backup', '전체 백업 + 파일 확인 (SHA-256·문서 수)', bOk, b ? `${b.name} · 문서 ${b.docs} · ${b.verified ? '파일 확인 완료' : '[백업 파일 확인] 으로 내려받은 파일을 골라 주세요'}` : '아직 안 함',
     { action: b && !b.verified ? 'backup-verify' : 'backup', label: b && !b.verified ? '백업 파일 확인 (파일 고르기)' : '전체 백업 내려받기' });
@@ -4006,7 +4025,7 @@ async function cutoverStatus(opts){
   const qa = m.qgBuildAudit || null; const qb = m.qgBuilt || null; const offAt = m.qgOffSeenAt || 0;
   const wp = qgWritePending(); const qgOk = !wp && probe17 === 'allow' && !!qb && !!qa && qa.ok && !qa.pending && qa.at >= qb.at && qa.hash === qb.hash && qb.at > offAt && (!logAt || qb.at > logAt);   // ★ v0.40.21 — 생성 저장 결과 미확정 = 불합격
   S('qgbuild', '수량 누계 생성 + 점검 차이 0 (동시 저장 보호 · 보류 반영)', qgOk,
-    `${probe17 === 'allow' ? '규칙 r17 게시됨' : '규칙 r17 아님'} · qg_init = ${sr.qg_init === true} · ${qb ? '생성 ' + new Date(qb.at).toLocaleTimeString() + ' (쓰기 ' + qb.writes + ' · 입고 표시 채움 ' + qb.fills + ')' : '생성 안 함'} · ${qa ? `점검 ${qa.ok ? `차이 0 (서버 원장 LOT ${qa.lots})` : qa.why ? '불합격 — ' + qa.why : `누계 없음 ${qa.missing} · 값 차이 ${qa.diff} · 보류 차이 ${qa.hold} · 입고 표시 ${qa.fills}`}${qa.over ? ' · 이미 넘친 LOT ' + qa.over : ''}` : '점검 안 함'}${offAt && (!qb || qb.at <= offAt) ? ' · ⚠ 보호가 꺼진 것을 확인함 — 쓰기 중지 → 다시 생성 필요' : ''}`,
+    `${probe17 === 'allow' ? '규칙 r17 개정 8 게시됨' : '규칙 r17 개정 8 아님'} · qg_init = ${sr.qg_init === true} · ${qb ? '생성 ' + new Date(qb.at).toLocaleTimeString() + ' (쓰기 ' + qb.writes + ' · 입고 표시 채움 ' + qb.fills + ')' : '생성 안 함'} · ${qa ? `점검 ${qa.ok ? `차이 0 (${qa.empty ? '빈 서버 시작 — 서버 초기화 ' + (qa.empty.job || '') + ' 뒤' : '서버 원장 LOT ' + qa.lots})` : qa.why ? '불합격 — ' + qa.why : `누계 없음 ${qa.missing} · 값 차이 ${qa.diff} · 보류 차이 ${qa.hold} · 입고 표시 ${qa.fills}`}${qa.over ? ' · 이미 넘친 LOT ' + qa.over : ''}` : '점검 안 함'}${offAt && (!qb || qb.at <= offAt) ? ' · ⚠ 보호가 꺼진 것을 확인함 — 쓰기 중지 → 다시 생성 필요' : ''}`,
     { action: wp ? 'qg-confirm' : probe17 === 'allow' && sr.qg_init === true && sr.write_freeze === true ? 'qg-build' : 'qg-audit', label: wp ? '저장 결과 확인 (이전 생성 미확정)' : probe17 === 'allow' && sr.qg_init === true && sr.write_freeze === true ? '누계 생성 + 점검' : '누계 점검',
       console: probe17 !== 'allow' ? '콘솔: Firestore 규칙 r17 게시 (쓰기 중지 켠 채로)' : sr.qg_init !== true ? '콘솔: settings/server_rules.qg_init = true (쓰기 중지 켠 채로)' : '' });
   // 켠 뒤 확인 = 쓰기 중지 중 · 보호 켜짐에서 서버 원장을 다시 읽어 점검 합격 + 원장 지문이 생성 때와 같음 (그 사이 저장 0)
@@ -4072,6 +4091,7 @@ function openCutoverModal(){
     document.querySelectorAll('[data-cut]').forEach(b => { b.disabled = true; });
     try {
       if(a === 'backup'){ await cutoverBackup(); toast('백업 내려받음 — 이어서 [백업 파일 확인] 에서 그 파일을 고르세요', 'ok', 5000); }
+      else if(a === 'tomb-purge'){ const r = await wipeTombPurge(); _cutSave({ tomb: { total: r.left, cols: r.scan.cols, err: r.scan.err, at: r.scan.at } }); toast(`초기화 표시 문서 ${r.deleted}건 정리${r.failed ? ` · 실패 ${r.failed}건 (${r.err} — 규칙 r17 개정 8 · 쓰기 중지 확인)` : ''} · 남음 ${r.left}건`, r.left ? 'err' : 'ok', 6000); }
       else if(a === 'backup-verify'){ document.getElementById('cut-bk-file').click(); return; }
       else if(a === 'perm'){ openPermConvertModal({ done: () => openCutoverModal() }); return; }
       else if(a === 'acct'){ const me = SESSION.userId; const ids = DB.all('users').filter(u => u.active !== false && u.id !== me && u.role !== 'vendor' && !(u.auth_uids || []).length).map(u => u.id); if(ids.length) await staffIssueFor(ids); return; }
@@ -4258,6 +4278,34 @@ const WIPE_LABEL = { protect: '보존 (삭제 불가)', norestore: '첨부·단�
 function _wipeStrip(d){ if(!d || d._wiped !== true) return d; const o = {}; Object.keys(d).forEach(k => { if(k !== '_wiped' && k !== '_wipe_job' && k !== '_wipe_at') o[k] = d[k]; }); return Object.keys(o).length ? o : null; }
 function _snapLive(sn){ return !!(sn && sn.exists && _wipeStrip(sn.data()) !== null); }
 function _snapData(sn){ return _snapLive(sn) ? _wipeStrip(sn.data()) : null; }
+/* ★ v0.40.33 (GPT 2026-11-11 「초기화됨 표시 문서를 빈 서버로 가정하지 말 것」) — 직원 계정 전환 전 표시 문서 정리
+   · 직원 계정 규칙(r17)에서 같은 번호로 새로 저장 = 「고치기」 → 표시 문서(내용 없음)와 비교하는 규칙이 거부할 수 있음 → 전환 2단계(쓰기 중지)에서 서버에서 실제로 지움
+   · 서버 규칙 r17 개정 8: 관리자 계정 · 쓰기 중지 중 · 표시 3필드뿐인 문서만 삭제 허용 (새 내용이 덮인 문서·일반 문서 = 거부) */
+// plan_move_reqs = 계획 옮기기 요청 기록(매번 새 무작위 번호 · 같은 번호 재사용 없음) · 서버 규칙이 목록 읽기를 막음 → 정리 대상에서 뺌
+const WIPE_TOMB_SKIP = ['plan_move_reqs'];
+function _wipeTombCols(){ const g = wipeCollections(); return g.data.concat(g.basic, g.norestore).filter(c => !WIPE_TOMB_SKIP.includes(c)); }
+function _wipeIsTomb(d){ return !!d && d._wiped === true && Object.keys(d).every(k => k === '_wiped' || k === '_wipe_job' || k === '_wipe_at'); }
+async function wipeTombScan(){
+  const fs = _wipeFs(); if(!fs) throw new Error('서버 연결 전');
+  const out = { at: Date.now(), cols: {}, total: 0, err: [] };
+  for(const c of _wipeTombCols()){
+    try { const s = await fs.collection(c).get({ source: 'server' }); const n = s.docs.filter(d => _wipeIsTomb(d.data())).length; if(n){ out.cols[c] = n; out.total += n; } }
+    catch(e){ out.err.push(c + ' ' + String((e && e.code) || e).slice(0, 40)); }
+  }
+  return out;
+}
+async function wipeTombPurge(){
+  const fs = _wipeFs(); if(!fs) throw new Error('서버 연결 전');
+  const out = { deleted: 0, failed: 0, err: '' };
+  for(const c of _wipeTombCols()){
+    let s; try { s = await fs.collection(c).get({ source: 'server' }); } catch(e){ continue; }
+    const refs = s.docs.filter(d => _wipeIsTomb(d.data())).map(d => d.ref);
+    for(let i = 0; i < refs.length; i += 300){ const part = refs.slice(i, i + 300), b = fs.batch(); part.forEach(r => b.delete(r));
+      try { await b.commit(); out.deleted += part.length; } catch(e){ out.failed += part.length; out.err = String((e && e.code) || (e && e.message) || e); } }
+  }
+  const after = await wipeTombScan(); out.left = after.total; out.scan = after;
+  return out;
+}
 function wipeCollections(){
   const all = [...new Set(_FS_COLLECTIONS.concat(typeof SEC_COLLECTIONS !== 'undefined' ? SEC_COLLECTIONS : [], STOCK_COLLECTIONS, WIPE_EXTRA, WIPE_PROTECT))];
   const nr = c => !WIPE_PROTECT.includes(c) && RESTORE_SKIP_COLS.includes(c);
@@ -4357,6 +4405,7 @@ function _wipeWatchTick(){
   try {
     if(isDemoMode() || DB._backend !== 'firestore' || window._wipeRunning) return;
     if(!(_FS_STATE && _FS_STATE.snapshotRoundsDone >= 1)) return;
+    if(_FS_STATE.denied && _FS_STATE.denied.has('settings')) return;   // ★ v0.40.33 — 설정 읽기가 아직 거부(직원 계정 전환 중 첫 로그인) = 기준 시대 번호를 정하지 않음 (나중에 읽히면 「초기화됨」 으로 잘못 보고 다시 불러오던 것)
     const w = DB.get('settings', 'wipe') || {}, ep = +w.epoch || 0;
     if(_wipeBootEpoch === null){ _wipeBootEpoch = ep; }
     const changed = ep > _wipeBootEpoch && w.state !== 'running';
@@ -4869,7 +4918,7 @@ const EXPERIMENTAL_FLAGS = ['ship_qty_fix', 'pr_qty_fix', 'stock_count', 'eappro
 /* ★ v0.38.22 (GPT v0.38.21 판정 ①) — 서버 Gate: 서버 권한·동시성·원자성 검증 전에는 실데이터에서 플래그를 켜도 저장 차단 (데모만 시험)
    Gate 통과 시 이 값을 true 로 바꾸는 것은 별도 SPEC·GPT 판정·사용자 승인 후 */
 const SERVER_GATES = { ship_qty_fix: false, pr_qty_fix: false, stock_count: false, eapproval: false, server_wipe: true };   // ★ v0.40.32 server_wipe = 서버 자료 초기화 열림 (개발자 아이디 juns 로 바로 · 콘솔·규칙 게시 필요 없음)   // ★ v0.40.25 stock_count = 실데이터 실사 확정 Gate (GPT 판정·사용자 승인 뒤 true)
-function experimentalEnabled(k){ return !!getFlags()[k] && (isDemoMode() || SERVER_GATES[k] === true); }
+function experimentalEnabled(k){ return !!getFlags()[k] && ((isDemoMode() && !isTrial()) || SERVER_GATES[k] === true); }   // ★ v0.40.34 체험판 = 운영과 같은 잠금
 function shipQtyFixEnabled(){ return experimentalEnabled('ship_qty_fix'); }
 function prQtyFixEnabled(){ return experimentalEnabled('pr_qty_fix'); }
 function defaultFlags(){
@@ -7928,15 +7977,20 @@ async function qgLedgerSnapshot(){
   const out = { at: Date.now(), ok: false, counts: {}, live: {}, mismatch: [], why: '' }; const rows = [];
   for(const col of Object.keys(QG_LEDGER)){
     let snap; try { snap = await fs.collection(col).get({ source: 'server' }); } catch(e){ out.why = `${col} 서버 조회 실패 (${String((e && (e.code || e.message)) || e).slice(0, 60)})`; return out; }
-    const f = QG_LEDGER[col]; const srv = {}; snap.docs.forEach(d => { const v = d.data() || {}; srv[d.id] = JSON.stringify([v.void == null, f(v)]); });
+    const docs = snap.docs.filter(d => _wipeStrip(d.data()) !== null);   // ★ v0.40.33 — 초기화 표시 문서 = 없는 문서
+    const f = QG_LEDGER[col]; const srv = {}; docs.forEach(d => { const v = _wipeStrip(d.data()) || {}; srv[d.id] = JSON.stringify([v.void == null, f(v)]); });
     const loc = {}; DB.allRaw(col).forEach(d => { const id = String(d.id || d.plot_no || d.code || ''); if(id) loc[id] = JSON.stringify([d.void == null, f(d)]); });
-    out.counts[col] = snap.size; out.live[col] = snap.docs.filter(d => (d.data() || {}).void == null).length;
+    out.counts[col] = docs.length; out.live[col] = docs.filter(d => (_wipeStrip(d.data()) || {}).void == null).length;
     Object.keys(srv).forEach(id => { if(!(id in loc)) out.mismatch.push(`${col}/${id} 이 기기에 없음`); else if(loc[id] !== srv[id]) out.mismatch.push(`${col}/${id} 값 다름`); });
     Object.keys(loc).forEach(id => { if(!(id in srv)) out.mismatch.push(`${col}/${id} 서버에 없음`); });
     Object.keys(srv).sort().forEach(id => rows.push(col + '/' + id + '=' + srv[id]));
   }
   out.hash = await _secSha(rows.join('\n'));
-  if(!out.live.production_lots) out.why = '서버 원장 LOT 0건(취소 제외) — 예상한 상태인지 확인 필요 (합격 아님)';
+  // ★ v0.40.33 — 서버 자료 초기화 직후(빈 서버) = LOT 0 을 합격으로 볼 수 있음: 서버 초기화 기록(settings/wipe = 완료)을 서버에서 다시 읽어 확인 + 업무 원장 5종 문서 0건일 때만
+  let wipeDone = null; if(!out.live.production_lots){ try { const w = await fs.collection('settings').doc('wipe').get({ source: 'server' }); const wd = _snapData(w); wipeDone = wd && wd.state === 'done' ? wd : null; } catch(e){} }
+  const ledgerEmpty = ['production_lots', 'records', 'os_dispatches', 'os_receipts', 'shipments'].every(c => !out.counts[c]);
+  if(!out.live.production_lots && !(wipeDone && ledgerEmpty && !out.mismatch.length)) out.why = '서버 원장 LOT 0건(취소 제외) — 예상한 상태인지 확인 필요 (합격 아님)' + (wipeDone ? ' · 초기화 뒤 업무 문서가 남아 있음' : ' · 서버 초기화 기록 없음');
+  else if(!out.live.production_lots){ out.ok = true; out.empty = { job: wipeDone.job || '', at: +wipeDone.finished || +wipeDone.epoch || 0 }; }   // 빈 서버 시작 (초기화 기록 근거)
   else if(out.mismatch.length) out.why = `이 기기 원장이 서버와 다름 ${out.mismatch.length}건 — 새로고침(서버 데이터 다시 받기) 뒤 다시`;
   else out.ok = true;
   return out;
@@ -8028,8 +8082,9 @@ async function _qgAuditRun(opts, mark){
     Object.keys({ ...(s.hold || {}), ...e.hold }).forEach(p => { const a = (s.hold || {})[p] || 0, b = e.hold[p] || 0; if(a !== b) out.hold.push({ plot: l.plot_no, p, srv: a, ledger: b, ver: s.ver }); });
     const g = { ...s, hold: s.hold || {} }; getRoute(l.itemCode).forEach(r => { if(r.proc !== 'SHIP' && qgFree(g, r.proc) < 0) out.over.push(`${l.plot_no} ${DB.get('processes', r.proc)?.name || r.proc} ${qgFree(g, r.proc)}`); }); if(qgShipFree(g) < 0) out.over.push(`${l.plot_no} 출하 ${qgShipFree(g)}`); });
   DB.all('orders').forEach(o => { out.orders++; const s = srv['S:' + o.id]; const e = qgSoCalc(o.id).shipped; if(!s){ if(e) out.missing.push('S:' + o.id); return; } if((s.shipped || 0) !== e) out.diff.push({ k: 'S:' + o.id, what: `출하 ${s.shipped}/${e}` }); });
-  out.ok = out.lots === led.live.production_lots && out.lots > 0 && !out.missing.length && !out.diff.length && !out.hold.length && !out.fills;
-  const rec = { at: out.at, ok: out.ok, hash: led.hash, live: out.live, frozen: out.frozen, lots: out.lots, orders: out.orders, missing: out.missing.length, diff: out.diff.length, hold: out.hold.length, over: out.over.length, fills: out.fills };
+  out.empty = !!led.empty && out.lots === 0 && !led.live.production_lots;   // ★ v0.40.33 — 서버 초기화 뒤 빈 서버 시작 (기록 근거)
+  out.ok = out.lots === led.live.production_lots && (out.lots > 0 || out.empty) && !out.missing.length && !out.diff.length && !out.hold.length && !out.fills;
+  const rec = { at: out.at, ok: out.ok, hash: led.hash, live: out.live, frozen: out.frozen, lots: out.lots, empty: out.empty ? led.empty : null, orders: out.orders, missing: out.missing.length, diff: out.diff.length, hold: out.hold.length, over: out.over.length, fills: out.fills };
   mark(rec);
   return out;
 }
@@ -9069,7 +9124,7 @@ function enterAsUser(u){
   document.getElementById('app').style.display='';
   // ★ v0.22.0 — DEMO 배지 노출 (데모 모드에서만)
   const db = document.getElementById('demo-badge');
-  if(db) db.hidden = !isDemoMode();
+  if(db){ db.hidden = !isDemoMode(); if(isTrial()){ db.textContent = '체험판'; db.title = '체험판 — 이 PC 브라우저에만 저장 · 서버 연결 없음'; } }
   if(mobileEntryDefault() && !isMobileHash()) location.hash = '#m/home';
   else if(phoneEntryDefault() && !isPhoneHash() && !isMobileHash()) location.hash = '#p/home';
   else if(!isPhoneHash() && !isMobileHash() && (!location.hash || location.hash === '#')){ const lp = landingPage(); if(lp !== 'dash') location.hash = '#' + lp; }   // ★ v0.39.9 — 로그인 첫 화면 = 「내 업무」 첫 ★ 메뉴 (볼 수 있는 것 · 없으면 대시보드 · 주소에 화면이 적혀 있으면 #dash 포함 그대로 — 새로고침 때 고른 화면 유지)
@@ -9117,6 +9172,48 @@ function exitDemoMode(){
   // 실모드 로컬 키(vela_device_code · vela_theme · vela_mes_db_v1 · vela_backend_config) 는 건드리지 않음 — reload 후 그대로 복원
   location.reload();
 }
+/* ★ v0.40.34 체험판 첫 화면 — 회사명 · 빈 상태/예시 데이터 · 저장 위치 안내 (서버·계정 없음) */
+function renderTrialSetup(){
+  const sp = document.getElementById('splash'); if(sp) sp.style.display = 'none';
+  const g = document.getElementById('pin-gate'); if(g) g.classList.add('hide');
+  const old = document.getElementById('trial-setup'); if(old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', `<div id="trial-setup" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto">
+    <div class="card" style="max-width:520px;width:100%;margin:0">
+      <h2 style="margin:0 0 6px;font-size:20px">VELA MES 체험판 <span class="demo-badge" style="font-size:11px;vertical-align:middle">체험판</span></h2>
+      <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:14px">회사 자료를 직접 넣어 보며 체험합니다. 입력한 자료는 <b>이 PC 의 이 브라우저에만</b> 저장되고 서버로 보내지지 않습니다 (다른 회사·다른 PC 와 섞이지 않음).<br>브라우저 기록을 지우면 사라지니 <b>설정 › 데이터 백업</b>으로 파일을 보관하세요 — 정식 도입 때 그 파일로 옮길 수 있습니다.</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div><label>회사명</label><input id="ts-co" maxlength="40" placeholder="예: ○○정밀"></div>
+        <div><label>시작 방법</label>
+          <label class="apc-chk" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0"><input type="radio" name="ts-mode" value="empty" checked> <span><b>빈 상태로 시작</b> — 우리 회사 품번·거래처·설비부터 직접 등록 (기본 공정·계정과목만 들어 있음)</span></label>
+          <label class="apc-chk" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0"><input type="radio" name="ts-mode" value="sample"> <span><b>예시 데이터로 둘러보기</b> — 가상 회사 자료가 채워진 상태 (나중에 설정에서 빈 상태로 다시 시작 가능)</span></label></div>
+        <div id="ts-err" class="pw-err"></div>
+        <div class="actions" style="margin:0"><button class="btn primary" id="ts-go">체험 시작</button></div>
+        <div style="font-size:11px;color:var(--dim)">${_esc(APP_VERSION)} · 체험판 · 잠긴 기능(출하·입고 수량 정정 · 재고 실사 확정 · 결재 올리기)은 정식과 똑같이 잠겨 있습니다</div>
+      </div></div></div>`);
+  document.getElementById('ts-go').onclick = () => {
+    const co = String(document.getElementById('ts-co').value || '').trim();
+    if(!co){ document.getElementById('ts-err').textContent = '회사명을 적어 주세요'; return; }
+    const mode = (document.querySelector('[name="ts-mode"]:checked') || {}).value || 'empty';
+    try { localStorage.removeItem(_DEMO_LS_KEY); if(mode === 'empty') localStorage.setItem(_DEMO_EMPTY_KEY, '1'); else localStorage.removeItem(_DEMO_EMPTY_KEY);
+      localStorage.setItem(_TRIAL_SETUP_KEY, JSON.stringify({ company: co.slice(0, 40), mode, at: Date.now() })); }
+    catch(e){ document.getElementById('ts-err').textContent = '이 브라우저는 저장소를 쓸 수 없습니다 (시크릿 창·저장 차단) — 일반 창에서 열어 주세요'; return; }
+    location.reload();
+  };
+  setTimeout(() => { try { document.getElementById('ts-co').focus(); } catch(e){} }, 50);
+}
+/* 체험판 처음부터 다시 (이 PC 체험 자료 삭제 → 첫 화면) — 백업 파일 먼저 */
+function _trialCard(){
+  const ts = trialSetup() || {};
+  return `<div class="card" style="border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.06)">
+    <h3><span class="demo-badge" style="margin-right:6px">체험판</span>${_esc(ts.company || getCompany().name || '')} 체험 <span class="tag">${ts.mode === 'sample' ? '예시 데이터로 시작' : '빈 상태로 시작'}${ts.at ? ' · ' + fmtDate(ts.at) : ''}</span></h3>
+    <div style="font-size:12px;color:var(--sub);line-height:1.7;margin-bottom:10px">자료는 <b>이 PC 의 이 브라우저에만</b> 저장됩니다 (서버 연결 없음 · 다른 PC·다른 회사와 섞이지 않음). 브라우저 기록을 지우면 사라지므로 <b>백업 파일</b>을 자주 보관하세요 — 정식 도입 때 이 파일로 옮깁니다. 잠긴 기능은 정식과 똑같이 잠겨 있습니다.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="btn-trial-backup">${ico('save')}백업 파일 내려받기</button><button class="btn" id="btn-trial-restart">${ico('refresh')}처음부터 다시 (체험 자료 지움)</button></div>
+  </div>`;
+}
+function trialRestart(){
+  try { localStorage.removeItem(_DEMO_LS_KEY); localStorage.removeItem(_TRIAL_SETUP_KEY); localStorage.removeItem(_DEMO_EMPTY_KEY); } catch(e){}
+  location.reload();
+}
 function resetDemoData(){
   // 데모 DB 완전 초기화 + 재시드 (실 DB 는 무손상) · 데모 플래그는 유지 (여전히 데모 모드)
   try { localStorage.removeItem(_DEMO_LS_KEY); } catch(e){ console.warn('[VELA] resetDemoData 실패', e); }
@@ -9148,8 +9245,9 @@ function autoLoginDemo(){
   try {
     const allOn = {};
     MODULE_DEFS.forEach(m => m.items.forEach(([k]) => { allOn[k] = true; }));
-    DB.set('settings','features', { flags: allOn });
+    if(!isTrial() || !DB.get('settings','features')) DB.set('settings','features', { flags: allOn });   // ★ v0.40.34 체험판 = 처음만 전체 켬 (업체가 끈 기능은 유지)
   } catch(e){ console.warn('[VELA] demo flag sync failed', e); }
+  if(isTrial()){ try { const ts = trialSetup(); if(ts && ts.company && !ts.applied){ DB.set('settings', 'company', { ...(DB.get('settings','company') || {}), name: ts.company }); localStorage.setItem(_TRIAL_SETUP_KEY, JSON.stringify({ ...ts, applied: Date.now() })); } } catch(e){} }
   if(!u){
     // 시드 실패 폴백 — 최소 사용자 하나 만들어서 진입
     u = { id:'U-DEMO', name:'데모', pin:'000000', role:'manager', active:true, created_at:Date.now(), last_login:null };
@@ -30578,7 +30676,7 @@ VIEWS.set = () => {
       </div>
     </div>
 
-    ${isDemoMode() ? `
+    ${isTrial() ? _trialCard() : isDemoMode() ? `
     <!-- ★ v0.22.0 — 데모 체험 컨트롤 (상단 강조) -->
     <div class="card" style="border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.06)">
       <h3><span class="demo-badge" style="margin-right:6px">DEMO</span>데모 · 테스트 모드 <span class="tag">${isEmptyDemo() ? '빈 상태 (시연·테스트)' : '샘플 데이터 (데모정밀)'}</span> <span class="tag">별도 로컬 키(<code>${_esc(_DEMO_LS_KEY)}</code>) · 서버 접속 없음 · 단말 D 고정</span></h3>
@@ -31268,6 +31366,10 @@ VIEWS.set = () => {
     document.getElementById('demo-reset-sample').onclick = () => { try{ localStorage.removeItem(_DEMO_EMPTY_KEY); }catch(e){} resetDemoData(); };
     document.getElementById('demo-reset-empty').onclick  = () => { try{ localStorage.setItem(_DEMO_EMPTY_KEY,'1'); }catch(e){} resetDemoData(); };
   };
+  const tB = document.getElementById('btn-trial-backup'); if(tB) tB.onclick = () => { exportFullBackup('trial'); toast('체험 자료 백업 파일을 내려받았습니다 — 안전한 곳에 보관', 'ok', 4000); };
+  const tR = document.getElementById('btn-trial-restart'); if(tR) tR.onclick = () => {
+    if(!confirm('이 PC 의 체험 자료를 모두 지우고 첫 화면부터 다시 시작합니다.\n먼저 [백업 파일 내려받기]를 했는지 확인하세요.')) return;
+    trialRestart(); };
   const dExit = document.getElementById('btn-demo-exit');
   if(dExit) dExit.onclick = () => {
     if(!confirm('데모를 종료하고 원래 모드(실 데이터·백엔드·로그인)로 복귀합니다.\n데모 저장소는 유지되어 다음 데모 진입 시 그대로 이어집니다.')) return;
@@ -31963,6 +32065,7 @@ renderBrandCompany();   // ★ v0.38.11 — 1벌 (서버 스냅샷 도착 시에
   } catch(_){}
 
   // ★ v0.22.0 — 데모 모드 자동 로그인 (게이트 생략 · 스플래시는 위 타이머로 걷힘)
+  if(isTrial() && !trialSetup()){ try { renderTrialSetup(); return; } catch(e){ console.error('[VELA] trial setup failed', e); } }   // ★ v0.40.34 체험판 첫 실행
   if(isDemoMode()){
     try { autoLoginDemo(); return; }
     catch(e){ console.error('[VELA] demo auto-login failed', e); /* 폴백: 아래 게이트 진행 */ }
