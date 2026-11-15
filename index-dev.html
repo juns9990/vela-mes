@@ -1675,6 +1675,24 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
 .rd-sub{color:var(--sub);font-size:13px;margin-bottom:14px}
 .rd-acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .rd-note{font-size:11.5px;color:var(--dim);margin-top:10px}
+/* ★ v0.40.36 도움말 */
+.crumb-help{margin-left:10px;font-size:11.5px;padding:3px 9px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--sub);cursor:pointer}
+.crumb-help:hover{color:var(--text);border-color:var(--sub)}
+.hp-wrap{display:grid;grid-template-columns:220px minmax(0,1fr);gap:14px;align-items:start}
+.hp-toc{position:sticky;top:12px;display:flex;flex-direction:column;gap:2px;padding:10px;max-height:calc(100vh - 140px);overflow:auto}
+.hp-toc a{font-size:13px;padding:6px 8px;border-radius:7px;color:var(--sub);text-decoration:none}
+.hp-toc a:hover{background:var(--bg2);color:var(--text)}
+.hp-body{display:flex;flex-direction:column;gap:12px;min-width:0}
+.hp-card{background:var(--panel, var(--bg1, #fff));border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.hp-sec h3{margin:0 0 8px}
+.hp-txt{font-size:13.5px;line-height:1.75;max-width:900px}
+.hp-txt h4{margin:12px 0 4px;font-size:13.5px}
+.hp-txt ul,.hp-txt ol{margin:4px 0;padding-left:22px}
+.hp-txt li{margin:3px 0}
+.hp-tip{margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);font-size:12.5px}
+.hp-faq dt{font-weight:700;margin-top:10px}.hp-faq dd{margin:2px 0 0 0;color:var(--sub)}
+.hp-hl{outline:2px solid #14b8a6;outline-offset:2px}
+@media (max-width:760px){.hp-wrap{grid-template-columns:1fr}.hp-toc{position:static;max-height:none;flex-direction:row;flex-wrap:wrap}}
 </style>
 </head>
 <body>
@@ -1814,7 +1832,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.34';
+const APP_VERSION = 'v0.40.36';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -1909,9 +1927,45 @@ const _BACKEND_CONFIG_KEY = 'vela_backend_config';   // ★ v0.21.0 — firebase
 const VELA_EDITION = 'ops';
 function isTrial(){ return VELA_EDITION === 'trial'; }
 const _DEMO_FLAG_KEY = 'vela_demo';
-const _DEMO_LS_KEY   = isTrial() ? 'vela_mes_trial_v1' : 'vela_mes_demo_v1';
-const _TRIAL_SETUP_KEY = 'vela_trial_setup';
-function trialSetup(){ try { return JSON.parse(localStorage.getItem(_TRIAL_SETUP_KEY) || 'null'); } catch(e){ return null; } }
+/* ★ v0.40.36 (사용자 결정 2026-11-15 「체험 코드 발급 · 기본 30일 · 개발자가 늘리고 줄임」) — 체험 회사(작업 공간) = 체험 코드 1개
+   · 같은 PC 에서도 코드마다 저장 키가 따로 (vela_mes_trial_v1:{코드 번호}) · 들어올 때 회사 선택 → 이름 + 비밀번호 (자동 입장 없음)
+   · 기간 = 코드에 든 만료일 · 끝나면 보기·백업만 (자료 삭제 없음) · 기간 변경 코드(VX)로 늘리거나 줄임
+   · 서버가 없으므로 코드·기간은 보통 사용자 기준 잠금 (브라우저 저장소를 지우는 우회는 막지 못함 — 정직 표기) */
+const _TRIAL_WS_KEY = 'vela_trial_ws', _TRIAL_ACTIVE_KEY = 'vela_trial_active';
+function trialActiveId(){ try { return sessionStorage.getItem(_TRIAL_ACTIVE_KEY) || ''; } catch(e){ return ''; } }
+const _DEMO_LS_KEY   = isTrial() ? 'vela_mes_trial_v1:' + (trialActiveId() || 'none') : 'vela_mes_demo_v1';
+function trialWsList(){ try { const l = JSON.parse(localStorage.getItem(_TRIAL_WS_KEY) || '[]'); return Array.isArray(l) ? l : []; } catch(e){ return []; } }
+function trialWsSave(l){ localStorage.setItem(_TRIAL_WS_KEY, JSON.stringify(l)); }
+function trialWs(){ const id = trialActiveId(); return id ? (trialWsList().find(w => w.id === id) || null) : null; }
+function trialWsUpdate(id, patch){ const l = trialWsList(); const i = l.findIndex(w => w.id === id); if(i < 0) return null; l[i] = { ...l[i], ...patch }; trialWsSave(l); return l[i]; }
+function trialAdminName(){ const w = trialWs(); return (w && w.admin) || '관리자'; }
+// 체험 코드: VT-{번호 5}-{만료일 3}{확인 3} · 기간 변경 = VX-{같은 번호}-{새 만료일 3}{확인 3} · 글자 = 헷갈리는 0·O·1·I 제외 32자
+const _TB32 = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ', _TRIAL_EPOCH = Date.UTC(2026, 0, 1), _TRIAL_SALT = 'VELA-TRIAL-v1';
+function _tHash(str){ let a = 0x811c9dc5, b = 0x9e3779b9; for(let i = 0; i < str.length; i++){ const c = str.charCodeAt(i); a = Math.imul(a ^ c, 16777619) >>> 0; b = Math.imul(b ^ c, 2246822519) >>> 0; b = ((b << 13) | (b >>> 19)) >>> 0; } return ((a ^ b) >>> 0); }
+function _tEnc(n, len){ let out = ''; for(let i = 0; i < len; i++){ out = _TB32[n % 32] + out; n = Math.floor(n / 32); } return out; }
+function _tDec(t){ let n = 0; for(const ch of t){ const k = _TB32.indexOf(ch); if(k < 0) return -1; n = n * 32 + k; } return n; }
+function trialDayNum(ts){ const d = new Date(ts); return Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - _TRIAL_EPOCH) / 86400000); }
+function trialDayDate(n){ const d = new Date(_TRIAL_EPOCH + n * 86400000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`; }
+function trialCodeMake(kind, id, expDay){ const e = _tEnc(Math.max(0, Math.min(32767, expDay)), 3); return `${kind}-${id}-${e}${_tEnc(_tHash(_TRIAL_SALT + kind + id + e) % 32768, 3)}`; }
+function trialCodeParse(raw){
+  const t = String(raw || '').toUpperCase().replace(/[\s]/g, '');
+  const m = t.match(/^(VT|VX)-?([0-9A-Z]{5})-?([0-9A-Z]{6})$/); if(!m) return { err: '코드 형식이 맞지 않습니다 (예: VT-AB3CD-EFGH23)' };
+  const kind = m[1], id = m[2], e = m[3].slice(0, 3), chk = m[3].slice(3);
+  if([...id, ...e, ...chk].some(ch => !_TB32.includes(ch))) return { err: '코드에 쓸 수 없는 글자가 있습니다 (숫자 0·1, 영문 O·I 는 코드에 없음)' };
+  if(_tEnc(_tHash(_TRIAL_SALT + kind + id + e) % 32768, 3) !== chk) return { err: '코드가 올바르지 않습니다 (오타 확인)' };
+  const exp = _tDec(e); return { kind, id, exp, expDate: trialDayDate(exp), code: `${kind}-${id}-${e}${chk}` };
+}
+function _tRandId(){ const a = new Uint32Array(5); try { crypto.getRandomValues(a); } catch(e){ for(let i = 0; i < 5; i++) a[i] = Math.floor(Math.random() * 1e9); } return [...a].map(x => _TB32[x % 32]).join(''); }
+function trialCodeIssue(days){ const d = Math.max(1, Math.min(3650, Math.round(+days || 30))); return trialCodeMake('VT', _tRandId(), trialDayNum(Date.now()) + d); }
+function trialCodeExtend(id, expDay){ return trialCodeMake('VX', id, expDay); }
+function trialDaysLeft(w){ return w ? (+w.exp - trialDayNum(Date.now())) : 0; }   // 0 = 오늘까지 · 음수 = 끝남
+function trialIsExpired(){ if(!isTrial()) return false; const w = trialWs(); return !!w && trialDaysLeft(w) < 0; }
+function trialApplyChange(id, raw){
+  const c = trialCodeParse(raw); if(c.err) throw new Error(c.err);
+  if(c.kind !== 'VX') throw new Error('기간 변경 코드(VX-…)를 넣어 주세요');
+  if(c.id !== id) throw new Error('이 체험 회사의 코드가 아닙니다 (코드 번호 다름)');
+  return trialWsUpdate(id, { exp: c.exp, changed: Date.now() });
+}
 /* ★ v0.38.3 — 데모 진입 플래그를 탭 단위(sessionStorage)로 (사용자 피드백 2026-10-09: 일반 접속인데 DEMO 배지가 떠서 데모판으로 오해).
    원인: 플래그가 localStorage 에 남아, 한 번 [데모 체험]을 누른 브라우저는 이후 정식 주소로 들어와도 게이트 없이 데모로 자동 부팅됐다
    (index.html·index-dev.html 이 같은 출처라 공유). 이제 데모는 [데모 체험]을 누른 그 탭에서만 · 탭/앱을 닫으면 끝 · 새로 접속하면 항상 일반 게이트.
@@ -1926,7 +1980,7 @@ _clearLegacyDemoFlag();
 /* ★ v0.28.7 — 빈 상태 데모(시연·테스트 캔버스) 판정 1벌
    · 데모 격리(별도 키·서버 0) 그대로 재사용 · 차이는 시드뿐: 뼈대(공정 템플릿·계정과목)만, 데이터 0
    · 단말 고유값 원칙 — 플래그는 localStorage (DB 밖) */
-const _DEMO_EMPTY_KEY = isTrial() ? 'vela_trial_empty' : 'vela_demo_empty';
+const _DEMO_EMPTY_KEY = isTrial() ? 'vela_trial_empty:' + (trialActiveId() || 'none') : 'vela_demo_empty';
 function isEmptyDemo(){
   try { return isDemoMode() && localStorage.getItem(_DEMO_EMPTY_KEY) === '1'; }
   catch { return false; }
@@ -2024,6 +2078,7 @@ const _LOCAL_ADAPTER = {
   // 동기 강제 플러시 (테스트·백업 직전 등) — 대기 중인 변경을 즉시 localStorage 에 반영
   flush(){
     if(!this._state) return;
+    if(isTrial() && !trialActiveId()){ this._dirty && this._dirty.clear && this._dirty.clear(); return; }   // ★ v0.40.36 체험 회사 고르기 전(시작·선택 화면) = 저장 안 함
     const key = _activeLSKey();
     try {
       let cur;
@@ -4698,7 +4753,7 @@ async function verifyPassword(input, opts){
    범위: role 'worker' 만 · 초기 비밀번호 강제 변경 로그인에서는 발급 안 함(다음 로그인부터)
    데모: 별도 키 vela_demo_remember (§1-9 데모에서도 전 기능 동일 — 데모 부팅은 기억된 작업자가 있으면 '데모' 대신 그 사용자로 진입) */
 const _REMEMBER_KEY = 'vela_remember';
-function _rememberKey(){ return isDemoMode() ? 'vela_demo_remember' : _REMEMBER_KEY; }
+function _rememberKey(){ return isTrial() ? 'vela_trial_remember:' + trialActiveId() : isDemoMode() ? 'vela_demo_remember' : _REMEMBER_KEY; }   // ★ v0.40.36 체험판 = 체험 회사마다 따로
 function getRememberedLogin(){
   try { const r = JSON.parse(localStorage.getItem(_rememberKey()) || 'null'); return r && r.userId && r.token && r.dev ? r : null; } catch(e){ return null; }
 }
@@ -4741,7 +4796,7 @@ function attemptRememberedLogin(){
       · equipment 는 선택(null 허용) — 현장 모드는 마지막 QR 설비가 현재 설비(GPT §3) · PC 실적 등록은 기존 3단 설정 그대로
       · 구 settings/active_session 문서는 읽지도 쓰지도 않는다(삭제 금지 원칙 — 고아 문서로 둔다) */
 const _SES_KEY = 'vela_m_session';
-function _sesKey(){ return isDemoMode() ? 'vela_demo_m_session' : _SES_KEY; }
+function _sesKey(){ return isTrial() ? 'vela_trial_m_session:' + trialActiveId() : isDemoMode() ? 'vela_demo_m_session' : _SES_KEY; }   // ★ v0.40.36 체험 회사마다 따로
 const SES = {
   _read(){ try { return JSON.parse(localStorage.getItem(_sesKey()) || 'null'); } catch(e){ return null; } },
   _write(s){ try { if(s) localStorage.setItem(_sesKey(), JSON.stringify(s)); else localStorage.removeItem(_sesKey()); } catch(e){} },
@@ -4931,7 +4986,7 @@ function getFlags(){
   // (기존 DB에 v0.13 신규 키 perf/pallet 등이 없어도 자동 노출 · 끈 기능은 유지)
   const s = DB.get('settings','features');
   const def = defaultFlags();
-  return s?.flags ? {...def, ...s.flags} : def;
+  return { ...(s?.flags ? {...def, ...s.flags} : def), help: true };   // ★ v0.40.36 도움말 = 항상 켜짐
 }
 function setFlag(k,v){
   const cur = getFlags();
@@ -4947,7 +5002,7 @@ function isLocked(k){
    §회사 설정 / 공정 템플릿
    ------------------------------------------------------------------------------------------------- */
 function getCompany(){
-  return DB.get('settings','company') || {name:'', site:'', logo:'', seal:'', preset:'forging'};   // ★ v0.38.11 — 미설정 시 빈 값 (예시 상호 노출 금지)
+  return DB.get('settings','company') || {name:'', site:'', logo:'', seal:'', preset:'', industry:''};   // ★ v0.40.36 팩 기본값 없음 (업종 = 직접 적기)   // ★ v0.38.11 — 미설정 시 빈 값 (예시 상호 노출 금지)
 }
 /* ★ v0.38.11 — 상단 헤더 회사명 1벌 (부팅·서버 스냅샷 도착·회사정보 저장 시 호출)
    이전엔 부팅 때 1번만 그려서, 서버(Firestore) 모드에서는 데이터가 늦게 도착해 F5 후 헤더가 저장값을 못 보여줬음 */
@@ -5154,6 +5209,7 @@ const PAGES = [
   // ★ v0.33.1 — 변경 이력 (Audit Viewer · Q2-2 — G-3b 해소 · 관리자 전용)
   { id:'audit', flag:'setting', title:'변경 이력', icon:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M3.5 12H1l2.5 3L6 12H3.5"/>' },
   { id:'set',   flag:'setting',title:'설정',      icon:'<circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.2 4.2l4.3 4.3M15.5 15.5l4.3 4.3M1 12h6M17 12h6M4.2 19.8l4.3-4.3M15.5 8.5l4.3-4.3"/>' },
+  { id:'help',  flag:'help',  title:'도움말',     icon:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/>' },   // ★ v0.40.36 도움말 (모든 사용자)
 ];
 // v0.10.0 — 설비현황 진입 시 기간 전달 (전역 1회용)
 function navEqStatus(period){ window._eqPeriod = period||'day'; location.hash = '#eqstatus'; }
@@ -5275,7 +5331,7 @@ function seedIfEmpty(){
   }
   if(DB.all('settings').length===0){
     // v0.10.0 — 회사명/사이트는 빈 값. 설정에서 입력해야 헤더에 표시됨 (범용 플랫폼)
-    DB.set('settings','company',{name:'', site:'', logo:'', seal:'', preset:'forging'});
+    DB.set('settings','company',{name:'', site:'', logo:'', seal:'', preset:'', industry:''});
     DB.set('settings','features',{flags:defaultFlags()});
     // v0.14.0 — settings/security.pin 시드 제거. 최초 실행 시 관리책임자 등록 게이트에서 users/{U-001} 생성.
     // 기존 DB에 남아 있는 security 문서는 방치(increment-only, 마이그레이션 없음).
@@ -8787,7 +8843,7 @@ function renderGate(){
   const ver = document.getElementById('gt-ver'); if(ver) ver.textContent = APP_VERSION;
   // ★ v0.38.11 — 저장소 표시 = 실제 연결 (이전엔 서버 모드에서도 「로컬 DB」 고정 문구)
   const _gst = document.getElementById('gt-store');
-  if(_gst) _gst.textContent = isDemoMode() ? '데모 저장소' : (_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' ? '저장소 서버 DB' : '저장소 로컬 DB');
+  if(_gst) _gst.textContent = isTrial() ? '체험판 · 이 PC 저장' : isDemoMode() ? '데모 저장소' : (_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' ? '저장소 서버 DB' : '저장소 로컬 DB');
 
   // PIN 패드는 항상 렌더
   renderPinPad();
@@ -8910,8 +8966,11 @@ function renderPinPad(){
     ${!isDemoMode() && _gateDevLinks() ? `<div style="text-align:center;margin:2px 0;font-size:11px;color:var(--dim)"><a href="javascript:void(0)" id="gt-dev-login" style="color:var(--sub)">개발자 계정 (처음 등록 · 비밀번호 재설정)</a> · <a href="javascript:void(0)" id="gt-srv-test" style="color:var(--sub)">시험 서버 연결 (로그인 없이 · 이 기기만)</a></div>` : ''}
     ${_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' && !isDemoMode() && !isDefaultFirebaseConfig() ? `<div style="text-align:center;margin:6px 0 2px;font-size:11px;color:var(--dim)">(시험 서버) 로그인 방식: <b>${isStaffMode() ? '직원 계정' : '기존'}</b> · <a href="javascript:void(0)" id="gt-authmode" style="color:var(--sub)">${isStaffMode() ? '기존 방식으로' : '직원 계정 방식으로'} 바꾸기</a> <span title="서버 규칙 v5 r7 이 게시된 서버는 직원 계정 방식만 동작합니다">ⓘ</span></div>` : ''}
     <!-- ★ v0.22.0 — 데모 체험 진입 (보조 스타일 · 주 동선 방해 금지) -->
-    <button class="gate-demo-btn" type="button" onclick="onDemoClick()" title="샘플 체험 또는 빈 상태 시연·테스트 (실데이터·서버와 완전 분리)">▶ 데모 · 테스트</button>
+    ${isTrial() ? `<button class="gate-demo-btn" type="button" id="gt-trial-switch" title="이 PC 의 다른 체험 회사로">▶ 체험 회사 바꾸기 · 새 체험 시작</button>
+    <div style="text-align:center;font-size:11px;color:var(--dim);margin-top:6px;line-height:1.6">체험판 · ${_esc((trialWs() || {}).company || '')} · ${(() => { const w = trialWs(); return w ? (trialDaysLeft(w) < 0 ? '체험 기간 끝 (보기·백업만)' : trialDayDate(+w.exp) + ' 까지') : ''; })()}<br>관리자 = 체험 시작 때 정한 이름·비밀번호 · 직원 = 관리자가 <b>기준정보 › 사용자</b>에 등록한 이름 + 처음 비밀번호 000000</div>`
+      : `<button class="gate-demo-btn" type="button" onclick="onDemoClick()" title="샘플 체험 또는 빈 상태 시연·테스트 (실데이터·서버와 완전 분리)">▶ 데모 · 테스트</button>`}
   `;
+  { const _ts = document.getElementById('gt-trial-switch'); if(_ts) _ts.onclick = () => trialSwitch(); }
   // ★ v0.38.31 (GPT 추가 주의) — 시험 서버 연결은 로그인 전 진입 화면에서 (운영 서버에 먼저 로그인하지 않음)
   const _dl = document.getElementById('gt-dev-login'); if(_dl) _dl.onclick = () => openDevLoginModal();   // ★ v0.40.23 — 개발자 단독 로그인
   const _st = document.getElementById('gt-srv-test');
@@ -9123,6 +9182,7 @@ function enterAsUser(u){
   document.getElementById('pin-gate').classList.add('hide');
   document.getElementById('app').style.display='';
   // ★ v0.22.0 — DEMO 배지 노출 (데모 모드에서만)
+  if(trialIsExpired() && !document.getElementById('trial-exp-ban')) document.body.insertAdjacentHTML('afterbegin', `<div id="trial-exp-ban" class="wipe-ban">체험 기간이 끝났습니다 (${_esc(trialDayDate(+trialWs().exp))}) — 보기·백업만 됩니다 · 설정 › 체험 정보에서 기간 변경 코드를 넣거나 VELA 담당자에게 문의</div>`);   // ★ v0.40.36
   const db = document.getElementById('demo-badge');
   if(db){ db.hidden = !isDemoMode(); if(isTrial()){ db.textContent = '체험판'; db.title = '체험판 — 이 PC 브라우저에만 저장 · 서버 연결 없음'; } }
   if(mobileEntryDefault() && !isMobileHash()) location.hash = '#m/home';
@@ -9172,46 +9232,124 @@ function exitDemoMode(){
   // 실모드 로컬 키(vela_device_code · vela_theme · vela_mes_db_v1 · vela_backend_config) 는 건드리지 않음 — reload 후 그대로 복원
   location.reload();
 }
-/* ★ v0.40.34 체험판 첫 화면 — 회사명 · 빈 상태/예시 데이터 · 저장 위치 안내 (서버·계정 없음) */
-function renderTrialSetup(){
+/* ★ v0.40.36 체험판 화면 — ① 새 체험 시작(체험 코드) ② 체험 회사 선택 ③ 회사 안의 기존 로그인 화면(이름 + 비밀번호) */
+function _trialOverlay(html){
   const sp = document.getElementById('splash'); if(sp) sp.style.display = 'none';
   const g = document.getElementById('pin-gate'); if(g) g.classList.add('hide');
   const old = document.getElementById('trial-setup'); if(old) old.remove();
-  document.body.insertAdjacentHTML('beforeend', `<div id="trial-setup" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto">
-    <div class="card" style="max-width:520px;width:100%;margin:0">
-      <h2 style="margin:0 0 6px;font-size:20px">VELA MES 체험판 <span class="demo-badge" style="font-size:11px;vertical-align:middle">체험판</span></h2>
-      <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:14px">회사 자료를 직접 넣어 보며 체험합니다. 입력한 자료는 <b>이 PC 의 이 브라우저에만</b> 저장되고 서버로 보내지지 않습니다 (다른 회사·다른 PC 와 섞이지 않음).<br>브라우저 기록을 지우면 사라지니 <b>설정 › 데이터 백업</b>으로 파일을 보관하세요 — 정식 도입 때 그 파일로 옮길 수 있습니다.</div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div><label>회사명</label><input id="ts-co" maxlength="40" placeholder="예: ○○정밀"></div>
-        <div><label>시작 방법</label>
-          <label class="apc-chk" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0"><input type="radio" name="ts-mode" value="empty" checked> <span><b>빈 상태로 시작</b> — 우리 회사 품번·거래처·설비부터 직접 등록 (기본 공정·계정과목만 들어 있음)</span></label>
-          <label class="apc-chk" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0"><input type="radio" name="ts-mode" value="sample"> <span><b>예시 데이터로 둘러보기</b> — 가상 회사 자료가 채워진 상태 (나중에 설정에서 빈 상태로 다시 시작 가능)</span></label></div>
-        <div id="ts-err" class="pw-err"></div>
-        <div class="actions" style="margin:0"><button class="btn primary" id="ts-go">체험 시작</button></div>
-        <div style="font-size:11px;color:var(--dim)">${_esc(APP_VERSION)} · 체험판 · 잠긴 기능(출하·입고 수량 정정 · 재고 실사 확정 · 결재 올리기)은 정식과 똑같이 잠겨 있습니다</div>
-      </div></div></div>`);
-  document.getElementById('ts-go').onclick = () => {
-    const co = String(document.getElementById('ts-co').value || '').trim();
-    if(!co){ document.getElementById('ts-err').textContent = '회사명을 적어 주세요'; return; }
+  document.body.insertAdjacentHTML('beforeend', `<div id="trial-setup" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto"><div class="card" style="max-width:560px;width:100%;margin:auto 0">${html}</div></div>`);
+}
+function _trialLeftTxt(w){ const n = trialDaysLeft(w); return n < 0 ? `<b style="color:var(--red)">체험 기간 끝</b> (${_esc(trialDayDate(+w.exp))}) · 보기·백업만` : `${_esc(trialDayDate(+w.exp))} 까지 · <b>${n === 0 ? '오늘까지' : n + '일 남음'}</b>`; }
+function renderTrialSetup(){
+  const has = trialWsList().length;
+  _trialOverlay(`<h2 style="margin:0 0 6px;font-size:20px">VELA MES 체험판 <span class="demo-badge" style="font-size:11px;vertical-align:middle">체험판</span></h2>
+    <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:12px">받으신 <b>체험 코드</b>로 시작합니다. 자료는 <b>이 PC 의 이 브라우저에만</b> 저장되고 서버로 보내지지 않습니다. 같은 PC 를 여러 회사가 써도 코드마다 따로 저장되고, 들어올 때 회사를 고른 뒤 <b>이름 + 비밀번호</b>로 로그인합니다.</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div><label>체험 코드</label><input id="ts-code" maxlength="20" placeholder="예: VT-AB3CD-EFGH23" style="text-transform:uppercase;letter-spacing:.5px" autocomplete="off"></div>
+      <div class="grid g2"><div><label>회사명</label><input id="ts-co" maxlength="40" placeholder="예: ○○정밀"></div><div><label>업종 <span style="color:var(--dim);font-weight:400">(직접 적기)</span></label><input id="ts-ind" maxlength="40" placeholder="예: 소재 절단·가공"></div></div>
+      <div class="grid g2"><div><label>관리자 이름</label><input id="ts-ad" maxlength="20" placeholder="예: 김철수" autocomplete="off"></div><div><label>관리자 비밀번호</label><input id="ts-pw" type="password" autocomplete="new-password" placeholder="8자 이상 · 영문+숫자"></div></div>
+      <div><label>비밀번호 확인</label><input id="ts-pw2" type="password" autocomplete="new-password"></div>
+      <div><label>시작 방법</label>
+        <label class="apc-chk" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0"><input type="radio" name="ts-mode" value="empty" checked> <span><b>빈 상태로 시작</b> — 우리 회사 품번·거래처·설비부터 직접 등록 (기본 공정·계정과목만 들어 있음)</span></label>
+        <label class="apc-chk" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0"><input type="radio" name="ts-mode" value="sample"> <span><b>예시 데이터로 둘러보기</b> — 가상 회사 자료가 채워진 상태</span></label></div>
+      <div id="ts-err" class="pw-err"></div>
+      <div class="actions" style="margin:0">${has ? '<button class="btn" id="ts-back">이미 시작한 체험으로</button>' : ''}<button class="btn primary" id="ts-go">체험 시작</button></div>
+      <div style="font-size:11px;color:var(--dim)">${_esc(APP_VERSION)} · 체험판 · 체험 코드가 없으면 VELA 담당자에게 요청하세요 · 잠긴 기능(출하·입고 수량 정정 · 재고 실사 확정 · 결재 올리기)은 정식과 똑같이 잠겨 있습니다</div>
+    </div>`);
+  const $ = x => document.getElementById(x), err = m => { $('ts-err').textContent = m || ''; };
+  if($('ts-back')) $('ts-back').onclick = () => renderTrialPicker();
+  $('ts-go').onclick = async () => {
+    const c = trialCodeParse($('ts-code').value); if(c.err) return err(c.err);
+    if(c.kind !== 'VT') return err('새 체험은 체험 코드(VT-…)로 시작합니다 — 기간 변경 코드(VX)는 회사 선택 화면에서');
+    if(trialWsList().some(w => w.id === c.id)) return err('이 코드는 이 PC 에서 이미 시작했습니다 — [이미 시작한 체험으로]');
+    if(c.exp < trialDayNum(Date.now())) return err(`체험 기간이 끝난 코드입니다 (${c.expDate}) — 새 코드를 요청하세요`);
+    const co = $('ts-co').value.trim(), ind = $('ts-ind').value.trim(), ad = $('ts-ad').value.trim(), pw = $('ts-pw').value, pw2 = $('ts-pw2').value;
+    if(!co) return err('회사명을 적어 주세요'); if(!ad) return err('관리자 이름을 적어 주세요');
+    const pol = checkPwPolicy(pw, ad); if(!pol.ok) return err(pol.reason); if(pw !== pw2) return err('비밀번호 확인이 일치하지 않습니다');
     const mode = (document.querySelector('[name="ts-mode"]:checked') || {}).value || 'empty';
-    try { localStorage.removeItem(_DEMO_LS_KEY); if(mode === 'empty') localStorage.setItem(_DEMO_EMPTY_KEY, '1'); else localStorage.removeItem(_DEMO_EMPTY_KEY);
-      localStorage.setItem(_TRIAL_SETUP_KEY, JSON.stringify({ company: co.slice(0, 40), mode, at: Date.now() })); }
-    catch(e){ document.getElementById('ts-err').textContent = '이 브라우저는 저장소를 쓸 수 없습니다 (시크릿 창·저장 차단) — 일반 창에서 열어 주세요'; return; }
+    try {
+      const pin = await hashPassword(pw, 'U-ADMIN');
+      const l = trialWsList(); l.push({ id: c.id, code: c.code, company: co.slice(0, 40), industry: ind.slice(0, 40), admin: ad.slice(0, 20), adminPin: pin, mode, created: Date.now(), exp: c.exp, seeded: 0 });
+      trialWsSave(l); sessionStorage.setItem(_TRIAL_ACTIVE_KEY, c.id);
+    } catch(e){ return err('이 브라우저는 저장소를 쓸 수 없습니다 (시크릿 창·저장 차단) — 일반 창에서 열어 주세요'); }
     location.reload();
   };
-  setTimeout(() => { try { document.getElementById('ts-co').focus(); } catch(e){} }, 50);
+  setTimeout(() => { try { $('ts-code').focus(); } catch(e){} }, 50);
 }
-/* 체험판 처음부터 다시 (이 PC 체험 자료 삭제 → 첫 화면) — 백업 파일 먼저 */
+function renderTrialPicker(){
+  const l = trialWsList();
+  _trialOverlay(`<h2 style="margin:0 0 6px;font-size:20px">체험 회사 선택 <span class="demo-badge" style="font-size:11px;vertical-align:middle">체험판</span></h2>
+    <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:12px">이 PC 에서 시작한 체험입니다. 회사를 고르면 그 회사의 로그인 화면(이름 + 비밀번호)이 나옵니다.</div>
+    <div style="display:flex;flex-direction:column;gap:8px">${l.map(w => `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><b style="font-size:15px">${_esc(w.company)}</b> <span style="color:var(--sub);font-size:12px">${_esc(w.industry || '')}</span><div style="font-size:11.5px;color:var(--sub)">코드 ${_esc(w.code)} · ${_trialLeftTxt(w)}</div></div>
+      <div style="display:flex;gap:6px"><button class="btn" data-tw-x="${_esc(w.id)}">기간 변경 코드</button><button class="btn primary" data-tw-go="${_esc(w.id)}">들어가기</button></div></div>
+      <div data-tw-box="${_esc(w.id)}" hidden style="display:flex;gap:6px"><input data-tw-in="${_esc(w.id)}" placeholder="VX-…" style="flex:1;text-transform:uppercase"><button class="btn" data-tw-ok="${_esc(w.id)}">적용</button></div></div>`).join('')}</div>
+    <div id="tw-err" class="pw-err" style="margin-top:8px"></div>
+    <div class="actions" style="margin:12px 0 0"><button class="btn" id="tw-new">새 체험 시작 (체험 코드)</button></div>`);
+  document.querySelectorAll('[data-tw-go]').forEach(b => b.onclick = () => { try { sessionStorage.setItem(_TRIAL_ACTIVE_KEY, b.dataset.twGo); } catch(e){} location.reload(); });
+  document.querySelectorAll('[data-tw-x]').forEach(b => b.onclick = () => { const x = document.querySelector(`[data-tw-box="${b.dataset.twX}"]`); x.hidden = !x.hidden; });
+  document.querySelectorAll('[data-tw-ok]').forEach(b => b.onclick = () => { const id = b.dataset.twOk; try { const w = trialApplyChange(id, document.querySelector(`[data-tw-in="${id}"]`).value); toast(`기간 변경 — ${trialDayDate(+w.exp)} 까지`, 'ok', 4000); renderTrialPicker(); } catch(e){ document.getElementById('tw-err').textContent = e.message; } });
+  document.getElementById('tw-new').onclick = () => renderTrialSetup();
+}
+/* 체험 회사 첫 입장 — 자료 만들기 (빈 상태 = 기본 공정만 · 예시 = 가상 회사 자료) · 관리자 계정 = 시작 때 정한 이름·비밀번호 */
+function trialSeed(w){
+  if(w.mode === 'sample'){
+    try { seedDemoData(); seedDemoExtension(); DB.set('settings', 'demo_seed_ver', { ver: DEMO_SEED_VER }); } catch(e){ console.error('[VELA] trial sample seed', e); }
+    DB.query('users', x => x.id !== 'U-ADMIN' && x.role === 'manager').forEach(u => DB.set('users', u.id, { active: false }));   // 예시 관리자(초기 비밀번호) 로는 못 들어오게
+  }
+  try { if(w.mode !== 'sample') localStorage.setItem(_DEMO_EMPTY_KEY, '1'); } catch(e){}
+  const allOn = {}; MODULE_DEFS.forEach(m => m.items.forEach(([k]) => { allOn[k] = true; })); DB.set('settings', 'features', { flags: allOn });
+  DB.set('settings', 'company', { ...(DB.get('settings', 'company') || {}), name: w.company, industry: w.industry || '', preset: '' });
+  DB.set('users', 'U-ADMIN', { id: 'U-ADMIN', name: w.admin, role: 'manager', active: true, pin: w.adminPin, created_at: Date.now(), last_login: null });
+  trialWsUpdate(w.id, { seeded: Date.now(), adminPin: null });   // 비밀번호 해시는 회사 자료 안에만
+}
+/* 부팅: 체험 회사가 없으면 시작 화면 · 이 탭에서 고른 회사가 없으면 선택 화면 · 고른 회사 = 처음이면 자료 만들고 로그인 화면 (true = 부팅 여기서 끝) */
+function trialBoot(){
+  try { localStorage.removeItem('vela_trial_setup'); localStorage.removeItem('vela_mes_trial_v1'); localStorage.removeItem('vela_trial_empty'); localStorage.removeItem('vela_mes_trial_v1:none'); } catch(e){}   // v0.40.34~35 체험 자료 (코드 없던 판) 정리
+  const l = trialWsList();
+  if(!l.length){ renderTrialSetup(); return true; }
+  const w = trialWs();
+  if(!w){ if(l.length === 1 && !sessionStorage.getItem('vela_trial_pick')){ try { sessionStorage.setItem(_TRIAL_ACTIVE_KEY, l[0].id); } catch(e){} location.reload(); return true; } renderTrialPicker(); return true; }
+  if(!w.seeded) trialSeed(w);
+  return false;
+}
 function _trialCard(){
-  const ts = trialSetup() || {};
-  return `<div class="card" style="border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.06)">
-    <h3><span class="demo-badge" style="margin-right:6px">체험판</span>${_esc(ts.company || getCompany().name || '')} 체험 <span class="tag">${ts.mode === 'sample' ? '예시 데이터로 시작' : '빈 상태로 시작'}${ts.at ? ' · ' + fmtDate(ts.at) : ''}</span></h3>
+  const w = trialWs() || {};
+  return `<div class="card set-ed" style="border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.06)">
+    <h3><span class="demo-badge" style="margin-right:6px">체험판</span>체험 정보 <span class="tag">코드 ${_esc(w.code || '')}</span></h3>
+    <div style="font-size:12.5px;line-height:1.8;margin-bottom:6px"><b>${_esc(w.company || getCompany().name || '')}</b> ${_esc(w.industry || '')} · ${w.mode === 'sample' ? '예시 데이터로 시작' : '빈 상태로 시작'}${w.created ? ' · 시작 ' + fmtDate(w.created) : ''}<br>기간: ${_trialLeftTxt(w)}</div>
     <div style="font-size:12px;color:var(--sub);line-height:1.7;margin-bottom:10px">자료는 <b>이 PC 의 이 브라우저에만</b> 저장됩니다 (서버 연결 없음 · 다른 PC·다른 회사와 섞이지 않음). 브라우저 기록을 지우면 사라지므로 <b>백업 파일</b>을 자주 보관하세요 — 정식 도입 때 이 파일로 옮깁니다. 잠긴 기능은 정식과 똑같이 잠겨 있습니다.</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="btn-trial-backup">${ico('save')}백업 파일 내려받기</button><button class="btn" id="btn-trial-restart">${ico('refresh')}처음부터 다시 (체험 자료 지움)</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn primary" id="btn-trial-backup">${ico('save')}백업 파일 내려받기</button><input id="trial-vx" placeholder="기간 변경 코드 VX-…" style="max-width:200px;text-transform:uppercase"><button class="btn" id="btn-trial-vx">기간 변경</button><button class="btn" id="btn-trial-switch">회사 바꾸기</button><button class="btn" id="btn-trial-restart">${ico('refresh')}이 체험 지우기</button></div>
   </div>`;
 }
-function trialRestart(){
-  try { localStorage.removeItem(_DEMO_LS_KEY); localStorage.removeItem(_TRIAL_SETUP_KEY); localStorage.removeItem(_DEMO_EMPTY_KEY); } catch(e){}
+/* ★ v0.40.36 개발자 전용 — 체험 코드 발급·기간 변경 (정식 앱 · 개발자 로그인) · 발급 목록 = 이 PC 에만 기록 */
+const _TRIAL_ISSUED_KEY = 'vela_trial_issued';
+function trialIssuedList(){ try { const l = JSON.parse(localStorage.getItem(_TRIAL_ISSUED_KEY) || '[]'); return Array.isArray(l) ? l : []; } catch(e){ return []; } }
+function _trialIssueCard(){
+  const l = trialIssuedList().slice().reverse();
+  return `<div class="card set-ed" id="trial-issue-card"><h3>체험판 코드 발급 <span class="tag">개발자 전용 · 기본 30일 · 발급 목록 = 이 PC 에만 기록</span></h3>
+    <div style="font-size:12px;color:var(--sub);line-height:1.7;margin-bottom:8px">체험판 주소에서 업체가 이 코드로 체험을 시작합니다. 기간을 늘리거나 줄이려면 목록의 [기간 변경 코드] 로 VX 코드를 만들어 업체에 전달 → 업체가 체험판 설정(또는 회사 선택 화면)에 넣으면 바뀝니다. 서버가 없어 「보통 사용자 기준」 잠금입니다.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end"><div style="flex:1;min-width:180px"><label>업체 (메모)</label><input id="ti-memo" maxlength="40" placeholder="예: 세양테크"></div><div style="width:110px"><label>기간 (일)</label><input id="ti-days" type="number" min="1" max="3650" value="30"></div><button class="btn primary" id="ti-go">${ico('plus')}코드 발급</button></div>
+    <div id="ti-out" style="margin-top:8px;font-size:13px"></div>
+    ${l.length ? `<div class="tbl-wrap" style="margin-top:10px;max-height:280px"><table style="font-size:12px"><thead><tr><th>업체</th><th>체험 코드</th><th>만료일</th><th>발급</th><th>기간 변경 (오늘부터 일 수)</th></tr></thead><tbody>${l.map(x => `<tr><td>${_esc(x.memo || '')}</td><td class="mono">${_esc(x.code)}</td><td>${_esc(trialDayDate(+x.exp))}${trialDayNum(Date.now()) > +x.exp ? ' <span style="color:var(--red)">끝남</span>' : ''}</td><td>${_esc(fmtDate(x.at))}</td>
+      <td style="white-space:nowrap"><input data-ti-days="${_esc(x.id)}" type="number" min="0" max="3650" value="30" style="width:70px"> <button class="btn" data-ti-x="${_esc(x.id)}">기간 변경 코드</button></td></tr>`).join('')}</tbody></table></div>` : ''}
+  </div>`;
+}
+function _trialIssueBind(){
+  const go = document.getElementById('ti-go'); if(!go) return;
+  const show = (t, sub) => { document.getElementById('ti-out').innerHTML = `<b class="mono" style="font-size:15px;letter-spacing:.5px">${_esc(t)}</b> <button class="btn" id="ti-copy">복사</button> <span style="color:var(--sub)">${_esc(sub)}</span>`;
+    document.getElementById('ti-copy').onclick = async () => { try { await navigator.clipboard.writeText(t); toast('복사함', 'ok'); } catch(e){ toast('복사 실패 — 코드를 직접 적어 주세요', 'warn'); } }; };
+  go.onclick = () => { const memo = document.getElementById('ti-memo').value.trim(); const days = +document.getElementById('ti-days').value || 30;
+    const code = trialCodeIssue(days); const c = trialCodeParse(code); const l = trialIssuedList(); l.push({ memo, code, id: c.id, exp: c.exp, at: Date.now() }); try { localStorage.setItem(_TRIAL_ISSUED_KEY, JSON.stringify(l)); } catch(e){}
+    router(); setTimeout(() => show(code, `${memo || ''} · ${c.expDate} 까지 (${days}일)`), 50); };
+  document.querySelectorAll('[data-ti-x]').forEach(b => b.onclick = () => { const id = b.dataset.tiX; const d = Math.max(0, +document.querySelector(`[data-ti-days="${id}"]`).value || 0); const exp = trialDayNum(Date.now()) + d;
+    const code = trialCodeExtend(id, exp); const l = trialIssuedList(); const it = l.find(x => x.id === id); if(it){ it.exp = exp; it.changed = Date.now(); try { localStorage.setItem(_TRIAL_ISSUED_KEY, JSON.stringify(l)); } catch(e){} }
+    router(); setTimeout(() => show(code, `기간 변경 코드 · ${(it && it.memo) || id} · ${trialDayDate(exp)} 까지`), 50); });
+}
+function trialSwitch(){ try { sessionStorage.removeItem(_TRIAL_ACTIVE_KEY); sessionStorage.setItem('vela_trial_pick', '1'); } catch(e){} location.reload(); }
+function trialRestart(){   // 이 체험 회사의 자료·등록을 지움 (다른 체험 회사는 그대로)
+  const id = trialActiveId();
+  try { localStorage.removeItem(_DEMO_LS_KEY); localStorage.removeItem(_DEMO_EMPTY_KEY); localStorage.removeItem(_rememberKey()); localStorage.removeItem(_sesKey()); trialWsSave(trialWsList().filter(w => w.id !== id)); sessionStorage.removeItem(_TRIAL_ACTIVE_KEY); } catch(e){}
   location.reload();
 }
 function resetDemoData(){
@@ -9224,7 +9362,8 @@ function resetDemoData(){
    seedDemoData 는 고정 id 멱등이라 재실행해도 중복·유실 없음 (LOT 는 존재 가드 · DB.set 동일값 덮어씀). */
 const DEMO_SEED_VER = 8;   // ★ v0.38.25 — 데모 확장(seedDemoExtension): 출하 정합성 정리 · 올해 말까지 수주 · 계획 · 구매 입고 시험 데이터 (v7 = 현장 작업자)
 function autoLoginDemo(){
-  let u = DB.query('users', x => x.name === '데모')[0];
+  const _NM = isTrial() ? trialAdminName() : '데모';   // ★ v0.40.35 — 체험판 = 첫 화면에서 정한 관리자 이름 (예시 데이터의 '데모' 사용자를 그 이름으로 바꿈)
+  let u = DB.query('users', x => x.name === _NM)[0] || (isTrial() ? DB.query('users', x => x.name === '데모')[0] : null);
   if(!u){
     // 첫 진입: 시드 실행 후 사용자 확보
     // ★ v0.28.7 — 빈 상태 데모(시연·테스트)는 샘플 시드 없이 시작: seedDemoData 스킵
@@ -9247,12 +9386,14 @@ function autoLoginDemo(){
     MODULE_DEFS.forEach(m => m.items.forEach(([k]) => { allOn[k] = true; }));
     if(!isTrial() || !DB.get('settings','features')) DB.set('settings','features', { flags: allOn });   // ★ v0.40.34 체험판 = 처음만 전체 켬 (업체가 끈 기능은 유지)
   } catch(e){ console.warn('[VELA] demo flag sync failed', e); }
-  if(isTrial()){ try { const ts = trialSetup(); if(ts && ts.company && !ts.applied){ DB.set('settings', 'company', { ...(DB.get('settings','company') || {}), name: ts.company }); localStorage.setItem(_TRIAL_SETUP_KEY, JSON.stringify({ ...ts, applied: Date.now() })); } } catch(e){} }
+
+  if(!u && isTrial()) u = DB.query('users', x => x.name === '데모')[0];   // 예시 데이터 시드가 만든 사용자
   if(!u){
     // 시드 실패 폴백 — 최소 사용자 하나 만들어서 진입
-    u = { id:'U-DEMO', name:'데모', pin:'000000', role:'manager', active:true, created_at:Date.now(), last_login:null };
+    u = { id:'U-DEMO', name:_NM, pin:'000000', role:'manager', active:true, created_at:Date.now(), last_login:null };
     DB.set('users', u.id, u);
   }
+  if(isTrial() && u.name !== _NM){ DB.set('users', u.id, { name: _NM }); u = DB.get('users', u.id) || { ...u, name: _NM }; }
   // ★ v0.37.2 — 데모에서도 「이 기기에서 자동 로그인」 시연: 기억된 현장 작업자가 토큰 검증을 통과하면 '데모' 대신 그 사용자로 진입
   if(getRememberedLogin()){
     tryRememberedLogin().then(w => enterAsUser(w || u)).catch(() => enterAsUser(u));
@@ -9280,6 +9421,7 @@ function getUserPerm(userId, pageId){
   if(!u) return 'edit';
   if(u.role === 'manager') return 'edit';
   if(pageId === 'dash'){ const p = u.perms?.dash; return p === 'view' ? 'view' : 'edit'; }
+  if(pageId === 'help') return 'edit';   // ★ v0.40.36 도움말 = 누구나
   if(pageId === 'report') return 'edit';   // ★ v0.40.30 (사용자 확인 요청) — 전자결재 = 로그인한 사람마다 자기 결재함 (결재자로 지정되면 누구나 열 수 있어야 함) · 메뉴 권한으로 막지 않음
   const p = u.perms?.[pageId];
   return PERM_LEVELS.includes(p) ? p : permBase(u);
@@ -9351,6 +9493,7 @@ function _permBlockWrite(col, id){
     /* ★ v0.40.30 — 실행하는 탭도 막음 (지운 자료가 이 탭 메모리에서 다시 올라가지 않게 · 삭제는 저장 경로 밖에서 서버로 직접) */
     if(window._wipeFreeze){ const now = Date.now(); if(now - _permToastTs > 1500){ _permToastTs = now; try { toast('서버 자료 초기화 중 — 저장이 막혀 있습니다', 'warn', 3000); } catch(e){} } return true; }   // ★ v0.40.29
     if(typeof SESSION === 'undefined' || !SESSION.loggedIn) return false;   // 부팅·시드·마이그레이션
+    if(trialIsExpired()){ const now = Date.now(); if(now - _permToastTs > 1500){ _permToastTs = now; try { toast('체험 기간이 끝났습니다 — 보기·백업만 (설정 › 체험 정보 › 기간 변경 코드)', 'warn', 4000); } catch(e){} } return true; }   // ★ v0.40.36
     if(SESSION.role === 'manager' || SESSION.role === 'vendor') return false;
     if(col === 'users') return false;                                        // last_login 등 시스템 기록
     if(col === 'settings' && SESSION.userId && id === 'prefs.' + SESSION.userId) return false;   // ★ v0.37.7 — 본인 개인 설정(prefs.{내 userId}) 만 보기 전용 화면에서도 저장 (원장 아님 · 표시 항목만 · 남의 prefs 는 예외 아님 · GPT 조건부 승인 2026-09-23)
@@ -9384,6 +9527,7 @@ const NAV_DEPTS = [
   { key:'admin',   label:'관리',      ids:['dash','closing','acct','cost','docs','audit'] },
   { key:'master',  label:'기준정보',  ids:['masters','proc'] },
   { key:'setting', label:'설정',      ids:['set'] },
+  { key:'help',    label:'도움말',    ids:['help'], solo:true },   // ★ v0.40.36
 ];
 const NAV_GROUPS = NAV_DEPTS.map(d => ({ label: d.label, ids: d.ids.slice() }));
 // 부서 아이콘 (표시만) · 사이드바·위치 표시용 화면 이름 (PAGES.title·권한 키 무변 — 「구매」 화면 = 구매 › 발주)
@@ -9400,7 +9544,8 @@ const NAV_ICONS = {
   appr:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8.5 14.5l2.2 2.2 4.3-4.3"/>',
   master:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   setting:'<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
-  etc:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
+  etc:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/>'
 };
 const NAV_LABEL = { po:'발주' };
 function navTitle(p){ return (p && (NAV_LABEL[p.id] || p.title)) || ''; }
@@ -9558,7 +9703,7 @@ function setActive(id){
   document.querySelectorAll('#nav .nav-dept').forEach(d => { const cur = !!d.querySelector('button.on'); d.classList.toggle('cur', cur); if(cur){ d.classList.add('open'); const h = d.querySelector('[data-dept-h]'); if(h) h.setAttribute('aria-expanded', 'true'); } });
   document.querySelectorAll('#nav .nav-solo').forEach(d => { const b = d.querySelector('[data-solo]'); const on = !!b && b.dataset.solo === id && !inPrim; d.classList.toggle('cur', on); if(b) b.classList.toggle('on', on); });   // ★ v0.40.28
   // ★ v0.40.0 — 위쪽 현재 위치 (부서 › 화면) · 표시만
-  try { const cr = document.getElementById('crumb'); if(cr){ const pg = PAGES.find(x => x.id === id); const dp = navDeptOf(id); cr.innerHTML = pg ? `${dp && !dp.solo ? `<span>${_esc(dp.label)}</span><span class="sep">›</span>` : ''}<b>${_esc(navTitle(pg))}</b>` : ''; } } catch(e){}   // ★ v0.39.0 — 현재 화면의 묶음 펼침
+  try { const cr = document.getElementById('crumb'); if(cr){ const pg = PAGES.find(x => x.id === id); const dp = navDeptOf(id); cr.innerHTML = pg ? `${dp && !dp.solo ? `<span>${_esc(dp.label)}</span><span class="sep">›</span>` : ''}<b>${_esc(navTitle(pg))}</b>${pg.id !== 'help' ? `<button type="button" class="crumb-help" id="crumb-help" title="이 화면 사용법">? 이 화면 도움말</button>` : ''}` : ''; const hb = document.getElementById('crumb-help'); if(hb) hb.onclick = () => openHelpFor(id); } } catch(e){}   // ★ v0.39.0 — 현재 화면의 묶음 펼침
   // ★ v0.37.7 — 현재 화면이 내 메뉴에 없으면(전체 메뉴에서 이동) 「전체 메뉴」 버튼에 활성 표시 + 화면 이름(위치 힌트)
   const nav = document.getElementById('nav'); const all = nav && nav.querySelector('[data-allmenu]');
   if(!all) return;
@@ -9723,7 +9868,7 @@ let _secEnhanceRuns = 0;   // 회귀용 계측 (MutationObserver 반복 실행 �
 function _secToggleEnhance(){
   _secEnhanceRuns++;
   try { _viewTabsEnhance(); } catch(e){ console.warn('[VELA] 보기 전환', e); }   // ★ v0.40.0 — 한 화면 한 업무 영역 (단락 보기 전환)
-  if(!SESSION.loggedIn || _secPage() === 'dash' || isMobileHash()) return;
+  if(!SESSION.loggedIn || _secPage() === 'dash' || _secPage() === 'help' || isMobileHash()) return;   // ★ v0.40.36 — 도움말 = 자체 목차 (보기 설정·숨김 없음)
   const list = secList(); if(!list.length) return;
   const off = secOffMap();
   list.forEach(s => {
@@ -9813,7 +9958,7 @@ function openSecPicker(){
    · 표시만 (DOM·계산·구독 그대로 · 숨긴 단락도 화면에 존재) · 고른 보기 = 이 기기 편의 설정(localStorage · 실패해도 동작 · 업무 데이터 아님)
    · 안전 신호 단락(data-sec-lock · 제목 키워드) = 탭 대상이 아님 → 항상 표시 (GPT 원칙 「안전 신호 은폐 금지」) · 꺼 둔 단락(sec_off)은 탭에도 없음
    · 기본 보기 = 표가 있는 첫 단락 (업무 목록) → 없으면 첫 단락 · 대시보드(카드 고르기 별도)·실적 등록 작업대·현장/폰 화면 제외 · 인쇄 = 전부 펼침 */
-const VT_SKIP = ['dash', 'scan', 'docs', 'autoplan'];   // 대시보드 = 카드 고르기 · 실적 등록 = 작업대 · 문서 출력·자동계획 = 단계 흐름(고르기 → 대상) 화면
+const VT_SKIP = ['dash', 'scan', 'docs', 'autoplan', 'help'];   // 대시보드 = 카드 고르기 · 실적 등록 = 작업대 · 문서 출력·자동계획 = 단계 흐름(고르기 → 대상) 화면
 const VT_FIRST = ['plan'];   // 기본 보기 = 첫 단락 (생산계획 = 계획판)
 const VT_LABEL = { plan: ['계획판'] };   // 탭 이름 (화면별 단락 순서 · 없으면 단락 제목)
 function _vtKey(page){ return 'vela_view_tab:' + page; }
@@ -10167,7 +10312,7 @@ function renderSyncPill(){
     el.className = 'sync-pill';
     // ★ v0.22.0 — 데모 모드 표기 (별도 로컬 키)
     if(isDemoMode()){
-      if(txt) txt.textContent = `데모 저장 · 단말 D`;
+      if(txt) txt.textContent = isTrial() ? '체험판 · 이 PC 저장' : `데모 저장 · 단말 D`;
       el.title = `데모 체험 모드 · localStorage(${_DEMO_LS_KEY})에 즉시 저장 · 서버 접속 없음`;
     } else {
       if(txt) txt.textContent = `로컬 저장 · 단말 ${dev}`;
@@ -20873,6 +21018,208 @@ const printForm = {
 };
 
 /* -------------------- 문서 출력 — ★ v0.12.0 다건 출력 UI -------------------- */
+/* ★ v0.40.36 (사용자 요청 2026-11-15) — 도움말 (체험판·정식 공통 · 메뉴별 상세 사용법)
+   · 사이드바 「도움말」 단독 메뉴 · 모든 화면 위쪽 [? 이 화면 도움말] = 그 화면 설명으로 바로 · 검색
+   · 내용 = HELP_SECTIONS 1벌 (화면 id 와 연결 pages) — 기능을 바꾸면 이 설명도 같이 고침 */
+const HELP_SECTIONS = [
+{ id:'start', t:'처음 시작하기', pages:['dash'], b:`
+<h4>로그인</h4><ul><li><b>이름 + 비밀번호</b>로 들어갑니다. 관리책임자가 직원을 등록하면 처음 비밀번호는 <b>000000</b> 이고, 첫 로그인 때 새 비밀번호(8자 이상 · 영문+숫자)로 바꿉니다.</li>
+<li>현장 작업자는 [이 기기에서 자동 로그인]을 켜 두면 다음부터 바로 현장 화면이 열립니다 (공용 폰이면 끄기).</li>
+<li>비밀번호를 잊으면 관리책임자에게 [초기화]를 요청합니다 (새 처음 비밀번호를 받음).</li></ul>
+<h4>화면 구성</h4><ul><li><b>왼쪽 사이드바</b> — 위쪽 「내 업무」 = 내가 ★ 표시한 메뉴 · 아래 = 부서 묶음(영업·생산·구매·자재·출하·품질·개발·R&D·전자결재·관리·기준정보·설정·도움말). 묶음 이름을 누르면 접고 펼칩니다.</li>
+<li><b>☰ 메뉴 찾기</b> — 모든 메뉴를 검색하고 ☆ 를 눌러 「내 업무」에 넣거나 뺍니다. 안 보이는 메뉴는 아래 「숨은 메뉴 · 이유」에서 이유(기능 꺼짐 · 권한 없음)를 볼 수 있습니다 (관리책임자).</li>
+<li><b>위쪽 줄</b> — 지금 위치 · <b>[? 이 화면 도움말]</b> · 밝게/어둡게(☀) · 저장 상태(서버 또는 이 PC) · 사용자 이름(누르면 로그아웃·비밀번호 변경) · 시각.</li>
+<li>화면 맨 아래 오른쪽에 <b>프로그램 버전</b>이 있습니다 (문의할 때 알려 주세요).</li></ul>
+<h4>처음 등록 순서 (관리책임자)</h4><ol><li><b>설정 › 회사 정보</b> — 회사명 · 업종(직접 적기) · 사업자 정보 · 로고 (거래명세서·인쇄물에 들어감).</li>
+<li><b>기준정보</b> — 거래처(고객사·구매처·외주처) → 품번 → 소재·구매품 → 설비 → 작업자 → 불량 유형 순서로 등록.</li>
+<li><b>공정 템플릿</b> — 표준 공정 흐름(절단·단조·열처리… 사내/외주)을 정하고, BOM 라우팅에서 품번마다 공정 순서를 정합니다. 기본 공정을 한 번에 넣으려면 설정 › 회사 정보 › 표준 공정 팩.</li>
+<li><b>기준정보 › 사용자</b> — 직원을 등록하고 역할·메뉴 권한을 정합니다.</li>
+<li>자료가 많으면 <b>설정 › 데이터 이관 — 일괄 임포트</b>에서 엑셀 템플릿을 내려받아 채운 뒤 올립니다 (미리보기 → 등록 · 같은 코드는 자동 건너뜀).</li></ol>
+<h4>모든 화면 공통</h4><ul><li>목록의 <b>[상세 보기 →]</b> = 가운데 창에서 자세히 보고 수정·취소·인쇄.</li>
+<li><b>[보기 설정]</b> = 표의 열 숨기기·순서·정렬 · <b>[엑셀]</b> = 지금 보이는 목록 내려받기 · 검색 칸 = 품번·LOT·거래처 등으로 찾기.</li>
+<li><b>취소는 삭제가 아닙니다</b> — 「취소」 표시와 사유·이력이 남습니다 (변경 이력에서 누가·언제·무엇을 확인). 잘못 넣은 수량은 대부분 취소 후 다시 등록합니다.</li>
+<li>입력 창은 <b>Esc</b> 로 닫고, 저장하지 않은 내용이 있으면 닫기 전에 확인을 묻습니다.</li></ul>`},
+{ id:'flow', t:'업무 흐름 한눈에', pages:[], b:`
+<ol><li><b>수주</b> — 고객사 주문(품번·수량·납기)을 등록합니다.</li>
+<li><b>생산계획 / 자동계획</b> — 언제 · 어느 설비에서 만들지 정합니다.</li>
+<li><b>작업지시</b> — 수주와 수량을 골라 공정별 지시를 발행합니다.</li>
+<li><b>입고(소재)</b> — 원소재를 Heat 번호와 함께 받습니다.</li>
+<li><b>실적 등록</b> — PC 또는 현장 폰에서 LOT·공정별 양품·불량을 입력합니다. LOT 는 첫 공정 실적 때 만들어집니다.</li>
+<li><b>외주</b> — 열처리 등 외주 공정은 [외주 반출] → 돌아오면 [입고] (그 공정 실적이 자동으로 생김).</li>
+<li><b>품질</b> — 불량·부적합을 등록하고 처리(특채·폐기·재작업)합니다.</li>
+<li><b>출하</b> — 수주 + LOT + 수량으로 출하 → 거래명세서 인쇄 · 파렛트 자동 기록.</li>
+<li><b>마감</b> — 월마다 매출·매입·외주를 확정합니다 (확정 월은 수정 잠김).</li>
+<li><b>회계</b> — 수금·지급·세금계산서·경비·월 손익.</li></ol>
+<div class="hp-tip">수량은 「남은 양」 을 넘지 못합니다 — 앞 공정 양품보다 많은 실적, LOT 에 남은 것보다 많은 출하, 수주 잔량보다 많은 출하는 저장되지 않습니다.</div>`},
+{ id:'dash', t:'대시보드', pages:['dash'], b:`
+<ul><li>회사 전체 숫자를 한 화면에 봅니다. <b>[☆ 카드 고르기]</b>로 보고 싶은 숫자(총 수주 금액 · 출하 금액 · 오늘 생산 · 납기 지연 등)를 고르고 순서를 바꿉니다 (사람마다 따로 저장).</li>
+<li><b>생산 추세</b> — 주 · 월 · 년 단위 그래프.</li>
+<li><b>오늘 확인할 것</b> — 원장 확인 · 납기 임박·지연 · 미출하 수주 · 미입고 외주 · 품질 판정 대기 · HOLD LOT. 누르면 그 화면으로 갑니다.</li></ul>`},
+{ id:'so', t:'수주', pages:['so'], b:`
+<ol><li><b>[새 수주]</b> → 고객사 · 품번 · 수량 · 단가 · 납기 → 저장.</li>
+<li>목록에서 잔량(수주 − 출하)과 계획 잔량을 확인합니다.</li>
+<li><b>[상세 보기 →]</b> — 수정 · 계획 만들기 · 출하 화면 열기 · <b>[수주 종결]</b>.</li></ol>
+<ul><li><b>수주 종결</b> — 100개 수주에 70개 출하 후 나머지를 받지 않기로 했을 때: 「부분 종결」(남은 30 종결) 또는 「수주 취소」. 종결 뒤 새 출하는 막히고, 다시 열 수 있습니다.</li>
+<li>단가·금액은 「단가·금액 열람」 권한이 있는 사람에게만 보입니다.</li></ul>`},
+{ id:'plan', t:'생산계획', pages:['plan'], b:`
+<ol><li><b>[계획 수립]</b> → 수주 · 품번 · 수량 · 날짜 · 설비 → 저장.</li>
+<li>계획판 — <b>일간 · 주간 · 월간</b> 보기, ◀ 오늘 ▶ 로 날짜 이동.</li>
+<li>계획 카드를 <b>끌어 놓으면</b> 날짜·설비가 바뀝니다 (⇄ 버튼으로도). 여러 건은 <b>[여러 건 모아 옮기기]</b> → [모두 확정] (서버가 확인한 뒤에만 반영 · 그 사이 다른 사람이 바꾼 계획은 거부).</li>
+<li><b>[설비 배정]</b> · <b>[작업지시 생성]</b>/<b>[지시 발행]</b> · <b>🖨 생산계획서</b> 인쇄.</li></ol>
+<ul><li>예상 시간 = 품번 공정별 사이클타임(초/개) + 셋팅(교체) 시간 · 하루 시간 = 설정 › 교대 근무(1~3교대).</li>
+<li>계획 목록 탭에서 기간·필터로 모아 봅니다.</li></ul>`},
+{ id:'autoplan', t:'자동계획', pages:['autoplan'], b:`
+<ol><li><b>[옵션]</b> — 기준(보수적 기본값)을 확인·조정.</li><li><b>[자동계획 생성]</b> — 미계획 수주로 계획을 만듭니다.</li><li>계획 목록에서 자동/수동이 구분되어 보이고, 생산계획 화면에서 옮기거나 취소합니다.</li></ol>`},
+{ id:'wo', t:'작업지시', pages:['wo'], b:`
+<ol><li><b>[작업지시 작성]</b> → 수주 선택 → 수량 → 공정별 제안 설비·예상 시간 확인 → 발행.</li>
+<li>남은 수주보다 많이 발행하려면 <b>사유</b>를 적어야 합니다 (누구나 · 사유 필수).</li>
+<li>목록에서 공정별 진행(칩)을 보고, [상세 보기 →]에서 취소합니다.</li></ol>
+<div class="hp-tip">작업지시서 인쇄 = <b>문서 출력</b> › 작업지시 (여러 장 한 번에).</div>`},
+{ id:'scan', t:'실적 등록 (PC · 현장 폰)', pages:['scan','perf'], b:`
+<h4>PC 에서</h4><ol><li><b>작업자 선택</b> → 설비 고르기(목록 또는 설비 QR) → <b>[이 세션으로 시작 →]</b>.</li>
+<li>LOT · 공정을 고르고 <b>양품 · 불량 · 재작업 · 폐기</b> 수량 입력 → 등록.</li>
+<li>첫 공정 실적이면 LOT 가 새로 만들어집니다 (소재 Heat 연결).</li></ol>
+<h4>현장 폰에서 (현장 작업자)</h4><ol><li>로그인하면 바로 <b>현장 화면</b>이 열립니다 → [출근] → <b>설비 선택</b>.</li>
+<li>작업 순서(✓ 끝 · ● 지금 · ○ 다음)에서 지금 작업을 누르고 <b>[실적 등록]</b> → 양품·불량 입력.</li>
+<li>남은 수량이 0 이 되면 다음 작업으로 자동 이동 · 멈출 때 [■ 정지] · 끝나면 [퇴근].</li>
+<li><b>조회</b> 탭 = QR 로 LOT 찾아보기 (읽기만).</li></ol>
+<div class="hp-tip">앞 공정 양품보다 많이 넣을 수 없습니다. 품질 HOLD 걸린 LOT 는 막혀 있습니다.</div>`},
+{ id:'perf', t:'실적현황', pages:['perf'], b:`
+<ul><li>폰·PC 실적을 일자별로 묶어 최신이 위로 보입니다. <b>계획대비</b> 탭 = 계획과 실제 비교.</li>
+<li><b>[PC 실적 등록]</b> · <b>[중단 등록]</b>(설비 멈춤 기록).</li>
+<li>잘못 넣은 실적 = [상세 보기 →] › <b>수정</b> 또는 <b>취소</b> (사유·이력 남음) · 여러 건은 체크 후 [선택 취소].</li></ul>`},
+{ id:'lot', t:'LOT 추적', pages:['lot'], b:`
+<ul><li>LOT 행을 누르면 공정 순서별 투입·양품·불량과 실적·외주·출하 연결이 보입니다.</li>
+<li><b>[LOT 병합]</b>(여러 LOT 합치기) · <b>[LOT 분할]</b>(나누기) · <b>[LOT 분기]</b>(일부를 다른 흐름으로).</li>
+<li>[취소 포함 보기] = 취소된 LOT 도 표시 · 품질 HOLD 는 품질 화면에서 판정·해제.</li></ul>`},
+{ id:'qc', t:'품질 관리', pages:['qc'], b:`
+<ol><li><b>[부적합 등록]</b> → LOT · 공정 · 불량 유형 · 수량 · 내용.</li>
+<li>목록의 <b>[처리]</b> → 특채 · 폐기 · 반품 · 재작업 중 선택 (로트 불량이면 HOLD).</li>
+<li>재작업은 <b>[재작업 실적 등록]</b>으로 실적 화면에 이어서 입력.</li></ol>
+<ul><li>분석 탭 — 불량 유형 파레토 · 공정별 불량률 · 설비별 · 작업자별 부적합.</li>
+<li>불량 유형 목록 = 기준정보 › 불량 유형 · 이전 달 미처리 건도 이번 달 목록에 함께 보입니다.</li>
+<li>메뉴가 안 보이면 설정 › 기능 플래그에서 「품질 관리」가 켜져 있는지 확인 (개발자·관리책임자).</li></ul>`},
+{ id:'quote', t:'견적', pages:['quote'], b:`
+<ol><li><b>[새 견적]</b> → 고객사 · 품번 · 수량 · 단가(원가 참고) → 저장.</li><li>견적 내역에서 [상세 보기 →] → 견적서 인쇄 · 수정.</li></ol>`},
+{ id:'po', t:'구매 (발주)', pages:['po'], b:`
+<ol><li><b>[새 발주]</b> → 구매처 · 품목(소재 = 재질·규격 / 구매품) · 수량 · 단가 · 납기 → 저장 → <b>[발주서]</b> 인쇄.</li>
+<li>상태는 입고에 따라 자동 — 대기 · 부분입고 · 지연 · 입고완료 (위쪽 칸을 누르면 그 상태만).</li>
+<li>입고가 연결된 발주는 취소할 수 없습니다 (먼저 입고 취소).</li></ol>`},
+{ id:'matin', t:'입고 (소재 · 구매품 · 외주)', pages:['matin'], b:`
+<ol><li><b>[소재 입고]</b> → 구매처 · 발주 연결 · <b>Heat 번호</b> · 재질 · 규격(Ø·길이) · 중량 → 저장.</li>
+<li>구매품 · 외주 탭에서 각각의 입고를 봅니다 (외주 입고 등록은 외주 화면).</li></ol>
+<ul><li><b>Heat 잔량 원장</b> — 입고 − 투입(첫 공정 양품 × 단중) = 남은 소재.</li>
+<li>입고 현황 = 일별 · 월별 · 연간 · <b>[이월]</b> = 다음 달로 넘김 · 취소 = 기록 보존.</li></ul>`},
+{ id:'os', t:'외주', pages:['os'], b:`
+<ol><li><b>[외주 반출]</b> → 외주처 · 공정 · LOT · 수량(반출 가능량 자동) · 파렛트 수 → 저장 → <b>반출증</b> 인쇄.</li>
+<li>돌아오면 외주 현황의 <b>[입고]</b> → 양품 · 불량 · 회수 파렛트 → 저장 = 그 공정 실적이 자동으로 생깁니다.</li>
+<li>잘못 넣었으면 [취소] — 연결된 실적·파렛트도 함께 취소됩니다.</li></ol>
+<ul><li>외주 정산(금액)은 <b>마감 › 외주</b>.</li><li>최근 외주 입고 = 최신 10건.</li></ul>`},
+{ id:'inv', t:'재고 (재고 실사 포함)', pages:['inv'], b:`
+<ul><li><b>품번별 공정 재고</b> — 공정마다 양품 기준 재고 · 고객사·재질·소재 규격(Ø·길이·단중) 표시 · 외주 반출 중 수량 포함.</li>
+<li><b>소재 재고</b> — Heat 별 남은 양 (입고 화면과 같은 계산).</li></ul>
+<h4>재고 실사 (시험 기능)</h4><ol><li><b>[재고 실사]</b> → 회차 시작 (그 순간 장부 고정).</li><li>실사표 엑셀 내려받기 → 실제 센 수량 적기 → 올리기 → 차이(수량·금액) 미리보기.</li>
+<li><b>확정</b>(재고 조정)은 지금 잠겨 있습니다 — 차이 확인용으로 쓰세요.</li></ol>`},
+{ id:'ship', t:'출하', pages:['ship'], b:`
+<ol><li><b>[새 출하]</b> → 수주 · LOT · 수량 · 파렛트 수 → 저장 → <b>거래명세서</b> 창 (인쇄).</li>
+<li>남은 양(LOT 출하 가능 · 수주 잔량)을 넘으면 저장되지 않습니다.</li>
+<li>잘못 출하했으면 출하 내역 [상세 보기 →] › <b>[취소]</b>(사유) → 다시 등록 · 파렛트도 함께 취소.</li></ol>
+<ul><li>[명세서] = 다시 인쇄 · [이월] = 다음 달 매출로.</li>
+<li><b>월별 매출실적</b> · <b>고객사별 매출</b> 탭 · <b>[납기 실적]</b> = 납기 준수율(고객사·품목별).</li>
+<li>출하 수량 직접 정정은 지금 잠겨 있습니다 (취소 후 재등록).</li>
+<li><b>주의</b> — 지금은 출하를 담당자 1명이 PC 1대에서 하세요 (두 기기가 같은 잔량을 동시에 저장하는 것을 막는 기능은 보안 전환 뒤 켜집니다).</li></ul>`},
+{ id:'pallet', t:'파렛트', pages:['pallet'], b:`
+<ul><li><b>업체별 파렛트 현황</b> — 외주처 = 보낸 것 − 회수 = 미회수 (왕복) · 고객사 = 출고만 (편도 · 파렛트 업체가 회수).</li>
+<li>외주 반출 · 외주 입고 · 출하 때 넣은 파렛트 수는 <b>자동으로</b> 기록됩니다 (취소는 원본 문서에서).</li>
+<li>따로 주고받은 것은 <b>[출고 처리]</b> · <b>[입고(회수)]</b> · [회수 등록].</li></ul>`},
+{ id:'closing', t:'마감', pages:['closing'], b:`
+<ol><li>월을 고르고 <b>매출 · 매입 · 외주</b> 탭에서 금액을 확인합니다.</li><li><b>[○월 매출 마감 확정]</b> → 그 달 거래는 수정·취소가 잠깁니다 (금액이 바뀌지 않게).</li>
+<li>고칠 일이 생기면 <b>[마감 취소]</b> → 고친 뒤 다시 확정 · 마감 이력 탭 = 전체 기록.</li></ol>
+<div class="hp-tip">마감 뒤 거래일을 다른 달로 바꾸는 것은 관리자만 할 수 있습니다. 변경 이력 › 원장 정합성에서 「마감 후 금액 변동」을 확인하세요.</div>`},
+{ id:'acct', t:'회계', pages:['acct'], b:`
+<ul><li><b>수금/지급 원장</b> — 고객사별 미수(경과일 경고) · 구매처·외주처별 미지급 · [수금]/[지급] 등록 · 원장 흐름.</li>
+<li><b>세금계산서·경비</b> — 마감된 매출의 계산서 발행 관리 · 경비(계정과목) 등록.</li>
+<li><b>월 관리 손익</b> — 마감 확정값 기준 매출·매입·외주·경비.</li><li>회계 메뉴 권한이 「없음」인 직원에게는 보이지 않습니다.</li></ul>`},
+{ id:'report', t:'전자결재', pages:['report'], b:`
+<ol><li><b>[결재 작성]</b> → 제목 · 내용.</li>
+<li>첨부: <b>[엑셀 올리기]</b>(표 서식·병합 그대로) · <b>[이미지·캡처 올리기]</b>(화면 캡처 후 Ctrl+V 붙여넣기 · 끌어 놓기).</li>
+<li>결재선: <b>[＋ 단계]</b>로 결재자·직함을 넣거나, 저장해 둔 결재선을 고릅니다 (<b>[결재선 저장]</b> = 관리책임자).</li>
+<li><b>[미리보기·인쇄]</b> — 오른쪽 위 결재란이 있는 결재 문서로 인쇄·PDF.</li></ol>
+<div class="hp-tip">지금 운영에서는 [결재 올리기]·승인·반려가 잠겨 있습니다 — 작성·인쇄해 종이로 결재하세요. 결재함은 잠금이 풀리면 사용합니다.</div>`},
+{ id:'cost', t:'원가', pages:['cost'], b:`
+<ul><li>품번별 원가 카드 — <b>표준</b>(단가표 기준) vs <b>실제</b>(LOT 실적·소재 기준).</li><li><b>[단가표 편집]</b> — 소재 kg 단가 · 공정 단가 등.</li><li>단가·금액 열람 권한이 있어야 보입니다.</li></ul>`},
+{ id:'eqstatus', t:'설비현황', pages:['eqstatus'], b:`
+<ul><li>설비별 가동 · 계획 부하를 일간 · 주간 · 월간 · 년간으로 봅니다. [그룹 모드] = 설비 그룹별 · [편집] = 설비 정보.</li></ul>`},
+{ id:'mold', t:'금형', pages:['mold'], b:`
+<ul><li><b>[금형 추가]</b> — 금형 번호 · 연결 품목 · Cav(1타당 개수) · 보유 수량 · 수명(BL/FI).</li>
+<li>누적 타수 = 연결 품목 단조 실적 ÷ Cav (+ 수동 보정) · 수명의 90% 노랑 · 100% 빨강 경고.</li><li>[엑셀 임포트] · [필드 관리](항목 추가).</li></ul>`},
+{ id:'draw', t:'도면', pages:['draw'], b:`
+<ol><li><b>[도면 등록]</b> → 도면 번호 · 품번 · 리비전.</li><li>첨부 — 파일(2MB 이하 앱 안 저장) · 링크 · PC 경로 · 끌어 놓기.</li>
+<li><b>[리비전 업]</b> = 새 판 · [이력] · [비활성].</li></ol><ul><li>첨부 [삭제] = 목록에서 숨김(복원 가능) · 영구 삭제는 관리자만.</li></ul>`},
+{ id:'docs', t:'문서 출력', pages:['docs'], b:`
+<ol><li>문서 종류 선택 — 작업지시 · 부품 식별표 · 이동표 · 반출증 · 거래명세서 등.</li><li>대상 체크 (전체 선택 · 해제) → <b>[인쇄]</b>.</li></ol>
+<ul><li>식별표 = 라벨지(A4 2×3)에 맞춤 · 시작 칸 선택 · 인쇄 배율 100%.</li><li>인쇄가 잘리면 브라우저 인쇄 설정에서 가로 방향 · 배율 100% · 여백 기본.</li></ul>`},
+{ id:'proc', t:'공정 템플릿 (BOM 라우팅)', pages:['proc'], b:`
+<ul><li><b>표준 공정 흐름</b> — 회사 공통 공정 순서(코드 · 이름 · 사내/외주). [공정 추가] · [편집].</li>
+<li><b>BOM 라우팅</b> — 품번마다 실제 공정 순서. 실적·외주·재고가 이 순서를 따릅니다.</li><li>품번 마스터 탭 = 품번 목록 바로 보기.</li></ul>`},
+{ id:'masters', t:'기준정보', pages:['masters'], b:`
+<ul><li><b>거래처</b> — 고객사 · 구매처 · 외주처를 한 곳에 (구분으로 나눔 · 코드 자유).</li>
+<li><b>품번</b> — 식별번호 자동 채번 ({고객코드}-{순번}-{리비전}) · 소재 · 중량 · 단가 · Cav · 사이클타임 · 정의 필드(회사가 항목 추가).</li>
+<li><b>소재·구매품</b> — 재질·Ø 규격별 단가(발주에 사용) · 구매품.</li><li><b>설비</b> · <b>작업자</b> · <b>불량 유형</b>.</li>
+<li><b>사용자 · 비밀번호 관리</b> — 아래 「사용자·권한」 참고.</li>
+<li>엑셀 임포트 · 필드 관리 지원 · 실적 등 이력이 없는 잘못 등록한 기준정보만 삭제할 수 있습니다.</li></ul>`},
+{ id:'users', t:'사용자 · 권한', pages:['masters','set'], b:`
+<ul><li>역할 — <b>관리책임자</b>(전체 · 설정) · <b>일반</b>(메뉴 권한대로) · <b>현장 작업자</b>(로그인하면 현장 화면).</li>
+<li>메뉴마다 권한 — <b>없음</b>(안 보임) · <b>보기</b>(읽기만) · <b>등록</b>(입력 가능). 새 직원은 회사 기본 메뉴만 등록.</li>
+<li><b>단가·금액 열람</b> — 끄면 수주·발주 단가, 원가, 마감·회계 금액이 보이지 않습니다.</li>
+<li>등록 = [사용자 추가] → 이름 · 역할 · 권한 → 처음 비밀번호 000000 · 비밀번호 [초기화] = 관리책임자·개발자 · 본인은 이름 메뉴에서 직접 변경.</li>
+<li>퇴사 = 비활성(기록은 남음).</li></ul>`},
+{ id:'set', t:'설정', pages:['set'], b:`
+<ul><li><b>회사 정보</b> — 회사명 · 업종(직접 적기) · 사업자 정보 · 로고 · <b>표준 공정 팩</b>(선택: 기본 공정·불량 유형을 한 번에 넣기 · 있는 항목은 덮어쓰지 않음).</li>
+<li><b>판정 지체 기준</b> — 품질·동시성 판정이 며칠 지나면 경고할지.</li><li><b>교대 근무</b> — 1~3교대 (생산계획 시간 기준).</li>
+<li><b>문서 · 출력</b> — 엑셀 결재란 칸 수·이름.</li><li><b>데이터 이관 — 일괄 임포트</b> — 엑셀 템플릿 → 미리보기 → 등록.</li>
+<li><b>[브라우저 점검]</b> — 문제가 있을 때 결과를 [복사]해 보내 주세요 (비밀번호 없음).</li>
+<li>백업·복원 · 기능 켜기/끄기 · 서버 자료 초기화 = 개발자 전용.</li></ul>`},
+{ id:'phone', t:'폰에서 쓰기', pages:[], b:`
+<ul><li>폰 브라우저로 같은 주소를 열고 로그인합니다. 「홈 화면에 추가」 하면 앱처럼 열립니다.</li>
+<li><b>현장 작업자</b> — 현장 화면(출근 · 설비 · 작업 순서 · 실적 · 조회).</li>
+<li><b>사무직·관리책임자</b> — 폰 홈(오늘 할 일 · 조회 · 출하·입고 등록 · 재고). PC 화면이 필요하면 아래 [PC 화면].</li></ul>`},
+{ id:'backup', t:'자료 지키기 (백업 · 확인)', pages:['audit'], b:`
+<ul><li><b>변경 이력</b> — 누가 · 언제 · 무엇을 · 전→후 · LOT 생애주기 · <b>원장 정합성</b>(LOT 출하 초과 · 마감 후 금액 변동). 하루 업무가 끝나면 한 번 확인하세요.</li>
+<li>백업 파일에는 사용자·비밀번호 정보도 들어 있습니다 — 회사 밖으로 보내지 마세요.</li>
+<li>복원은 미리보기와 연결 검사를 거치고, 백업 뒤에 생긴 자료는 그대로 둡니다 (개발자·관리자).</li></ul>`},
+{ id:'trial', t:'체험판 안내', pages:[], b:`
+<ul><li>체험판은 <b>VELA 담당자에게 받은 체험 코드</b>로 시작합니다 (회사명 · 업종 · 관리자 이름·비밀번호 · 빈 상태/예시 데이터).</li>
+<li>자료는 <b>이 PC 의 이 브라우저에만</b> 저장됩니다. 같은 PC 를 여러 회사가 써도 코드마다 따로 저장되고, 들어올 때 <b>회사 선택 → 이름 + 비밀번호</b>로 로그인합니다.</li>
+<li>직원 화면을 체험하려면 관리자로 들어가 기준정보 › 사용자에 직원을 등록 → 로그아웃 → 그 이름 + 000000.</li>
+<li>기간은 기본 30일 — 남은 기간은 설정 › 체험 정보 · 기간이 끝나면 <b>보기·백업만</b> 됩니다 (자료는 지우지 않음). 연장은 담당자에게 받은 <b>기간 변경 코드(VX-…)</b>를 설정 › 체험 정보 또는 회사 선택 화면에 넣습니다.</li>
+<li>브라우저 기록을 지우면 체험 자료가 사라집니다 — <b>설정 › 체험 정보 › [백업 파일 내려받기]</b>로 자주 보관하세요. 정식 도입 때 그 파일로 자료를 옮겨 드립니다.</li>
+<li>다른 체험 회사로 가거나 새 체험을 시작하려면 로그인 화면 <b>[체험 회사 바꾸기 · 새 체험 시작]</b> · 이 회사 체험만 지우려면 설정 › 체험 정보 <b>[이 체험 지우기]</b> (같은 PC 의 다른 회사는 그대로).</li>
+<li>잠긴 기능(출하·입고 수량 정정 · 재고 실사 확정 · 결재 올리기)은 정식과 똑같이 잠겨 있습니다.</li></ul>`},
+{ id:'faq', t:'자주 묻는 질문', pages:[], b:`
+<dl class="hp-faq"><dt>메뉴가 안 보여요</dt><dd>☰ 메뉴 찾기에서 검색해 보고, 「숨은 메뉴 · 이유」(관리책임자)에서 기능 꺼짐·권한 없음을 확인하세요. 권한은 관리책임자가 기준정보 › 사용자에서 바꿉니다.</dd>
+<dt>숫자를 잘못 넣었어요</dt><dd>[상세 보기 →]에서 [수정]이 있는 항목은 고치고, 수량 등은 [취소](사유) 후 다시 등록합니다. 마감된 달은 마감 취소가 먼저입니다.</dd>
+<dt>「저장되지 않았습니다 · 남은 수량 부족」</dt><dd>앞 공정 양품 · LOT 남은 양 · 수주 잔량보다 많이 넣은 경우입니다. 다른 사람이 먼저 저장했을 수도 있으니 화면을 새로 보고 다시 확인하세요.</dd>
+<dt>「서버 저장 거부」 · 화면이 이상해요</dt><dd>Ctrl+F5 로 새로고침 → 같으면 화면 캡처 + 시각 + 무엇을 눌렀는지와 함께 [브라우저 점검] 결과를 보내 주세요.</dd>
+<dt>비밀번호를 잊었어요</dt><dd>관리책임자에게 [초기화]를 요청 → 받은 처음 비밀번호로 로그인 → 새 비밀번호로 변경.</dd>
+<dt>인쇄가 잘려요</dt><dd>인쇄 설정: 가로 방향 · 배율 100% · 여백 기본. 거래명세서·식별표는 미리보기 화면의 [인쇄]를 쓰세요.</dd></dl>`},
+];
+function _helpSecFor(pageId){ return HELP_SECTIONS.find(x => x.id === pageId) || HELP_SECTIONS.find(x => (x.pages || []).includes(pageId)) || null; }
+function openHelpFor(pageId){ window._helpFor = pageId || ''; if(location.hash === '#help') router(); else location.hash = '#help'; }
+VIEWS.help = () => {
+  const v = document.getElementById('view');
+  const secs = HELP_SECTIONS;
+  v.innerHTML = `<div class="page-head" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 style="margin:0">도움말</h1><div style="display:flex;gap:8px;align-items:center"><input id="hp-q" placeholder="검색 — 예: 출하 취소, 비밀번호" style="width:260px;max-width:60vw"><span style="font-size:11.5px;color:var(--dim)">${_esc(APP_VERSION)}${isTrial() ? ' · 체험판' : ''}</span></div></div>
+  <div class="hp-wrap"><nav class="hp-toc hp-card" id="hp-toc">${secs.map(x => `<a href="javascript:void(0)" data-hp-go="${x.id}">${_esc(x.t)}</a>`).join('')}</nav>
+  <div class="hp-body" id="hp-body">${secs.map(x => `<section class="hp-card hp-sec" id="hp-${x.id}" data-hp="${x.id}"><h3>${_esc(x.t)}</h3><div class="hp-txt">${x.b}</div></section>`).join('')}<div id="hp-none" class="hp-card" hidden>찾는 내용이 없습니다 — 다른 낱말로 검색하거나 VELA 담당자에게 문의하세요.</div></div></div>`;
+  const go = id => { const el = document.getElementById('hp-' + id); if(el){ el.scrollIntoView({ block: 'start', behavior: 'smooth' }); el.classList.add('hp-hl'); setTimeout(() => el.classList.remove('hp-hl'), 1600); } };
+  v.querySelectorAll('[data-hp-go]').forEach(a => a.onclick = () => go(a.dataset.hpGo));
+  const q = document.getElementById('hp-q');
+  q.oninput = () => { const t = q.value.trim().toLowerCase(); let n = 0; v.querySelectorAll('.hp-sec').forEach(s => { const ok = !t || s.textContent.toLowerCase().includes(t); s.hidden = !ok; if(ok) n++; }); document.getElementById('hp-none').hidden = n > 0; };
+  const f = window._helpFor; window._helpFor = '';
+  if(f){ const s = _helpSecFor(f); if(s) setTimeout(() => go(s.id), 60); }
+};
+
 VIEWS.docs = () => {
   // 현재 선택된 문서 종류 + 선택 목록
   let docType = 'wo';            // 'wo' | 'label' | 'move' | 'os' | 'tx'
@@ -30692,14 +31039,17 @@ VIEWS.set = () => {
     </div>
     ` : ''}
 
+    ${(!isTrial() && SESSION.role === 'vendor') ? _trialIssueCard() : ''}
     <div class="card">
       <h3>회사 정보 <span class="tag">화면·인쇄에 반영 · v0.12 거래명세서 필드 추가</span></h3>
       <div class="grid g3">
         <div><label>회사명</label><input id="co-name" value="${_esc(co.name||'')}"></div>
         <div><label>공장/사이트</label><input id="co-site" value="${_esc(co.site||'')}"></div>
-        <div><label>업종 프리셋</label>
+        <div><label>업종</label><input id="co-industry" maxlength="40" placeholder="예: 소재 절단·가공 (직접 적기)" value="${_esc(co.industry||'')}"></div>
+        <div><label>표준 공정 팩 <span style="color:var(--dim);font-weight:400">(선택 · 기본 공정 한 번에 넣기)</span></label>
           <div style="display:flex;gap:6px">
           <select id="co-preset" style="flex:1">
+            <option value="" ${!co.preset?'selected':''}>선택 안 함 (직접 등록)</option>
             <option value="forging" ${co.preset==='forging'?'selected':''}>단조팩</option>
             <option value="machining" ${co.preset==='machining'?'selected':''}>가공팩</option>
             <option value="heat" ${co.preset==='heat'?'selected':''}>열처리팩</option>
@@ -31016,6 +31366,7 @@ VIEWS.set = () => {
   const _packBtn = document.getElementById('co-pack-install');
   if(_packBtn) _packBtn.onclick = () => {
     const pk = document.getElementById('co-preset').value;
+    if(!pk){ toast('설치할 표준 공정 팩을 먼저 고르세요', 'warn'); return; }
     if(!INDUSTRY_PACKS[pk]){ toast(`${pk} 팩은 아직 준비 중입니다 (현재: 단조·가공)`, 'warn'); return; }
     openModal(`
       <h2>${_esc(INDUSTRY_PACKS[pk].label)} 설치 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
@@ -31079,6 +31430,7 @@ VIEWS.set = () => {
       name: document.getElementById('co-name').value.trim(),
       site: document.getElementById('co-site').value.trim(),
       preset: document.getElementById('co-preset').value,
+      industry: (document.getElementById('co-industry') || {}).value ? document.getElementById('co-industry').value.trim() : '',   // ★ v0.40.36 업종 = 고객사가 직접 적음
       // ★ v0.12.0 — 거래명세서 필드
       biz_no: document.getElementById('co-biz').value.trim(),
       ceo:    document.getElementById('co-ceo').value.trim(),
@@ -31368,8 +31720,11 @@ VIEWS.set = () => {
   };
   const tB = document.getElementById('btn-trial-backup'); if(tB) tB.onclick = () => { exportFullBackup('trial'); toast('체험 자료 백업 파일을 내려받았습니다 — 안전한 곳에 보관', 'ok', 4000); };
   const tR = document.getElementById('btn-trial-restart'); if(tR) tR.onclick = () => {
-    if(!confirm('이 PC 의 체험 자료를 모두 지우고 첫 화면부터 다시 시작합니다.\n먼저 [백업 파일 내려받기]를 했는지 확인하세요.')) return;
+    if(!confirm('이 체험 회사의 자료를 이 PC 에서 모두 지웁니다 (다른 체험 회사는 그대로).\n먼저 [백업 파일 내려받기]를 했는지 확인하세요.')) return;
     trialRestart(); };
+  const tS = document.getElementById('btn-trial-switch'); if(tS) tS.onclick = () => trialSwitch();
+  _trialIssueBind();   // ★ v0.40.36 개발자 체험 코드 발급
+  const tX = document.getElementById('btn-trial-vx'); if(tX) tX.onclick = () => { try { const w = trialApplyChange(trialActiveId(), document.getElementById('trial-vx').value); toast(`기간 변경 — ${trialDayDate(+w.exp)} 까지`, 'ok', 4000); router(); } catch(e){ toast(e.message, 'err', 5000); } };
   const dExit = document.getElementById('btn-demo-exit');
   if(dExit) dExit.onclick = () => {
     if(!confirm('데모를 종료하고 원래 모드(실 데이터·백엔드·로그인)로 복귀합니다.\n데모 저장소는 유지되어 다음 데모 진입 시 그대로 이어집니다.')) return;
@@ -32065,8 +32420,8 @@ renderBrandCompany();   // ★ v0.38.11 — 1벌 (서버 스냅샷 도착 시에
   } catch(_){}
 
   // ★ v0.22.0 — 데모 모드 자동 로그인 (게이트 생략 · 스플래시는 위 타이머로 걷힘)
-  if(isTrial() && !trialSetup()){ try { renderTrialSetup(); return; } catch(e){ console.error('[VELA] trial setup failed', e); } }   // ★ v0.40.34 체험판 첫 실행
-  if(isDemoMode()){
+  if(isTrial()){ try { if(trialBoot()) return; } catch(e){ console.error('[VELA] trial boot failed', e); } }   // ★ v0.40.36 체험 코드 · 회사 선택   // ★ v0.40.34 체험판 첫 실행
+  if(isDemoMode() && !isTrial()){   // ★ v0.40.36 체험판 = 자동 입장 없음 (회사 로그인 화면)
     try { autoLoginDemo(); return; }
     catch(e){ console.error('[VELA] demo auto-login failed', e); /* 폴백: 아래 게이트 진행 */ }
   }
