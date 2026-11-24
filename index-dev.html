@@ -1832,11 +1832,11 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.36';
+const APP_VERSION = 'v0.40.37';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-11-15';
+const APP_DATE    = '2026-11-24';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -2426,6 +2426,7 @@ const DB = (() => {
     // ★ v0.38.29 — 필드 제거 (구형 비밀번호 값 정리 전용 · 관리자 · 백업 후 — 업무 기록 삭제 아님 · GPT 조건 2)
     stripFields(col, id, keys){
       ensure(col);
+      if(typeof trialIsExpired === 'function' && trialIsExpired()) return false;   // ★ v0.40.37 (GPT 검증 4) 체험 기간 끝 = 필드 정리도 막음
       if(_GROUP) throw new Error('묶음 저장 안에서는 필드 정리를 할 수 없습니다');
       const prev = state[col][id]; if(!prev || !keys || !keys.length) return false;
       const next = { ...prev }; keys.forEach(k => delete next[k]);
@@ -2495,6 +2496,7 @@ const DB = (() => {
     snapshot(){ return JSON.parse(JSON.stringify(state)); },
     restore(s, opts){
       // 참조 유지 in-place 교체 → 어댑터의 _state 도 자동 동기 (같은 객체)
+      { const _tw = (typeof trialRestoreCheck === 'function') ? trialRestoreCheck(s) : null; if(_tw) throw new Error(_tw); }   // ★ v0.40.37
       _rev++;
       // ★ v0.39.4 (GPT v0.39.3 피드백 — T17) — 서버 복원 = 바뀐 문서만 · 백업 뒤 추가된 필드는 지움 · 직원 계정 모드는 단가 분리 경로 그대로 · 계정·보안 기록은 복원 제외
       const before = _ACTIVE_ADAPTER.name === 'local' ? null : JSON.parse(JSON.stringify(state));
@@ -2622,7 +2624,7 @@ function _emuAttach(app, fs){
 const SERVER_TS = Object.freeze({ __vela_server_ts: true });
 // ★ v0.39.4 — 백업 복원 제외 (서버 모드): 계정·보안·서버 기록·단가 문서(원본 복원 때 분리 경로로 다시 씀)
 const RESTORE_SKIP_COLS = ['users', 'approvers', 'devices', 'staff_auth', 'staff_login', 'staff_probe', 'attachment_state', 'attachment_events', 'sec_orders', 'sec_items', 'sec_materials', 'sec_purchase_receipts', 'sec_purchase_orders', 'sec_settings', 'drawing_file_chunks'];   // ★ v0.39.5 — 첨부 파일 조각도 제외 (영구 삭제된 파일이 백업으로 되살아나지 않게)
-const RESTORE_SKIP_SETTINGS = ['server_rules', 'vendor', 'sec_migration_log'];
+const RESTORE_SKIP_SETTINGS = ['server_rules', 'vendor', 'sec_migration_log', 'trial_src'];   // ★ v0.40.37 trial_src = 체험 회사 표시 (정식 복원에는 안 옮김)
 function _restoreSame(a, b){ const n = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)) ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = x[kk]; return o; }, {}) : x); try { return n(a) === n(b); } catch(e){ return false; } }
 /* ★ v0.39.5 → v0.39.6 (GPT v0.39.4 피드백 ①② · GPT v0.39.5 원문 검토) — 복원 계획 · 연결 검사 · 재검사 1벌
    원칙: 백업 뒤 생긴 문서는 유지(물리 삭제 0) → 그 문서가 가리키는 업무 문서가 과거로 돌아가거나, 마감 확정 월 거래·금액이 바뀌거나, 수량 문제가 새로 생기거나 「더 나빠지면」 막음
@@ -3873,7 +3875,7 @@ function openRestorePreview(parsed, fname, colCount, docCount, opts){
     openModal(`<h2>백업 복원 확인 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
       <div style="padding:14px;background:var(--bg2);border:1px solid var(--amber);border-radius:10px;line-height:1.7;font-size:12px"><b style="color:var(--amber)">⚠ 이 기기(로컬) 데이터를 파일 내용으로 교체</b><div>파일 <b>${_esc(fname)}</b> · 컬렉션 ${colCount} · 문서 ${docCount.toLocaleString()} · 복원 전에 지금 상태를 자동 백업합니다</div></div>
       <div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="bk-restore-ok">${ico('refresh')}복원 실행</button></div></div>`);
-    document.getElementById('bk-restore-ok').onclick = () => { if(_RESTORE_BUSY) return; _RESTORE_BUSY = true; try { exportFullBackup('before-restore'); DB.restore(JSON.parse(SRC)); toast(`복원 완료 · ${docCount.toLocaleString()}건 (이 기기)`, 'ok'); closeModal(); renderNav(); router(); } catch(err){ console.error(err); toast('복원 실패 — 콘솔 확인', 'err'); } finally { _RESTORE_BUSY = false; } };
+    document.getElementById('bk-restore-ok').onclick = () => { if(_RESTORE_BUSY) return; _RESTORE_BUSY = true; try { exportFullBackup('before-restore'); DB.restore(JSON.parse(SRC)); toast(`복원 완료 · ${docCount.toLocaleString()}건 (이 기기)`, 'ok'); closeModal(); renderNav(); router(); } catch(err){ console.error(err); toast('복원 실패 — ' + ((err && err.message) || '콘솔 확인'), 'err', 5000); } finally { _RESTORE_BUSY = false; } };
     return;
   }
   let plan; if(opts && opts.exclude){ plan = restorePlan(JSON.parse(SRC), { exclude: opts.exclude }); plan.exclude = opts.exclude; plan.excludeWhy = opts.excludeWhy || {}; } else plan = restorePlan(JSON.parse(SRC));
@@ -3913,7 +3915,15 @@ function openRestorePreview(parsed, fname, colCount, docCount, opts){
   };
   draw(); restoreLockState().then(l => { lock = l; if(document.getElementById('bk-restore-ok')) draw(); });
 }
+function trialRestoreCheck(s){   // ★ v0.40.37 (GPT 검증 2) 체험판 복원 = 같은 체험 회사의 백업만 · 기간 안에서만
+  if(!isTrial()) return null;
+  if(trialIsExpired()) return '체험 기간이 끝나 복원할 수 없습니다 (보기·백업만)';
+  const src = s && s.settings && s.settings.trial_src;
+  if(!src || src.ws !== trialActiveId())   /* 문서 id 는 'trial_src' — 체험 번호는 ws */ return '이 체험 회사의 백업 파일이 아닙니다 (다른 회사 또는 체험 표시 없는 파일)';
+  return null;
+}
 async function runRestore(parsed, plan, opts){
+  { const _tw = trialRestoreCheck(parsed); if(_tw) return { aborted: 'trial', why: _tw }; }
   if(_RESTORE_BUSY) return { aborted: 'busy', why: '이미 복원 중' }; _RESTORE_BUSY = true;
   try {
     opts = opts || {}; const SRC = opts.SRC || JSON.stringify(parsed);
@@ -4171,7 +4181,9 @@ async function _cutReconcile(backup){
   _cutSave({ rc: { v: rc.verdict, checked: rc.checked, at: Date.now(), logAt: _tsMs(lg.at), hash: lg.ids_hash || null } }); return rc;
 }
 function exportFullBackup(tag){
-  const blob = new Blob([JSON.stringify(DB.snapshot(), null, 2)], { type: 'application/json' });
+  const snap = DB.snapshot();
+  if(isTrial()){ const w = trialWs(); if(w){ snap.settings = { ...(snap.settings || {}), trial_src: { id: 'trial_src', ws: w.id, code: w.code, company: w.company } }; } }   // ★ v0.40.37 (GPT 2차) 내보낼 사본에 체험 회사 표시 (만료로 DB 에 못 쓴 경우도)
+  const blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = `vela-mes-backup_${tag || 'before-migration'}_${fmtDate(Date.now())}.json`; a.click();
   toast('백업 다운로드', 'ok');
@@ -4755,6 +4767,7 @@ async function verifyPassword(input, opts){
 const _REMEMBER_KEY = 'vela_remember';
 function _rememberKey(){ return isTrial() ? 'vela_trial_remember:' + trialActiveId() : isDemoMode() ? 'vela_demo_remember' : _REMEMBER_KEY; }   // ★ v0.40.36 체험판 = 체험 회사마다 따로
 function getRememberedLogin(){
+  if(isTrial()) return null;   // ★ v0.40.37 (GPT 검증 3) 체험판 = 항상 이름 + 비밀번호 (자동 로그인 없음)
   try { const r = JSON.parse(localStorage.getItem(_rememberKey()) || 'null'); return r && r.userId && r.token && r.dev ? r : null; } catch(e){ return null; }
 }
 function clearRememberedLogin(){ try { localStorage.removeItem(_rememberKey()); } catch(e){} }
@@ -4763,6 +4776,7 @@ function _randToken(){
   catch(e){ return Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); }
 }
 async function rememberLogin(u){
+  if(isTrial()) return false;   // ★ v0.40.37
   if(!u || u.role !== 'worker') return false;
   const token = _randToken(); const dev = `${getDeviceCode()}-${_randToken().slice(0,6)}`;
   const hash = await hashPassword(token, u.id);
@@ -8958,7 +8972,7 @@ function renderPinPad(){
         <button type="button" class="pw-toggle" id="gt-pw-toggle" aria-label="비밀번호 표시/숨김" title="비밀번호 표시/숨김">👁</button>
       </div>
       <div class="pw-err" id="gt-err"></div>
-      <label class="gp-remember"><input type="checkbox" id="gt-remember"> 이 기기에서 자동 로그인 <span class="dim">(${isStaffMode() ? '개인 기기만 · 공용 PC·폰이면 끄기' : '현장 작업자만 · 공용 폰이면 끄기'})</span></label>
+      <label class="gp-remember"${isTrial() ? ' hidden' : ''}><input type="checkbox" id="gt-remember"> 이 기기에서 자동 로그인 <span class="dim">(${isStaffMode() ? '개인 기기만 · 공용 PC·폰이면 끄기' : '현장 작업자만 · 공용 폰이면 끄기'})</span></label>
       <button type="submit" class="gp-login-btn" id="gt-login">로그인</button>
       <div class="pw-hint">${isStaffMode() ? '처음이면 관리책임자에게 받은 <b style="color:var(--cyan)">임시 비밀번호</b> · 첫 로그인 때 새 비밀번호로 변경' : '초기 비밀번호 <b style="color:var(--cyan)">000000</b> · 첫 로그인 시 새 정책으로 변경'}</div>
     </form>
@@ -9301,6 +9315,7 @@ function trialSeed(w){
   const allOn = {}; MODULE_DEFS.forEach(m => m.items.forEach(([k]) => { allOn[k] = true; })); DB.set('settings', 'features', { flags: allOn });
   DB.set('settings', 'company', { ...(DB.get('settings', 'company') || {}), name: w.company, industry: w.industry || '', preset: '' });
   DB.set('users', 'U-ADMIN', { id: 'U-ADMIN', name: w.admin, role: 'manager', active: true, pin: w.adminPin, created_at: Date.now(), last_login: null });
+  DB.set('settings', 'trial_src', { ws: w.id, code: w.code, company: w.company });   // ★ v0.40.37 (GPT 검증 2) 백업 파일에 체험 회사 표시
   trialWsUpdate(w.id, { seeded: Date.now(), adminPin: null });   // 비밀번호 해시는 회사 자료 안에만
 }
 /* 부팅: 체험 회사가 없으면 시작 화면 · 이 탭에서 고른 회사가 없으면 선택 화면 · 고른 회사 = 처음이면 자료 만들고 로그인 화면 (true = 부팅 여기서 끝) */
@@ -9311,6 +9326,7 @@ function trialBoot(){
   const w = trialWs();
   if(!w){ if(l.length === 1 && !sessionStorage.getItem('vela_trial_pick')){ try { sessionStorage.setItem(_TRIAL_ACTIVE_KEY, l[0].id); } catch(e){} location.reload(); return true; } renderTrialPicker(); return true; }
   if(!w.seeded) trialSeed(w);
+  else if(!DB.get('settings', 'trial_src') && !trialIsExpired()) DB.set('settings', 'trial_src', { ws: w.id, code: w.code, company: w.company });   // v0.40.36 에 시작한 체험
   return false;
 }
 function _trialCard(){
@@ -9319,7 +9335,7 @@ function _trialCard(){
     <h3><span class="demo-badge" style="margin-right:6px">체험판</span>체험 정보 <span class="tag">코드 ${_esc(w.code || '')}</span></h3>
     <div style="font-size:12.5px;line-height:1.8;margin-bottom:6px"><b>${_esc(w.company || getCompany().name || '')}</b> ${_esc(w.industry || '')} · ${w.mode === 'sample' ? '예시 데이터로 시작' : '빈 상태로 시작'}${w.created ? ' · 시작 ' + fmtDate(w.created) : ''}<br>기간: ${_trialLeftTxt(w)}</div>
     <div style="font-size:12px;color:var(--sub);line-height:1.7;margin-bottom:10px">자료는 <b>이 PC 의 이 브라우저에만</b> 저장됩니다 (서버 연결 없음 · 다른 PC·다른 회사와 섞이지 않음). 브라우저 기록을 지우면 사라지므로 <b>백업 파일</b>을 자주 보관하세요 — 정식 도입 때 이 파일로 옮깁니다. 잠긴 기능은 정식과 똑같이 잠겨 있습니다.</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn primary" id="btn-trial-backup">${ico('save')}백업 파일 내려받기</button><input id="trial-vx" placeholder="기간 변경 코드 VX-…" style="max-width:200px;text-transform:uppercase"><button class="btn" id="btn-trial-vx">기간 변경</button><button class="btn" id="btn-trial-switch">회사 바꾸기</button><button class="btn" id="btn-trial-restart">${ico('refresh')}이 체험 지우기</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn primary" id="btn-trial-backup">${ico('save')}백업 파일 내려받기</button><input id="trial-vx" placeholder="기간 변경 코드 VX-…" style="max-width:200px;text-transform:uppercase"><button class="btn" id="btn-trial-vx">기간 변경</button><button class="btn" id="btn-trial-switch">회사 바꾸기</button>${trialIsExpired() ? '' : `<label class="btn" style="cursor:pointer" title="이 체험 회사의 백업 파일만 · 지금 자료를 파일 내용으로 바꿈">${ico('refresh')}백업 파일로 복원<input id="trial-import" type="file" accept=".json" style="display:none"></label><button class="btn" id="btn-trial-restart">${ico('refresh')}이 체험 지우기</button>`}</div>
   </div>`;
 }
 /* ★ v0.40.36 개발자 전용 — 체험 코드 발급·기간 변경 (정식 앱 · 개발자 로그인) · 발급 목록 = 이 PC 에만 기록 */
@@ -9336,6 +9352,7 @@ function _trialIssueCard(){
   </div>`;
 }
 function _trialIssueBind(){
+  if(isTrial() || SESSION.role !== 'vendor') return;   // ★ v0.40.37 (GPT 검증 6) 카드와 같은 조건
   const go = document.getElementById('ti-go'); if(!go) return;
   const show = (t, sub) => { document.getElementById('ti-out').innerHTML = `<b class="mono" style="font-size:15px;letter-spacing:.5px">${_esc(t)}</b> <button class="btn" id="ti-copy">복사</button> <span style="color:var(--sub)">${_esc(sub)}</span>`;
     document.getElementById('ti-copy').onclick = async () => { try { await navigator.clipboard.writeText(t); toast('복사함', 'ok'); } catch(e){ toast('복사 실패 — 코드를 직접 적어 주세요', 'warn'); } }; };
@@ -9348,6 +9365,7 @@ function _trialIssueBind(){
 }
 function trialSwitch(){ try { sessionStorage.removeItem(_TRIAL_ACTIVE_KEY); sessionStorage.setItem('vela_trial_pick', '1'); } catch(e){} location.reload(); }
 function trialRestart(){   // 이 체험 회사의 자료·등록을 지움 (다른 체험 회사는 그대로)
+  if(trialIsExpired()){ toast('체험 기간이 끝나 지울 수 없습니다 — 보기·백업만 (기간 변경 코드를 넣으면 다시 가능)', 'warn', 4000); return; }   // ★ v0.40.37 (GPT 검증 1)
   const id = trialActiveId();
   try { localStorage.removeItem(_DEMO_LS_KEY); localStorage.removeItem(_DEMO_EMPTY_KEY); localStorage.removeItem(_rememberKey()); localStorage.removeItem(_sesKey()); trialWsSave(trialWsList().filter(w => w.id !== id)); sessionStorage.removeItem(_TRIAL_ACTIVE_KEY); } catch(e){}
   location.reload();
@@ -9492,8 +9510,8 @@ function _permBlockWrite(col, id){
   try {
     /* ★ v0.40.30 — 실행하는 탭도 막음 (지운 자료가 이 탭 메모리에서 다시 올라가지 않게 · 삭제는 저장 경로 밖에서 서버로 직접) */
     if(window._wipeFreeze){ const now = Date.now(); if(now - _permToastTs > 1500){ _permToastTs = now; try { toast('서버 자료 초기화 중 — 저장이 막혀 있습니다', 'warn', 3000); } catch(e){} } return true; }   // ★ v0.40.29
+    if(trialIsExpired()){ const now = Date.now(); if(now - _permToastTs > 1500){ _permToastTs = now; try { toast('체험 기간이 끝났습니다 — 보기·백업만 (설정 › 체험 정보 › 기간 변경 코드)', 'warn', 4000); } catch(e){} } return true; }   // ★ v0.40.36 · v0.40.37 (GPT 검증 4) 로그인 전에도 막음
     if(typeof SESSION === 'undefined' || !SESSION.loggedIn) return false;   // 부팅·시드·마이그레이션
-    if(trialIsExpired()){ const now = Date.now(); if(now - _permToastTs > 1500){ _permToastTs = now; try { toast('체험 기간이 끝났습니다 — 보기·백업만 (설정 › 체험 정보 › 기간 변경 코드)', 'warn', 4000); } catch(e){} } return true; }   // ★ v0.40.36
     if(SESSION.role === 'manager' || SESSION.role === 'vendor') return false;
     if(col === 'users') return false;                                        // last_login 등 시스템 기록
     if(col === 'settings' && SESSION.userId && id === 'prefs.' + SESSION.userId) return false;   // ★ v0.37.7 — 본인 개인 설정(prefs.{내 userId}) 만 보기 전용 화면에서도 저장 (원장 아님 · 표시 항목만 · 남의 prefs 는 예외 아님 · GPT 조건부 승인 2026-09-23)
@@ -31019,7 +31037,7 @@ VIEWS.set = () => {
       <div class="pgtitle"><svg class="ic" viewBox="0 0 24 24">${pgIcon('set')}</svg>설정</div>
       <div class="pgtools">
         <button class="btn" id="btn-diag" title="Edge·Chrome 비교용 — 이 브라우저의 로그인·서버·저장 상태">${ico('eye')}브라우저 점검</button>
-        <button class="btn warn" id="btn-wipe">${ico('trash')}${DB._backend === 'firestore' && !isDemoMode() ? '서버 자료 초기화' : '데이터 초기화'}</button>
+        ${isTrial() ? '' : `<button class="btn warn" id="btn-wipe">${ico('trash')}${DB._backend === 'firestore' && !isDemoMode() ? '서버 자료 초기화' : '데이터 초기화'}</button>`}
       </div>
     </div>
 
@@ -31719,6 +31737,12 @@ VIEWS.set = () => {
     document.getElementById('demo-reset-empty').onclick  = () => { try{ localStorage.setItem(_DEMO_EMPTY_KEY,'1'); }catch(e){} resetDemoData(); };
   };
   const tB = document.getElementById('btn-trial-backup'); if(tB) tB.onclick = () => { exportFullBackup('trial'); toast('체험 자료 백업 파일을 내려받았습니다 — 안전한 곳에 보관', 'ok', 4000); };
+  const tI = document.getElementById('trial-import'); if(tI) tI.onchange = e => {   // ★ v0.40.37 (GPT 2차 지적) 체험 관리자 복원 입구 — 같은 체험 회사 백업만 · 기간 안에서만
+    const f = e.target.files[0]; if(!f) return; const r = new FileReader();
+    r.onload = () => { let parsed; try { parsed = JSON.parse(r.result); } catch(err){ toast('잘못된 백업 파일 (JSON 아님)', 'err'); tI.value = ''; return; }   /* GPT 3차: 같은 파일 다시 고를 수 있게 */
+      const why = trialRestoreCheck(parsed); if(why){ toast(why, 'err', 5000); tI.value = ''; return; }
+      tI.value = ''; openRestorePreview(parsed, f.name, Object.keys(parsed || {}).length, Object.values(parsed || {}).reduce((n, c) => n + Object.keys(c || {}).length, 0)); };
+    r.readAsText(f); };
   const tR = document.getElementById('btn-trial-restart'); if(tR) tR.onclick = () => {
     if(!confirm('이 체험 회사의 자료를 이 PC 에서 모두 지웁니다 (다른 체험 회사는 그대로).\n먼저 [백업 파일 내려받기]를 했는지 확인하세요.')) return;
     trialRestart(); };
@@ -31732,7 +31756,7 @@ VIEWS.set = () => {
   };
   // ★ v0.15.3 — 데이터 초기화 2단 가드 (백업 다운로드 + "초기화" 타이핑)
   document.getElementById('btn-diag').onclick = openBrowserDiag;
-  document.getElementById('btn-wipe').onclick = () => {
+  if(document.getElementById('btn-wipe')) document.getElementById('btn-wipe').onclick = () => {   // ★ v0.40.37 체험판 = 버튼 없음 (설정 › 체험 정보 [이 체험 지우기])
     if(DB._backend === 'firestore' && !isDemoMode()){ openServerWipe(); return; }   // ★ v0.40.29 — 서버 모드 = 서버 초기화 도구 (이 기기 사본만 지우는 옛 동작은 서버 모드에서 안 씀)
     openModal(`
       <h2>모든 데이터 초기화 <button class="x" onclick="closeModal()">${ico('x')}</button></h2>
