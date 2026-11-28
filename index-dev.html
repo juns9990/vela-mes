@@ -1832,7 +1832,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.40';
+const APP_VERSION = 'v0.40.41';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -2275,7 +2275,10 @@ const _FIRESTORE_ADAPTER = {
         if(ex.length){ const er = new Error('이미 서버에 있는 문서 — 다시 쓰지 않음'); er.code = 'already-exists'; er.existing = ex.map(sn => ({ col: sn.ref.parent.id, id: sn.id, data: sn.data() })); throw er; }
         /* ★ v0.40.39 (GPT 검증 6차 [A]) — QR 반출증에 줄을 붙이는 묶음 = 그 반출증의 기준 줄(첫 줄 · os_cnt 를 함께 갱신)을 이 트랜잭션에서 읽음: 닫힘 표시(os_closed)가 있으면 저장하지 않음
            · 강제 닫기 트랜잭션도 같은 기준 줄을 읽고 씀 → 「줄 추가」 와 「닫기」 가 같은 서버 상태를 보고 하나만 성립 (닫힌 반출증에 줄이 붙지 않음 · 줄이 붙은 것을 모른 채 닫히지 않음) */
-        const _anch = list.filter(w => w.col === 'os_dispatches' && w.doc && Object.prototype.hasOwnProperty.call(w.doc, 'os_cnt'));
+        /* ★ v0.40.41 — 「줄을 붙이는 묶음」 일 때만 확인: 이 묶음이 새 반출 줄을 만들고(createOnly 대상) 그와 다른 기준 줄을 함께 고칠 때.
+           예전(v0.40.39~40)에는 기준 줄 문서에 os_cnt 가 들어 있기만 하면 줄 추가로 보아, 닫힌 반출증의 첫 줄을 취소·정정하는 저장까지 「이미 닫혔습니다」 로 거부했음(수량 보호가 켜진 서버에서만 · E2E F7 에서 발견) */
+        const _newOd = new Set(targets.filter(r => r.parent && r.parent.id === 'os_dispatches').map(r => String(r.id)));
+        const _anch = !_newOd.size ? [] : list.filter(w => w.col === 'os_dispatches' && w.doc && !_newOd.has(String(w.id)) && Object.prototype.hasOwnProperty.call(w.doc, 'os_cnt'));
         if(_anch.length){ const as = await Promise.all(_anch.map(w => tx.get(fs.collection('os_dispatches').doc(String(w.id))))); as.forEach(sn => { const x = _snapData(sn); if(!x || x.os_closed) throw Object.assign(new Error('이 반출증은 이미 닫혔습니다 — 줄을 더 붙일 수 없습니다 (남은 줄은 새 반출증 번호로 저장)'), { code: 'qg-slip-closed' }); }); }
         const gw = []; const qgPaths = new Set();
         if(useQg){
@@ -19088,9 +19091,15 @@ function openQrOsIn(){
   // 줄의 입력값(화면 기억): 기본 = 남은 전량·불량 0·미회수 파렛트 전부 · 그 반출의 남은 수량이 바뀌면(일부 입고됨) 기본값으로 다시 맞추고 체크를 뺌(나머지를 실수로 또 저장하지 않게 — 다시 찍거나 체크하면 됨)
   const inOf = (dp, s) => { const base = s.rem + ':' + s.pMiss; let v = ins[dp.id]; if(!v){ v = ins[dp.id] = { chk: true, g: s.rem, d: 0, p: s.pMiss, base }; } else if(v.base !== base){ v.g = s.rem; v.d = 0; v.p = s.pMiss; v.base = base; v.chk = false; } return v; };
   const picks = () => list.map(id => DB.get('os_dispatches', id)).filter(dp => dp && !dp.void).map(dp => { const s = stOf(dp); const v = inOf(dp, s); return { dp, s, v }; }).filter(x => !x.s.done && !x.s.pend && x.v.chk && ((x.v.g + x.v.d) > 0 || x.v.p > 0));
+  /* ★ v0.40.41 — 반출이 취소된 줄: 조용히 사라지지 않게. 목록에서 빼면서 알리고(다시 그릴 때) · 체크돼 있던 줄이면 다음 [입고 저장] 한 번을 막고 다시 확인받음
+     (GPT 검증 v0.40.40-2 [B] · v0.40.41-1 [B]: 체크한 줄이 전부 취소되면 버튼이 꺼져 누를 수 없으므로 다시 그릴 때도 알림) */
+  const goneChk = [];
+  const dropGone = () => { const g = list.filter(id => { const dp = DB.get('os_dispatches', id); return !dp || dp.void; }); g.forEach(id => { if(ins[id] && ins[id].chk) goneChk.push(id); delete ins[id]; const i = list.indexOf(id); if(i >= 0) list.splice(i, 1); }); return g; };
+  const goneTxt = a => a.slice(0, 3).join(', ') + (a.length > 3 ? ' …' : '');
   const drawSave = () => { const b = $('qi-save'); if(!b) return; const ps = picks(); const q = ps.reduce((a, x) => a + x.v.g + x.v.d, 0); b.disabled = !ps.length || !!window._qiRun; b.innerHTML = `${ico('save')}입고 저장${ps.length ? ` (${ps.length}줄 · ${q.toLocaleString()} ea)` : ''}`; };
   const draw = () => {
     if(!alive()) return;
+    const _gd = dropGone();
     const rows = list.map(id => DB.get('os_dispatches', id)).filter(dp => dp && !dp.void);
     $('qi-lines').innerHTML = rows.length ? rows.map(dp => {
       const lot = DB.get('production_lots', dp.plot_no) || {}, it = DB.get('items', lot.itemCode) || {}; const s = stOf(dp); const rem = s.rem, pMiss = s.pMiss, done = s.done, pend = s.pend; const got = qiGot(dp), adj = stockAdjOs(dp.id); const v = inOf(dp, s); const id = _esc(dp.id); const lock = done || pend;
@@ -19109,6 +19118,7 @@ function openQrOsIn(){
     bind('[data-qi-d]', 'qiD', (el, v, s) => { v.d = num(el, s.rem); if(v.g + v.d > s.rem) v.g = Math.max(0, s.rem - v.d); v.chk = true; });
     bind('[data-qi-p]', 'qiP', (el, v, s) => { v.p = num(el, s.pMiss); v.chk = true; });
     drawSave();
+    if(_gd.length) say(`반출이 취소된 줄 ${_gd.length}개를 목록에서 뺐습니다 (${goneTxt(_gd)})${goneChk.length ? ' — 체크해 둔 줄이 있었습니다 · 나머지를 확인하세요' : ''}`, 'warn');
   };
   const onScan = (text) => {
     let r; try { r = qiFind(text); } catch(e){ say(e.message, 'err'); return { err: e.message }; }
@@ -19122,8 +19132,10 @@ function openQrOsIn(){
   $('qi-cam').onclick = startCam;
   $('qi-add').onclick = () => { const v = $('qi-in').value.trim(); if(!v) return; $('qi-in').value = ''; onScan(v); $('qi-in').focus(); };
   $('qi-in').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); $('qi-add').click(); } };
-  $('qi-clear').onclick = () => { if(window._qiRun) return; list.length = 0; Object.keys(ins).forEach(k => { delete ins[k]; }); say('비웠습니다'); draw(); };
+  $('qi-clear').onclick = () => { if(window._qiRun) return; goneChk.length = 0; list.length = 0; Object.keys(ins).forEach(k => { delete ins[k]; }); say('비웠습니다'); draw(); };
   $('qi-save').onclick = () => { if(window._qiRun) return;
+    dropGone();   // ★ v0.40.41 — 체크한 뒤 반출이 취소된 줄 = 조용히 빼고 나머지만 저장하지 않고, 아무것도 보내지 않고 알리고 다시 확인받음
+    if(goneChk.length){ const g = goneChk.splice(0); draw(); say(`체크한 뒤 반출이 취소된 줄이 ${g.length}개 있습니다 (${goneTxt(g)}) — 저장하지 않았습니다 · 목록에서 뺐으니 나머지를 확인하고 다시 [입고 저장]`, 'warn'); return; }
     const moved = list.map(id => DB.get('os_dispatches', id)).filter(dp => dp && !dp.void).filter(dp => { const v = ins[dp.id]; const st = stOf(dp); return v && v.chk && v.base !== st.rem + ':' + st.pMiss; });   // 화면에 보인 뒤 남은 수량이 바뀐 줄(다른 곳에서 입고) = 조용히 빼고 저장하지 않고, 알리고 다시 확인받음
     if(moved.length){ draw(); say(`남은 수량이 바뀐 줄이 ${moved.length}개 있습니다 (다른 곳에서 입고됨) — 저장하지 않았습니다 · 수량을 다시 확인하고 체크하세요`, 'warn'); return; }
     const held = list.map(id => DB.get('os_dispatches', id)).filter(dp => dp && !dp.void).filter(dp => { const v = ins[dp.id]; const st = stOf(dp); return v && v.chk && st.pend && !st.done; });   // ★ GPT 검증 v0.40.40-1 [B] — 체크한 뒤 「이전 입고 요청 확인 필요」 가 된 줄 = 조용히 빼지 않고 알림
@@ -21272,6 +21284,16 @@ function _openPrint(title, bodyHTML, extraCSS, opts){
                   · LOT 1건을 N장 반복(포장 실측 기준) · 6장 초과 시 다음 페이지.
    신설분은 데이터 추출(_labelCellData) 1벌을 공유하고 레이아웃만 분기한다.
    ================================================================================================= */
+// ★ v0.40.41 — 식별표 발행일 표시 ('2026-11-28' → '26년 11월 28일') · 소재 규격(재질 · Ø지름 × 길이) = 품번 기준정보 그대로(표시용 · 계산 연동 없음)
+function _fmtDateK(ts){ const a = String(fmtDate(ts)).split('-'); return a.length === 3 ? `${a[0].slice(2)}년 ${+a[1]}월 ${+a[2]}일` : String(fmtDate(ts)); }
+// ★ v0.40.41 (GPT 검증 1차 [A]) — LOT 의 납기 = 그 LOT 의 작업지시에 연결된 수주의 납기. 같은 품번의 다른 수주 납기를 찍지 않음 · 연결된 수주가 없으면(재고생산) 빈 값
+function _lotDue(plot_no){ const wo = DB.query('work_orders', w => w.plot_no === plot_no)[0]; const so = (wo && wo.so_id) ? DB.get('orders', wo.so_id) : null; return (so && !so.void && so.due) ? String(so.due) : ''; }
+function _matSpec(itemCode){
+  const it = DB.get('items', itemCode) || {}; const bom = getBOM(itemCode);
+  const n = v => (+v).toLocaleString(undefined, { maximumFractionDigits: 3 });
+  const dia = +(bom?.material?.dia ?? it.dia) || 0, len = +it.mat_len_mm || 0;
+  return { mat: bom?.material?.type || it.mat || '', dia, len, size: [dia ? 'Ø' + n(dia) : '', len ? n(len) + 'mm' : ''].filter(Boolean).join(' × ') };
+}
 // 라벨 1칸의 표시 데이터 1벌 — A4·V3210 공용 (양식별 중복 조회 금지)
 function _labelCellData(entry){
   const plot_no = entry && entry.plot_no;
@@ -21292,11 +21314,12 @@ function _labelCellData(entry){
     pkg,
     qty:  (pkg!=null) ? pkg : (lot.qty_initial || 0),
     cust: custRef ? (getCustomerName(custRef) || custRef) : '',
+    issued: _fmtDateK(Date.now()),   // ★ v0.40.41 발행일 = 인쇄한 날
     payload: JSON.stringify({plot_no, item:lot.itemCode, pack_qty:pkg||null}),
   };
 }
 
-// ── A4 일반 (현행 · v0.16.11 양식 그대로) ─────────────────────────────────────
+// ── A4 일반 (★ v0.40.41 사용자 서식 — 제목 + QR(오른쪽 위) · 고객사·품번·품명·LOT No·수량·발행일 · 아래 상호명 · QR 내용은 그대로) ──
 function _printLabelA4(expand){
   const co = getCompany();
   const date = fmtDate(Date.now());
@@ -21305,22 +21328,23 @@ function _printLabelA4(expand){
   function cell(entry){
     const d = _labelCellData(entry);
     if(!d) return `<div class="cell"></div>`;
-    if(d.missing) return `<div class="cell"><div class="cell-in"><div class="cell-co">LOT 없음: ${_esc(d.plot_no)}</div></div></div>`;
-    const qr = qrDataURL(d.payload, {cell:3, margin:4});
-    const coLine = (co?.name && co.name.trim())? `<div class="cell-co">${_esc(co.name)}</div>` : '';
-    const packLine = `<div class="kv"><span class="k">포장</span><span class="v mono">${d.pkg!=null? d.pkg.toLocaleString()+' ea' : '—'}</span></div>`;
+    if(d.missing) return `<div class="cell"><div class="cell-in"><div class="t-co">LOT 없음: ${_esc(d.plot_no)}</div></div></div>`;
+    const qr = qrDataURL(d.payload, {cell:4, margin:4});
+    const row = (k, v, cls, side) => `<div class="tr${side ? ' side' : ''}"><span class="k">${k}</span><span class="v${cls ? ' ' + cls : ''}">${v}</span></div>`;
     return `<div class="cell">
       <div class="cut-mark">✂</div>
       <div class="cell-in">
-        ${coLine}
-        <div class="cell-head"><div class="ci-code">${_esc(d.itemCode)}</div><div class="ci-name">${_esc(d.itemName)}</div></div>
-        <div class="cell-body">
-          <div class="kv"><span class="k">LOT</span><span class="v mono">${_esc(d.plot_no)}</span></div>
-          <div class="kv"><span class="k">수량</span><span class="v mono">${d.qty.toLocaleString()} ea</span></div>
-          <div class="kv"><span class="k">소재</span><span class="v">${_esc(d.mat)}${d.heat?` · ${_esc(d.heat)}`:''}</span></div>
-          ${packLine}
-        </div>
         <img class="cell-qr" src="${qr}">
+        <div class="t-title">부품 식별표</div>
+        <div class="t-rows">
+          ${row('고객사', d.cust ? _esc(d.cust) : '—', '', 1)}
+          ${row('품번', _esc(d.itemCode), 'code', 1)}
+          ${row('품명', d.itemName ? _esc(d.itemName) : '—')}
+          ${row('LOT No', _esc(d.plot_no), 'mono')}
+          ${row('수량', `${d.qty.toLocaleString()} EA`, 'mono')}
+          ${row('발행일', _esc(d.issued))}
+        </div>
+        <div class="t-co">${(co?.name && co.name.trim()) ? _esc(co.name) : ''}</div>
       </div>
     </div>`;
   }
@@ -21338,19 +21362,20 @@ function _printLabelA4(expand){
   const css = `
     .page{width:794px;height:1010px;background:#fff;padding:36px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
     .ptitle{font-size:13px;font-weight:700;color:#888;margin-bottom:18px;letter-spacing:1px;display:flex;justify-content:space-between}
-    .grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:0;height:920px}
-    .cell{border:1px dashed #b8bbc2;position:relative;padding:6px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,minmax(0,1fr));gap:0;height:920px}
+    .cell{border:1px dashed #b8bbc2;position:relative;padding:6px;min-width:0;min-height:0}
     .cut-mark{position:absolute;top:-9px;left:-7px;font-size:11px;color:#c0c3ca}
-    .cell-in{border:2px solid #16181d;border-radius:6px;height:100%;padding:14px 18px;display:flex;flex-direction:column;position:relative}
-    .cell-co{font-size:11px;font-weight:700;color:#888;letter-spacing:.5px;margin-bottom:8px}
-    .cell-head{display:flex;align-items:baseline;gap:9px;border-bottom:2px solid #16181d;padding-bottom:8px;margin-bottom:10px}
-    .ci-code{font-size:20px;font-weight:900;font-family:'JetBrains Mono','Consolas',monospace}
-    .ci-name{font-size:13px;color:#555}
-    .cell-body{flex:1}
-    .kv{display:flex;padding:4px 0;font-size:13px}
-    .kv .k{width:42px;color:#888;font-weight:500;font-size:11px;padding-top:2px}
-    .kv .v{font-weight:700}
-    .cell-qr{width:86px;height:86px;position:absolute;right:16px;bottom:14px}
+    .cell-in{border:2px solid #16181d;border-radius:6px;height:100%;padding:12px 16px 9px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+    .cell-qr{width:92px;height:92px;position:absolute;right:13px;top:11px;image-rendering:pixelated}
+    .t-title{font-size:19px;font-weight:900;letter-spacing:5px;height:32px;line-height:28px;margin-right:102px;border-bottom:2px solid #16181d;text-align:center}
+    .t-rows{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;min-height:0}
+    .tr{display:flex;align-items:baseline;border-bottom:1px solid #dcdfe4;padding:2px 0 4px;min-width:0}
+    .tr.side{margin-right:102px}
+    .tr .k{width:56px;flex:none;color:#666;font-size:11.5px;font-weight:600}
+    .tr .v{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+    .tr .v.code{font-size:20px;font-weight:900;font-family:'JetBrains Mono','Consolas',monospace;line-height:1.15}
+    .tr .v.mono{font-family:'JetBrains Mono','Consolas',monospace}
+    .t-co{text-align:center;font-size:13px;font-weight:800;letter-spacing:1.5px;padding-top:5px;min-height:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   `;
   _openPrint(`부품 식별표 ${expand.length}매`, pages.join(''), css, { formKey:'label' });
 }
@@ -21366,21 +21391,21 @@ function _v3210Cell(entry, idx, co){
   const d = _labelCellData(entry);
   if(!d)        return `<div class="lc lc-empty" style="${pos}"></div>`;
   if(d.missing) return `<div class="lc" style="${pos}"><div class="lc-co">LOT 없음: ${_esc(d.plot_no)}</div></div>`;
-  const qr = qrDataURL(d.payload, {cell:3, margin:4});
-  const coLine = (co?.name && co.name.trim()) ? `<div class="lc-co">${_esc(co.name)}</div>` : '';
-  const row = (k, v, mono) => `<div class="lc-kv"><span class="lc-k">${_esc(k)}</span><span class="lc-v${mono?' mono':''}">${v}</span></div>`;
+  const qr = qrDataURL(d.payload, {cell:4, margin:4});
+  // ★ v0.40.41 — A4 일반과 같은 서식 (제목 + QR 오른쪽 위 · 고객사·품번·품명·LOT No·수량·발행일 · 아래 상호명)
+  const row = (k, v, cls, side) => `<div class="lc-tr${side ? ' side' : ''}"><span class="lc-k">${_esc(k)}</span><span class="lc-v${cls ? ' ' + cls : ''}">${v}</span></div>`;
   return `<div class="lc" style="${pos}">
-    ${coLine}
-    <div class="lc-head">
-      <div class="lc-code">${_esc(d.itemCode)}</div>
-      <div class="lc-name">${_esc(d.itemName)}</div>
-    </div>
-    <div class="lc-body">
-      ${row('LOT',   _esc(d.plot_no), true)}
-      ${row('수량',  `${d.qty.toLocaleString()} ea`, true)}
-      ${row('거래처', d.cust ? _esc(d.cust) : '—')}
-    </div>
     <img class="lc-qr" src="${qr}">
+    <div class="lc-title">부품 식별표</div>
+    <div class="lc-rows">
+      ${row('고객사', d.cust ? _esc(d.cust) : '—', '', 1)}
+      ${row('품번', _esc(d.itemCode), 'code', 1)}
+      ${row('품명', d.itemName ? _esc(d.itemName) : '—')}
+      ${row('LOT No', _esc(d.plot_no), 'mono')}
+      ${row('수량', `${d.qty.toLocaleString()} EA`, 'mono')}
+      ${row('발행일', _esc(d.issued))}
+    </div>
+    <div class="lc-co">${(co?.name && co.name.trim()) ? _esc(co.name) : ''}</div>
   </div>`;
 }
 function _printLabelV3210(expand, startCell){
@@ -21398,18 +21423,18 @@ function _printLabelV3210(expand, startCell){
     <b>인쇄 대화상자에서 배율 100%(맞춤 아님) · 여백 없음</b> 으로 출력하세요 — 라벨 위치 틀어짐 방지. (이 안내는 인쇄되지 않습니다)</div>`;
   const css = `
     .lp{position:relative;width:${V3210.pageW}mm;height:${V3210.pageH}mm;background:#fff;overflow:hidden}
-    .lc{position:absolute;width:${V3210.cellW}mm;height:${V3210.cellH}mm;overflow:hidden;padding:6mm 7mm;
+    .lc{position:absolute;width:${V3210.cellW}mm;height:${V3210.cellH}mm;overflow:hidden;padding:5.5mm 7mm 4.5mm;
         display:flex;flex-direction:column;color:#16181d}
-    .lc-co{font-size:9pt;font-weight:700;color:#888;letter-spacing:.5px;margin-bottom:2mm}
-    .lc-head{border-bottom:1.2pt solid #16181d;padding-bottom:2mm;margin-bottom:3mm}
-    .lc-code{font-size:20pt;font-weight:900;font-family:'JetBrains Mono','Consolas',monospace;line-height:1.1;
-             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .lc-name{font-size:11pt;color:#444;margin-top:1mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .lc-body{flex:1;padding-right:30mm}
-    .lc-kv{display:flex;align-items:baseline;padding:1.2mm 0;font-size:13pt}
-    .lc-k{width:16mm;flex:none;color:#888;font-weight:500;font-size:9pt}
-    .lc-v{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .lc-qr{width:26mm;height:26mm;position:absolute;right:7mm;bottom:6mm;image-rendering:pixelated}
+    .lc-qr{width:26mm;height:26mm;position:absolute;right:7mm;top:5.5mm;image-rendering:pixelated}
+    .lc-title{font-size:15pt;font-weight:900;letter-spacing:1.3mm;height:9mm;line-height:8mm;margin-right:29mm;border-bottom:1.2pt solid #16181d;text-align:center}
+    .lc-rows{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;min-height:0}
+    .lc-tr{display:flex;align-items:baseline;border-bottom:.5pt solid #cfd2d8;padding:.6mm 0 1mm;min-width:0}
+    .lc-tr.side{margin-right:29mm}
+    .lc-k{width:15mm;flex:none;color:#666;font-weight:600;font-size:8.5pt}
+    .lc-v{font-size:12pt;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    .lc-v.code{font-size:15pt;font-weight:900;font-family:'JetBrains Mono','Consolas',monospace;line-height:1.15}
+    .lc-v.mono{font-family:'JetBrains Mono','Consolas',monospace}
+    .lc-co{text-align:center;font-size:10pt;font-weight:800;letter-spacing:.4mm;padding-top:1.2mm;min-height:6mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .lp-guide{width:${V3210.pageW}mm;background:#fffbe6;border:1px solid #e3d08a;color:#6b5a12;
               font-size:12px;line-height:1.6;padding:10px 14px;border-radius:6px}
     @media screen{
@@ -21590,11 +21615,9 @@ const printForm = {
       const item = DB.get('items', lot.itemCode) || {};
       const route = getRouteProcs(lot.itemCode);
       const heats = (lot.heat_nos||[]).join(', ');
-      // due: 가장 빠른 SO 납기
-      let due = '';
-      DB.query('orders', o=>o.itemCode===lot.itemCode).forEach(o=>{
-        if(o.due && (!due || o.due < due)) due = o.due;
-      });
+      const ms = _matSpec(lot.itemCode);   // ★ v0.40.41 소재 규격(재질 · Ø × 길이)
+      // ★ v0.40.41 — 납기 = 이 LOT 작업지시에 연결된 수주의 납기 (예전 = 같은 품번 수주 중 가장 빠른 납기 → 다른 수주의 납기가 찍힐 수 있었음)
+      const due = _lotDue(lot.plot_no);
       // WO 지시수량
       const wo = DB.query('work_orders', w=>w.plot_no===lot.plot_no)[0];
       const qty = wo?.qty || lot.qty_initial || 0;
@@ -21625,6 +21648,7 @@ const printForm = {
           <div class="top-info">
             <div class="ti-row"><span class="k">품번·품명</span><span class="v big">${_esc(lot.itemCode)} ${_esc(item.name||'')}</span></div>
             <div class="ti-row"><span class="k">생산 LOT</span><span class="v mono">${_esc(lot.plot_no)}</span></div>
+            <div class="ti-row"><span class="k">소재 규격</span><span class="v">${_esc([ms.mat, ms.size].filter(Boolean).join(' · ') || '―')}</span></div>
             <div class="ti-row"><span class="k">소재 Heat</span><span class="v mono">${_esc(heats||'―')}</span></div>
             <div class="ti-row"><span class="k">지시수량</span><span class="v mono">${qty.toLocaleString()} ea</span></div>
             <div class="ti-row"><span class="k">납기</span><span class="v mono">${_esc(due||'―')}</span></div>
@@ -21670,7 +21694,88 @@ const printForm = {
     _openPrint(`공정 이동표 ${lots.length}장`, lots.map(page).join(''), css, { formKey:'move' });
   },
 
-  /* ===== ④ 외주 반출증 (form-os.html) — A4 = 위 A5(공급자) + 아래 A5(외주처) ===== */
+  /* ===== ★ v0.40.41 ④ 공정 이동 식별표 — A4 6칸(점선 절취) · LOT 을 파렛트 장수만큼 · 첫 공정에서 붙이고 끝까지 같이 이동
+        QR = {plot_no, item} (공정 이동표와 같음 → 현장 실적은 다음 공정 자동 · QR 반출 · QR 입고에 그대로)
+        공정 칸 = 그 품번의 라우트(출하 제외) · 공정마다 양품 수량을 손으로 적는 칸 · 저장·원장 무관(인쇄만) ===== */
+  mtag(entries){
+    const expand = [];
+    (entries||[]).forEach(e => { const lot = DB.get('production_lots', e.plot_no); if(!lot) return; const n = Math.min(60, Math.max(1, Math.floor(+e.repeat || 1))); for(let i = 0; i < n; i++) expand.push({ plot_no: e.plot_no, no: i + 1, of: n }); });
+    if(!expand.length){ toast('출력할 LOT 없음','warn'); return; }
+    const co = getCompany(); const date = fmtDate(Date.now()); const PER_PAGE = 6;
+    function cell(en){
+      if(!en) return `<div class="cell"></div>`;
+      const lot = DB.get('production_lots', en.plot_no); const item = DB.get('items', lot.itemCode) || {};
+      const procs = getRouteProcs(lot.itemCode).filter(p => p.code !== 'SHIP');
+      const heats = (lot.heat_nos||[]).join(', '); const ms = _matSpec(lot.itemCode);
+      const due = _lotDue(lot.plot_no);   // 연결 수주의 납기 (없으면 ―)
+      const wo = DB.query('work_orders', w=>w.plot_no===lot.plot_no)[0];
+      const qty = wo?.qty || lot.qty_initial || 0;
+      const qr = qrDataURL(JSON.stringify({plot_no:lot.plot_no, item:lot.itemCode}), {cell:4, margin:4});
+      const cols = procs.length <= 5 ? Math.max(procs.length, 3) : Math.ceil(procs.length / 2);
+      const steps = procs.map((p, i) => `<div class="st${p.mode==='out' ? ' out' : ''}"><div class="sh"><span class="sn">${i + 1}</span><span class="nm">${_esc(p.name)}</span></div><div class="sq">${p.mode==='out' ? '<i>외주</i>' : '<b></b>'}<span>ea</span></div></div>`).join('');
+      const kv = (k, v, mono) => `<div class="kv"><span class="k">${k}</span><span class="v${mono ? ' mono' : ''}">${v}</span></div>`;
+      return `<div class="cell"><div class="cut-mark">✂</div><div class="cell-in">
+        <div class="top"><span class="co">${(co?.name && co.name.trim()) ? _esc(co.name) : ''}</span><span class="plt">파렛트 <b>${en.no} / ${en.of}</b></span><span class="kind">공정 이동 식별표</span></div>
+        <div class="head"><div class="code">${_esc(lot.itemCode)}</div><div class="name">${_esc(item.name||'')}</div></div>
+        <div class="mid"><div class="info">
+          ${kv('LOT', _esc(lot.plot_no), 1)}
+          ${kv('지시', `${qty.toLocaleString()} ea`, 1)}
+          ${kv('소재', _esc([ms.mat, heats].filter(Boolean).join(' · ') || '―'))}
+          ${kv('규격', _esc(ms.size || '―'), 1)}
+          ${kv('납기', _esc(due || '―'), 1)}
+        </div><img class="qr" src="${qr}"></div>
+        <div class="sl">공정별 양품 수량 — 끝나면 적기</div>
+        ${procs.length ? `<div class="steps${procs.length > 5 ? ' r2' : ''}" style="grid-template-columns:repeat(${cols},1fr)">${steps}</div>` : `<div class="nost">공정 순서 미등록 — 공정 템플릿 › BOM 라우팅</div>`}
+      </div></div>`;
+    }
+    const pages = [];
+    for(let i = 0; i < expand.length; i += PER_PAGE){
+      const slice = expand.slice(i, i + PER_PAGE); while(slice.length < PER_PAGE) slice.push(null);
+      pages.push(`<div class="page">
+        <div class="ptitle"><span>공정 이동 식별표 · ${slice.filter(Boolean).length}매 (점선 절취)</span><span>${co?.name?_esc(co.name)+' · ':''}${date}</span></div>
+        <div class="grid">${slice.map(cell).join('')}</div>
+      </div>`);
+    }
+    const css = `
+      .page{width:794px;height:1010px;background:#fff;padding:36px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+      .ptitle{font-size:13px;font-weight:700;color:#888;margin-bottom:18px;letter-spacing:1px;display:flex;justify-content:space-between}
+      .grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,minmax(0,1fr));gap:0;height:920px}
+      .cell{border:1px dashed #b8bbc2;position:relative;padding:6px;min-width:0;min-height:0}
+      .cut-mark{position:absolute;top:-9px;left:-7px;font-size:11px;color:#c0c3ca}
+      .cell-in{border:2px solid #16181d;border-radius:6px;height:100%;padding:9px 13px 9px;display:flex;flex-direction:column;overflow:hidden}
+      .top{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+      .co{flex:1;min-width:0;font-size:10.5px;font-weight:700;color:#888;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .plt{flex:none;font-size:10px;color:#555;border:1.2px dashed #8a8f98;border-radius:3px;padding:1px 6px}
+      .plt b{font-family:'JetBrains Mono','Consolas',monospace;font-size:11.5px;color:#16181d}
+      .kind{flex:none;font-size:10px;font-weight:800;color:#16181d;border:1.6px solid #16181d;border-radius:3px;padding:1px 6px;letter-spacing:.5px}
+      .head{display:flex;align-items:baseline;gap:8px;border-bottom:2px solid #16181d;padding-bottom:4px;margin-bottom:5px}
+      .code{font-size:21px;font-weight:900;font-family:'JetBrains Mono','Consolas',monospace;white-space:nowrap;line-height:1.15}
+      .name{font-size:13px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .mid{display:flex;gap:8px;align-items:flex-start}
+      .info{flex:1;min-width:0}
+      .kv{display:flex;align-items:baseline;padding:2px 0;font-size:12.5px;line-height:1.25}
+      .kv .k{width:36px;flex:none;color:#888;font-weight:500;font-size:10.5px}
+      .kv .v{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+      .kv .v.mono{font-family:'JetBrains Mono','Consolas',monospace}
+      .qr{width:104px;height:104px;flex:none;image-rendering:pixelated}
+      .sl{font-size:9.5px;font-weight:700;color:#888;margin-top:auto;padding-top:4px;border-top:1px solid #c9ccd3;letter-spacing:.3px}
+      .steps{display:grid;gap:4px;margin-top:3px;--sqh:38px}
+      .steps.r2{--sqh:19px}
+      .st{border:1.2px solid #16181d;border-radius:4px;min-width:0;display:flex;flex-direction:column}
+      .st.out{border-style:dashed}
+      .sh{display:flex;align-items:center;gap:3px;padding:1px 4px;border-bottom:1px solid #c9ccd3;font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;line-height:1.35}
+      .st.out .sh{border-bottom-style:dashed}
+      .sn{font-family:'JetBrains Mono','Consolas',monospace;font-size:9px;color:#888;flex:none}
+      .nm{overflow:hidden;text-overflow:ellipsis}
+      .sq{height:var(--sqh);display:flex;align-items:flex-end;justify-content:space-between;padding:0 3px 2px}
+      .sq i{font-style:normal;font-size:8px;font-weight:800;border:1px solid #16181d;border-radius:2px;padding:0 2px;line-height:1.3}
+      .sq span{font-size:8.5px;color:#999}
+      .nost{font-size:11px;color:#a33;padding:8px 0}
+    `;
+    _openPrint(`공정 이동 식별표 ${expand.length}매`, pages.join(''), css, { formKey:'mtag' });
+  },
+
+  /* ===== ⑤ 외주 반출증 (form-os.html) — A4 = 위 A5(공급자) + 아래 A5(외주처) ===== */
   os(dispatchIds){
     const dispatches = (dispatchIds||[]).map(id=>DB.get('os_dispatches', id)).filter(Boolean);
     if(!dispatches.length){ toast('출력할 외주반출 없음','warn'); return; }
@@ -21810,7 +21915,7 @@ ${pg.gp.slip ? R.map(r => `<tr><td class="b">${_esc(r.lt.itemCode||'')} ${_esc(r
     _openPrint(`외주 반출증 ${_groups.length}장 · ${dispatches.filter(x => !(x.os_id && x.void)).length}건`, _pages.map(page).join(''), css, { formKey:'os' });
   },
 
-  /* ===== ⑤ 거래명세서 (form-tx.html) — A4, 공급자/공급받는자 보관용 2장 ===== */
+  /* ===== ⑥ 거래명세서 (form-tx.html) — A4, 공급자/공급받는자 보관용 2장 ===== */
   tx(shipmentIds){
     const ships = (shipmentIds||[]).map(id=>DB.get('shipments', id)).filter(Boolean);
     if(!ships.length){ toast('출력할 출하 없음','warn'); return; }
@@ -22241,8 +22346,8 @@ const HELP_SECTIONS = [
 <ol><li><b>[도면 등록]</b> → 도면 번호 · 품번 · 리비전.</li><li>첨부 — 파일(2MB 이하 앱 안 저장) · 링크 · PC 경로 · 끌어 놓기.</li>
 <li><b>[리비전 업]</b> = 새 판 · [이력] · [비활성].</li></ol><ul><li>첨부 [삭제] = 목록에서 숨김(복원 가능) · 영구 삭제는 관리자만.</li></ul>`},
 { id:'docs', t:'문서 출력', pages:['docs'], b:`
-<ol><li>문서 종류 선택 — 작업지시 · 부품 식별표 · 이동표 · 반출증 · 거래명세서 등.</li><li>대상 체크 (전체 선택 · 해제) → <b>[인쇄]</b>.</li></ol>
-<ul><li>식별표 = 라벨지(A4 2×3)에 맞춤 · 시작 칸 선택 · 인쇄 배율 100%.</li><li>인쇄가 잘리면 브라우저 인쇄 설정에서 가로 방향 · 배율 100% · 여백 기본.</li></ul>`},
+<ol><li>문서 종류 선택 — 작업지시 · 부품 식별표 · 이동표 · 공정 이동 식별표 · 반출증 · 거래명세서 등.</li><li>대상 체크 (전체 선택 · 해제) → <b>[인쇄]</b>.</li></ol>
+<ul><li>식별표 = 라벨지(A4 2×3)에 맞춤 · 시작 칸 선택 · 인쇄 배율 100%.</li><li><b>부품 식별표</b> (v0.40.41 서식) — 제목 + QR · 고객사 · 품번 · 품명 · LOT No · 수량 · 발행일 · 아래 상호명.</li><li><b>공정 이동 식별표</b> (v0.40.41) — 첫 공정에서 파렛트에 붙이는 6칸 식별표. QR 을 찍으면 다음 공정이 자동으로 뜨고, 공정마다 양품 수량을 손으로 적는 칸이 있습니다(출하 칸 없음 — 출하 때는 부품 식별표). 품번에 등록된 공정 순서대로 나오며, LOT 마다 파렛트 장수를 정해 뽑습니다. 종이에 적은 수량은 눈으로 보는 용도이고 실적은 QR 을 찍어 입력한 값입니다.</li><li>공정 이동표 · 공정 이동 식별표의 소재 칸 = 재질 · 소재 규격(Ø지름 × 길이 · 기준정보 › 품번).</li><li>인쇄가 잘리면 브라우저 인쇄 설정에서 가로 방향 · 배율 100% · 여백 기본.</li></ul>`},
 { id:'proc', t:'공정 템플릿 (BOM 라우팅)', pages:['proc'], b:`
 <ul><li><b>표준 공정 흐름</b> — 회사 공통 공정 순서(코드 · 이름 · 사내/외주). [공정 추가] · [편집].</li>
 <li><b>BOM 라우팅</b> — 품번마다 실제 공정 순서. 실적·외주·재고가 이 순서를 따릅니다.</li><li>품번 마스터 탭 = 품번 목록 바로 보기.</li></ul>`},
@@ -22306,7 +22411,8 @@ VIEWS.help = () => {
 
 VIEWS.docs = () => {
   // 현재 선택된 문서 종류 + 선택 목록
-  let docType = 'wo';            // 'wo' | 'label' | 'move' | 'os' | 'tx'
+  let docType = 'wo';            // 'wo' | 'label' | 'move' | 'mtag' | 'os' | 'tx'
+  let mtagReps = {};             // ★ v0.40.41 — {plot_no: 파렛트 장수} (공정 이동 식별표)
   let selection = new Set();     // 선택된 id (또는 plot_no)
   let labelReps = {};            // {plot_no: repeat count} for label
   let labelActuals = {};         // ★ v0.16.11 — {plot_no: 실제 포장수량} (기본=품번 pack_qty · 표준은 안 덮음)
@@ -22324,9 +22430,10 @@ VIEWS.docs = () => {
             ['wo','① 작업지시서','다건 한 장에'],
             ['label','② 부품 식별표','6격자·LOT N장'],
             ['move','③ 공정 이동표','LOT당 A5'],
-            ['os','④ 외주 반출증','반출 건당'],
-            ['tx','⑤ 거래명세서','거래처별'],
-            ...(getFlags().doc_price ? [['pa','⑥ 단가합의서','고객사·아이템 건별']] : []),
+            ['mtag','④ 공정 이동 식별표','6격자·QR·공정별 수량 칸'],
+            ['os','⑤ 외주 반출증','반출 건당'],
+            ['tx','⑥ 거래명세서','거래처별'],
+            ...(getFlags().doc_price ? [['pa','⑦ 단가합의서','고객사·아이템 건별']] : []),
           ].map(([k,t,d])=>`<span class="chip ${docType===k?'on':''}" data-dt="${k}" title="${d}">${t}</span>`).join('')}
         </div>
         <div style="font-size:11px;color:var(--sub);margin-top:6px" id="dt-help"></div>
@@ -22349,6 +22456,7 @@ VIEWS.docs = () => {
       selection.clear();
       labelReps = {};
       labelActuals = {};
+      mtagReps = {};
       render();
     });
     document.getElementById('sel-all').onclick = ()=>{
@@ -22360,6 +22468,7 @@ VIEWS.docs = () => {
       selection.clear();
       labelReps = {};
       labelActuals = {};
+      mtagReps = {};
       renderList();
     };
     document.getElementById('btn-print').onclick = doPrint;
@@ -22370,7 +22479,7 @@ VIEWS.docs = () => {
   function currentIds(){
     if(docType==='wo')    return DB.all('work_orders').sort((a,b)=>(b.created||0)-(a.created||0)).map(w=>w.id);
     if(docType==='label') return DB.all('production_lots').sort((a,b)=>b.created-a.created).map(l=>l.plot_no);
-    if(docType==='move')  return DB.all('production_lots').sort((a,b)=>b.created-a.created).map(l=>l.plot_no);
+    if(docType==='move' || docType==='mtag')  return DB.all('production_lots').sort((a,b)=>b.created-a.created).map(l=>l.plot_no);
     if(docType==='os')    return DB.all('os_dispatches').sort((a,b)=>b.ts-a.ts).map(d=>d.id);
     if(docType==='tx')    return DB.all('shipments').sort((a,b)=>b.ts-a.ts).map(s=>s.id);
     if(docType==='pa')    return DB.all('price_agreements').sort((a,b)=>(b.ts||0)-(a.ts||0)).map(a=>a.id);
@@ -22388,6 +22497,7 @@ VIEWS.docs = () => {
       wo: '여러 작업지시를 한 장 표로 출력 (각 줄 QR 포함).',
       label: '여러 LOT 선택 → 6격자 라벨. 같은 LOT을 N장 인쇄하려면 우측 수량 조정. 6개 넘으면 다음 페이지. [인쇄] 시 용지(A4 일반 / 라벨지 V3210 2×3) 선택.',
       move: 'LOT당 A5 1장씩 연속 출력. 공정 라우트가 동적으로 채워지고, 완료 공정은 ✓ 표시.',
+      mtag: '첫 공정에서 파렛트에 붙이는 6격자 식별표 — QR 을 찍으면 다음 공정이 자동으로 뜹니다(QR 반출·QR 입고에도 그대로). 공정마다 양품 수량을 적는 칸 · 출하 칸은 없음(출하 때는 부품 식별표). 오른쪽 「파렛트 장수」 만큼 인쇄.',
       os: '외주 반출 건당 A4 (위 공급자 보관용 / 아래 외주처 보관용 · 절취선).',
       tx: '출하 → 거래처별로 묶어서 거래명세서 출력 (공급자 보관용 + 공급받는자용 = 2장).',
       pa: '고객사·아이템 건별 단가 합의 문서 — [+ 새 합의서]로 작성 (품목 1건만 선택하면 아이템건별) · 저장된 합의서 선택 → 인쇄 (공급자+구매자용 2장 · 서명란).',
@@ -22502,6 +22612,27 @@ VIEWS.docs = () => {
         }).join('')}</tbody>
       </table></div>`;
     }
+    else if(docType==='mtag'){
+      title.innerHTML = `LOT 선택 (공정 이동 식별표) <span class="tag" style="font-size:11px;color:var(--sub);margin-left:6px">${ids.length}개 · 6/페이지 · 파렛트 장수만큼</span>`;
+      list.innerHTML = `<div class="tbl-wrap"><table>
+        <thead><tr><th style="width:36px"></th><th>LOT</th><th>품번·품명</th><th>공정 (출하 제외)</th><th class="num">초기수량</th><th class="num" style="width:104px">파렛트 장수</th></tr></thead>
+        <tbody>${ids.map(pn=>{
+          const l = DB.get('production_lots', pn);
+          const item = DB.get('items', l.itemCode);
+          const on = selection.has(pn);
+          const pr = getRouteProcs(l.itemCode).filter(p => p.code !== 'SHIP');
+          return `<tr>
+            <td><input type="checkbox" data-sel="${_esc(pn)}" ${on?'checked':''}></td>
+            <td><b>${_esc(pn)}</b></td>
+            <td>${_esc(l.itemCode)} · ${_esc(item?.name||'')}</td>
+            <td class="muted" style="font-size:11.5px">${pr.length ? pr.map(p => _esc(p.name) + (p.mode==='out' ? '(외주)' : '')).join(' → ') : '<span style="color:var(--red)">공정 순서 미등록</span>'}</td>
+            <td class="num">${(l.qty_initial||0).toLocaleString()}</td>
+            <td class="num"><input type="number" min="1" max="60" step="1" value="${mtagReps[pn] || 1}" data-mrep="${_esc(pn)}" style="width:64px;text-align:center;padding:4px 6px"></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+      document.querySelectorAll('[data-mrep]').forEach(inp=>inp.onchange=()=>{ const v = Math.min(60, Math.max(1, Math.floor(+inp.value || 1))); mtagReps[inp.dataset.mrep] = v; inp.value = v; });
+    }
     else if(docType==='os'){
       title.innerHTML = `외주 반출 건 선택 <span class="tag" style="font-size:11px;color:var(--sub);margin-left:6px">${ids.length}건</span>`;
       list.innerHTML = `<div class="tbl-wrap"><table>
@@ -22599,6 +22730,7 @@ VIEWS.docs = () => {
     if(docType==='wo')    printForm.wo(ids);
     else if(docType==='label') printForm.label(ids.map(pn=>({plot_no:pn, repeat:labelReps[pn]||1, pack_qty_actual: (labelActuals[pn]!=null? labelActuals[pn] : null)})));
     else if(docType==='move')  printForm.move(ids);
+    else if(docType==='mtag')  printForm.mtag(ids.map(pn=>({plot_no:pn, repeat:mtagReps[pn]||1})));
     else if(docType==='os')    printForm.os(ids);
     else if(docType==='tx')    printForm.tx(ids);
     else if(docType==='pa')    printForm.pa(ids);
