@@ -1832,11 +1832,11 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.38';
+const APP_VERSION = 'v0.40.39';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
-const APP_DATE    = '2026-11-27';
+const APP_DATE    = '2026-11-28';
 
 /* ★ v0.21.4 — 테마 (다크/라이트) · 로컬 전용 키 vela_theme · ★ v0.32.0 기본 light (디자인 리뉴얼)
    head 초기 스크립트가 <html data-theme> 이미 설정 · 여기선 토글/설정 UI 헬퍼만.
@@ -2273,6 +2273,10 @@ const _FIRESTORE_ADAPTER = {
         const snaps = await Promise.all(targets.map(r => tx.get(r)));
         const ex = snaps.filter(sn => _snapLive(sn));
         if(ex.length){ const er = new Error('이미 서버에 있는 문서 — 다시 쓰지 않음'); er.code = 'already-exists'; er.existing = ex.map(sn => ({ col: sn.ref.parent.id, id: sn.id, data: sn.data() })); throw er; }
+        /* ★ v0.40.39 (GPT 검증 6차 [A]) — QR 반출증에 줄을 붙이는 묶음 = 그 반출증의 기준 줄(첫 줄 · os_cnt 를 함께 갱신)을 이 트랜잭션에서 읽음: 닫힘 표시(os_closed)가 있으면 저장하지 않음
+           · 강제 닫기 트랜잭션도 같은 기준 줄을 읽고 씀 → 「줄 추가」 와 「닫기」 가 같은 서버 상태를 보고 하나만 성립 (닫힌 반출증에 줄이 붙지 않음 · 줄이 붙은 것을 모른 채 닫히지 않음) */
+        const _anch = list.filter(w => w.col === 'os_dispatches' && w.doc && Object.prototype.hasOwnProperty.call(w.doc, 'os_cnt'));
+        if(_anch.length){ const as = await Promise.all(_anch.map(w => tx.get(fs.collection('os_dispatches').doc(String(w.id))))); as.forEach(sn => { const x = _snapData(sn); if(!x || x.os_closed) throw Object.assign(new Error('이 반출증은 이미 닫혔습니다 — 줄을 더 붙일 수 없습니다 (남은 줄은 새 반출증 번호로 저장)'), { code: 'qg-slip-closed' }); }); }
         const gw = []; const qgPaths = new Set();
         if(useQg){
           // ① 문서 저장 전 값(서버) → 수량이 실제로 바뀌는 문서만
@@ -12413,6 +12417,8 @@ function phoneOpenForm(kind){
   const go = (hash, prep, btn) => { try { if(prep) prep(); location.hash = hash; router(); const b = document.getElementById(btn); if(!b) throw new Error('권한 또는 기능 설정으로 등록 화면을 열 수 없습니다'); b.click(); } catch(e){ window._pReturn = null; toast(e.message || String(e), 'warn'); location.hash = '#p/home'; } };
   if(kind === 'ship') go('#ship', null, 'btn-ship-new');
   else if(kind === 'shipqr') go('#ship', null, 'btn-ship-qr');   // ★ v0.40.38
+  else if(kind === 'osqrout') go('#os', null, 'btn-os-qr-out');   // ★ v0.40.39
+  else if(kind === 'osqrin') go('#os', null, 'btn-os-qr-in');
   else if(kind === 'buy') go('#matin', () => { (window._matinHub = window._matinHub || {}).tab = 'buy'; }, 'mbuy-add');
   else if(kind === 'material') go('#matin', () => { (window._matinHub = window._matinHub || {}).tab = 'material'; }, 'matin-add');
 }
@@ -12569,6 +12575,7 @@ VIEWS.p_home = () => {
   if(isMgr || _pCan('perf')) acts.push(`<a class="m-btn" href="#p/today"><svg class="ic" viewBox="0 0 24 24">${pgIcon('dash')}</svg>오늘 현황 (공정·설비별)</a>`);   // ★ v0.39.9 — 관리책임자 폰 「오늘 현황 한 화면」 (SPEC 스마트폰 v0.2 §1)
   if(_pEdit('ship')) acts.push(`<button class="m-btn primary" data-p-form="shipqr"><svg class="ic" viewBox="0 0 24 24">${pgIcon('ship')}</svg>QR 출하</button>`);   // ★ v0.40.38
   if(_pEdit('ship')) acts.push(`<button class="m-btn primary" data-p-form="ship"><svg class="ic" viewBox="0 0 24 24">${pgIcon('ship')}</svg>출하 등록</button>`);
+  if(_pEdit('os') && getFlags().os_dispatch) acts.push(`<div class="m-strip"><button class="m-btn" data-p-form="osqrout"><svg class="ic" viewBox="0 0 24 24">${pgIcon('os')}</svg>QR 반출</button><button class="m-btn" data-p-form="osqrin"><svg class="ic" viewBox="0 0 24 24">${pgIcon('os')}</svg>QR 입고</button></div>`);   // ★ v0.40.39
   if(_pEdit('matin')) acts.push(`<div class="m-strip"><button class="m-btn" data-p-form="buy"><svg class="ic" viewBox="0 0 24 24">${pgIcon('po')}</svg>구매품 입고</button><button class="m-btn" data-p-form="material"><svg class="ic" viewBox="0 0 24 24">${pgIcon('matin')}</svg>소재 입고</button></div>`);
   phoneShell('home', `
     <div class="m-head"><span>안녕하세요, <b style="color:var(--ink)">${_esc(SESSION.user || '')}</b> 님</span><span class="mono dim">${today}</span></div>
@@ -18491,6 +18498,548 @@ VIEWS._printStmt = (id) => { const s = DB.get('shipments', id); if(s && s.tx_id)
   printForm.tx([id]); };  // ★ v0.12.0 — 새 양식 위임
 
 /* -------------------- 외주 (★ v0.13.0 — 파렛트 연동 + 반출증 출력 컬럼) -------------------- */
+/* ★ v0.40.39 — 외주 반출 저장 본문 1벌 (손 입력 [외주 반출] 창 · [QR 반출] 공용 · v0.40.38 출하의 shipSaveLine 과 같은 구조)
+   v = { vendor, proc, plot, qty, plt, mode, src [, os_id, os_no, os_line, os_date, via] } · 반환 { ok, id, reqId, req } | { error } */
+function osDispSaveLine(v, resendReq, guard){
+  const fail = (msg, tone, ms) => { toast(msg, tone || 'warn', ms); return { error: msg }; };
+  if(!localLedgerFresh()) return fail('이 기기 저장소의 최신 자료를 읽지 못했습니다 — 저장하지 않았습니다 (새로고침 후 다시)', 'err', 6000);
+  // ★ v0.40.13 — 같은 요청 = 같은 내용: 외주처·공정·LOT·수량·파렛트·입력 근거는 첫 요청 값(vals) 그대로 · LOT 품번을 첫 요청 때 확정 → 다시 보낼 때 LOT 품번이 바뀌었거나 LOT·외주처가 없어졌으면 불일치(저장 0)
+  if(resendReq){
+    const fx = resendReq.vals || {}; const lt = DB.get('production_lots', fx.plot); const vd = DB.get('vendors', fx.vendor); const diff = [];
+    if(!('itemCode' in fx)) diff.push('요청 기록에 첫 확정 내용 없음(옛 요청)');
+    else { if(!lt || lt.void) diff.push('LOT 없음·취소'); else if((lt.itemCode || null) !== (fx.itemCode || null)) diff.push(`LOT 품번 ${fx.itemCode || '—'} → ${lt.itemCode || '—'}`);
+      if(!vd || vd.active === false || vd.void) diff.push('외주처 없음·사용 안 함'); }
+    if(diff.length){ guard.mismatch(resendReq, /옛 요청/.test(diff[0]) ? '이전 버전에서 만든 요청 — 첫 요청 때의 확정 내용이 기록에 없어 같은 내용인지 확인할 수 없습니다' : `요청 이후 기준정보가 바뀌었습니다 (${diff.join(' · ')})`); return { error: '요청 내용 불일치' }; }
+  } else { const lt = DB.get('production_lots', v.plot); v = Object.assign({}, v, { itemCode: lt ? (lt.itemCode || null) : null }); }
+  const { vendor, proc, plot, qty, plt, mode, src } = v;
+  if(!qty) return fail('수량 입력');
+  if(v.os_id && (!Number.isInteger(qty) || qty < 1)) return fail('반출 수량은 1 이상 정수');
+  if(v.os_id && !DB.get('vendors', vendor)) return fail('외주처를 먼저 고르세요');
+  if(v.os_id && v.os_anchor){ const an = DB.allRaw('os_dispatches').find(x => x.id === v.os_anchor); if(!an || an.os_id !== v.os_id) return fail('이 반출증의 첫 줄을 찾지 못했습니다 — 저장하지 않았습니다 (화면을 새로 고친 뒤 다시)', 'err', 6000); if(an.os_closed){ if(resendReq){ try { _reqDrop2('od', resendReq.key, resendReq.rid); } catch(e){} toast(`외주 반출 요청 ${resendReq.rid} — 그 반출증이 이미 닫혀 다시 보낼 수 없습니다 · 서버에 없는 요청이라 기록을 정리했습니다 (남은 줄은 새 반출증 번호로)`, 'warn', 8000); return { error: '이 반출증은 이미 닫혔습니다 — 줄을 더 붙일 수 없습니다 (남은 줄은 새 반출증 번호로 저장)', slipClosed: true }; }   /* 다시 보내기는 「서버에 없음」 을 확인한 뒤에만 눌리고, 처음 요청도 같은 닫힘 확인을 거치므로 앞으로 반영될 수 없음 → 요청 기록을 정리 */
+      const r0 = fail('이 반출증은 이미 닫혔습니다 — 줄을 더 붙일 수 없습니다 (남은 줄은 새 반출증 번호로 저장)', 'warn', 6000); r0.slipClosed = true; return r0; } }   // ★ GPT 검증 v0.40.39-6 — 닫힌 반출증에 줄 추가 금지 (서버 모드 = 같은 확인을 서버 트랜잭션에서 한 번 더)
+  if(v.os_id && !resendReq){ const ov = DB.all('os_dispatches').find(x => x.os_id === v.os_id && x.vendor !== vendor); if(ov) return fail(`이 반출증(${v.os_no || v.os_id})에는 이미 ${qoVendorLabel(ov.vendor)} 로 저장된 줄이 있습니다 — 반출증 1장에 외주처를 섞을 수 없습니다`, 'err', 6000); }   // 반출증 1장 = 외주처 1곳 (화면에서도 저장된 줄이 있으면 외주처 칸을 잠그지만 저장 함수에서도 확인)
+  // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 외주 반출 차단
+  try { assertLotNotHeld(plot, '외주 반출'); } catch(e){ return fail(e.message, 'err', 5000); }   // ★ v0.36.0 — 동시성은 잠금이 아니라 보류: 수량은 osAvailable(인정양품)·assertWithinAccepted 가 판정
+  if(!Number.isInteger(plt) || plt < 0) return fail('파렛트 수량은 0 이상 정수');
+  // ★ v0.16.9 — 반출 가능량 초과 차단 (osAvailable 공용 · 이중 반출 방지 · 환산값도 동일 경로)
+  const info = osAvailable(plot, proc);
+  if(qty > info.avail) return fail(`반출 가능 수량 초과 — 가능 ${info.avail.toLocaleString()} ea`, 'err');
+  // ★ v0.35.9-B — 최종 write path 재검증 (출하와 동일 규칙 · 완화 예외 없음 — GPT 조건 ③)
+  let qz, ciw; try { ciw = assertWithinAccepted(plot, qty, '외주 반출', info.avail); qz = assertQuarantine(plot, qty, '외주 반출', info.avail); } catch(e){ return fail(e.message, 'err', 5000); }   // ★ v0.36.0 — 인정 기준 재검증 + 9-B
+  if(!resendReq){ let hl = null; try { hl = (qoDraftLoad().lines || []).find(x => (x.st === 'sending' || x.st === 'unk') && x.rid); } catch(e){} if(hl) return fail(`결과를 모르는 QR 반출 요청(${hl.rid})이 있습니다 — [QR 반출] 창에서 먼저 확인하세요 · 그 전에는 새 반출을 할 수 없습니다 (중복 방지)`, 'warn', 6000); }   // ★ v0.40.39 — 임시 전표에 결과 미확정 줄이 남아 있는 동안 = 손 입력·QR 모두 새 반출 차단
+  if(!resendReq && guard.pending()) return fail('이전 외주 반출 요청 결과가 아직 확인되지 않았습니다 — 결과 확인 전에는 새로 반출할 수 없습니다 (중복 방지)', 'warn', 5000);
+  // ★ v0.20.0 — 채번 v2 (반출 모달에 번호 입력 UI 없음 → 자동만)
+  const id = resendReq ? resendReq.rid : nextDocNo('OD');
+  if(DB.get('os_dispatches', id)) return fail(`반출번호 중복 — ${id}`, 'err');
+  const pmId = resendReq ? resendReq.pmId : (plt > 0 ? PALLET.newId('out') : null);
+  const reqId = resendReq ? resendReq.reqId : _reqNewId();
+  const req = { key: 'new', rid: id, reqId, pmId, vals: v, chk: { col: 'os_dispatches', id }, expect: { req_id: reqId, plot_no: plot, proc, qty, pallets: plt, vendor, ...(v.os_id ? { os_id: v.os_id, os_line: v.os_line } : {}) }, ...(v.os_id ? { ident: ['req_id', 'os_id', 'os_line'] } : {}) };
+  window.__odLast = { plt };
+  const _started = guard.run(req, () => {
+    // ★ v0.16.18 — 입력 근거 병합 (ea 모드는 생략 · 저장은 항상 ea 확정)
+    const doc = {id, vendor, proc, plot_no:plot, qty, pallets:plt, req_id: reqId, ts:Date.now(), by:SESSION.user, ...(v.os_id ? { os_id: v.os_id, os_no: v.os_no, os_line: v.os_line, os_date: v.os_date, via: v.via || 'qr' } : {})};   // ★ v0.40.39 — QR 반출 전표(반출증 1장 = 여러 줄) 정보 · 만들 때만 붙임
+    if(mode && mode !== 'ea'){ doc.input_mode = mode; doc.input_value = src; }
+    if(!DB.set('os_dispatches', id, doc)) throw new Error('반출 저장이 거부되었습니다 (권한 확인)');
+    if(v.os_id && v.os_anchor && v.os_anchor !== id){ if(!DB.set('os_dispatches', v.os_anchor, { os_cnt: v.os_line })) throw new Error('반출증 기준 줄 갱신이 거부되었습니다 (권한 확인)'); }   // ★ GPT 검증 v0.40.39-6 — 줄을 붙일 때마다 기준 줄(첫 줄)의 줄 수를 같은 묶음에서 갱신 → 강제 닫기와 서로 맞물림
+    if(qz && qz.pending.length){ ncRecordPendingOut(qz.pending, 'os', id, qty); toast(`⚠ 판정 대기 중 반출 — NC ${qz.pending.map(n=>n.id).join(', ')} 기록`, 'warn', 4500); }   // ★ v0.35.9-B
+    if(ciw && ciw.incidents.length) ciRecordPendingOut(ciw.incidents, 'os', id, qty);   // ★ v0.36.0 — 보류 중 인정분 반출 사실 (사고 문서)
+    // 파렛트 출고 자동
+    if(plt > 0){ const mv = PALLET.add({vendor, type:'out', qty:plt, ref:{kind:'os', id}, id: pmId, extra: { req_id: reqId }}); if(!mv) throw new Error('파렛트 출고 저장이 거부되었습니다 (권한 확인)'); }
+  }, [['os_dispatches', id], pmId && ['pallet_moves', pmId]].filter(Boolean), !!resendReq);
+  return { ok: _started !== false, id, reqId, req };
+}
+/* ★ v0.40.39 — 외주 QR 반출 · QR 입고 (사용자 요청 2026-11-27~28: 「반출 QR 창 따로, 출하 QR 창 따로 · 폰으로 찍으면 저장만, 문서 출력은 PC 에서만 · 반출증에는 단가 없이 필요한 정보만 · 입고도 QR 로, 나눠서 입고」)
+   · QR 반출 = v0.40.38 QR 출하와 같은 구조를 그대로 옮김(한 브라우저 한 탭 · 임시 전표 = 이 기기 · 줄마다 순차 저장 · 결과 모르는 줄은 번호 보존·같은 요청으로만 재전송)
+     저장 = osDispSaveLine(손 입력 [외주 반출] 과 1벌) · 전표 = 반출 문서의 os_id(고유)·os_no(표시 번호)·os_line·os_date·via (새 저장소 없음) · 반출증 1장 = 외주처 1곳 · 여러 줄
+   · QR 입고 = 찍어서 입고 대기 줄을 찾는 창 → 저장은 기존 [입고 처리] 창 그대로(검증된 저장 1벌 · 남은 수량이 기본 · 줄여서 나눠 입고) */
+/* ★ GPT 검증 v0.40.39-1 [A] — 반출증 닫힘 표시: 전표를 닫을 때 그 반출증의 반출 문서마다 os_closed(닫은 시각)·os_n(줄 수)을 적음
+   → 다른 기기(PC)의 발행 기준: 닫힘 표시가 없는 줄이 있으면 발행 안 함(줄이 더 붙을 수 있음) · 받은 줄 수가 os_n 보다 적으면 발행 안 함(아직 받는 중)
+   · 표시를 적은 기기는 닫은 반출증 목록을 이 기기에 남겨, 표시가 서버에 안 올라간 경우 [QR 반출] 창을 열 때 다시 적음 */
+function _qoClosedKey(){ return 'vela_qr_osout_closed:' + _osReqProj() + (isTrial() ? ':' + trialActiveId() : ''); }
+function qoClosedList(){ try { const a = JSON.parse(localStorage.getItem(_qoClosedKey()) || '[]'); return Array.isArray(a) ? a : []; } catch(e){ return []; } }
+function qoStampClosed(osId, n){ let w = 0; const ts = Date.now(); DB.allRaw('os_dispatches').filter(x => x.os_id === osId && !x.os_closed).forEach(x => { try { if(DB.set('os_dispatches', x.id, { os_closed: ts, os_n: n })) w++; } catch(e){} }); return w; }
+function qoMarkClosed(osId){
+  if(!osId) return 0; const n = DB.allRaw('os_dispatches').filter(x => x.os_id === osId).length; if(!n) return 0;
+  try { const a = qoClosedList().filter(x => x.os_id !== osId); a.push({ os_id: osId, n, ts: Date.now() }); localStorage.setItem(_qoClosedKey(), JSON.stringify(a.slice(-60))); } catch(e){}
+  return qoStampClosed(osId, n);
+}
+function qoRestampClosed(){ let w = 0; qoClosedList().forEach(c => { w += qoStampClosed(c.os_id, c.n); }); return w; }
+function _qoSigRow(x, id){ x = x || {}; return String(x.id || id) + ':' + (x.void ? 'v' : (+x.qty || 0)) + ':' + (x.os_closed ? 'c' : 'o') + ':' + (+x.os_cnt || 0); }   // 강제 닫기 확인 지문의 한 줄 (번호 · 수량/취소 · 닫힘 · 기준 줄의 줄 수)
+// 발행해도 되는 반출증인가: { ok [, note] } | { ok:false, why [, force:{ n, qty, last }] }
+// ★ GPT 검증 v0.40.39-2 [A] — 받은 줄 수 부족(os_n)은 항상 먼저 막음 · 닫힘 표시가 없으면 시간이 지나도 자동으로 발행하지 않음
+//   저장한 기기를 더 쓸 수 없는 경우 = 관리책임자가 서버에 있는 줄을 확인하고 「강제 닫기」(명시적 · 기록 남김 · 마지막 저장 10분 이내는 불가)
+function qoSlipPrintable(osId){
+  const ds = DB.allRaw('os_dispatches').filter(x => x.os_id === osId); if(!ds.length) return { ok: false, why: '반출증의 줄이 없습니다' };
+  const no = ds[0].os_no || osId; const open = ds.filter(x => !x.os_closed); const need = Math.max(0, ...ds.map(x => +x.os_n || 0));
+  if(ds.length < need) return { ok: false, why: `반출증 ${no} 의 줄을 아직 다 받지 못했습니다 (${ds.length}/${need}줄) — 잠시 후 다시 발행하세요` };
+  if(open.length){ const last = Math.max(0, ...ds.map(x => +x.ts || 0)); const live = ds.filter(x => !x.void);
+    return { ok: false, why: `반출증 ${no} 은(는) 아직 닫히지 않았습니다 — 저장한 기기의 [QR 반출] 창에서 저장을 끝내고 전표를 닫은 뒤 발행하세요 (줄이 더 붙을 수 있음)`,
+      force: { no, n: ds.length, live: live.length, qty: live.reduce((a, x) => a + (+x.qty || 0), 0), last, recent: Date.now() - last < 600000, sig: ds.map(x => _qoSigRow(x, x.id)).sort().join('|') } }; }
+  const ns = new Set(ds.map(x => +x.os_n || 0)); const fc = ds.find(x => x.os_force);
+  const note = [ns.size > 1 ? '닫은 뒤 줄이 추가된 반출증 — 먼저 뽑은 종이와 다를 수 있습니다' : '', fc ? `관리자 강제 닫기 (${fc.os_force.by || ''} · ${fmtDate(fc.os_force.ts)} ${fmtTime(fc.os_force.ts)})` : ''].filter(Boolean).join(' · ');
+  return note ? { ok: true, note } : { ok: true };
+}
+// 관리책임자 강제 닫기: 닫힘 표시가 없는 줄에 os_closed·os_n·os_force 를 적음 (저장한 기기가 나중에 그 반출증에 줄을 붙이지 못하게 하는 것은 그 기기의 [QR 반출] 창이 함 — 닫힌 반출증의 남은 줄은 새 번호로)
+function qoForceClose(osId, sig){   // sig = 확인 창에 보여 준 내용의 지문(줄·수량·취소·닫힘) — 닫는 순간의 원장과 다르면 닫지 않음 (GPT 검증 v0.40.39-3 [A])
+  if(!(SESSION.role === 'manager' || SESSION.role === 'vendor')) return { error: '관리책임자만 할 수 있습니다' };
+  if(!localLedgerFresh()) return { error: '이 기기 저장소의 최신 자료를 읽지 못했습니다 — 닫지 않았습니다 (새로고침 후 다시)' };   // ★ GPT 검증 v0.40.39-4 [A] — 다른 탭이 방금 저장한 취소·추가를 먼저 반영한 뒤 지문 비교
+  const pr = qoSlipPrintable(osId); if(pr.ok) return { ok: true, n: 0, already: true }; if(!pr.force) return { error: pr.why }; if(pr.force.recent) return { error: '방금(10분 이내) 저장된 반출증입니다 — 저장한 기기에서 전표를 닫으세요' };
+  if(!sig || sig !== pr.force.sig) return { error: '확인한 뒤 반출증 내용이 바뀌었습니다 — 바뀐 내용으로 다시 확인하세요', changed: true };
+  const ds = DB.allRaw('os_dispatches').filter(x => x.os_id === osId); const ts = Date.now(); let w = 0;
+  ds.filter(x => !x.os_closed).forEach(x => { try { if(DB.set('os_dispatches', x.id, { os_closed: ts, os_n: ds.length, os_force: { by: SESSION.user || '', ts } })) w++; } catch(e){} });
+  return { ok: true, n: w };
+}
+// 강제 닫기 실행(비동기)
+//  · 이 기기 저장 모드 = 저장소의 최신 원장을 당겨온 뒤 지문 대조 → 닫힘 표시 (qoForceClose)
+//  · 서버 모드 = ★ GPT 검증 v0.40.39-5 [A] — 서버 트랜잭션 1회: 그 반출증의 줄을 서버에서 다시 읽어 확인 창의 지문과 같을 때만 닫힘 표시를 씀
+//      (읽은 뒤 누가 줄을 취소·수정하면 서버가 그 트랜잭션을 다시 돌리거나 실패시킴 → 「확인한 내용과 다른 채로 닫힘」 없음 · 연결이 없으면 실패 = 닫지 않음)
+//      닫힘 표시가 서버에 확정되고 이 기기 원장에도 도착한 뒤에만 성공을 돌려줌 → 발행은 그 뒤 (서버 확정 전 발행 없음)
+async function qoForceCloseChecked(osId, sig){
+  if(!(SESSION.role === 'manager' || SESSION.role === 'vendor')) return { error: '관리책임자만 할 수 있습니다' };
+  if(!localLedgerFresh()) return { error: '이 기기 저장소의 최신 자료를 읽지 못했습니다 — 닫지 않았습니다 (새로고침 후 다시)' };
+  const A = _ACTIVE_ADAPTER;
+  if(!(A && A.name === 'firestore' && A._fs)) return qoForceClose(osId, sig);
+  const pr = qoSlipPrintable(osId); if(pr.ok) return { ok: true, n: 0, already: true }; if(!pr.force) return { error: pr.why }; if(pr.force.recent) return { error: '방금(10분 이내) 저장된 반출증입니다 — 저장한 기기에서 전표를 닫으세요' };
+  if(!sig || sig !== pr.force.sig) return { error: '확인한 뒤 반출증 내용이 바뀌었습니다 — 바뀐 내용으로 다시 확인하세요', changed: true };
+  const fs = A._fs, col = fs.collection('os_dispatches'); const rowOf = sn => _qoSigRow(_snapData(sn) || {}, sn.id);
+  let ids = null;
+  try { const qs = await col.where('os_id', '==', osId).get({ source: 'server' }); ids = []; const rows = []; qs.forEach(sn => { if(_snapLive(sn)){ ids.push(sn.id); rows.push(rowOf(sn)); } });
+    if(rows.sort().join('|') !== sig) return { error: '서버의 반출증 내용이 확인한 내용과 다릅니다 — 닫지 않았습니다 · 이 화면이 최신 자료를 받은 뒤 다시 확인하세요', changed: true }; }
+  catch(e){ return { error: '서버에 연결할 수 없어 반출증 내용을 확인하지 못했습니다 — 닫지 않았습니다 (연결 후 다시)' }; }
+  const ts = Date.now(), by = SESSION.user || ''; let out;
+  try { out = await fs.runTransaction(async tx => {
+      const snaps = []; for(const id of ids) snaps.push(await tx.get(col.doc(String(id))));
+      const live = snaps.filter(sn => _snapLive(sn)); if(live.map(rowOf).sort().join('|') !== sig) return { changed: true };
+      let w = 0; live.forEach(sn => { if(!(_snapData(sn) || {}).os_closed){ tx.update(col.doc(sn.id), { os_closed: ts, os_n: live.length, os_force: { by, ts } }); w++; } });
+      return { ok: true, n: w, ids: live.map(sn => sn.id) }; }); }
+  catch(e){ return { error: `서버에 닫힘 표시를 쓰지 못했습니다 (${(e && e.code) || '연결 확인'}) — 닫지 않았습니다` }; }
+  if(!out || out.changed) return { error: '서버의 반출증 내용이 확인한 내용과 다릅니다 — 닫지 않았습니다 · 이 화면이 최신 자료를 받은 뒤 다시 확인하세요', changed: true };
+  const seen = () => out.ids.every(id => !!((DB.allRaw('os_dispatches').find(x => x.id === id) || {}).os_closed));
+  for(let i = 0; i < 75 && !seen(); i++) await new Promise(r => setTimeout(r, 200));   // 서버에 확정된 닫힘 표시가 이 기기 원장에 도착할 때까지 (최대 15초)
+  if(!seen()) return { error: '서버에는 닫았습니다 — 이 화면이 그 결과를 아직 받지 못했습니다 · 잠시 후 [반출증] 을 다시 누르세요', closedSrv: true };
+  return { ok: true, n: out.n, srv: true };
+}
+function qoForceCloseAsk(osId, after){
+  const pr = qoSlipPrintable(osId); if(pr.ok){ if(after) after(); return; } const f = pr.force; if(!f){ toast(pr.why, 'warn', 8000); return; }
+  const mgr = SESSION.role === 'manager' || SESSION.role === 'vendor';
+  openModal(`<h2>반출증이 아직 닫히지 않았습니다 <button class="x" onclick="closeModal()">${ico('x')}</button></h2><div class="body">
+    <div style="font-size:13px;line-height:1.7">반출증 <b class="mono">${_esc(f.no)}</b> — 서버에 있는 줄 <b>${f.live}줄 · ${f.qty.toLocaleString()} ea</b>${f.n > f.live ? ` (취소 ${f.n - f.live}줄 제외)` : ''} · 마지막 저장 ${fmtDate(f.last)} ${fmtTime(f.last)}</div>
+    <div class="m-ban amber" style="margin-top:8px;font-size:12.5px;line-height:1.6">저장한 기기(폰)의 <b>[QR 반출]</b> 창에서 저장을 끝내고 전표를 닫으면 여기서 바로 발행됩니다. 지금 발행하면 줄이 빠진 반출증이 나갈 수 있어 막아 두었습니다.</div>
+    ${mgr && f.recent ? `<div style="margin-top:8px;font-size:12px;color:var(--sub)">방금(10분 이내) 저장된 반출증입니다 — 저장한 기기에서 전표를 닫으세요. (기기를 더 쓸 수 없는 경우의 관리책임자 닫기는 마지막 저장 10분 뒤부터)</div>` : mgr ? `<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:10px;font-size:12.5px;line-height:1.6"><b>저장한 기기를 더 쓸 수 없는 경우에만</b> (기기 분실·브라우저 자료 삭제) — 관리책임자가 위 줄 수·수량이 실제 반출과 맞는지 확인한 뒤 닫을 수 있습니다. 닫은 기록(이름·시각)이 남고 반출증에 찍힙니다.
+      <label style="display:flex;gap:6px;align-items:flex-start;margin-top:6px;cursor:pointer"><input type="checkbox" id="qo-fc-chk" style="width:auto;margin-top:3px"> <span>저장한 기기에서 닫을 수 없음을 확인했고, 위 ${f.live}줄 · ${f.qty.toLocaleString()} ea 가 실제 반출과 맞습니다</span></label></div>` : `<div style="margin-top:8px;font-size:12px;color:var(--sub)">저장한 기기를 더 쓸 수 없으면 관리책임자에게 알려 주세요 (관리책임자가 확인 후 닫을 수 있습니다).</div>`}
+    <div class="actions"><button class="btn" onclick="closeModal()">닫기</button>${mgr && !f.recent ? `<button class="btn" id="qo-fc-ok" disabled>확인하고 닫기 (관리책임자)</button>` : ''}</div></div>`);
+  const ck = document.getElementById('qo-fc-chk'), ok = document.getElementById('qo-fc-ok');
+  if(ck && ok){ ck.onchange = () => { ok.disabled = !ck.checked; }; ok.onclick = async () => { if(!ck.checked || ok.dataset.busy) return; ok.dataset.busy = '1'; ok.disabled = true; ok.textContent = '확인 중…'; let r; try { r = await qoForceCloseChecked(osId, f.sig); } catch(e){ r = { error: '확인하지 못했습니다 — 닫지 않았습니다' }; } if(document.getElementById('qo-fc-ok') !== ok){ if(r && r.ok && !r.already){ toast(`반출증 ${f.no} 을(를) 닫았습니다 (관리자 강제 닫기)`, 'ok', 5000); try { router(); } catch(e){} } return; }   /* 확인하는 사이 창이 닫혔거나 바뀜 = 발행으로 이어가지 않음 */ delete ok.dataset.busy; ok.textContent = '확인하고 닫기 (관리책임자)'; ok.disabled = !ck.checked; if(r.changed){ toast(r.error, 'warn', 8000); closeModal(); qoForceCloseAsk(osId, after); return; } if(r.closedSrv){ toast(r.error, 'warn', 9000); closeModal(); try { router(); } catch(e){} return; } if(r.error){ toast(r.error, 'warn', 7000); return; } closeModal(); toast(r.already ? `반출증 ${f.no} 은(는) 그 사이 저장한 기기에서 닫혔습니다 — 닫힌 내용 그대로 발행합니다` : `반출증 ${f.no} 을(를) 닫았습니다 (관리자 강제 닫기)`, r.already ? 'warn' : 'ok', 6000); try { router(); } catch(e){} if(after) after(); }; }
+}
+function qoVendorLabel(code){ return code ? ((DB.get('vendors', code) || {}).name || code) : '(외주처 미지정)'; }
+// 이 LOT 을 지금 보낼 수 있는 외주 공정 (손 입력 창의 「반출 대상」 과 같은 기준 = 외주 가능 공정 × osAvailable) · 담아 둔(아직 저장 안 한) 수량은 빼고 계산
+function qoCands(plot, d, exceptK){
+  const lot = DB.get('production_lots', plot); if(!lot) return [];
+  const pend = ((d && d.lines) || []).filter(l => l.checked && l.st !== 'saved' && l.k !== exceptK);
+  const out = [];
+  getRoute(lot.itemCode).forEach(r => {
+    const p = DB.get('processes', r.proc); if(!p) return;
+    if(!(r.mode === 'out' || p.type === 'out' || p.type === 'both')) return;
+    let avail = 0; try { avail = osAvailable(plot, r.proc).avail; } catch(e){ avail = 0; }
+    try { avail = Math.max(0, avail - (lotPendingInfo(plot, avail).quarantine || 0)); } catch(e){}   // 판정 대기 격리 수량은 저장 때도 막히므로(assertQuarantine) 담을 때부터 뺌
+    const q = avail - pend.filter(l => l.plot === plot && l.proc === r.proc).reduce((a, l) => a + (+l.qty || 0), 0);
+    if(q > 0) out.push({ proc: r.proc, q });
+  });
+  return out;
+}
+function qoLineMax(d, l){ const c = qoCands(l.plot, d, l.k).find(x => x.proc === l.proc); return c ? c.q : 0; }
+function qoLastVendor(proc){ const act = getActiveVendors('out'); const last = DB.all('os_dispatches').filter(x => x.proc === proc && act.some(v => v.code === x.vendor)).sort((a, b) => (b.ts || 0) - (a.ts || 0))[0]; return last ? last.vendor : (act.length === 1 ? act[0].code : null); }
+// 한 번 스캔 처리: { ok, line } | { dup, msg } | { ask:[공정], text } | { err }
+function qoAdd(d, text, opt){
+  opt = opt || {}; let p; try { p = qsParse(text); } catch(e){ return { err: String(e.message || e).replace('외주 반출증 QR 입니다 — LOT 식별표를 찍어 주세요', '외주 반출증 QR 입니다 — 반출은 LOT 식별표를 찍어 주세요 (입고는 [QR 입고])') }; }
+  try { const h = lotHoldInfo(p.plot); if(h && h.held) return { err: `보류 중인 LOT 입니다 — 품질 판정 뒤 반출할 수 있습니다${h.reason ? ' (' + h.reason + ')' : ''}` }; } catch(e){}
+  const all = qoCands(p.plot, d);
+  const mine = d.lines.filter(l => l.plot === p.plot && l.st !== 'saved');
+  const free = all.filter(c => !mine.some(l => l.proc === c.proc));
+  if(!free.length){ if(mine.length) return { dup: mine[0], msg: '이미 담은 LOT 입니다 — 수량은 아래 줄에서 바꾸세요' }; return { err: '이 LOT 은 지금 외주로 보낼 수 있는 수량이 없습니다 (외주 공정 없음 · 앞 공정 실적 없음 · 이미 모두 반출)' }; }
+  if(free.length > 1 && !opt.proc) return { ask: free.map(c => c.proc), text };
+  const c = (opt.proc && free.find(x => x.proc === opt.proc)) || free[0];
+  if(d.vendor == null) d.vendor = qoLastVendor(c.proc);   // 외주처 기본값 = 그 공정을 마지막으로 보낸 곳 (위 [외주처] 칸에서 바꿀 수 있음)
+  const line = { k: 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), plot: p.plot, itemCode: p.itemCode, proc: c.proc, qty: c.q, plt: 0, checked: true, st: 'new' };
+  d.lines.push(line);
+  return { ok: true, line };
+}
+// 반출증 표시 번호: OS-반출일-기기코드+순번 (묶음의 기준 = os_id)
+function qoNoNew(dateStr){
+  const dev = String(getDeviceCode() || 'X').replace(/[^0-9A-Za-z]/g, '').toUpperCase() || 'X'; const pre = `OS-${String(dateStr).replace(/-/g, '')}-${dev}`;
+  let n = 0; DB.allRaw('os_dispatches').forEach(x => { if(x.os_no && String(x.os_no).startsWith(pre)){ const m = +String(x.os_no).slice(pre.length); if(m > n) n = m; } });
+  try { const st = JSON.parse(localStorage.getItem('vela_os_seq') || '{}'); if(st.pre === pre && +st.n > n) n = +st.n; localStorage.setItem('vela_os_seq', JSON.stringify({ pre, n: n + 1 })); } catch(e){}
+  return pre + String(n + 1).padStart(2, '0');
+}
+function qoSlipIds(osId){ return DB.all('os_dispatches').filter(x => x.os_id === osId).sort((a, b) => (a.os_line || 0) - (b.os_line || 0)).map(x => x.id); }
+function printOsSlip(osId){
+  const ids = qoSlipIds(osId); if(!ids.length){ toast('이 반출증의 유효한 반출이 없습니다 (모두 취소됨)', 'warn'); return; }
+  printForm.os(ids);
+}
+function _qoKey(){ return 'vela_qr_osout_draft:' + _osReqProj() + (isTrial() ? ':' + trialActiveId() : ''); }
+function qoDraftNew(){ return { os_id: null, os_no: null, os_date: null, vendor: null, lines: [] }; }   // 임시 반출 전표 (이 기기 저장소 · 반출증 1장 = 외주처 1곳 · 여러 줄)
+function qoDraftLoad(){ try { const d = JSON.parse(localStorage.getItem(_qoKey()) || 'null'); if(d && Array.isArray(d.lines)) return d; } catch(e){} return qoDraftNew(); }
+let _qoSeen = null;   // 이 탭이 마지막으로 읽거나 쓴 임시 전표 글자 — 저장소의 값이 이것과 다르면 다른 탭(창)이 바꾼 것
+function _qoRaw(){ try { return localStorage.getItem(_qoKey()) || ''; } catch(e){ return ''; } }
+function qoDraftSave(d){ try { const j = JSON.stringify(d); localStorage.setItem(_qoKey(), j); if(localStorage.getItem(_qoKey()) !== j) return false; _qoSeen = j; return true; } catch(e){ return false; } }   // 성공 여부 반환 (저장 공간 부족 등 = false)
+function qoDraftClear(){ try { localStorage.removeItem(_qoKey()); } catch(e){} _qoSeen = ''; }
+function qoPending(d){ return d.lines.filter(l => l.checked && l.st !== 'saved'); }
+// 결과 미확인 줄을 서버에 직접 물어 확정 (GPT 검증 v0.40.38-1 P0): applied = 이 줄의 요청이 서버에 있음(요청 번호 일치) · other = 그 반출번호가 다른 기록 · absent = 서버에 없음 · unknown = 연결 불가
+function qoLineMatch(d, l, s){ return !!s && !!l && !!l.reqId && s.req_id === l.reqId && (s.os_id || null) === (d.os_id || null) && (+s.os_line || 0) === (+l.os_line || 0); }   // 동일성 기준 = 요청 번호 + 전표 + 줄 (서버 확인 qoServerState · 공용 대조 req.ident 와 같음)
+/* 동일성 기준 = 요청 번호(req_id · 요청마다 새로 만드는 값 · 만들 때만 붙음): 그 반출번호의 서버 문서가 같은 요청 번호면 「이 줄의 요청이 만든 문서」 → applied
+   (그 뒤 누가 수량 등을 고쳤더라도 다시 보내면 두 번 반출이 되므로 저장됨으로 봄) · 요청 번호가 다르면 other(번호만 같은 다른 기록) · 요청 번호는 같은데 전표가 다르면(있을 수 없는 경우) unknown 으로 멈춤 */
+async function qoServerState(d, l){
+  const A = _ACTIVE_ADAPTER;
+  if(!l.reqId) return 'unknown';   // 요청 번호를 모르는 줄 = 자동 확정도, 새 번호 발급도, 다시 보내기도 하지 않음 (GPT 3·4차)
+  if(!A || A.name !== 'firestore' || !A._fs){ const s = DB.get('os_dispatches', l.rid); return !s ? 'absent' : qoLineMatch(d, l, s) ? 'applied' : (s.req_id !== l.reqId ? 'other' : 'unknown'); }   // 이 기기 저장 모드 = 이 기기 원장이 곧 결과
+  try { const sn = await A._fs.collection('os_dispatches').doc(String(l.rid)).get({ source: 'server' }); if(!_snapLive(sn)) return 'absent'; const s = _snapData(sn) || {};
+    if(s.req_id !== l.reqId) return 'other';
+    return ((s.os_id || null) === (d.os_id || null) && (+s.os_line || 0) === (+l.os_line || 0)) ? 'applied' : 'unknown';
+  } catch(e){ return 'unknown'; }
+}
+/* QR 반출 창 = 한 브라우저에서 한 탭만 (★ GPT 검증 v0.40.38-3 — 잠금 밖에서 임시 전표를 쓰는 경로를 구조로 없앰)
+   · 창이 열려 있는 동안 그 탭이 Web Locks 를 잡음(탭 사이 원자적 · 탭이 닫히면 자동 해제) → 다른 탭의 QR 반출 창 = 읽기 전용 안내
+   · 임시 전표를 읽고 쓰는 것은 잠금을 잡은 탭뿐 → 옛 화면이 전표를 되살리거나 같은 줄을 따로 보내는 일이 없음
+   · Web Locks 가 없는 환경(파일로 직접 연 경우·아주 오래된 브라우저) = 저장소 표식(탭 번호 + 5초마다 갱신) — 완전한 보장은 아니므로 창에 「한 창에서만」 안내 */
+const _qoOwn = { held: false, release: null, pending: null };
+function _qoLockName(){ return 'vela_qr_osout_lock:' + _qoKey(); }
+function qoOwnTry(){   // 'held'(이 탭이 잡음) · 'denied'(다른 탭이 사용 중) · 'nolock'(이 환경은 창 사이 잠금이 없어 QR 반출을 쓸 수 없음) · 'pending'(확인 중 → _qoOwn.pending)
+  if(_qoOwn.held) return 'held';
+  if(!(typeof navigator !== 'undefined' && navigator.locks && navigator.locks.request)) return 'nolock';   // 안전한 상호 배제를 보장할 수 없으면 쓰지 않음 (예비 방식 없음)
+  let now = null;
+  if(!_qoOwn.pending){
+    let settle; const pr = new Promise(res => { settle = res; }); let settled = false;
+    const done = v => { if(settled) return; settled = true; now = v; if(_qoOwn.pending === pr) _qoOwn.pending = null; settle(v); };
+    _qoOwn.pending = pr;
+    try { navigator.locks.request(_qoLockName(), { ifAvailable: true }, lock => {
+        if(!lock){ done('denied'); return; }
+        _qoOwn.held = true; done('held');
+        return new Promise(rel => { _qoOwn.release = () => { _qoOwn.held = false; _qoOwn.release = null; rel(); }; });
+      }).catch(() => done('denied')); } catch(e){ done('denied'); }
+  }
+  return now || 'pending';
+}
+function qoOwnRelease(tok){ if(String(window._qoTok) === String(tok) && _qoOwn.release) _qoOwn.release(); }   // 이 탭에서 가장 나중에 연 QR 창이 닫힐 때만 놓음
+function qoWithLock(fn){ return (async () => { if(!_qoOwn.held) return { ran: false }; await fn(); return { ran: true }; })(); }   // 임시 전표를 바꾸는 비동기 작업 = 이 탭이 창을 잡고 있을 때만
+function openQrOsOut(){
+  let d = qoDraftLoad(), cam = null, busy = false, cur = null, checking = false, runEnd = null, lastTxt = '', lastAt = 0, own = 'pending'; _qoSeen = _qoRaw();
+  const ro = () => own !== 'held';   // 이 탭이 QR 반출 창을 잡지 못함 = 읽기 전용
+  const put = () => { if(!alive() || ro()) return false; return qoDraftSave(d) === true; };   // ★ GPT 4차 — 임시 전표 쓰기는 「살아 있는 창 + 이 탭이 잡고 있음」 일 때만 (읽기 전용 탭·닫힌 창은 쓰지 않음)
+  const endRun = () => { const f = runEnd; runEnd = null; if(f){ try { f(); } catch(e){} } };   // 저장 한 차례 끝 = 탭 사이 잠금 풀기
+  openModal(`
+    <h2>QR 반출 <button class="x" id="qo-x">${ico('x')}</button></h2>
+    <div class="body" id="qo-body">
+      <div style="font-size:12px;color:var(--sub);line-height:1.6">LOT 식별표의 QR 을 찍으면 외주 공정과 반출 가능 수량이 채워집니다 → 외주처·수량 확인 → <b>[반출 저장]</b> = 반출증 1장(여러 줄). 나눠 보낼 때는 줄의 수량만 줄이세요 (남은 수량은 다음에 다시 찍으면 이어집니다).</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:12.5px;font-weight:700">외주처</span><select id="qo-vendor" class="qo-act" style="flex:1;min-width:160px"></select></div>
+      <div id="qo-reader" style="width:100%;max-width:300px;margin:0 auto"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn qo-act" id="qo-cam" type="button">${ico('eye')}카메라 켜기</button><input id="qo-in" placeholder="LOT 번호 직접 입력 · 스캐너" autocomplete="off" style="flex:1;min-width:150px"><button class="btn qo-act" id="qo-add" type="button">담기</button></div>
+      <div class="m-ban amber" id="qo-ro" hidden></div>
+      <div id="qo-msg" style="min-height:20px;font-size:13px"></div>
+      <div id="qo-head" style="font-size:12.5px"></div>
+      <div id="qo-lines" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="m-ban amber" id="rq-ban" hidden style="margin-bottom:6px"></div>
+      <div id="rq-st" style="font-size:12.5px;min-height:18px;color:var(--sub)"></div>
+      <div class="actions" style="flex-wrap:wrap"><button class="btn qo-act" id="qo-clear" type="button">비우기</button><button class="btn qo-act" id="qo-close" type="button" hidden>저장된 줄로 전표 닫기</button><button class="btn primary" id="qo-save" type="button">${ico('save')}반출 저장</button></div>
+    </div>`);
+  const box = document.getElementById('modal'); const $ = id => document.getElementById(id);
+  const myTok = String((window._qoTok = (window._qoTok || 0) + 1)); box.dataset.qoTok = myTok;   // 이 창의 고유 번호 — 닫았다 다시 연 QR 창과 예전 창(남은 타이머·저장소 알림)을 구분 (예전 창이 새 창의 화면·임시 전표 기준값을 건드리지 않게)
+  const alive = () => !!(document.getElementById('modal-bg').classList.contains('show') && $('qo-lines') && box.dataset.qoTok === myTok);
+  const srvMode = () => !!(_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore');
+  const held = l => l.st === 'sending' || l.st === 'unk';   // 보냈지만 결과가 확정되지 않은 줄 — 수정·삭제·전표 닫기·다음 줄 저장을 막음
+  const say = (text, tone, acts) => { const m = $('qo-msg'); if(!m) return; m.style.color = tone === 'err' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : tone === 'ok' ? 'var(--green)' : 'var(--sub)';
+    m.innerHTML = `<b>${_esc(text || '')}</b>${(acts || []).map((a, i) => ` <button class="btn qo-act" type="button" data-qo-say="${i}" style="margin:2px">${_esc(a[0])}</button>`).join('')}`;
+    m.querySelectorAll('[data-qo-say]').forEach(b => b.onclick = () => acts[+b.dataset.qoSay][1]()); };
+  const stopCam = () => { const c = cam; cam = null; if(c){ try { c.stop().then(() => { try { c.clear(); } catch(e){} }).catch(() => {}); } catch(e){} } const b = $('qo-cam'); if(b) b.innerHTML = `${ico('eye')}카메라 켜기`; };
+  const startCam = () => {
+    if(cam) return stopCam();
+    if(!cameraOK() || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){ say('이 주소·브라우저에서는 카메라를 쓸 수 없습니다 — LOT 번호를 직접 입력하세요', 'warn'); return; }
+    if(!window.Html5Qrcode){ say('스캔 기능을 불러오는 중입니다 — 잠시 뒤 다시 눌러 주세요', 'warn'); return; }
+    try { cam = new Html5Qrcode('qo-reader'); $('qo-cam').innerHTML = `${ico('x')}카메라 끄기`;
+      cam.start({ facingMode: 'environment' }, { fps: 10, qrbox: (w, h) => { const m = Math.max(80, Math.floor(Math.min(w, h) * 0.8)); return { width: m, height: m }; }, aspectRatio: 1 }, txt => { const now = Date.now(); if(txt === lastTxt && now - lastAt < 2500) return; lastTxt = txt; lastAt = now; onScan(txt); }, () => {})
+        .catch(e => { cam = null; const b = $('qo-cam'); if(b) b.innerHTML = `${ico('eye')}카메라 켜기`; const why = (e && (e.message || String(e))) || ''; say(/NotAllowed|Permission|denied/i.test(why) ? '카메라 권한이 거부되었습니다 — 브라우저 설정에서 허용하거나 LOT 번호를 직접 입력하세요' : '카메라를 시작하지 못했습니다 — LOT 번호를 직접 입력하세요', 'warn'); });
+    } catch(e){ cam = null; }
+  };
+  const onStore = (e) => { try { if(e && e.key && e.key !== _qoKey()) return; } catch(x){} if(alive()) stale(); };   // 다른 탭이 임시 전표를 바꾸면 바로 다시 불러옴
+  try { window.addEventListener('storage', onStore); } catch(e){}
+  const die = () => { clearInterval(iv); stopCam(); busy = false; cur = null; endRun(); try { window.removeEventListener('storage', onStore); } catch(e){} if(window.qoScan === onScan) delete window.qoScan; qoOwnRelease(myTok); };   // 창이 끝남 = 타이머·알림 정리 + (이 탭의 마지막 QR 창이면) 다른 탭에 넘김
+  const iv = setInterval(() => { if(!alive()) return die(); }, 700);
+  /* 줄 상태 정리 (★ GPT 검증 P0 — 「이 기기 원장에 그 반출번호가 있다」 만으로 저장됨 처리하지 않음)
+     · 저장됨 = ① 이 창의 요청이 서버 확인됨(onDone) ② [서버 결과 확인] 이 요청 일치를 확인(onApplied) ③ 서버에 직접 물어 요청 번호가 일치(verify · next) — 이 기기 저장 모드만 원장 대조
+     · 요청 기록이 남은 줄 = 보내는 중(sending · 요청 처리기 안내) / 요청 기록이 없는데 결과를 모르는 줄 = unk (잠금) */
+  const sync = () => {
+    if(ro()) return;
+    const p = guard.pending();
+    d.lines.forEach(l => {
+      if(l.st === 'saved' || l.k === cur) return;
+      if(!l.rid){ if(held(l)){ l.st = 'rej'; l.why = '보내지 못했습니다 — 다시 저장하세요'; l.os_line = null; } return; }
+      if(p && p.rid === l.rid){ l.st = 'sending'; return; }
+      if(!held(l)) return;
+      if(!srvMode()){ const s = DB.get('os_dispatches', l.rid); if(qoLineMatch(d, l, s)){ l.st = 'saved'; l.why = ''; return; } if(s && l.reqId && s.req_id !== l.reqId){ l.st = 'rej'; l.why = `반출번호 ${l.rid} 는 다른 반출에 쓰였습니다 — 다시 저장하면 새 번호로 보냅니다`; l.rid = null; l.reqId = null; l.req = null; l.os_line = null; return; } }
+      if(l.st !== 'unk'){ l.st = 'unk'; l.absent = false; l.why = '서버 결과를 확인하지 못했습니다'; }
+    });
+    put();
+  };
+  const stale = () => {   // 다른 탭(창)이 임시 전표를 바꿨는가 → 바꿨으면 다시 불러오고 true (옛 화면의 줄을 고치거나 보내 두 번 반출되지 않게 · 모든 조작 앞에서 확인)
+    if(busy || ro() || _qoRaw() === _qoSeen) return false;   // 읽기 전용 탭은 다시 불러오지도 쓰지도 않음
+    d = qoDraftLoad(); _qoSeen = _qoRaw(); cur = null; sync(); draw(); say('다른 창에서 이 전표가 바뀌어 다시 불러왔습니다 — 내용을 확인한 뒤 진행하세요', 'warn'); verify(); return true;
+  };
+  const applyState = (l, r) => {   // 서버에 물은 결과를 줄에 반영
+    if(r === 'applied'){ l.st = 'saved'; l.why = ''; l.absent = false; }
+    else if(r === 'other'){ l.st = 'rej'; l.why = `반출번호 ${l.rid} 는 다른 반출에 쓰였습니다 — 다시 저장하면 새 번호로 보냅니다`; l.rid = null; l.reqId = null; l.req = null; l.os_line = null; l.absent = false; }
+    else if(r === 'absent'){ l.st = 'unk'; l.absent = true; l.why = '서버에 없습니다 — [반출 저장] = 같은 요청으로 다시 보냄 (먼저 보낸 것이 늦게 도착해도 1건)'; }
+    else { l.st = 'unk'; l.absent = false; l.why = '서버에 연결할 수 없어 결과를 확인하지 못했습니다 — 연결 뒤 [반출 저장]'; }
+  };
+  const verify = async () => {   // 결과 미확인 줄 = 창을 열 때·다시 불러올 때 서버에 물어 확정
+    if(checking || busy || ro() || guard.pending()) return; const d0 = d; const todo = d.lines.filter(x => x.st === 'unk' && x.rid); if(!todo.length) return;
+    checking = true;
+    try { await qoWithLock(async () => { for(const l of todo){ if(_qoRaw() !== _qoSeen) return; const r = await qoServerState(d0, l); if(d !== d0 || !alive() || busy || guard.pending() || _qoRaw() !== _qoSeen) return; if(l.st === 'unk' && d.lines.includes(l)) applyState(l, r); } put(); }); }
+    finally { checking = false; if(alive()) draw(); }
+  };
+  const draw = () => {
+    if(!alive()) return;
+    drawBody();
+    const rb = $('qo-ro'); rb.hidden = !ro();
+    if(ro()){   // 읽기 전용: 아무것도 못 바꿈
+      rb.innerHTML = own === 'pending' ? '다른 창에서 쓰고 있는지 확인하는 중…' : own === 'nolock' ? '<b>이 주소·브라우저에서는 QR 반출을 쓸 수 없습니다</b> — 창 사이 잠금(Web Locks)이 없어 같은 전표가 두 번 나가는 것을 막을 수 없습니다. https 주소 + 최신 Chrome·Edge·Safari 에서 열거나, [외주 반출] 을 쓰세요' : '<b>다른 창(탭)에서 QR 반출을 쓰고 있습니다</b> — 그 창에서 계속하거나, 그 창을 닫은 뒤 <button class="btn" type="button" id="qo-retry" style="margin-left:4px">다시 확인</button><div style="font-size:11.5px;margin-top:4px">QR 반출은 한 번에 한 창에서만 씁니다 (같은 전표가 두 번 나가지 않게)</div>';
+      const rt = $('qo-retry'); if(rt) rt.onclick = acquire;
+      box.querySelectorAll('#qo-in, .qo-act, #qo-save, #qo-lines input, #qo-lines button').forEach(el => { el.disabled = true; }); $('qo-close').hidden = true;
+    }
+  };
+  const drawBody = () => {
+    const saved = d.lines.filter(l => l.st === 'saved'), pend = qoPending(d);
+    $('qo-head').innerHTML = d.lines.length ? `외주처 <b>${_esc(qoVendorLabel(d.vendor))}</b>${d.os_no ? ` · 전표 <b class="mono">${_esc(d.os_no)}</b>` : ''} · ${d.lines.length}줄${saved.length ? ` (저장됨 ${saved.length})` : ''}` : '<span style="color:var(--dim)">아직 담은 LOT 이 없습니다</span>';
+    $('qo-lines').innerHTML = d.lines.map(l => {
+      const it = DB.get('items', l.itemCode) || {}, pr = DB.get('processes', l.proc) || {}; const done = l.st === 'saved'; const hold = held(l); const lk = hold ? 'disabled' : ''; const mx = done ? l.qty : hold ? Math.max(qoLineMax(d, l), +l.qty || 0) : qoLineMax(d, l); const left = Math.max(0, mx - (+l.qty || 0));
+      const tone = done ? 'var(--green)' : l.st === 'rej' ? 'var(--red)' : hold ? 'var(--amber)' : 'var(--line)';
+      return `<div class="qo-line" data-qo-k="${_esc(l.k)}" data-qo-st="${_esc(l.st)}" style="border:1px solid ${tone};border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:5px${done ? ';opacity:.75' : ''}">
+        <label style="display:flex;gap:8px;align-items:flex-start;margin:0;cursor:pointer"><input type="checkbox" data-qo-chk="${_esc(l.k)}" ${l.checked ? 'checked' : ''} ${done || hold ? 'disabled' : ''} style="width:20px;height:20px;margin-top:2px"><span><b>${_esc(l.itemCode || '')}</b> ${_esc(it.name || '')}<br><span style="font-size:11.5px;color:var(--sub)">LOT <span class="mono">${_esc(l.plot)}</span> · 외주 공정 <b>${_esc(pr.name || l.proc)}</b></span></span></label>
+        ${done ? `<div style="font-size:12.5px;color:var(--green)"><b>저장됨</b> · ${(+l.qty || 0).toLocaleString()} ea${l.plt ? ' · 파렛트 ' + l.plt : ''} · <span class="mono">${_esc(l.rid || '')}</span></div>` : `
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:12px;color:var(--sub)">이번 수량</span><input type="number" inputmode="numeric" min="1" max="${mx}" step="1" data-qo-qty="${_esc(l.k)}" value="${+l.qty || ''}" ${lk} style="width:96px;font-size:16px;font-weight:700"><button class="btn qo-act" type="button" data-qo-full="${_esc(l.k)}" ${lk}>전량 ${mx.toLocaleString()}</button><span style="font-size:11.5px;color:var(--sub)">파렛트 <input type="number" inputmode="numeric" min="0" step="1" data-qo-plt="${_esc(l.k)}" value="${+l.plt || 0}" ${lk} style="width:54px"></span></div>
+        <div style="font-size:11.5px;color:var(--sub)">가능 ${mx.toLocaleString()} · 이번 <b>${(+l.qty || 0).toLocaleString()}</b> · <b style="color:${left ? 'var(--amber)' : 'var(--sub)'}">남음 ${left.toLocaleString()}</b>${l.st === 'sending' ? ` · <b>보내는 중 · 결과 확인 전${l.rid ? ' (' + _esc(l.rid) + ')' : ''}</b>` : ''}${l.st === 'rej' ? ` · <b style="color:var(--red)">거부: ${_esc(l.why || '')}</b>` : ''}${l.st === 'unk' ? ` · <b style="color:var(--amber)">결과 확인 필요${l.rid ? ' (' + _esc(l.rid) + ')' : ''}: ${_esc(l.why || '')}</b>` : ''} ${hold ? '' : `<button class="btn ghost qo-act" type="button" data-qo-del="${_esc(l.k)}" style="float:right;color:var(--red);padding:2px 8px">빼기</button>`}</div>`}
+      </div>`; }).join('');
+    const q = pend.reduce((a, l) => a + (+l.qty || 0), 0);
+    const vs = $('qo-vendor'); if(vs){ const vl = getActiveVendors('out'); const lockV = d.lines.some(l => l.st === 'saved' || held(l)); vs.innerHTML = `<option value="">— 외주처 고르기 —</option>` + vl.map(v => `<option value="${_esc(v.code)}">${_esc(v.name)}</option>`).join('') + (d.vendor && !vl.some(v => v.code === d.vendor) ? `<option value="${_esc(d.vendor)}">${_esc(qoVendorLabel(d.vendor))}</option>` : ''); vs.value = d.vendor || ''; vs.disabled = lockV || busy;
+      vs.onchange = () => { if(busy || ro() || stale()) return; if(d.lines.some(l => l.st === 'saved' || held(l))){ draw(); return; } d.vendor = vs.value || null; put(); draw(); }; }
+    $('qo-save').innerHTML = `${ico('save')}반출 저장${pend.length ? ` (${pend.length}줄 · ${q.toLocaleString()} ea)` : ''}`;
+    if(!busy && !guard.pending()) $('qo-save').disabled = !pend.length;
+    $('qo-close').hidden = !(saved.length && !busy && !d.lines.some(held));
+    const set = (sel, fn) => $('qo-lines').querySelectorAll(sel).forEach(el => fn(el));
+    const lineOf = k => d.lines.find(x => x.k === k);
+    const edit = (k, fn) => { if(busy || ro() || stale()) return; const l = lineOf(k); if(!l || l.st === 'saved' || held(l)){ draw(); return; } fn(l); if(l.st === 'rej'){ l.st = 'new'; l.why = ''; } put(); draw(); };   // 모든 수정 = 다른 탭 변경 확인 뒤 · 잠긴 줄은 못 고침
+    set('[data-qo-chk]', el => el.onchange = () => edit(el.dataset.qoChk, l => { l.checked = el.checked; }));
+    set('[data-qo-qty]', el => el.onchange = () => edit(el.dataset.qoQty, l => { const mx = qoLineMax(d, l); let v = Math.floor(+el.value || 0); if(v > mx){ v = mx; toast(`가능 수량은 ${mx.toLocaleString()} ea 입니다`, 'warn'); } if(v < 1) v = Math.min(1, mx); l.qty = v; }));
+    set('[data-qo-plt]', el => el.onchange = () => edit(el.dataset.qoPlt, l => { l.plt = Math.max(0, Math.floor(+el.value || 0)); }));
+    set('[data-qo-full]', el => el.onclick = () => edit(el.dataset.qoFull, l => { l.qty = qoLineMax(d, l); }));
+    set('[data-qo-del]', el => el.onclick = async () => {
+      if(busy || checking || ro() || stale()) return; const l = lineOf(el.dataset.qoDel); if(!l || l.st === 'saved') return;
+      if(!held(l)){ d.lines = d.lines.filter(x => x.k !== l.k); if(!d.lines.length) d = qoDraftNew(); put(); draw(); return; }
+      say('결과를 모르는 줄은 뺄 수 없습니다 — [반출 저장] 으로 같은 요청을 다시 보내 끝내세요 (원치 않으면 저장 뒤 외주 현황에서 취소)', 'warn');   // ★ GPT 4차 — 요청 식별자(반출번호·요청 번호)를 끝까지 보존
+    });
+  };
+  const onScan = (text, opt) => {
+    if(ro()){ say(own === 'pending' ? '잠시만요 — 창을 준비하는 중입니다' : own === 'nolock' ? '이 주소·브라우저에서는 QR 반출을 쓸 수 없습니다' : '다른 창에서 QR 반출을 쓰고 있어 담을 수 없습니다', 'warn'); return { err: 'readonly' }; }
+    if(busy){ say('저장 중에는 담을 수 없습니다', 'warn'); return { err: 'busy' }; }
+    if(stale()) return { err: 'stale' };
+    const cust0 = d.vendor; const r = qoAdd(d, text, opt);
+    if(r.ok && !put()){ d.lines = d.lines.filter(x => x !== r.line); d.vendor = cust0; say('이 기기 저장 공간에 기록하지 못해 담지 못했습니다 (용량 확인)', 'err'); draw(); return { err: 'storage' }; }
+    if(r.err){ say(r.err, 'err'); return r; }
+    if(r.ask){ say('이 LOT 은 반출할 수 있는 외주 공정이 여러 개입니다 — 어느 공정으로 보냅니까?', 'warn', r.ask.map(c => [(DB.get('processes', c) || {}).name || c, () => onScan(text, { proc: c })])); return r; }
+    const more = [];
+    if(r.dup){ say(r.msg, 'warn', more); draw(); return r; }
+    try { scanFeedback(); } catch(e){}
+    say(`담았습니다 — ${r.line.plot} · ${(DB.get('processes', r.line.proc) || {}).name || r.line.proc} · ${r.line.qty.toLocaleString()} ea`, 'ok', more); draw(); return r;
+  };
+  // ★ GPT 검증 v0.40.39-2 — 이 반출증이 다른 곳에서 이미 닫혔으면(관리자 강제 닫기 등) 더 붙이지 않음: 저장된 줄은 임시 전표에서 빼고 남은 줄은 새 반출증 번호로 · 결과 미확인 줄이 있으면 그대로 둠(같은 요청으로만 해소)
+  const detach = () => { if(!d.os_id || d.lines.some(held)) return false; let closed = false; try { closed = DB.allRaw('os_dispatches').some(x => x.os_id === d.os_id && x.os_closed); } catch(e){} if(!closed) return false;
+    const old = d.os_no; d.lines = d.lines.filter(l => l.st !== 'saved'); d.lines.forEach(l => { l.os_line = null; }); d.os_id = null; d.os_no = null; d.os_date = null; if(!d.lines.length){ qoDraftClear(); d = qoDraftNew(); } else put(); say(`반출증 ${old || ''} 은(는) 이미 닫혔습니다 — 남은 줄은 새 반출증 번호로 저장됩니다`, 'warn'); draw(); return true; };
+  const closeSlip = () => {
+    const saved = d.lines.filter(l => l.st === 'saved'); if(!saved.length) return;
+    if(d.lines.some(held)){ say('결과 확인이 필요한 줄이 있습니다 — 먼저 [반출 저장] 으로 확인하세요 (확인 전에는 전표를 닫지 않습니다)', 'warn'); return; }
+    const txId = d.os_id, no = d.os_no, q = saved.reduce((a, l) => a + (+l.qty || 0), 0), cust = qoVendorLabel(d.vendor);
+    qoMarkClosed(txId);   // 닫힘 표시 (다른 기기의 발행 기준)
+    qoDraftClear(); die();
+    try { closingWarnIfClosed('outsource', Date.now(), '외주 반출 등록'); } catch(e){}
+    openModal(`<h2>반출 저장 완료 <button class="x" onclick="closeModal();router()">${ico('x')}</button></h2><div class="body">
+      <div style="font-size:14px;line-height:1.8">전표 <b class="mono" id="qo-done-no">${_esc(no || '')}</b><br>${_esc(cust)} · <b>${saved.length}줄 · ${q.toLocaleString()} ea</b> 가 외주 반출로 등록되었습니다.</div>
+      <div style="font-size:11.5px;color:var(--sub)">반출증은 한 장에 여러 줄로 나옵니다 (단가 없음). 나중에 외주 현황의 그 반출 줄 [반출증] 으로 같은 번호의 반출증을 다시 뽑을 수 있습니다.</div>
+      ${isPhoneDevice() ? '<div style="font-size:12px;color:var(--sub)">폰에서는 저장까지만 합니다 — <b>반출증 출력은 PC</b> 의 외주 현황에서 하세요.</div>' : ''}
+      <div class="actions"><button class="btn${isPhoneDevice() ? ' primary' : ''}" onclick="closeModal();router()">닫기</button>${isPhoneDevice() ? '' : `<button class="btn primary" id="qo-print">${ico('print')}반출증 발행</button>`}</div></div>`);
+    const pb = document.getElementById('qo-print'); if(pb) pb.onclick = () => { closeModal(); router(); printOsSlip(txId); };
+  };
+  const unlock = () => { if(alive()) box.querySelectorAll('#qo-in, .qo-act, #qo-save').forEach(el => { el.disabled = false; }); };
+  const halt = (text) => { if(!alive()){ busy = false; cur = null; endRun(); return; }   // 닫힌 창은 임시 전표를 쓰지 않음 (다시 열 때 서버에 물어 확정)
+    busy = false; cur = null; d.lines.forEach(l => { delete l._tried; }); put(); unlock(); draw(); if(text) say(text, 'warn'); endRun(); };   // 결과 미확인 줄이 풀리지 않으면 여기서 멈춤 — 다음 줄로 넘어가지 않음 (GPT P0)
+  const finish = () => {
+    if(!alive()){ busy = false; cur = null; endRun(); return; }
+    busy = false; d.lines.forEach(l => { delete l._tried; }); put(); endRun();
+    const saved = d.lines.filter(l => l.st === 'saved'), rej = d.lines.filter(l => l.checked && l.st === 'rej');
+    draw();
+    if(saved.length && !rej.length && !qoPending(d).length) return closeSlip();
+    if(d.lines.some(held)) say('결과 확인이 필요한 줄이 남아 있습니다 — 연결을 확인한 뒤 [반출 저장] 을 다시 누르세요 (같은 요청으로만 확인 · 두 번 나가지 않음)', 'warn');
+    else if(rej.length) say(`${saved.length}줄 저장 · ${rej.length}줄 거부 — 거부된 줄을 고쳐 다시 [반출 저장] 하거나${saved.length ? ' [저장된 줄로 전표 닫기] 를 누르세요' : ' 빼세요'}`, 'warn');
+  };
+  const lineDone = (ok, why) => {
+    if(!alive()){ busy = false; cur = null; endRun(); return; }   // ★ GPT 3차 — 닫힌 창에 늦게 온 결과(성공·실패)는 임시 전표를 건드리지 않음 → 줄은 「보내는 중」 으로 남고 다시 열 때 서버에 물어 확정
+    const l = cur && d.lines.find(x => x.k === cur); cur = null;
+    if(l){ if(ok){ l.st = 'saved'; l.why = ''; l.absent = false; }
+      else if(l.resent && !/이 반출증은 이미 닫혔습니다/.test(why || '')){ l.st = 'unk'; l.absent = false; l.why = '다시 보낸 요청이 거절되었습니다 (' + (why || '저장 거부') + ') — 처음 보낸 요청의 결과는 아직 모릅니다 · 반출번호·요청 번호 유지'; }   // ★ GPT 5차 — 재전송 거절은 처음 요청의 미반영을 뜻하지 않음 → 식별자 보존(새 번호 발급 없음)
+      else { l.st = 'rej'; l.why = why || '저장 거부'; l.rid = null; l.reqId = null; l.req = null; l.os_line = null; l.absent = false; l.resent = false; }   // 「반출증이 닫힘」 거절 = 서버에 없음을 확인한 뒤의 재전송이고, 처음 요청도 같은 서버 확인(기준 줄 닫힘)을 거치므로 앞으로도 반영될 수 없음 → 줄을 풀어 새 반출증으로
+      put(); }
+    if(l && !ok && l.st === 'unk' && busy){ unlock(); draw(); return halt('다시 보낸 요청이 거절되었습니다 — 결과를 모르는 줄이 남아 다음 줄은 보내지 않았습니다'); }
+    if(alive()){ const st = $('rq-st'); if(st && ok) st.textContent = ''; unlock(); }   // 요청 처리기가 잠근 입력 풀기 (줄은 draw 가 다시 그림)
+    draw();
+    if(busy) setTimeout(next, 0);
+  };
+  const guard = _reqGuard({ kind: 'od', label: '외주 반출', box, okSel: '#qo-save', lockSel: '#modal input, #modal .qo-act, #qo-save',
+    onStart: (req, resend) => { if(!alive() || ro()) return false; const l = cur && d.lines.find(x => x.k === cur); if(!l) return true; l.rid = req.rid; l.reqId = req.reqId; l.req = req; if(resend) l.resent = true; if(!l.sentAt) l.sentAt = Date.now(); return put(); },   // 보내기 전에 줄에 요청 전체(반출번호·요청 번호·파렛트 번호·확정값)를 적어 둠 → 어느 창에서든 같은 요청으로만 복구
+    onDone: () => { if(!ro()) lineDone(true); }, onFail: (why) => { if(!ro()) lineDone(false, '서버가 받지 않았습니다 (' + why + ')'); },
+    onStuck: () => { if(!alive() || ro()) return; if(cur || busy) halt('서버 결과를 확인하지 못했습니다 — 위 안내의 [서버 결과 확인] 을 누르거나, 연결 뒤 이 창을 다시 여세요 (그 전에는 다음 줄을 보내지 않습니다)'); },   // 결과 불명·요청 불일치 = 요청 기록이 남음 → 멈춤
+    onApplied: (p) => { if(!alive() || ro()) return; const l = d.lines.find(x => x.rid && x.rid === p.rid && !!x.reqId && x.reqId === p.reqId); if(l && l.st !== 'saved'){ l.st = 'saved'; l.why = ''; l.absent = false; put(); } if(cur && l && l.k === cur){ lineDone(true); } else { unlock(); draw(); } },   // [서버 결과 확인] 으로 요청 일치가 확인된 줄
+    resendWrite: (p) => { if(!alive() || ro()) return { error: '창이 닫혔습니다' }; const l = d.lines.find(x => x.rid && x.rid === p.rid && !!x.reqId && x.reqId === p.reqId); if(l){ cur = l.k; l.st = 'sending'; put(); } const r = osDispSaveLine(p.vals, p, guard); if(r && r.slipClosed && l){ l.st = 'rej'; l.why = r.error; l.rid = null; l.reqId = null; l.req = null; l.os_line = null; l.absent = false; l.resent = false; cur = null; put(); draw(); return r; } if(!r || r.error || r.ok === false){ cur = null; sync(); draw(); } return r; } });
+  const next = async () => {
+    if(!alive()){ busy = false; endRun(); return; }
+    sync(); detach();
+    if(guard.pending()) return halt('이전 외주 반출 요청의 결과를 먼저 확인하세요');
+    // ① 결과 미확인 줄부터: 서버에 물어 확정 → 서버에 없을 때만 「같은 요청」 으로 다시 보냄 · 풀리지 않으면 멈춤
+    const u = d.lines.find(x => x.st === 'unk');
+    if(u){
+      const d0 = d; const r = await qoServerState(d0, u); if(d !== d0 || !alive()){ busy = false; endRun(); return; }
+      if(u.st !== 'unk' || !d.lines.includes(u)) return setTimeout(next, 0);   // 조회하는 사이 줄 상태가 바뀜 → 처음부터 다시 판단
+      if(guard.pending()) return halt('이전 외주 반출 요청의 결과를 먼저 확인하세요');
+      if(r !== 'absent'){ applyState(u, r); put(); draw(); if(r === 'unknown') return halt('서버에 연결할 수 없어 결과를 확인하지 못했습니다 — 연결 뒤 다시 [반출 저장] (그 전에는 다음 줄을 보내지 않습니다)'); if(r === 'other') u._tried = true; return setTimeout(next, 0); }
+      if(!u.req || !u.req.vals || !u.reqId){ u.why = '요청 기록이 없어 자동으로 다시 보낼 수 없습니다 — 외주 현황에서 이 LOT 의 반출을 확인하고 개발자에게 알려 주세요'; put(); return halt('결과를 모르는 줄에 요청 기록이 없습니다 — 새 번호로 보내지 않고 멈춥니다'); }   // 식별자를 비우지 않음 (새 번호 발급 금지)
+      u.st = 'sending'; u.why = ''; u.absent = false; cur = u.k; put(); draw();
+      const rr = osDispSaveLine(u.req.vals, u.req, guard);   // 다시 보내기 = 처음 요청 그대로 (반출번호·요청 번호·파렛트 번호·확정값 · 기준정보가 바뀌었으면 「요청 내용 불일치」 로 멈춤)
+      if(cur === u.k && rr && rr.slipClosed){ cur = null; u.st = 'rej'; u.why = rr.error; u.rid = null; u.reqId = null; u.req = null; u.os_line = null; u.absent = false; u.resent = false; put(); draw(); return setTimeout(next, 0); }   // 닫힌 반출증의 미확정 줄(서버에 없음 확인됨) = 풀어서 새 반출증으로
+      if(cur === u.k && (!rr || rr.error || rr.ok === false)){ u.st = 'unk'; u.absent = false; u.why = ((rr && rr.error) || '다시 보내지 못했습니다') + ' · 앞서 보낸 요청의 결과는 확정되지 않았습니다'; return halt('결과 확인이 필요한 줄을 다시 보내지 못했습니다 — 다음 줄은 보내지 않았습니다'); }
+      return;
+    }
+    // ② 새 줄
+    const l = d.lines.find(x => x.checked && x.st !== 'saved' && !held(x) && !x._tried);
+    if(!l) return finish();
+    l._tried = true;
+    const mx = qoLineMax(d, l);
+    if(!Number.isInteger(+l.qty) || +l.qty < 1 || +l.qty > mx){ l.st = 'rej'; l.why = mx > 0 ? `수량 한도 초과 — 지금 가능 ${mx.toLocaleString()} ea` : '반출 가능 수량이 없습니다'; put(); draw(); return setTimeout(next, 0); }
+    if(!d.vendor || !DB.get('vendors', d.vendor)){ l._tried = false; return halt('외주처를 먼저 고르세요 (위 [외주처] 칸)'); }
+    if(!d.os_id){ d.os_date = fmtDate(Date.now()); d.os_id = 'OQS-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 8).toUpperCase(); d.os_no = qoNoNew(d.os_date); }
+    l.rid = null; l.reqId = null; l.req = null; l.resent = false; l.sentAt = 0; l.os_line = 1 + Math.max(0, ...d.lines.filter(x => x !== l).map(x => +x.os_line || 0));
+    l.st = 'sending'; l.why = ''; cur = l.k; put(); draw();
+    const _an = d.lines.filter(x => x !== l && x.st === 'saved' && x.rid).sort((a, b) => (+a.os_line || 0) - (+b.os_line || 0))[0];   // 기준 줄 = 이 반출증에서 가장 먼저 저장된 줄 (첫 줄을 보낼 때는 없음)
+    const r = osDispSaveLine({ vendor: d.vendor, proc: l.proc, plot: l.plot, qty: +l.qty, plt: +l.plt || 0, mode: 'ea', src: 0, os_id: d.os_id, os_no: d.os_no, os_line: l.os_line, os_date: d.os_date, via: 'qr', ...(_an ? { os_anchor: _an.rid } : {}) }, null, guard);
+    if(cur === l.k && (!r || r.error || r.ok === false)){   // 보내지 않았거나 이 기기에서 바로 거부됨 (요청 기록 없음)
+      cur = null; l.st = 'rej'; l.rid = null; l.reqId = null; l.req = null; l.os_line = null; l.why = (r && r.error) || ($('rq-st') || {}).textContent || '저장하지 못했습니다'; put(); draw();
+      if(guard.pending()) return halt('');
+      setTimeout(next, 0);
+    }
+  };
+  $('qo-x').onclick = () => { closeModal(); die(); router(); };
+  $('qo-cam').onclick = startCam;
+  $('qo-add').onclick = () => { const v = $('qo-in').value.trim(); if(!v) return; $('qo-in').value = ''; onScan(v); $('qo-in').focus(); };
+  $('qo-in').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); $('qo-add').click(); } };
+  $('qo-clear').onclick = () => { if(busy || ro() || stale()) return; const keep = d.lines.filter(l => l.st === 'saved' || held(l)); if(keep.length){ d.lines = keep; put(); say(keep.some(held) ? '저장됨·결과 확인이 필요한 줄은 남겼습니다' : '저장된 줄은 남겼습니다 — [저장된 줄로 전표 닫기]', 'warn'); } else { d = qoDraftNew(); qoDraftClear(); say('비웠습니다'); } draw(); };
+  $('qo-close').onclick = () => { if(busy || ro() || stale()) return; closeSlip(); };
+  $('qo-save').onclick = async () => {
+    if(busy || checking || ro()) return; if(stale()) return; if(guard.pending()){ guard.check(); return; }
+    if(!qoPending(d).length){ draw(); if(d.lines.some(l => l.st === 'saved')) closeSlip(); return; }
+    busy = true; say('저장 준비 중…');
+    let res; try { res = await qoWithLock(() => new Promise(resolve => {
+      runEnd = resolve; busy = false;
+      // 잠금을 잡은 뒤 다시 확인 — 기다리는 사이 다른 탭이 이 전표를 저장했으면 그 결과를 불러오고 보내지 않음
+      if(!alive() || stale()){ endRun(); return; }
+      if(guard.pending()){ guard.check(); endRun(); return; }
+      sync(); if(!qoPending(d).length){ draw(); endRun(); if(d.lines.some(l => l.st === 'saved')) closeSlip(); return; }   // 정리해 보니 남은 줄이 없음(이미 저장 확인됨) → 전표 닫기
+      busy = true; d.lines.forEach(l => { delete l._tried; if(l.st === 'rej' && l.checked){ l.st = 'new'; } }); say('저장 중… 줄마다 서버 결과를 확인합니다'); next();
+    })); } catch(e){ res = { ran: false }; }
+    if(!res || !res.ran){ busy = false; if(alive() && !stale()){ draw(); say('다른 창에서 이 전표를 저장하는 중입니다 — 끝난 뒤 다시 누르세요', 'warn'); } }
+  };
+  window.qoScan = onScan;   // 시험·스캐너 연결용 (카메라 없이 같은 처리)
+  const ready = () => {   // 이 탭이 창을 잡은 뒤에만 임시 전표를 읽고 정리함
+    if(!alive()) return; box.dataset.qoReady = '1';
+    if(ro()){ draw(); return; }
+    d = qoDraftLoad(); _qoSeen = _qoRaw(); sync(); draw(); unlock();
+    try { qoRestampClosed(); } catch(e){}   // 닫힘 표시가 서버에 안 올라간 반출증이 있으면 다시 적음
+    let _dt = false; try { _dt = detach(); } catch(e){}
+    if(!_dt && d.lines.length) say(`이 기기에 담아 둔 ${d.lines.length}줄을 불러왔습니다`, '');
+    verify();
+  };
+  function acquire(){ own = qoOwnTry(); box.dataset.qoReady = '0'; if(own === 'pending'){ const pr = _qoOwn.pending; draw(); (pr || Promise.resolve('denied')).then(v => { if(!alive()){ if(v === 'held') qoOwnRelease(myTok); return; } own = v; ready(); }); } else ready(); }
+  acquire();
+  try { if(window.matchMedia && window.matchMedia('(pointer:coarse)').matches) setTimeout(() => { if(alive() && !cam) startCam(); }, 300); } catch(e){}
+}
+/* QR 입고 — 반출증 QR(새 전표 QR = 그 반출증의 입고 대기 줄 전부 · 예전 QR = 그 반출 1건) 또는 LOT 식별표(그 LOT 의 입고 대기 반출)를 찍어 줄을 찾음
+   → 줄의 [입고] = 기존 입고 창(VIEWS._osRecv) 그대로: 남은 수량이 기본 · 줄여서 저장하면 나머지는 다음에 다시 (나눠 입고) · 저장 뒤 이 목록으로 돌아옴
+   · 목록은 이 창을 연 동안의 화면 기억(window._qiList)일 뿐 — 저장·요청 기록은 전부 기존 입고 창이 함 */
+function qiRemain(dp){ return osDispRemain(dp); }   // 외주 현황·입고 창과 같은 값 (입고 기록 합 + 재고 실사 조정 — GPT 검증 v0.40.39-1 [A])
+function qiGot(dp){ return DB.query('os_receipts', r => r.dispatch_id === dp.id).reduce((a, r) => a + (+r.qty || 0), 0); }
+function qiOpenDispatches(f){ return DB.all('os_dispatches').filter(dp => f(dp) && (qiRemain(dp) > 0 || PALLET.dispatchedFor(dp.id) - PALLET.recoveredFor(dp.id) > 0)).sort((a, b) => String(a.os_no || '').localeCompare(String(b.os_no || '')) || (a.os_line || 0) - (b.os_line || 0) || (a.ts || 0) - (b.ts || 0)); }
+function qiFind(text){   // → { ids:[반출 번호], label } | throw
+  const t = String(text || '').trim(); if(!t) throw new Error('읽은 내용이 없습니다');
+  let o = null; try { o = JSON.parse(t); } catch(e){}
+  if(o && typeof o === 'object' && o.type === 'os'){
+    if(o.slip){ const all = DB.all('os_dispatches').filter(x => x.os_id === o.slip); if(!all.length) throw new Error('등록되지 않은 반출증입니다'); const open = qiOpenDispatches(x => x.os_id === o.slip); if(!open.length) throw new Error(`반출증 ${all[0].os_no || ''} 은(는) 이미 모두 입고되었습니다`); return { ids: open.map(x => x.id), label: `반출증 ${all[0].os_no || ''}` }; }
+    if(o.dispatch){ const dp = DB.get('os_dispatches', String(o.dispatch)); if(!dp || dp.void) throw new Error('등록되지 않은(또는 취소된) 반출입니다'); const open = qiOpenDispatches(x => x.id === dp.id); if(!open.length) throw new Error(`반출 ${dp.id} 은(는) 이미 모두 입고되었습니다`); return { ids: [dp.id], label: `반출 ${dp.id}` }; }
+  }
+  if(o && typeof o === 'object' && o.type && o.type !== 'lot' && o.type !== 'os') throw new Error(o.type === 'tx' ? '거래명세서 QR 입니다 — 반출증이나 LOT 식별표를 찍어 주세요' : '반출증·LOT 식별표 QR 이 아닙니다');
+  const direct = DB.get('os_dispatches', t); if(direct && !direct.void){ const open = qiOpenDispatches(x => x.id === direct.id); if(!open.length) throw new Error(`반출 ${direct.id} 은(는) 이미 모두 입고되었습니다`); return { ids: [direct.id], label: `반출 ${direct.id}` }; }
+  const p = qsParse(t);   // LOT 식별표·LOT 번호
+  const open = qiOpenDispatches(x => x.plot_no === p.plot); if(!open.length) throw new Error(`LOT ${p.plot} 은(는) 입고 대기 중인 외주 반출이 없습니다`);
+  return { ids: open.map(x => x.id), label: `LOT ${p.plot}` };
+}
+function openQrOsIn(){
+  const list = (window._qiList = window._qiList || []); let cam = null, lastTxt = '', lastAt = 0;
+  openModal(`
+    <h2>QR 입고 <button class="x" id="qi-x">${ico('x')}</button></h2>
+    <div class="body" id="qi-body">
+      <div style="font-size:12px;color:var(--sub);line-height:1.6">반출증의 QR(또는 LOT 식별표)을 찍으면 입고 대기 줄이 나옵니다 → 줄의 <b>[입고]</b> → 수량 확인 후 저장. 일부만 들어왔으면 수량을 줄여 저장하세요 (남은 수량은 다음에 다시 찍으면 이어집니다).</div>
+      <div id="qi-reader" style="width:100%;max-width:300px;margin:0 auto"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="qi-cam" type="button">${ico('eye')}카메라 켜기</button><input id="qi-in" placeholder="반출 번호·LOT 번호 직접 입력 · 스캐너" autocomplete="off" style="flex:1;min-width:150px"><button class="btn" id="qi-add" type="button">찾기</button></div>
+      <div id="qi-msg" style="min-height:20px;font-size:13px"></div>
+      <div id="qi-lines" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="actions"><button class="btn" id="qi-clear" type="button">목록 비우기</button><button class="btn" id="qi-close" type="button">닫기</button></div>
+    </div>`);
+  const $ = id => document.getElementById(id); const box = document.getElementById('modal');
+  const myTok = String((window._qiTok = (window._qiTok || 0) + 1)); box.dataset.qiTok = myTok;
+  const alive = () => !!(document.getElementById('modal-bg').classList.contains('show') && $('qi-lines') && box.dataset.qiTok === myTok);
+  const say = (text, tone) => { const m = $('qi-msg'); if(!m) return; m.style.color = tone === 'err' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : tone === 'ok' ? 'var(--green)' : 'var(--sub)'; m.innerHTML = `<b>${_esc(text || '')}</b>`; };
+  const stopCam = () => { const c = cam; cam = null; if(c){ try { c.stop().then(() => { try { c.clear(); } catch(e){} }).catch(() => {}); } catch(e){} } const b = $('qi-cam'); if(b) b.innerHTML = `${ico('eye')}카메라 켜기`; };
+  const startCam = () => {
+    if(cam) return stopCam();
+    if(!cameraOK() || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){ say('이 주소·브라우저에서는 카메라를 쓸 수 없습니다 — 번호를 직접 입력하세요', 'warn'); return; }
+    if(!window.Html5Qrcode){ say('스캔 기능을 불러오는 중입니다 — 잠시 뒤 다시 눌러 주세요', 'warn'); return; }
+    try { cam = new Html5Qrcode('qi-reader'); $('qi-cam').innerHTML = `${ico('x')}카메라 끄기`;
+      cam.start({ facingMode: 'environment' }, { fps: 10, qrbox: (w, h) => { const m = Math.max(80, Math.floor(Math.min(w, h) * 0.8)); return { width: m, height: m }; }, aspectRatio: 1 }, txt => { const now = Date.now(); if(txt === lastTxt && now - lastAt < 2500) return; lastTxt = txt; lastAt = now; onScan(txt); }, () => {})
+        .catch(e => { cam = null; const b = $('qi-cam'); if(b) b.innerHTML = `${ico('eye')}카메라 켜기`; const why = (e && (e.message || String(e))) || ''; say(/NotAllowed|Permission|denied/i.test(why) ? '카메라 권한이 거부되었습니다 — 브라우저 설정에서 허용하거나 번호를 직접 입력하세요' : '카메라를 시작하지 못했습니다 — 번호를 직접 입력하세요', 'warn'); });
+    } catch(e){ cam = null; }
+  };
+  const iv = setInterval(() => { if(!alive()){ clearInterval(iv); stopCam(); if(window.qiScan === onScan) delete window.qiScan; } }, 700);
+  const draw = () => {
+    if(!alive()) return;
+    const rows = list.map(id => DB.get('os_dispatches', id)).filter(dp => dp && !dp.void);
+    $('qi-lines').innerHTML = rows.length ? rows.map(dp => {
+      const lot = DB.get('production_lots', dp.plot_no) || {}, it = DB.get('items', lot.itemCode) || {}; const rem = qiRemain(dp), got = qiGot(dp), adj = stockAdjOs(dp.id); const pMiss = Math.max(0, PALLET.dispatchedFor(dp.id) - PALLET.recoveredFor(dp.id)); const done = rem <= 0 && pMiss <= 0; const pend = (typeof _osReqPendingOf === 'function') && _osReqPendingOf(dp.id);
+      return `<div class="qi-line" data-qi-id="${_esc(dp.id)}" style="border:1px solid ${done ? 'var(--green)' : 'var(--line)'};border-radius:10px;padding:9px 11px;display:flex;gap:10px;align-items:center;flex-wrap:wrap${done ? ';opacity:.7' : ''}">
+        <div style="flex:1;min-width:190px"><b>${_esc(lot.itemCode || '')}</b> ${_esc(it.name || '')}<br><span style="font-size:11.5px;color:var(--sub)">LOT <span class="mono">${_esc(dp.plot_no)}</span> · ${_esc((DB.get('processes', dp.proc) || {}).name || dp.proc)} · ${_esc(qoVendorLabel(dp.vendor))}${dp.os_no ? ' · 반출증 <span class="mono">' + _esc(dp.os_no) + '</span>' : ' · <span class="mono">' + _esc(dp.id) + '</span>'}</span>
+          <div style="font-size:12px;margin-top:2px">반출 ${(+dp.qty || 0).toLocaleString()} · 입고 ${got.toLocaleString()}${adj ? ` · 실사 조정 ${adj > 0 ? '+' : ''}${adj.toLocaleString()}` : ''} · <b style="color:${rem ? 'var(--amber)' : 'var(--green)'}">남음 ${rem.toLocaleString()}</b>${pMiss ? ` · 파렛트 미회수 ${pMiss}` : ''}${pend ? ' · <b style="color:var(--amber)">이전 입고 요청 확인 필요</b>' : ''}</div></div>
+        ${done ? '<b style="color:var(--green);font-size:12.5px">입고 완료</b>' : `<button class="btn primary" type="button" data-qi-go="${_esc(dp.id)}">입고</button>`}
+      </div>`; }).join('') : '<span style="color:var(--dim);font-size:12.5px">아직 찾은 반출이 없습니다</span>';
+    $('qi-lines').querySelectorAll('[data-qi-go]').forEach(b => b.onclick = () => { const id = b.dataset.qiGo; stopCam(); window._qiBack = { at: Date.now(), id }; window._qiFrom = id; VIEWS._osRecv(id); });   // 저장 = 기존 입고 창 (남은 수량 기본 · 나눠 입고) → 저장되면 이 목록으로 돌아옴
+  };
+  const onScan = (text) => {
+    let r; try { r = qiFind(text); } catch(e){ say(e.message, 'err'); return { err: e.message }; }
+    let added = 0; r.ids.forEach(id => { if(!list.includes(id)){ list.push(id); added++; } });
+    try { scanFeedback(); } catch(e){}
+    say(`${r.label} — 입고 대기 ${r.ids.length}줄${added ? '' : ' (이미 목록에 있음)'}`, 'ok'); draw();
+    return { ok: true, ids: r.ids, added };
+  };
+  $('qi-x').onclick = $('qi-close').onclick = () => { stopCam(); window._qiBack = null; closeModal(); router(); };
+  $('qi-cam').onclick = startCam;
+  $('qi-add').onclick = () => { const v = $('qi-in').value.trim(); if(!v) return; $('qi-in').value = ''; onScan(v); $('qi-in').focus(); };
+  $('qi-in').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); $('qi-add').click(); } };
+  $('qi-clear').onclick = () => { list.length = 0; say('비웠습니다'); draw(); };
+  window.qiScan = onScan;   // 시험·스캐너 연결용
+  window._qiBack = null; draw();
+  try { if(window.matchMedia && window.matchMedia('(pointer:coarse)').matches) setTimeout(() => { if(alive() && !cam) startCam(); }, 300); } catch(e){}
+}
 VIEWS.os = () => {
   const flags = getFlags();
   if(!flags.os_dispatch){ document.getElementById('view').innerHTML='<div class="card">외주 모듈 OFF</div>'; return; }
@@ -18561,6 +19110,8 @@ VIEWS.os = () => {
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);padding:6px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:${osState.voidView?'rgba(248,113,113,.08)':'var(--bg2)'}"><input type="checkbox" id="os-void-view" ${osState.voidView?'checked':''} style="width:auto;margin:0"> 취소 포함 보기</label>
         <button class="btn" id="os-xlsx">${ico('excel')}엑셀</button>
         ${_osSettleViaClosing ? `<button class="btn ghost" id="os-goto-closing" title="외주처 월 정산 = 마감 › 외주 탭 (전월 이월·건별 이월 반영)">외주 정산 → 마감</button>` : ''}
+        <button class="btn" id="btn-os-qr-out">${ico('eye')}QR 반출</button>
+        <button class="btn" id="btn-os-qr-in">${ico('eye')}QR 입고</button>
         <button class="btn primary" id="btn-disp">${ico('plus')}외주 반출</button>
       </div>
     </div>
@@ -18602,7 +19153,7 @@ VIEWS.os = () => {
             ? `<button class="btn ghost" data-od-unvoid="${_esc(d.id)}" style="color:var(--cyan)">${ico('save')}복원</button>`
             : (docEditBtn('os_dispatches', d.id) + (canVoidDisp ? ` <button class="btn ghost" data-od-void="${_esc(d.id)}" style="color:var(--red)">${ico('x')}취소</button>` : ''));
           return `<tr style="${rowStyle}">
-            <td><b>${_esc(d.id)}</b>${voidBadge}<div class="muted" style="font-size:10px">${fmtDate(d.ts)}</div></td>
+            <td><b>${_esc(d.id)}</b>${voidBadge}<div class="muted" style="font-size:10px">${fmtDate(d.ts)}${d.os_no ? ' · <span class="mono">' + _esc(d.os_no) + '</span>' + (d.os_closed ? '' : ' <span style="color:var(--amber)" title="저장한 기기에서 전표를 아직 닫지 않았습니다 — 닫힌 뒤 반출증 발행">(저장 중)</span>') : ''}</div></td>
             <td>${_esc(v?.name||d.vendor)} · ${_esc(pc?.name||d.proc)}</td>
             <td><b>${_esc(lot?.itemCode||'')}</b> <span class="muted" style="font-size:11px">${_esc(item?.name||'')}</span><div class="muted" style="font-size:10px">${_esc(d.plot_no)}</div></td>
             <td class="num">${(d.qty||0).toLocaleString()}${osInputBadge(d)}</td>
@@ -18700,6 +19251,8 @@ VIEWS.os = () => {
     }));
     exportXlsx(xrows, `외주정산_${settleState.month}`, `외주정산_${settleState.month}.xlsx`);
   };
+  document.getElementById('btn-os-qr-out').onclick = () => openQrOsOut();   // ★ v0.40.39
+  document.getElementById('btn-os-qr-in').onclick = () => openQrOsIn();
   document.getElementById('btn-disp').onclick = () => {
     const procs = getProcesses().filter(p=>p.type!=='in');
     if(!vendors.length){
@@ -18885,45 +19438,7 @@ VIEWS.os = () => {
     const odGuard = _reqGuard({ kind: 'od', label: '외주 반출', box: document.getElementById('modal'), okSel: '#od-ok', lockSel: '#modal input, #modal select, #od-ok',
       onDone: (m) => { const p = window.__odLast || {}; toast(m || `외주 반출 등록${p.plt > 0 ? ` · 파렛트 ${p.plt}개 출고` : ''}`, 'ok'); closeModal(); router(); },
       resendWrite: (p) => odSave(p.vals, p) });
-    const odSave = (v, resendReq) => {
-      if(!localLedgerFresh()){ toast('이 기기 저장소의 최신 자료를 읽지 못했습니다 — 저장하지 않았습니다 (새로고침 후 다시)', 'err', 6000); return { error: '이 기기 저장소의 최신 자료를 읽지 못했습니다' }; }
-      // ★ v0.40.13 — 같은 요청 = 같은 내용: 외주처·공정·LOT·수량·파렛트·입력 근거는 첫 요청 값(vals) 그대로 · LOT 품번을 첫 요청 때 확정 → 다시 보낼 때 LOT 품번이 바뀌었거나 LOT·외주처가 없어졌으면 불일치(저장 0)
-      if(resendReq){
-        const fx = resendReq.vals || {}; const lt = DB.get('production_lots', fx.plot); const vd = DB.get('vendors', fx.vendor); const diff = [];
-        if(!('itemCode' in fx)) diff.push('요청 기록에 첫 확정 내용 없음(옛 요청)');
-        else { if(!lt || lt.void) diff.push('LOT 없음·취소'); else if((lt.itemCode || null) !== (fx.itemCode || null)) diff.push(`LOT 품번 ${fx.itemCode || '—'} → ${lt.itemCode || '—'}`);
-          if(!vd || vd.active === false || vd.void) diff.push('외주처 없음·사용 안 함'); }
-        if(diff.length){ odGuard.mismatch(resendReq, /옛 요청/.test(diff[0]) ? '이전 버전에서 만든 요청 — 첫 요청 때의 확정 내용이 기록에 없어 같은 내용인지 확인할 수 없습니다' : `요청 이후 기준정보가 바뀌었습니다 (${diff.join(' · ')})`); return; }
-      } else { const lt = DB.get('production_lots', v.plot); v = Object.assign({}, v, { itemCode: lt ? (lt.itemCode || null) : null }); }
-      const { vendor, proc, plot, qty, plt, mode, src } = v;
-      if(!qty){ toast('수량 입력','warn'); return; }
-      // ★ v0.33.0 — 품질 Hold Gate: NG 판정 전 외주 반출 차단
-      try { assertLotNotHeld(plot, '외주 반출'); } catch(e){ toast(e.message, 'err', 5000); return; }   // ★ v0.36.0 — 동시성은 잠금이 아니라 보류: 수량은 osAvailable(인정양품)·assertWithinAccepted 가 판정
-      if(!Number.isInteger(plt) || plt < 0){ toast('파렛트 수량은 0 이상 정수','warn'); return; }
-      // ★ v0.16.9 — 반출 가능량 초과 차단 (osAvailable 공용 · 이중 반출 방지 · 환산값도 동일 경로)
-      const info = osAvailable(plot, proc);
-      if(qty > info.avail){ toast(`반출 가능 수량 초과 — 가능 ${info.avail.toLocaleString()} ea`, 'err'); return; }
-      // ★ v0.35.9-B — 최종 write path 재검증 (출하와 동일 규칙 · 완화 예외 없음 — GPT 조건 ③)
-      let qz, ciw; try { ciw = assertWithinAccepted(plot, qty, '외주 반출', info.avail); qz = assertQuarantine(plot, qty, '외주 반출', info.avail); } catch(e){ toast(e.message, 'err', 5000); return; }   // ★ v0.36.0 — 인정 기준 재검증 + 9-B
-      if(!resendReq && odGuard.pending()){ toast('이전 외주 반출 요청 결과가 아직 확인되지 않았습니다 — 결과 확인 전에는 새로 반출할 수 없습니다 (중복 방지)', 'warn', 5000); return; }
-      // ★ v0.20.0 — 채번 v2 (반출 모달에 번호 입력 UI 없음 → 자동만)
-      const id = resendReq ? resendReq.rid : nextDocNo('OD');
-      if(DB.get('os_dispatches', id)){ toast(`반출번호 중복 — ${id}`,'err'); return; }
-      const pmId = resendReq ? resendReq.pmId : (plt > 0 ? PALLET.newId('out') : null);
-      const reqId = resendReq ? resendReq.reqId : _reqNewId();
-      const req = { key: 'new', rid: id, reqId, pmId, vals: v, chk: { col: 'os_dispatches', id }, expect: { req_id: reqId, plot_no: plot, proc, qty, pallets: plt, vendor } };
-      window.__odLast = { plt };
-      odGuard.run(req, () => {
-        // ★ v0.16.18 — 입력 근거 병합 (ea 모드는 생략 · 저장은 항상 ea 확정)
-        const doc = {id, vendor, proc, plot_no:plot, qty, pallets:plt, req_id: reqId, ts:Date.now(), by:SESSION.user};
-        if(mode !== 'ea'){ doc.input_mode = mode; doc.input_value = src; }
-        if(!DB.set('os_dispatches', id, doc)) throw new Error('반출 저장이 거부되었습니다 (권한 확인)');
-        if(qz && qz.pending.length){ ncRecordPendingOut(qz.pending, 'os', id, qty); toast(`⚠ 판정 대기 중 반출 — NC ${qz.pending.map(n=>n.id).join(', ')} 기록`, 'warn', 4500); }   // ★ v0.35.9-B
-        if(ciw && ciw.incidents.length) ciRecordPendingOut(ciw.incidents, 'os', id, qty);   // ★ v0.36.0 — 보류 중 인정분 반출 사실 (사고 문서)
-        // 파렛트 출고 자동
-        if(plt > 0){ const mv = PALLET.add({vendor, type:'out', qty:plt, ref:{kind:'os', id}, id: pmId, extra: { req_id: reqId }}); if(!mv) throw new Error('파렛트 출고 저장이 거부되었습니다 (권한 확인)'); }
-      }, [['os_dispatches', id], pmId && ['pallet_moves', pmId]].filter(Boolean), !!resendReq);
-    };
+    const odSave = (v, resendReq) => osDispSaveLine(v, resendReq, odGuard);   // ★ v0.40.39 — 저장 본문 = osDispSaveLine (QR 반출과 1벌)
     document.getElementById('od-ok').onclick = () => {
       odSave({ vendor: document.getElementById('od-v').value, proc: document.getElementById('od-p').value, plot: document.getElementById('od-l').value, qty: +document.getElementById('od-q').value,
         plt: +document.getElementById('od-plt').value || 0, mode: inputMode, src: +((document.getElementById('od-src') || {}).value) || 0 }, null);
@@ -19021,6 +19536,7 @@ VIEWS.os = () => {
   bindClToggleButtons();
 };
 VIEWS._osRecv = (dispId, keep) => {
+  if(!keep){ if(window._qiFrom === dispId) window._qiFrom = null; else window._qiBack = null; }   // ★ v0.40.39 — [QR 입고] 목록에서 온 경우에만 저장 뒤 그 목록으로 돌아감 (외주 현황의 [입고] 로 열면 돌아가지 않음)
   /* ★ v0.40.7 (사용자 요청) — 외주 입고 창 = 구매품 입고처럼 한 화면: 입고번호 · 외주 반출 연결 · 단위 · 양품 수량 · 불량 수량 · 파렛트 수량
      · [수량/무게/입고 파렛트] 나누기 삭제 · 저장 = 기존 그대로(LOT.registerRecord 초과 차단 · PALLET.add · os_receipts{dispatch_id·record_id·pallet_move_id} · 항상 ea 저장)
      · 단위 kg = 양품·불량 각각 계근 → 단중으로 ea 환산(osInputConvert 1벌) · 환산 불가(단중 없음)면 저장 막음 */
@@ -19067,7 +19583,7 @@ VIEWS._osRecv = (dispId, keep) => {
   const tok = String((window._osRecvTok = (window._osRecvTok || 0) + 1));
   const box = $('modal'); box.dataset.orTok = tok; box.dataset.orDisp = dispId; delete box.dataset.orSent; box.setAttribute('aria-busy', 'false');   // 공용 창 — 앞 창의 「확인 중」 표시를 새 창에 남기지 않음
   const mine = () => !!(document.getElementById('modal-bg').classList.contains('show') && box.dataset.orTok === tok && document.getElementById('or-st'));
-  const setBusy = (on, msg, tone) => { if(!mine()) return; box.querySelectorAll('#or-id,#or-disp,#or-unit,#or-prc,#or-g,#or-d,#or-ok').forEach(el => { el.disabled = !!on; }); box.setAttribute('aria-busy', on ? 'true' : 'false'); const st = document.getElementById('or-st'); if(st){ st.textContent = msg || ''; st.style.color = tone === 'err' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : 'var(--sub)'; } };
+  const setBusy = (on, msg, tone) => { if(!mine()) return; box.querySelectorAll('#or-id,#or-disp,#or-unit,#or-prc,#or-g,#or-d,#or-ok').forEach(el => { el.disabled = !!on; }); if(!on && window._qiBack && window._qiBack.id === dispId){ const sd = document.getElementById('or-disp'); if(sd) sd.disabled = true; }   /* ★ GPT 검증 v0.40.39-2 [A] — [QR 입고] 에서 고른 반출은 저장 실패·서버 거절 뒤에도 고정 */ box.setAttribute('aria-busy', on ? 'true' : 'false'); const st = document.getElementById('or-st'); if(st){ st.textContent = msg || ''; st.style.color = tone === 'err' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : 'var(--sub)'; } };
   let resendReq = null;   // 같은 요청 다시 보내기(새로고침 뒤 서버에 없음 확인) = 저장해 둔 번호 그대로
   const unit = () => $('or-unit').value;
   const conv = raw => { if(unit() !== 'kg') return { ea: (raw === '' ? 0 : +raw || 0), hint: '' }; if(raw === '' || !(+raw > 0)) return { ea: 0, hint: '' }; const c = osInputConvert('kg', raw, itemCode); return c.ea == null ? { ea: null, hint: '⚠ 단중(kg/ea)이 없어 환산할 수 없습니다 — 기준정보 › 품번에 단중 입력 또는 ea 로 입력' } : { ea: c.ea, hint: c.hint }; };
@@ -19090,6 +19606,7 @@ VIEWS._osRecv = (dispId, keep) => {
   $('or-d').addEventListener('input', () => { if(sugOn()){ sugSet(Math.max(0, remain - (+$('or-d').value || 0))); upd(); } sugShow(); });
   $('or-unit').addEventListener('change', () => { if(sugOn() && unit() !== 'ea'){ gEl.value = ''; delete gEl.dataset.sug; upd(); } sugShow(); });
   sugShow();
+  if(window._qiBack && window._qiBack.id === dispId){ $('or-disp').disabled = true; $('or-disp').title = '[QR 입고] 에서 고른 반출입니다 — 다른 반출은 목록에서 고르세요'; }   // ★ v0.40.39 — 찍어서 고른 반출 고정 (GPT 검증 [B])
   $('or-disp').onchange = () => { const nv = $('or-disp').value; if(nv && nv !== dispId) VIEWS._osRecv(nv, { id: $('or-id').value, unit: unit(), g: sugOn() ? undefined : gEl.value, d: $('or-d').value }); };
   /* ★ v0.40.10 (GPT v0.40.9 판정 ②) — 새로고침 뒤에도 남는 요청(이 기기 저장 vela_os_req): 창을 열면 서버에서 결과를 직접 확인
      · 반영됨 = 요청 지움 · 새 입고만 가능 / 없음 = [같은 요청 다시 보내기](같은 입고·실적·파렛트 번호 → 먼저 보낸 것이 늦게 도착해도 1건) / 확인 불가 = 잠김 유지 · [서버 결과 확인] */
@@ -19099,7 +19616,7 @@ VIEWS._osRecv = (dispId, keep) => {
     const p = _osReqPendingOf(dispId); if(!p || p.live) return;
     pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> — 서버 결과 확인 중…`, 'amber', []);
     const r = await _osReqCheck(p); if(!mine()) return;
-    if(r === 'applied' && box.dataset.orSent === '1'){ _osReqDrop(dispId, p.rid); toast(`외주 입고 요청 ${p.rid} — 서버에 반영되어 있습니다 (다시 보내지 않음)`, 'ok', 6000); closeModal(); try { router(); } catch(e){} return; }
+    if(r === 'applied' && box.dataset.orSent === '1'){ _osReqDrop(dispId, p.rid); toast(`외주 입고 요청 ${p.rid} — 서버에 반영되어 있습니다 (다시 보내지 않음)`, 'ok', 6000); const back = window._qiBack && window._qiBack.id === dispId; closeModal(); try { router(); } catch(e){} if(back) setTimeout(() => { try { openQrOsIn(); } catch(e){} }, 0); return; }
     if(r === 'mismatch'){ _osReqShowMismatch(dispId, p); return; }
     if(r === 'applied'){ _osReqDrop(dispId, p.rid); pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> = <b>서버에 반영되어 있습니다</b> (실적·입고·파렛트 한 묶음 · 다시 입고하지 마세요) — 새 입고만 입력하세요`, 'green', []); const ok = $('or-ok'); if(ok) ok.disabled = false; try { router(); } catch(e){} }
     else if(r === 'absent'){ pendUi(`이전 입고 요청 <b>${_esc(p.rid)}</b> = <b>서버에 없습니다</b> (연결 전에 새로고침되어 보내지지 않음) — [같은 요청 다시 보내기] = 같은 번호로 보냄 · 먼저 보낸 것이 늦게 도착해도 각 1건 · 이 요청을 끝내기 전에는 이 반출에 새 입고를 할 수 없습니다`, 'amber', [['or-pend-resend', '같은 요청 다시 보내기', () => doResend(p)], ['or-pend-chk', '서버 결과 다시 확인', runCheck]]); }
@@ -19138,6 +19655,7 @@ VIEWS._osRecv = (dispId, keep) => {
       if(diff.length){ const p = resendReq; resendReq = null; $('or-ok').disabled = true; _osReqShowMismatch(dispId, p, /옛 요청/.test(diff[0]) ? '이전 버전에서 만든 요청 — 첫 요청 때의 확정 내용이 기록에 없어 같은 내용인지 확인할 수 없습니다' : `요청 이후 반출 내용이 바뀌었습니다 (${diff.join(' · ')})`); return; } }
     if(resendReq && (rid !== resendReq.rid || g !== resendReq.g || df !== resendReq.df || prc !== resendReq.prc)){ toast('같은 요청 다시 보내기는 처음 값 그대로만 보낼 수 있습니다','warn',5000); resendReq = null; return; }
     if(resendReq && DB.get('os_receipts', rid)){ _osReqDrop(dispId, rid); resendReq = null; toast(`입고 요청 ${rid} 는 이미 이 기기에 반영되어 있습니다 — 다시 보내지 않음`,'warn',5000); return; }
+    if(!resendReq && g + df > 0){ const remNow = osDispRemain(DB.get('os_dispatches', dispId)); if(g + df > remNow){ toast(`이 반출의 남은 수량 초과 — 남은 ${remNow.toLocaleString()}ea (입력 ${(g + df).toLocaleString()}ea) · 같은 LOT 의 다른 반출분은 그 반출에서 입고하세요 (실제 수량이 다르면 재고 실사로 조정)`, 'warn', 7000); return; } }   // ★ GPT 검증 v0.40.39-1 [A] — 반출 건별 한도 (저장 직전 원장 기준 · LOT·공정 합계 검사는 registerRecord·서버 누계가 계속 함)
     if(g + df > 0 && DB.get('os_receipts', rid)){ toast(`입고번호 중복 — ${rid}`,'err'); return; }
     if(_osReqPendingOf(dispId) && !resendReq){ toast('이 반출의 이전 입고 요청 결과가 아직 확인되지 않았습니다 — 결과 확인 전에는 새로 입고할 수 없습니다 (중복 방지)','warn',5000); return; }
     // ── 여기부터 저장 (위 검사를 모두 통과한 경우만)
@@ -19184,7 +19702,7 @@ VIEWS._osRecv = (dispId, keep) => {
       return;
     }
     const doneMsg = `외주 입고 — ${g + df > 0 ? `양품 ${g.toLocaleString()} · 불량 ${df.toLocaleString()}ea` : ''}${prc > 0 ? ` · 회수 파렛트 ${prc}개` : ''}`;
-    const finishOk = (msg) => { toast(msg || doneMsg,'ok'); closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록'); if(mine()) closeModal(); router(); };
+    const finishOk = (msg) => { toast(msg || doneMsg,'ok'); closingWarnIfClosed('outsource', Date.now(), '외주 입고 등록'); const back = mine() && window._qiBack && window._qiBack.id === dispId; if(mine()) closeModal(); router(); if(back) setTimeout(() => { try { openQrOsIn(); } catch(e){} }, 0); };   // ★ v0.40.39 — [QR 입고] 에서 온 입고 = 저장 뒤 그 목록으로 돌아감
     if(!res.server){
       // ★ v0.40.38 (GPT 검증 6차) — 이 기기 저장 모드: 저장소에 실제로 기록됐는지 확인한 뒤에만 완료 (출하 요청 처리기와 같은 기준)
       let persisted = true; try { const A = _ACTIVE_ADAPTER; if(A && A.name === 'local' && typeof A.flush === 'function'){ A.flush(); persisted = A._lastOk !== false; } } catch(e){ persisted = false; }
@@ -19338,7 +19856,7 @@ async function _osReqCheck(req){
   catch(e){ return 'unknown'; }
   return DB.get(c.col, c.id) ? 'local' : 'absent';
 }
-VIEWS._printDisp = (id) => { printForm.os([id]); };  // ★ v0.12.0 — 새 양식 위임
+VIEWS._printDisp = (id) => { const d = DB.get('os_dispatches', id); if(d && d.os_id) return printOsSlip(d.os_id); printForm.os([id]); };   // ★ v0.40.39 — QR 반출 전표 = 반출증 단위(같은 번호 · 여러 줄)  // ★ v0.12.0 — 새 양식 위임
 
 /* =================================================================================================
    ★ v0.13.0 — 실적현황 (PC) (scan-pc.html)
@@ -21060,8 +21578,26 @@ const printForm = {
   os(dispatchIds){
     const dispatches = (dispatchIds||[]).map(id=>DB.get('os_dispatches', id)).filter(Boolean);
     if(!dispatches.length){ toast('출력할 외주반출 없음','warn'); return; }
+    // ★ v0.40.39 — QR 반출 전표(os_id) 줄이 섞여 있으면: 폰에서는 출력 안 함 · 닫지 않은 전표 = 발행 안 함 · 전표는 통째로 · 묶음 = 전표 단위(반출증 1장에 여러 줄) / 그 밖 = 예전처럼 반출 1건 1장
+    const _osIds = [...new Set(dispatches.filter(x => x.os_id).map(x => x.os_id))];
+    if(_osIds.length){
+      if(isPhoneDevice()){ toast('QR 반출 반출증의 출력은 PC 에서 하세요 (폰은 저장까지만)', 'warn', 5000); return; }
+      try { const dr = qoDraftLoad(); if(dr.os_id && _osIds.includes(dr.os_id)){ toast('이 반출증은 아직 닫지 않았습니다 — [QR 반출] 창에서 저장을 끝내고 닫은 뒤 발행하세요 (줄이 더 붙을 수 있음)', 'warn', 7000); return; } } catch(e){}
+      const _notes = {}; for(const sid of _osIds){ const pr = qoSlipPrintable(sid); if(!pr.ok){ toast(pr.why, 'warn', 9000); if(pr.force) qoForceCloseAsk(sid, () => printForm.os(dispatchIds)); return; } if(pr.note) _notes[sid] = pr.note; }   // ★ GPT 검증 v0.40.39-1 [A] — 다른 기기에서도: 닫힘 표시가 없으면 발행 안 함
+      window.__osPrintNotes = _notes;
+      const _have = new Set(dispatches.map(x => x.id)); let _add = 0;
+      DB.all('os_dispatches').forEach(x => { if(x.os_id && _osIds.includes(x.os_id) && !_have.has(x.id)){ dispatches.push(x); _have.add(x.id); _add++; } });
+      if(_add) toast(`같은 반출증의 나머지 ${_add}줄을 함께 발행합니다 (반출증은 통째로)`, 'warn', 5000);
+    }
+    const _groups = []; const _byOs = {};
+    dispatches.filter(x => !(x.os_id && x.void)).forEach(x => { if(x.os_id){ if(!_byOs[x.os_id]){ _byOs[x.os_id] = { slip: x, rows: [] }; _groups.push(_byOs[x.os_id]); } _byOs[x.os_id].rows.push(x); } else _groups.push({ slip: null, rows: [x] }); });
+    _groups.forEach(gp => { if(gp.slip){ gp.rows.sort((a, b) => (a.os_line || 0) - (b.os_line || 0)); const _all = DB.allRaw('os_dispatches'); const nv = _all.filter(x => x.os_id === gp.slip.os_id && x.void).length; if(nv) gp.note = `재발행 — 이 반출증의 ${nv}줄은 취소되어 뺐습니다`; const _pn = (window.__osPrintNotes || {})[gp.slip.os_id]; if(_pn) gp.note = (gp.note ? gp.note + ' · ' : '') + _pn; gp.dup = _all.some(x => x.os_no === gp.slip.os_no && x.os_id && x.os_id !== gp.slip.os_id); } });
+    if(!_groups.length){ toast('출력할 유효한 반출이 없습니다 (모두 취소됨)','warn'); return; }
+    const _pages = []; _groups.forEach(gp => { for(let k = 0; k < gp.rows.length; k += 6) _pages.push({ gp, rows: gp.rows.slice(k, k + 6), part: gp.rows.length > 6 ? `${Math.floor(k / 6) + 1}/${Math.ceil(gp.rows.length / 6)}` : '' }); });   // 반쪽(A5)에 6줄까지 · 넘으면 다음 장
 
-    function page(d){
+    function page(pg){
+      const d = pg.rows[0]; const slipNo = pg.gp.slip ? (pg.gp.slip.os_no + (pg.gp.dup ? '·' + String(pg.gp.slip.os_id).slice(-4) : '')) : d.id;
+      const procNames = [...new Set(pg.rows.map(x => (DB.get('processes', x.proc) || {}).name || x.proc))];
       const co = getCompany();  // ★ v0.16.19 — 반출증 요약(bizSummary) 용
       const v = DB.get('vendors', d.vendor) || {};
       const p = DB.get('processes', d.proc) || {};
@@ -21071,9 +21607,11 @@ const printForm = {
       const unitW = bom?.material?.weight || item.weight || 0;
       const totalW = unitW * (d.qty||0);
       const pallets = d.pallets || ''; // 수기 입력 자리
-      const payload = JSON.stringify({type:'os', plot_no:d.plot_no, vendor:d.vendor, dispatch:d.id});
+      const payload = JSON.stringify(pg.gp.slip ? {type:'os', slip:pg.gp.slip.os_id, no:pg.gp.slip.os_no, vendor:d.vendor} : {type:'os', plot_no:d.plot_no, vendor:d.vendor, dispatch:d.id});   // 전표 QR = [QR 입고] 에서 찍으면 그 반출증의 입고 대기 줄 전부
       const qr = qrDataURL(payload, {cell:3, margin:4});
-      const dateStr = fmtDate(d.ts);
+      const dateStr = pg.gp.slip ? (pg.gp.slip.os_date || fmtDate(d.ts)) : fmtDate(d.ts);
+      const rowOf = x => { const lt = DB.get('production_lots', x.plot_no) || {}, im = DB.get('items', lt.itemCode) || {}; const bm = getBOM(lt.itemCode); const uw = bm?.material?.weight || im.weight || 0; return { x, lt, im, uw, tw: uw * (x.qty || 0), pl: +x.pallets || 0 }; };
+      const R = pg.rows.map(rowOf); const RA = pg.part ? pg.gp.rows.map(rowOf) : R; const sumQ = RA.reduce((a, r) => a + (r.x.qty || 0), 0), sumW = RA.reduce((a, r) => a + r.tw, 0), sumP = RA.reduce((a, r) => a + r.pl, 0); const pgQ = R.reduce((a, r) => a + (r.x.qty || 0), 0);   /* 여러 쪽 = 합계는 반출증 전체 · 이 쪽 소계는 따로 (GPT 검증 v0.40.39-1 [B]) */ const multiProc = procNames.length > 1;
 
       function slip(tag, color){
         return `<div class="slip">
@@ -21082,15 +21620,16 @@ const printForm = {
           <div class="srule"></div>
           <div class="slip-top">
             <div class="st-info">
-              <div class="r"><span class="k">반출일</span><span class="v mono">${dateStr}</span><span class="k" style="margin-left:18px">전표No</span><span class="v mono">${_esc(d.id)}</span></div>
+              <div class="r"><span class="k">반출일</span><span class="v mono">${dateStr}</span><span class="k" style="margin-left:18px">전표No</span><span class="v mono">${_esc(slipNo)}${pg.part ? ' (' + pg.part + ')' : ''}</span></div>
               <div class="r"><span class="k">외주처</span><span class="v" style="font-weight:700">${_esc(v.name||d.vendor)}</span></div>
-              <div class="r"><span class="k">공정</span><span class="v">${_esc(p.name||d.proc)}</span></div>
+              <div class="r"><span class="k">공정</span><span class="v">${_esc(pg.gp.slip ? procNames.join(' · ') : (p.name||d.proc))}</span></div>
             </div>
             <img class="slip-qr" src="${qr}">
           </div>
           <table>
             <thead><tr><th>품번·품명</th><th>생산LOT</th><th class="c">반출수량</th><th class="c">단중</th><th class="c">반출중량</th><th class="c">파렛트</th></tr></thead>
             <tbody>
+${pg.gp.slip ? R.map(r => `<tr><td class="b">${_esc(r.lt.itemCode||'')} ${_esc(r.im.name||'')}</td><td class="mono">${_esc(r.x.plot_no)}${multiProc ? '<div style="font-size:9px;color:#666;font-weight:400">' + _esc((DB.get('processes', r.x.proc) || {}).name || r.x.proc) + '</div>' : ''}</td><td class="c mono">${(r.x.qty||0).toLocaleString()}</td><td class="c mono">${r.uw ? r.uw + 'kg' : '―'}</td><td class="c mono">${r.tw ? Math.round(r.tw).toLocaleString() + 'kg' : '―'}</td><td class="c mono">${r.pl ? r.pl + ' PLT' : '―'}</td></tr>`).join('') : `
               <tr>
                 <td class="b">${_esc(lot.itemCode||'')} ${_esc(item.name||'')}</td>
                 <td class="mono">${_esc(d.plot_no)}</td>
@@ -21104,13 +21643,15 @@ const printForm = {
                 <td class="c mono">${totalW?Math.round(totalW).toLocaleString()+'kg':'―'}</td>
                 <td class="c mono">${pallets?_esc(pallets)+' PLT':'―'}</td>
               </tr>
+`}
             </tbody>
           </table>
           <div class="totals">
-            <span>총 반출수량 <b class="mono">${(d.qty||0).toLocaleString()} ea</b>${(d.input_mode==='kg' && d.input_value)?` <span style="font-size:10px;color:#666">(계근 ${(+d.input_value).toLocaleString()}kg)</span>`:(d.input_mode==='plt' && d.input_value)?` <span style="font-size:10px;color:#666">(${(+d.input_value).toLocaleString()}plt)</span>`:''}</span>
+            ${pg.gp.slip ? `<span>총 반출수량 <b class="mono">${sumQ.toLocaleString()} ea</b> <span style="font-size:10px;color:#666">(${RA.length}줄${pg.part ? ` · 쪽 ${pg.part} · 이 쪽 ${R.length}줄 ${pgQ.toLocaleString()} ea` : ''})</span></span><span>총 반출중량 <b class="mono">${sumW ? Math.round(sumW).toLocaleString() + ' kg' : '―'}</b></span><span>총 파렛트 <b class="mono">${sumP ? sumP + ' PLT' : '―'}</b></span>` : `<span>총 반출수량 <b class="mono">${(d.qty||0).toLocaleString()} ea</b>${(d.input_mode==='kg' && d.input_value)?` <span style="font-size:10px;color:#666">(계근 ${(+d.input_value).toLocaleString()}kg)</span>`:(d.input_mode==='plt' && d.input_value)?` <span style="font-size:10px;color:#666">(${(+d.input_value).toLocaleString()}plt)</span>`:''}</span>
             <span>총 반출중량 <b class="mono">${totalW?Math.round(totalW).toLocaleString()+' kg':'―'}</b></span>
-            <span>총 파렛트 <b class="mono">${pallets?_esc(pallets)+' PLT':'―'}</b></span>
+            <span>총 파렛트 <b class="mono">${pallets?_esc(pallets)+' PLT':'―'}</b></span>`}
           </div>
+          ${pg.gp.note ? `<div style="font-size:10px;color:#444;margin-top:4px">※ ${_esc(pg.gp.note)}</div>` : ''}
           <!-- ★ v0.16.19 — 당사자 요약 1줄 (bizSummary · A5 과밀 방지) -->
           <div class="party-summary">
             ${bizSummary(co, '공급자')} <span style="color:#ccc;margin:0 6px">·</span> ${bizSummary(v, '외주처')}
@@ -21170,7 +21711,7 @@ const printForm = {
         .slip th:nth-child(6){width:12% !important}   /* 파렛트 */
       }
     `;
-    _openPrint(`외주 반출증 ${dispatches.length}건`, dispatches.map(page).join(''), css, { formKey:'os' });
+    _openPrint(`외주 반출증 ${_groups.length}장 · ${dispatches.filter(x => !(x.os_id && x.void)).length}건`, _pages.map(page).join(''), css, { formKey:'os' });
   },
 
   /* ===== ⑤ 거래명세서 (form-tx.html) — A4, 공급자/공급받는자 보관용 2장 ===== */
@@ -21561,7 +22102,7 @@ const HELP_SECTIONS = [
 <ol><li><b>[외주 반출]</b> → 외주처 · 공정 · LOT · 수량(반출 가능량 자동) · 파렛트 수 → 저장 → <b>반출증</b> 인쇄.</li>
 <li>돌아오면 외주 현황의 <b>[입고]</b> → 양품 · 불량 · 회수 파렛트 → 저장 = 그 공정 실적이 자동으로 생깁니다.</li>
 <li>잘못 넣었으면 [취소] — 연결된 실적·파렛트도 함께 취소됩니다.</li></ol>
-<ul><li>외주 정산(금액)은 <b>마감 › 외주</b>.</li><li>최근 외주 입고 = 최신 10건.</li></ul>`},
+<ul><li><b>[QR 반출]</b> (v0.40.39) — LOT 식별표의 QR 을 찍으면 외주 공정과 반출 가능 수량이 채워집니다 → 위 칸에서 외주처 확인 → 줄마다 체크·수량 → <b>[반출 저장]</b> = 반출증 1장에 여러 줄(단가 없음 · 번호 OS-반출일-기기순번). 나눠 보낼 때는 수량만 줄이세요. 저장은 한 줄씩 확인하며, 결과를 모르는 줄은 같은 요청으로만 다시 보냅니다. 한 번에 한 창에서만 열립니다.</li><li><b>[QR 입고]</b> (v0.40.39) — 반출증의 QR(또는 LOT 식별표)을 찍으면 입고 대기 줄이 나옵니다 → 줄의 [입고] → 수량 확인 후 저장. 일부만 들어왔으면 수량을 줄여 저장하고, 나머지는 다음에 다시 찍어 이어서 입고합니다.</li><li><b>폰은 저장까지만</b> — QR 반출의 반출증 출력은 PC 의 외주 현황에서 합니다.</li><li>외주 정산(금액)은 <b>마감 › 외주</b>.</li><li>최근 외주 입고 = 최신 10건.</li></ul>`},
 { id:'inv', t:'재고 (재고 실사 포함)', pages:['inv'], b:`
 <ul><li><b>품번별 공정 재고</b> — 공정마다 양품 기준 재고 · 고객사·재질·소재 규격(Ø·길이·단중) 표시 · 외주 반출 중 수량 포함.</li>
 <li><b>소재 재고</b> — Heat 별 남은 양 (입고 화면과 같은 계산).</li></ul>
